@@ -9,9 +9,22 @@
   CmsFolder destinationFolder=readFolder(context,destinationFoldername);
   CmsFolder sourceFolder=readFolder(context,source);
   checkPermissions(context,destinationFolder,I_CmsConstants.C_WRITE_ACCESS);
-  newResource=m_vfsDriver.createFolder(context.currentUser(),context.currentProject(),destinationFolder.getId(),CmsUUID.getNullUUID(),destinationResourceName,sourceFolder.getFlags());
+  long dateLastModified=0;
+  long dateCreated=0;
+  CmsUUID userLastModified=context.currentUser().getId();
+  CmsUUID userCreated=context.currentUser().getId();
+  if (preserveTimestaps) {
+    dateLastModified=sourceFolder.getDateLastModified();
+    dateCreated=sourceFolder.getDateCreated();
+    userLastModified=sourceFolder.getUserLastModified();
+    userCreated=sourceFolder.getUserCreated();
+  }
+  newResource=m_vfsDriver.createFolder(context.currentUser(),context.currentProject(),destinationFolder.getId(),CmsUUID.getNullUUID(),destinationResourceName,sourceFolder.getFlags(),dateLastModified,userLastModified,dateCreated,userCreated);
   clearResourceCache();
   writeProperties(context,destination,readProperties(context,source,null,false));
+  if (preserveTimestaps) {
+    touch(context,destination,dateLastModified,userLastModified);
+  }
   ListIterator aceList=getAccessControlEntries(context,sourceFolder,false).listIterator();
   while (aceList.hasNext()) {
     CmsAccessControlEntry ace=(CmsAccessControlEntry)aceList.next();
