@@ -4,15 +4,26 @@
     A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
     A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
   }
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
   A_CmsRequestContext reqCont=cms.getRequestContext();
   String newName=(String)parameters.get(C_PROJECTNEW_NAME);
   String newGroup=(String)parameters.get(C_PROJECTNEW_GROUP);
   String newDescription=(String)parameters.get(C_PROJECTNEW_DESCRIPTION);
   String newManagerGroup=(String)parameters.get(C_PROJECTNEW_MANAGERGROUP);
   String newFolder=(String)parameters.get(C_PROJECTNEW_FOLDER);
+  if (newFolder != null) {
+    CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+    if (newFolder.equals(lang.getLanguageValue("title.rootfolder"))) {
+      newFolder="/";
+    }
+  }
+  String project=reqCont.currentProject().getName();
+  session.putValue(C_PARA_PROJECT,project);
+  reqCont.setCurrentProject(cms.onlineProject().getName());
   CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
   if ((newName != null) && (newGroup != null) && (newDescription != null)&& (newManagerGroup != null)&& (newFolder != null)) {
     try {
+      CmsFolder folder=cms.readFolder(newFolder);
       cms.createProject(newName,newDescription,newGroup,newManagerGroup);
       reqCont.setCurrentProject(newName);
       cms.copyResourceToProject(newFolder);
