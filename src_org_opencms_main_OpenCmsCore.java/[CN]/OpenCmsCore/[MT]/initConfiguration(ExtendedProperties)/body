@@ -57,8 +57,28 @@
     throw e;
   }
   m_defaultUsers=CmsDefaultUsers.initialize(configuration);
+  m_configuration=configuration;
   try {
-    m_driverManager=CmsDriverManager.newInstance(configuration);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : starting");
+    }
+    new CmsFlexCache(configuration);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : finished");
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).warn(". Flex cache init      : non-critical error " + e.toString());
+    }
+  }
+  CmsConfigurationManager configurationManager=new CmsConfigurationManager();
+  configurationManager.loadXmlConfiguration(getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("config/opencms.xml"));
+  CmsVfsConfiguration vfsConfiguation=(CmsVfsConfiguration)configurationManager.getConfiguration(CmsVfsConfiguration.class);
+  m_loaderManager=vfsConfiguation.getLoaderManager();
+  List resourceTypes=vfsConfiguation.getResourceTypes();
+  try {
+    m_driverManager=CmsDriverManager.newInstance(configuration,resourceTypes);
   }
  catch (  Exception e) {
     if (getLog(this).isErrorEnabled()) {
@@ -97,34 +117,6 @@
   setRuntimeProperty(CmsJspLoader.C_LOADER_ERRORPAGECOMMIT,flexErrorPageCommit);
   if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
     getLog(CmsLog.CHANNEL_INIT).info(". JSP errorPage commit : " + (flexErrorPageCommit.booleanValue() ? "enabled" : "disabled"));
-  }
-  try {
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : starting");
-    }
-    new CmsFlexCache(configuration);
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : finished");
-    }
-  }
- catch (  Exception e) {
-    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).warn(". Flex cache init      : non-critical error " + e.toString());
-    }
-  }
-  try {
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". ResourceLoader init  : starting");
-    }
-    m_loaderManager=new CmsLoaderManager(configuration);
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". ResourceLoader init  : finished");
-    }
-  }
- catch (  Exception e) {
-    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).warn(". ResourceLoader init  : non-critical error " + e.toString());
-    }
   }
   try {
     boolean translationEnabled=configuration.getBoolean("directory.translation.enabled",false);
@@ -243,5 +235,4 @@
   m_siteManager=CmsSiteManager.initialize(configuration,adminCms);
   m_searchManager=CmsSearchManager.initialize(configuration,adminCms);
   m_importExportManager=CmsImportExportManager.initialize(configuration,adminCms);
-  m_configuration=configuration;
 }
