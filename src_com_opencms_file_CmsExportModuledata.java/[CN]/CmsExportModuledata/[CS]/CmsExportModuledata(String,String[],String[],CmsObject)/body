@@ -1,0 +1,59 @@
+{
+  m_exportFile=exportFile;
+  m_cms=cms;
+  getExportResource();
+  getXmlConfigFile();
+  Vector modules=new Vector();
+  Vector moduleNames=new Vector();
+  for (int i=0; i < exportModules.length; i++) {
+    String modName=exportModules[i];
+    if (modName != null && !"".equals(modName)) {
+      moduleNames.addElement(exportModules[i]);
+    }
+  }
+  Hashtable moduleExportables=new Hashtable();
+  m_cms.getRegistry().getModuleExportables(moduleExportables);
+  if (moduleNames.size() == 0) {
+    if (exportChannels.length > 0) {
+      Enumeration modElements=moduleExportables.elements();
+      while (modElements.hasMoreElements()) {
+        modules.add(modElements.nextElement());
+      }
+    }
+  }
+ else {
+    modules=moduleNames;
+  }
+  Vector channelNames=new Vector();
+  for (int i=0; i < exportChannels.length; i++) {
+    channelNames.addElement(exportChannels[i]);
+  }
+  if (channelNames.size() != 0) {
+    checkRedundancies(channelNames);
+  }
+ else {
+    Enumeration enumModules=modules.elements();
+    while (enumModules.hasMoreElements()) {
+      String classname=(String)enumModules.nextElement();
+      CmsMasterContent cd=getContentDefinition(classname,new Class[]{CmsObject.class},new Object[]{m_cms});
+      String rootName=cd.getRootChannel();
+      if (rootName != null && !"".equals(rootName)) {
+        channelNames.add(rootName);
+      }
+    }
+    checkRedundancies(channelNames);
+  }
+  exportAllChannels(channelNames);
+  Enumeration enumModules=modules.elements();
+  while (enumModules.hasMoreElements()) {
+    String classname=(String)enumModules.nextElement();
+    this.exportData(classname,m_channelIds);
+  }
+  writeXmlConfigFile();
+  try {
+    m_exportZipStream.close();
+  }
+ catch (  IOException exc) {
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+}

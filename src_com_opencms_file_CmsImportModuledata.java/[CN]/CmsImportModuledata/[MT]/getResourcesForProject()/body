@@ -1,0 +1,48 @@
+{
+  NodeList fileNodes;
+  Element currentElement, currentProperty;
+  String destination, path;
+  Vector resources=new Vector();
+  try {
+    fileNodes=m_docXml.getElementsByTagName(C_EXPORT_TAG_FILE);
+    for (int i=0; i < fileNodes.getLength(); i++) {
+      currentElement=(Element)fileNodes.item(i);
+      destination=getTextNodeValue(currentElement,C_EXPORT_TAG_DESTINATION);
+      path=m_importPath + destination;
+      try {
+        String resource=destination.substring(0,destination.indexOf("/",1) + 1);
+        resource=m_importPath + resource;
+        if ((!resources.contains(resource)) && (!resource.equals(m_importPath))) {
+          try {
+            m_cms.setContextToCos();
+            m_cms.readFolder(resource);
+            m_cms.setContextToVfs();
+            resources.addElement(resource);
+          }
+ catch (          CmsException exc) {
+            m_cms.setContextToVfs();
+            resources.addElement(C_ROOT);
+          }
+        }
+      }
+ catch (      StringIndexOutOfBoundsException exc) {
+      }
+    }
+  }
+ catch (  Exception exc) {
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+  if (m_importZip != null) {
+    try {
+      m_importZip.close();
+    }
+ catch (    IOException exc) {
+      throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+    }
+  }
+  if (resources.contains(C_ROOT)) {
+    resources.removeAllElements();
+    resources.addElement(C_ROOT);
+  }
+  return resources;
+}
