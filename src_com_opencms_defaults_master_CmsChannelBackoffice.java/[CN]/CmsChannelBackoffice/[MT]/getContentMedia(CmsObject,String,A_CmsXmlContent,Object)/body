@@ -1,0 +1,145 @@
+{
+  String content="";
+  System.err.println("");
+  String row="";
+  CmsXmlTemplateFile templateFile=(CmsXmlTemplateFile)doc;
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  CmsMasterContent masterCD=(CmsMasterContent)session.getValue(getContentDefinitionClass().getName());
+  Hashtable parameters=(Hashtable)userObject;
+  String media_action=(String)parameters.get("media_action");
+  media_action=(media_action != null ? media_action.trim() : "");
+  String media_name=(String)parameters.get("media_name");
+  media_name=(media_name != null ? media_name.trim() : "");
+  String media_title=(String)parameters.get("media_alt_text");
+  media_title=(media_title != null ? media_title.trim() : "");
+  String pos=(String)parameters.get("pos");
+  pos=(pos != null ? pos.trim() : "");
+  if (pos.equals("")) {
+    pos=(String)parameters.get("posEdit");
+    pos=(pos != null ? pos.trim() : "");
+  }
+  int posInt=I_CmsConstants.C_UNKNOWN_ID;
+  if (!pos.equals("")) {
+    try {
+      posInt=Integer.parseInt(pos);
+    }
+ catch (    Exception e) {
+      posInt=I_CmsConstants.C_UNKNOWN_ID;
+    }
+  }
+  String media_position=(String)parameters.get("media_position");
+  media_position=(media_position != null ? media_position.trim() : "");
+  int media_positionInt=0;
+  if (!media_position.equals("")) {
+    try {
+      media_positionInt=Integer.parseInt(media_position);
+    }
+ catch (    Exception e) {
+      media_positionInt=0;
+    }
+  }
+  int media_type=0;
+  String media_mimetype="";
+  CmsMasterMedia mediaCD=null;
+  CmsMasterMedia selectedmediaCD=null;
+  Vector dbmedia=masterCD.getMedia();
+  Vector media=null;
+  try {
+    media=(Vector)session.getValue("media");
+  }
+ catch (  Exception e) {
+    e.printStackTrace(System.err);
+  }
+  if (dbmedia != null) {
+    if (media == null) {
+      media=(Vector)dbmedia.clone();
+    }
+    for (int i=0; i < media.size(); i++) {
+      if (posInt == i) {
+        selectedmediaCD=(CmsMasterMedia)media.elementAt(i);
+      }
+    }
+  }
+  if (media_action.equals("delPicture")) {
+    if (selectedmediaCD != null) {
+      masterCD.deleteMedia(selectedmediaCD);
+      media.removeElementAt(posInt);
+    }
+  }
+ else   if (media_action.equals("addPicture") && !media_name.equals("unknown")) {
+    CmsRequestContext reqCont=cms.getRequestContext();
+    Enumeration enum=reqCont.getRequest().getFileNames();
+    String filename="";
+    byte[] mediafile=null;
+    while (enum.hasMoreElements()) {
+      filename=(String)enum.nextElement();
+      if (!filename.equals("unknown")) {
+        mediafile=reqCont.getRequest().getFile(filename);
+        media_mimetype=CmsMasterMedia.computeMimetype(cms,filename);
+        if (!media_mimetype.startsWith("image")) {
+          media_type=1;
+        }
+      }
+    }
+    if (mediafile != null) {
+      mediaCD=new CmsMasterMedia(media_positionInt,0,0,mediafile.length,media_mimetype,media_type,media_title,media_name,"default",mediafile);
+      if (mediaCD != null) {
+        masterCD.addMedia(mediaCD);
+        media.addElement(mediaCD);
+        media_position="";
+      }
+    }
+ else {
+      selectedmediaCD.setName(media_name);
+      selectedmediaCD.setTitle(media_title);
+      selectedmediaCD.setPosition(media_positionInt);
+      media_position="";
+      masterCD.updateMedia(selectedmediaCD);
+      media.insertElementAt(selectedmediaCD,posInt);
+      media.removeElementAt(posInt + 1);
+    }
+  }
+  if (media_action.equals("clear")) {
+    media_position="";
+  }
+  if (media_action.equals("prevPicture")) {
+    templateFile.setData("preview",templateFile.getProcessedDataValue("media_preview",this));
+  }
+ else {
+    System.err.println("prevPicture else");
+    templateFile.setData("preview","");
+  }
+  if (media_action.equals("editPicture")) {
+    media_position="" + selectedmediaCD.getPosition();
+    session.putValue("media_position",media_position);
+    templateFile.setData("media_name",selectedmediaCD.getName());
+    templateFile.setData("posEdit",pos);
+    templateFile.setData("media_alt_text",selectedmediaCD.getTitle());
+    templateFile.setData("media_file",templateFile.getProcessedDataValue("media_edit",this));
+  }
+ else {
+    session.putValue("media_position",media_position);
+    templateFile.setData("media_file",templateFile.getProcessedDataValue("media_upload",this));
+  }
+  if (media != null) {
+    for (int i=0; i < media.size(); i++) {
+      mediaCD=(CmsMasterMedia)media.elementAt(i);
+      templateFile.setData("pos","" + i);
+      templateFile.setData("media_row_name",mediaCD.getName());
+      templateFile.setData("media_title",mediaCD.getTitle());
+      templateFile.setData("media_position","" + mediaCD.getPosition());
+      templateFile.setData("media_size","" + mediaCD.getSize());
+      templateFile.setData("media_type","" + mediaCD.getType());
+      row+=templateFile.getProcessedDataValue("media_row",this);
+    }
+    templateFile.setData("media_line",row);
+  }
+  content=templateFile.getProcessedDataValue("media_content",this);
+  if (media != null) {
+    session.putValue("media",media);
+  }
+  if (selectedmediaCD != null) {
+    session.putValue("selectedmediaCD",selectedmediaCD);
+  }
+  return content;
+}
