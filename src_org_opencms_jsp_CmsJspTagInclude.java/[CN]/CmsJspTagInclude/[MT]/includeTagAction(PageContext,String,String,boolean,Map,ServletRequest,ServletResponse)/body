@@ -1,0 +1,110 @@
+{
+  if (DEBUG) {
+    System.err.println("includeTagAction/1: target=" + target);
+  }
+  CmsFlexController controller=(CmsFlexController)req.getAttribute(CmsFlexController.ATTRIBUTE_NAME);
+  if (target == null) {
+    target=controller.getCmsObject().getRequestContext().getUri();
+    if (DEBUG) {
+      System.err.println("includeTagAction/2: target=" + target);
+    }
+  }
+  Map parameterMap=new HashMap();
+  if (paramMap != null) {
+    parameterMap.putAll(paramMap);
+  }
+  if (element != null) {
+    addParameter(parameterMap,CmsJspTagTemplate.C_TEMPLATE_ELEMENT,element,true);
+    if (!("body".equals(element) || "(default)".equals(element))) {
+      addParameter(parameterMap,CmsXmlTemplate.C_FRAME_SELECTOR,element,true);
+    }
+  }
+  boolean isPageTarget=false;
+  boolean isNewPageTarget=false;
+  try {
+    target=CmsLinkManager.getAbsoluteUri(target,controller.getCurrentRequest().getElementUri());
+    CmsResource resource=controller.getCmsObject().readFileHeader(target);
+    isNewPageTarget=(CmsResourceTypeNewPage.C_RESOURCE_TYPE_ID == resource.getType());
+    if (!isNewPageTarget) {
+      isPageTarget=((CmsResourceTypePage.C_RESOURCE_TYPE_ID == resource.getType()));
+    }
+  }
+ catch (  CmsException e) {
+    throw new JspException("File not found: " + target,e);
+  }
+  String bodyAttribute=(String)controller.getCmsObject().getRequestContext().getAttribute(I_CmsConstants.C_XML_BODY_ELEMENT);
+  if (bodyAttribute == null) {
+    if (isPageTarget) {
+      if (!target.startsWith(I_CmsWpConstants.C_VFS_PATH_BODIES)) {
+        target=I_CmsWpConstants.C_VFS_PATH_BODIES + target.substring(1);
+      }
+    }
+    if (isPageTarget || isNewPageTarget) {
+      addParameter(parameterMap,CmsXmlTemplateLoader.C_ELEMENT_REPLACE,"body:" + target,true);
+      target=C_BODYLOADER_URI;
+    }
+  }
+ else {
+    if (target.equals(controller.getCmsObject().getRequestContext().getUri())) {
+      addParameter(parameterMap,CmsXmlTemplateLoader.C_ELEMENT_REPLACE,"body:" + bodyAttribute,true);
+      target=C_BODYLOADER_URI;
+    }
+ else {
+      if (isPageTarget || isNewPageTarget) {
+        if (isPageTarget && !target.startsWith(I_CmsWpConstants.C_VFS_PATH_BODIES)) {
+          target=I_CmsWpConstants.C_VFS_PATH_BODIES + target.substring(1);
+        }
+        addParameter(parameterMap,CmsXmlTemplateLoader.C_ELEMENT_REPLACE,"body:" + target,true);
+        target=C_BODYLOADER_URI;
+      }
+    }
+  }
+  if (DEBUG) {
+    System.err.println("includeTagAction/3: target=" + target + ", editable="+ editable);
+  }
+  Map oldParamterMap=req.getParameterMap();
+  String editMode=null;
+  String editArea=null;
+  if (editable) {
+    I_CmsEditorActionHandler actionClass=(I_CmsEditorActionHandler)OpenCms.getRuntimeProperty(I_CmsEditorActionHandler.EDITOR_ACTION);
+    editMode=actionClass.getEditMode(controller.getCmsObject(),target);
+    editArea=(String)context.getAttribute(I_CmsEditorActionHandler.C_EDIT_AREA);
+  }
+  try {
+    if (editMode != null && editArea != null) {
+      req.setAttribute(I_CmsEditorActionHandler.C_EDIT_BODY,element);
+      req.setAttribute(I_CmsEditorActionHandler.C_EDIT_TARGET,target);
+      includeElement(context,editArea,I_CmsEditorActionHandler.C_EDIT_STARTAREA + "_" + editMode,req,res);
+    }
+    controller.getCurrentRequest().addParameterMap(parameterMap);
+    context.getOut().print(CmsFlexResponse.C_FLEX_CACHE_DELIMITER);
+    controller.getCurrentResponse().addToIncludeList(target,parameterMap);
+    controller.getCurrentRequest().getRequestDispatcher(target).include(req,res);
+    if (editMode != null && editArea != null) {
+      includeElement(context,editArea,I_CmsEditorActionHandler.C_EDIT_ENDAREA + "_" + editMode,req,res);
+    }
+  }
+ catch (  javax.servlet.ServletException e) {
+    if (DEBUG) {
+      System.err.println("JspTagInclude: ServletException in Jsp 'include' tag processing: " + e);
+    }
+    if (DEBUG) {
+      System.err.println(com.opencms.util.Utils.getStackTrace(e));
+    }
+    throw new JspException(imprintExceptionMessage(e,target),e);
+  }
+catch (  java.io.IOException e) {
+    if (DEBUG) {
+      System.err.println("JspTagInclude: IOException in Jsp 'include' tag processing: " + e);
+    }
+    if (DEBUG) {
+      System.err.println(com.opencms.util.Utils.getStackTrace(e));
+    }
+    throw new JspException(imprintExceptionMessage(e,target),e);
+  }
+ finally {
+    if (oldParamterMap != null) {
+      controller.getCurrentRequest().setParameterMap(oldParamterMap);
+    }
+  }
+}
