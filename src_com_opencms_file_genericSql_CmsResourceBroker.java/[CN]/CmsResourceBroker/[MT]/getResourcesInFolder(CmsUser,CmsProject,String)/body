@@ -1,0 +1,46 @@
+{
+  CmsFolder onlineFolder=null;
+  CmsFolder offlineFolder=null;
+  Vector resources=new Vector();
+  int resId1, resId2;
+  try {
+    onlineFolder=readFolder(currentUser,onlineProject(currentUser,currentProject),folder);
+    if (onlineFolder.getState() == C_STATE_DELETED) {
+      onlineFolder=null;
+    }
+  }
+ catch (  CmsException exc) {
+  }
+  try {
+    offlineFolder=readFolder(currentUser,currentProject,folder);
+    if (offlineFolder.getState() == C_STATE_DELETED) {
+      offlineFolder=null;
+    }
+  }
+ catch (  CmsException exc) {
+  }
+  if ((offlineFolder == null) && (onlineFolder == null)) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ folder,CmsException.C_NOT_FOUND);
+  }
+ else   if (onlineFolder == null) {
+    resId1=offlineFolder.getResourceId();
+    resId2=offlineFolder.getResourceId();
+  }
+ else   if (offlineFolder == null) {
+    resId1=onlineFolder.getResourceId();
+    resId2=onlineFolder.getResourceId();
+  }
+ else {
+    resId1=onlineFolder.getResourceId();
+    resId2=offlineFolder.getResourceId();
+  }
+  resources=m_dbAccess.getResourcesInFolder(resId1,resId2);
+  Vector retValue=new Vector(resources.size());
+  for (Enumeration e=resources.elements(); e.hasMoreElements(); ) {
+    CmsResource res=(CmsResource)e.nextElement();
+    if (accessOther(currentUser,currentProject,res,C_ACCESS_PUBLIC_READ + C_ACCESS_PUBLIC_VISIBLE) || accessOwner(currentUser,currentProject,res,C_ACCESS_OWNER_READ + C_ACCESS_OWNER_VISIBLE) || accessGroup(currentUser,currentProject,res,C_ACCESS_GROUP_READ + C_ACCESS_GROUP_VISIBLE)) {
+      retValue.addElement(res);
+    }
+  }
+  return retValue;
+}
