@@ -4,8 +4,8 @@
   if (info != null && "dep_out".equals(info)) {
   }
   String action=(String)parameters.get("action");
-  boolean active=OpenCms.getRegistry().getModuleParameterBoolean("com.opencms.modules.search.lucene","active");
-  boolean indexPDFs=OpenCms.getRegistry().getModuleParameterBoolean("com.opencms.modules.search.lucene","indexPDFs");
+  boolean active=OpenCms.getRegistry().getModuleParameterBoolean("com.opencms.modules.search.lucene",ControlLucene.C_ACTIVE);
+  boolean indexPDFs=OpenCms.getRegistry().getModuleParameterBoolean("com.opencms.modules.search.lucene",ControlLucene.C_INDEXPDFS);
   if (debug)   System.err.println("action=" + action);
   if ((action == null) || ("".equals(action))) {
     Vector files=cms.getAllExportLinks();
@@ -20,10 +20,41 @@
     if (indexPDFs)     xmlTemplateDocument.setData("pdffiles",pdf + "");
  else     xmlTemplateDocument.setData("pdffiles"," - ");
     if (!active)     templateSelector="not_active";
+    ThreadGroup top=Thread.currentThread().getThreadGroup();
+    while (top.getParent() != null)     top=top.getParent();
+    threadArray=new Thread[top.activeCount()];
+    top.enumerate(threadArray);
+    for (int i=0; i < threadArray.length; i++) {
+      if (threadArray[i] != null) {
+        if (debug)         System.out.println(threadArray[i].getName());
+        if (threadArray[i].getName().equalsIgnoreCase(ControlLucene.C_INDEXING)) {
+          templateSelector="allready_indexing";
+        }
+      }
+    }
   }
  else {
-    ControlLucene.indexProject(cms);
+    if (action != null && action.equalsIgnoreCase("create"))     ControlLucene.indexProject(cms);
+    if (action != null && action.equalsIgnoreCase("delete"))     ControlLucene.createIndexDirectory();
+    if (action != null && action.equalsIgnoreCase("stop")) {
+      for (int i=0; i < threadArray.length; i++) {
+        if (threadArray[i] != null) {
+          if (debug)           System.out.println(threadArray[i].getName());
+          if (threadArray[i].getName().equalsIgnoreCase(ControlLucene.C_INDEXING)) {
+            threadArray[i].interrupt();
+            try {
+              threadArray[i].join();
+            }
+ catch (            Exception ex) {
+              ex.printStackTrace();
+            }
+            ControlLucene.createIndexDirectory();
+          }
+        }
+      }
+    }
     templateSelector="done";
   }
+  if (debug)   System.err.println("templateSelector=" + templateSelector);
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }

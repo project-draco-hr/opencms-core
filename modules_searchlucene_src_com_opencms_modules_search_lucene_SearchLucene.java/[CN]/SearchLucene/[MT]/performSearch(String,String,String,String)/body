@@ -1,6 +1,6 @@
 {
   if (debug) {
-    System.err.println("indexPath=" + indexPath + " queryString="+ queryString+ " method="+ method);
+    System.err.println("SearchLucene.performSearch.indexPath=" + indexPath + " queryString="+ queryString+ " method="+ method);
   }
   Hits hits;
   Query query;
@@ -8,9 +8,14 @@
   Vector res=new Vector();
   Hashtable oneHit;
   buildQueryString(method);
-  Searcher searcher=new IndexSearcher(indexPath);
-  if (m_queryString.length() == 0)   return null;
-  query=QueryParser.parse(m_queryString,"body",new StopAnalyzer());
+  if (m_queryString.length() == 0) {
+    return null;
+  }
+  query=QueryParser.parse(m_queryString,"body",new StandardAnalyzer());
+  if (debug) {
+    System.err.println("SearchLucene.performSearch.query=" + query.toString());
+    System.err.println("SearchLucene.performSearch.query body=" + query.toString(m_queryString));
+  }
   if (m_from != 0) {
     if (m_to != 0) {
       dateFilter=new DateFilter("modified",m_from,m_to);
@@ -22,6 +27,7 @@
  else   if (m_to != 0) {
     dateFilter=DateFilter.Before("modified",m_to);
   }
+  Searcher searcher=new IndexSearcher(indexPath);
   if (dateFilter == null) {
     hits=searcher.search(query);
   }
@@ -31,8 +37,8 @@
   int countHits=hits.length();
   String excerpt="";
   String title="";
-  for (int i=0; i < countHits; i++) {
-    excerpt=LuceneTools.highlightTerms(hits.doc(i).get("content"),new TermHighlighter(),query,new StopAnalyzer());
+  for (int i=0; i < countHits && i < 1000; i++) {
+    excerpt=LuceneTools.highlightTerms(hits.doc(i).get("content"),new TermHighlighter(),query,new StandardAnalyzer());
     excerpt=cutExcerpt(excerpt);
     title=hits.doc(i).get("title");
     title=replaceAll(title,"\\n","&nbsp;");
@@ -47,5 +53,6 @@
     oneHit.put("length",hits.doc(i).get("length"));
     res.add(oneHit);
   }
+  searcher.close();
   return res;
 }
