@@ -1,0 +1,47 @@
+{
+  CmsObject cms=new CmsObject();
+  CmsUser user=m_driverManager.readUser(userName);
+  CmsProject project=m_driverManager.readProject(projectId);
+  String requestedResource=null;
+  if (req != null) {
+    requestedResource=req.getPathInfo();
+  }
+  if (requestedResource == null) {
+    requestedResource="/";
+  }
+  String remoteAddr;
+  if (req != null) {
+    remoteAddr=req.getHeader(I_CmsConstants.C_REQUEST_FORWARDED_FOR);
+    if (remoteAddr == null) {
+      remoteAddr=req.getRemoteAddr();
+    }
+  }
+ else {
+    remoteAddr=I_CmsConstants.C_IP_LOCALHOST;
+  }
+  Locale locale;
+  if (getLocaleManager() != null) {
+    String localeStr;
+    if ((req != null) && ((localeStr=req.getParameter(C_PARAMETER_LOCALE)) != null)) {
+      locale=CmsLocaleManager.getLocale(localeStr);
+    }
+ else     if (requestedResource.startsWith(I_CmsWpConstants.C_VFS_PATH_WORKPLACE) || requestedResource.startsWith(I_CmsWpConstants.C_VFS_PATH_LOGIN)) {
+      locale=getWorkplaceManager().getLocale(req,user,project,requestedResource);
+    }
+ else {
+      locale=getLocaleManager().getLocaleHandler().getLocale(req,user,project,requestedResource);
+    }
+    if (locale == null) {
+      locale=OpenCms.getLocaleManager().getDefaultLocale();
+      if (OpenCms.getLog(this).isDebugEnabled()) {
+        OpenCms.getLog(this).debug("No locale found - using default: " + locale);
+      }
+    }
+  }
+ else {
+    locale=Locale.ENGLISH;
+  }
+  CmsRequestContext context=new CmsRequestContext(user,project,requestedResource,currentSite,locale,getSystemInfo().getDefaultEncoding(),remoteAddr,m_directoryTranslator,m_fileTranslator);
+  cms.init(m_driverManager,context,sessionStorage);
+  return cms;
+}
