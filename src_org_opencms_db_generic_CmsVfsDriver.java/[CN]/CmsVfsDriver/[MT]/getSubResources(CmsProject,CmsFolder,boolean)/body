@@ -1,0 +1,39 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  ResultSet res=null;
+  CmsResource currentResource=null;
+  List subResources=(List)new ArrayList();
+  String query=null;
+  String resourceTypeClause=null;
+  String orderClause=" ORDER BY CMS_T_STRUCTURE.RESOURCE_NAME";
+  if (getSubFolders) {
+    resourceTypeClause=" AND CMS_T_RESOURCES.RESOURCE_TYPE=0";
+  }
+ else {
+    resourceTypeClause=" AND CMS_T_RESOURCES.RESOURCE_TYPE<>0";
+  }
+  try {
+    conn=m_sqlManager.getConnection(currentProject);
+    query=m_sqlManager.get(currentProject,"C_RESOURCES_GET_SUBRESOURCES") + m_sqlManager.replaceTableKey(currentProject.getId(),resourceTypeClause + orderClause);
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,query);
+    stmt.setString(1,parentFolder.getId().toString());
+    res=stmt.executeQuery();
+    while (res.next()) {
+      if (getSubFolders) {
+        currentResource=createCmsFolderFromResultSet(res,currentProject.getId(),false);
+      }
+ else {
+        currentResource=createCmsFileFromResultSet(res,currentProject.getId(),false,false);
+      }
+      subResources.add(currentResource);
+    }
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,res);
+  }
+  return subResources;
+}
