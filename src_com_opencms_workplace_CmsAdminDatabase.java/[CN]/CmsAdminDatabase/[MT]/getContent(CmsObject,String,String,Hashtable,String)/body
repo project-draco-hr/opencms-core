@@ -6,12 +6,41 @@
   }
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
   I_CmsSession session=cms.getRequestContext().getSession(true);
+  CmsXmlLanguageFile lang=xmlTemplateDocument.getLanguageFile();
   String fileName=(String)parameters.get("filename");
   String existingFile=(String)parameters.get("existingfile");
   String action=(String)parameters.get("action");
   String allResources=(String)parameters.get("ALLRES");
   String allModules=(String)parameters.get("ALLMOD");
   String step=(String)parameters.get("step");
+  if ("showResult".equals(action)) {
+    CmsAdminDatabaseImportThread doTheWork=(CmsAdminDatabaseImportThread)session.getValue(C_DATABASE_THREAD);
+    if (doTheWork.isAlive()) {
+      xmlTemplateDocument.setData("endMethod","");
+      xmlTemplateDocument.setData("text","");
+    }
+ else {
+      xmlTemplateDocument.setData("endMethod",xmlTemplateDocument.getDataValue("endMethod"));
+      xmlTemplateDocument.setData("autoUpdate","");
+      xmlTemplateDocument.setData("text",lang.getDataValue("database.label.importend"));
+    }
+    xmlTemplateDocument.setData("data",doTheWork.getReportUpdate());
+    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"updateReport");
+  }
+ else   if ("showExportResult".equals(action)) {
+    CmsAdminDatabaseExportThread doTheWork=(CmsAdminDatabaseExportThread)session.getValue(C_DATABASE_THREAD);
+    if (doTheWork.isAlive()) {
+      xmlTemplateDocument.setData("endMethod","");
+      xmlTemplateDocument.setData("text","");
+    }
+ else {
+      xmlTemplateDocument.setData("endMethod",xmlTemplateDocument.getDataValue("endMethod"));
+      xmlTemplateDocument.setData("autoUpdate","");
+      xmlTemplateDocument.setData("text",lang.getDataValue("database.label.exportend"));
+    }
+    xmlTemplateDocument.setData("data",doTheWork.getReportUpdate());
+    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"updateReport");
+  }
   if (action == null) {
     if (!cms.getRequestContext().currentProject().equals(cms.onlineProject())) {
       xmlTemplateDocument.setData("nounchanged",xmlTemplateDocument.getProcessedDataValue("nounchangedbox",this,parameters));
@@ -48,7 +77,6 @@
     if ("export".equals(action)) {
       Vector resourceNames=parseResources(allResources);
       String[] exportPaths=new String[resourceNames.size()];
-      CmsXmlLanguageFile lang=xmlTemplateDocument.getLanguageFile();
       for (int i=0; i < resourceNames.size(); i++) {
         if (lang.getLanguageValue("title.rootfolder").equals(resourceNames.elementAt(i))) {
           resourceNames.setElementAt("/",i);
@@ -74,12 +102,11 @@
       doExport.start();
       session.putValue(C_DATABASE_THREAD,doExport);
       xmlTemplateDocument.setData("time","10");
-      templateSelector="wait";
+      templateSelector="showresult";
     }
  else     if ("exportmoduledata".equals(action)) {
       Vector channelNames=parseResources(allResources);
       String[] exportChannels=new String[channelNames.size()];
-      CmsXmlLanguageFile lang=xmlTemplateDocument.getLanguageFile();
       for (int i=0; i < channelNames.size(); i++) {
         if (lang.getLanguageValue("title.rootfolder").equals(channelNames.elementAt(i))) {
           channelNames.setElementAt("/",i);
@@ -116,7 +143,7 @@
         doImport.start();
         session.putValue(C_DATABASE_THREAD,doImport);
         xmlTemplateDocument.setData("time","10");
-        templateSelector="wait";
+        templateSelector="showresult";
       }
     }
   }
