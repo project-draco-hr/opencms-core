@@ -1,0 +1,33 @@
+{
+  String folderName=null;
+  String resourceName=null;
+  boolean isFolder=(resourceType == C_TYPE_FOLDER);
+  if (isFolder) {
+    if (!newResourceName.endsWith(C_FOLDER_SEPARATOR))     newResourceName+=C_FOLDER_SEPARATOR;
+    folderName=newResourceName.substring(0,newResourceName.lastIndexOf(C_FOLDER_SEPARATOR,newResourceName.length() - 2) + 1);
+    resourceName=newResourceName.substring(folderName.length(),newResourceName.length() - 1);
+  }
+ else {
+    folderName=newResourceName.substring(0,newResourceName.lastIndexOf(C_FOLDER_SEPARATOR,newResourceName.length()) + 1);
+    resourceName=newResourceName.substring(folderName.length(),newResourceName.length());
+  }
+  validFilename(resourceName);
+  CmsFolder parentFolder=readFolder(currentUser,currentProject,folderName);
+  if (accessCreate(currentUser,currentProject,(CmsResource)parentFolder)) {
+    CmsUser owner=this.readUser(currentUser,currentProject,ownername);
+    CmsGroup group=this.readGroup(currentUser,currentProject,groupname);
+    if (filecontent == null) {
+      filecontent=new byte[0];
+    }
+    CmsResource newResource=new CmsResource(C_UNKNOWN_ID,parentFolder.getResourceId(),C_UNKNOWN_ID,newResourceName,resourceType,0,owner.getId(),group.getId(),currentProject.getId(),accessFlags,C_STATE_NEW,currentUser.getId(),launcherType,launcherClassname,lastmodified,lastmodified,currentUser.getId(),filecontent.length,currentProject.getId());
+    newResource.setDateLastModified(lastmodified);
+    newResource=m_dbAccess.createResource(currentProject,onlineProject(currentUser,currentProject),newResource,filecontent,currentUser.getId(),isFolder);
+    this.clearResourceCache(newResourceName,currentProject);
+    m_dbAccess.writeProperties(propertyinfos,currentProject.getId(),newResource,newResource.getType(),true);
+    fileSystemChanged(true);
+    return newResource;
+  }
+ else {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ newResourceName,CmsException.C_NO_ACCESS);
+  }
+}

@@ -1,0 +1,31 @@
+{
+  if (!newFolderName.endsWith(C_FOLDER_SEPARATOR))   newFolderName+=C_FOLDER_SEPARATOR;
+  String folderName=newFolderName.substring(0,newFolderName.lastIndexOf(C_FOLDER_SEPARATOR,newFolderName.length() - 2) + 1);
+  String resourceName=newFolderName.substring(folderName.length(),newFolderName.length() - 1);
+  validFilename(resourceName);
+  CmsFolder cmsFolder=readFolder(currentUser,currentProject,folderName);
+  if (accessCreate(currentUser,currentProject,(CmsResource)cmsFolder)) {
+    CmsFolder newFolder=m_dbAccess.createFolder(currentUser,currentProject,cmsFolder.getResourceId(),C_UNKNOWN_ID,newFolderName,0);
+    Hashtable startSettings=null;
+    Integer accessFlags=null;
+    startSettings=(Hashtable)currentUser.getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
+    if (startSettings != null) {
+      accessFlags=(Integer)startSettings.get(C_START_ACCESSFLAGS);
+      if (accessFlags != null) {
+        newFolder.setAccessFlags(accessFlags.intValue());
+      }
+    }
+    if (currentGroup != null) {
+      newFolder.setGroupId(currentGroup.getId());
+    }
+    newFolder.setState(C_STATE_NEW);
+    m_dbAccess.writeFolder(currentProject,newFolder,false);
+    this.clearResourceCache(newFolderName,currentProject);
+    m_dbAccess.writeProperties(propertyinfos,currentProject.getId(),newFolder,newFolder.getType());
+    fileSystemChanged(true);
+    return newFolder;
+  }
+ else {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ newFolderName,CmsException.C_NO_ACCESS);
+  }
+}

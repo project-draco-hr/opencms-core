@@ -1,0 +1,75 @@
+{
+  CmsResource importedResource=null;
+  destination=importPath + destination;
+  if (!destination.endsWith(C_FOLDER_SEPARATOR))   destination+=C_FOLDER_SEPARATOR;
+  boolean changed=true;
+  CmsUser resowner=null;
+  CmsGroup resgroup=null;
+  try {
+    resowner=cms.readUser(user);
+  }
+ catch (  CmsException e) {
+    if (DEBUG > 0)     System.err.println("[" + this.getClass().getName() + ".importResource/1] User "+ user+ " not found");
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".importResource/1] User "+ user+ " not found");
+    }
+    resowner=cms.getRequestContext().currentUser();
+  }
+  try {
+    resgroup=cms.readGroup(group);
+  }
+ catch (  CmsException e) {
+    if (DEBUG > 0)     System.err.println("[" + this.getClass().getName() + ".importResource/2] Group "+ group+ " not found");
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".importResource/2] Group "+ group+ " not found");
+    }
+    resgroup=cms.getRequestContext().currentGroup();
+  }
+  try {
+    importedResource=cms.doImportResource(destination,C_TYPE_FOLDER,properties,C_UNKNOWN_LAUNCHER_ID,C_UNKNOWN_LAUNCHER,resowner.getName(),resgroup.getName(),Integer.parseInt(access),lastmodified,new byte[0]);
+    if (importedResource != null) {
+      changed=false;
+    }
+  }
+ catch (  CmsException e) {
+  }
+  if (changed) {
+    changed=false;
+    importedResource=cms.readFolder(destination);
+    Map oldProperties=cms.readPropertiesMap(importedResource.getAbsolutePath());
+    if (oldProperties == null) {
+      oldProperties=new HashMap();
+    }
+    if (properties == null) {
+      properties=new Hashtable();
+    }
+    if (properties.size() > 0) {
+      if (oldProperties.size() != properties.size()) {
+        changed=true;
+      }
+ else {
+        Iterator i=properties.keySet().iterator();
+        while (i.hasNext()) {
+          String curKey=(String)i.next();
+          String value=(String)properties.get(curKey);
+          String oldValue=(String)oldProperties.get(curKey);
+          if ((oldValue == null) || !(value.trim().equals(oldValue.trim()))) {
+            changed=true;
+            break;
+          }
+        }
+      }
+    }
+    if (importedResource.getAccessFlags() != Integer.parseInt(access) || importedResource.getOwnerId() != resowner.getId() || importedResource.getGroupId() != resgroup.getId()) {
+      changed=true;
+    }
+    if (importedResource.getType() != cms.getResourceType(type).getResourceType()) {
+      changed=true;
+    }
+    if (changed) {
+      lockResource(cms,importedResource.getAbsolutePath(),true);
+      cms.doWriteResource(importedResource.getAbsolutePath(),properties,resowner.getName(),resgroup.getName(),Integer.parseInt(access),C_TYPE_FOLDER,new byte[0]);
+    }
+  }
+  return importedResource;
+}

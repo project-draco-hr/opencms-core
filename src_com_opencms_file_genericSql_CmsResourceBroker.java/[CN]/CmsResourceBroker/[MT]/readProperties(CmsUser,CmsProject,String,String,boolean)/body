@@ -1,0 +1,41 @@
+{
+  CmsResource res;
+  try {
+    res=readFileHeader(currentUser,currentProject,resource);
+  }
+ catch (  CmsException exc) {
+    if (currentProject.equals(onlineProject(currentUser,currentProject))) {
+      throw exc;
+    }
+ else {
+      res=readFileHeader(currentUser,onlineProject(currentUser,currentProject),resource);
+    }
+  }
+  if (!accessRead(currentUser,currentProject,res)) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ resource,CmsException.C_NO_ACCESS);
+  }
+  Map returnValue=null;
+  String cacheKey=getCacheKey("properties_" + search,currentProject,res.getResourceName());
+  returnValue=(Map)m_propertyCache.get(cacheKey);
+  if (returnValue == null) {
+    if (search) {
+      boolean cont;
+      siteRoot+="/";
+      returnValue=new HashMap();
+      do {
+        Map parentValue=readProperties(currentUser,currentProject,resource,siteRoot,false);
+        parentValue.putAll(returnValue);
+        returnValue.clear();
+        returnValue=parentValue;
+        cont=(!siteRoot.equals(resource));
+        if (cont)         resource=CmsResource.getParent(resource);
+      }
+ while (cont);
+    }
+ else {
+      returnValue=m_dbAccess.readProperties(currentProject.getId(),res,res.getType());
+    }
+    m_propertyCache.put(cacheKey,returnValue);
+  }
+  return returnValue;
+}
