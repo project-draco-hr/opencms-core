@@ -1,0 +1,97 @@
+{
+  byte[] value=null;
+  PreparedStatement statement=null;
+  PreparedStatement statement2=null;
+  PreparedStatement nextStatement=null;
+  Connection con=null;
+  ResultSet res=null;
+  try {
+    ByteArrayOutputStream bout=new ByteArrayOutputStream();
+    ObjectOutputStream oout=new ObjectOutputStream(bout);
+    oout.writeObject(data);
+    oout.close();
+    value=bout.toByteArray();
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareStatement(m_cq.get("C_ORACLE_SESSION_FORINSERT"));
+    statement.setString(1,sessionId);
+    statement.setTimestamp(2,new java.sql.Timestamp(System.currentTimeMillis()));
+    statement.executeUpdate();
+    statement.close();
+    statement2=con.prepareStatement(m_cq.get("C_ORACLE_SESSION_FORUPDATE"));
+    statement2.setString(1,sessionId);
+    con.setAutoCommit(false);
+    res=statement2.executeQuery();
+    while (res.next()) {
+      oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("SESSION_DATA");
+      ByteArrayInputStream instream=new ByteArrayInputStream(value);
+      OutputStream outstream=blob.getBinaryOutputStream();
+      byte[] chunk=new byte[blob.getChunkSize()];
+      int i=-1;
+      while ((i=instream.read(chunk)) != -1) {
+        outstream.write(chunk,0,i);
+      }
+      instream.close();
+      outstream.close();
+    }
+    statement2.close();
+    res.close();
+    nextStatement=con.prepareStatement(m_cq.get("C_COMMIT"));
+    nextStatement.execute();
+    nextStatement.close();
+    con.setAutoCommit(true);
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+catch (  IOException e) {
+    throw new CmsException("[" + this.getClass().getName() + "]:"+ CmsException.C_SERIALIZATION,e);
+  }
+ finally {
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (statement2 != null) {
+      try {
+        statement2.close();
+      }
+ catch (      SQLException exc) {
+      }
+      try {
+        nextStatement=con.prepareStatement(m_cq.get("C_ROLLBACK"));
+        nextStatement.execute();
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (nextStatement != null) {
+      try {
+        nextStatement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.setAutoCommit(true);
+      }
+ catch (      SQLException se) {
+      }
+      try {
+        con.close();
+      }
+ catch (      SQLException e) {
+      }
+    }
+  }
+}
