@@ -1,0 +1,40 @@
+{
+  StringBuffer list=new StringBuffer();
+  ArrayList getMethods=null;
+  Hashtable parameters=(Hashtable)userObject;
+  CmsXmlTemplateFile template=(CmsXmlTemplateFile)doc;
+  String contentDefinitionName=template.getDataValue(C_CONTENTDEFINITION_CLASS_DATABLOCK);
+  String filterMethodName=template.getDataValue(C_FILTERMETHOD_DATABLOCK);
+  try {
+    Class cdClass=Class.forName(contentDefinitionName);
+    String userParameter=getUserParameter(parameters,tagcontent);
+    Vector cdObjects=invokeFilterMethod(cms,cdClass,filterMethodName,userParameter);
+    if (template.hasData(C_METHODS_TO_USE_DATABLOCK)) {
+      String datablockContent=template.getDataValue(C_METHODS_TO_USE_DATABLOCK);
+      StringTokenizer tokenizer=new StringTokenizer(datablockContent,",");
+      int tokens=tokenizer.countTokens();
+      String[] names=new String[tokens];
+      for (int i=0; i < tokens; i++) {
+        names[i]=tokenizer.nextToken().trim();
+      }
+      getMethods=getGetMethodsByName(cdClass,names);
+    }
+ else {
+      getMethods=getGetMethods(cdClass);
+    }
+    int size=cdObjects.size();
+    for (int i=0; i < size; i++) {
+      setDatablocks(template,(A_CmsContentDefinition)cdObjects.elementAt(i),getMethods);
+      list.append(template.getProcessedDataValue(C_LISTENTRY_DATABLOCK,this));
+    }
+  }
+ catch (  Exception e) {
+    if (e instanceof CmsException) {
+      throw (CmsException)e;
+    }
+ else {
+      throw new CmsException(e.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,e);
+    }
+  }
+  return list.toString();
+}

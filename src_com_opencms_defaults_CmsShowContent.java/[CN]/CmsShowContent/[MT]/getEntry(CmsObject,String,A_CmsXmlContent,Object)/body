@@ -1,0 +1,58 @@
+{
+  CmsXmlTemplateFile template=(CmsXmlTemplateFile)doc;
+  String paramId=null;
+  if (tagcontent != null && !tagcontent.trim().equals("")) {
+    paramId=tagcontent;
+  }
+ else {
+    paramId=(String)((Hashtable)userObject).get(C_ID_PARAMETER);
+  }
+  Integer id=null;
+  if (paramId != null) {
+    try {
+      id=new Integer(paramId);
+    }
+ catch (    NumberFormatException e) {
+      throw new CmsException(C_NON_NUMERICAL_ID_PARAMETER,CmsException.C_UNKNOWN_EXCEPTION);
+    }
+  }
+ else {
+    throw new CmsException(C_MISSING_ID_PARAMETER,CmsException.C_UNKNOWN_EXCEPTION);
+  }
+  String cdClassname=template.getDataValue(C_CONTENTDEFINITION_CLASS_DATABLOCK);
+  try {
+    ArrayList getMethods=null;
+    Class cdClass=Class.forName(cdClassname);
+    Constructor constructor=cdClass.getConstructor(new Class[]{CmsObject.class,Integer.class});
+    A_CmsContentDefinition cdObject=(A_CmsContentDefinition)constructor.newInstance(new Object[]{cms,id});
+    if (template.hasData(C_METHODS_TO_USE_DATABLOCK)) {
+      String datablockContent=template.getDataValue(C_METHODS_TO_USE_DATABLOCK);
+      StringTokenizer tokenizer=new StringTokenizer(datablockContent,",");
+      int tokens=tokenizer.countTokens();
+      String[] names=new String[tokens];
+      for (int i=0; i < tokens; i++) {
+        names[i]=tokenizer.nextToken().trim();
+      }
+      getMethods=getGetMethodsByName(cdClass,names);
+    }
+ else {
+      getMethods=getGetMethods(cdClass);
+    }
+    setDatablocks(template,cdObject,getMethods);
+  }
+ catch (  InvocationTargetException e) {
+    throw new CmsException(C_CONSTRUCTOR_THROWED_EXCEPTION,CmsException.C_UNKNOWN_EXCEPTION,(Exception)e.getTargetException());
+  }
+catch (  ClassCastException e) {
+    throw new CmsException(C_CONSTRUCTOR_IS_NOT_SUBCLASS_OF_A_CMSCONTENTDEFINITION,CmsException.C_UNKNOWN_EXCEPTION,e);
+  }
+catch (  Exception e) {
+    if (e instanceof CmsException) {
+      throw (CmsException)e;
+    }
+ else {
+      throw new CmsException(e.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,e);
+    }
+  }
+  return null;
+}
