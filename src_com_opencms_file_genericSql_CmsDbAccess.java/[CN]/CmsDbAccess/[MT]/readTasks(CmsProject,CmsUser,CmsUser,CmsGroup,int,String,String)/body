@@ -3,6 +3,7 @@
   Vector tasks=new Vector();
   CmsTask task=null;
   ResultSet recset=null;
+  Connection con=null;
   String sqlstr="SELECT * FROM " + m_cq.C_TABLENAME_TASK + " WHERE ";
   if (project != null) {
     sqlstr=sqlstr + m_cq.C_TASK_ROOT + "="+ project.getTaskId();
@@ -46,7 +47,8 @@
   }
   Statement statement=null;
   try {
-    statement=m_pool.getStatement();
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.createStatement();
     recset=statement.executeQuery(sqlstr);
     while (recset.next()) {
       task=new CmsTask(recset.getInt(m_cq.C_TASK_ID),recset.getString(m_cq.C_TASK_NAME),recset.getInt(m_cq.C_TASK_STATE),recset.getInt(m_cq.C_TASK_TASKTYPE),recset.getInt(m_cq.C_TASK_ROOT),recset.getInt(m_cq.C_TASK_PARENT),recset.getInt(m_cq.C_TASK_INITIATORUSER),recset.getInt(m_cq.C_TASK_ROLE),recset.getInt(m_cq.C_TASK_AGENTUSER),recset.getInt(m_cq.C_TASK_ORIGINALUSER),SqlHelper.getTimestamp(recset,m_cq.C_TASK_STARTTIME),SqlHelper.getTimestamp(recset,m_cq.C_TASK_WAKEUPTIME),SqlHelper.getTimestamp(recset,m_cq.C_TASK_TIMEOUT),SqlHelper.getTimestamp(recset,m_cq.C_TASK_ENDTIME),recset.getInt(m_cq.C_TASK_PERCENTAGE),recset.getString(m_cq.C_TASK_PERMISSION),recset.getInt(m_cq.C_TASK_PRIORITY),recset.getInt(m_cq.C_TASK_ESCALATIONTYPE),recset.getString(m_cq.C_TASK_HTMLLINK),recset.getInt(m_cq.C_TASK_MILESTONE),recset.getInt(m_cq.C_TASK_AUTOFINISH));
@@ -61,13 +63,17 @@ catch (  Exception exc) {
   }
  finally {
     if (statement != null) {
-      ((com.opencms.file.genericSql.CmsDbPool)m_pool).putStatement(statement);
-    }
-    if (recset != null) {
       try {
-        recset.close();
+        statement.close();
       }
- catch (      SQLException se) {
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
       }
     }
   }

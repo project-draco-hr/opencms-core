@@ -3,9 +3,11 @@
   byte[] content;
   PreparedStatement statementFileRead=null;
   PreparedStatement statementResourceUpdate=null;
+  Connection con=null;
   try {
+    con=DriverManager.getConnection(m_poolName);
     if ((file.getState() == C_STATE_UNCHANGED) && (changed == true)) {
-      statementFileRead=m_pool.getPreparedStatement(m_cq.C_FILE_READ_KEY);
+      statementFileRead=con.prepareStatement(m_cq.C_FILE_READ);
       statementFileRead.setInt(1,file.getFileId());
       res=statementFileRead.executeQuery();
       if (res.next()) {
@@ -17,7 +19,7 @@
       PreparedStatement statementFileWrite=null;
       try {
         file.setFileId(nextId(C_TABLE_FILES));
-        statementFileWrite=m_pool.getPreparedStatement(m_cq.C_FILES_WRITE_KEY);
+        statementFileWrite=con.prepareStatement(m_cq.C_FILES_WRITE);
         statementFileWrite.setInt(1,file.getFileId());
         statementFileWrite.setBytes(2,content);
         statementFileWrite.executeUpdate();
@@ -30,11 +32,15 @@
       }
  finally {
         if (statementFileWrite != null) {
-          m_pool.putPreparedStatement(m_cq.C_FILES_WRITE_KEY,statementFileWrite);
+          try {
+            statementFileWrite.close();
+          }
+ catch (          SQLException exc) {
+          }
         }
       }
     }
-    statementResourceUpdate=m_pool.getPreparedStatement(m_cq.C_RESOURCES_UPDATE_KEY);
+    statementResourceUpdate=con.prepareStatement(m_cq.C_RESOURCES_UPDATE);
     statementResourceUpdate.setInt(1,file.getType());
     statementResourceUpdate.setInt(2,file.getFlags());
     statementResourceUpdate.setInt(3,file.getOwnerId());
@@ -67,17 +73,32 @@
     throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
   }
  finally {
-    if (statementFileRead != null) {
-      m_pool.putPreparedStatement(m_cq.C_FILE_READ_KEY,statementFileRead);
-    }
-    if (statementResourceUpdate != null) {
-      m_pool.putPreparedStatement(m_cq.C_RESOURCES_UPDATE_KEY,statementResourceUpdate);
-    }
     if (res != null) {
       try {
         res.close();
       }
- catch (      SQLException se) {
+ catch (      SQLException exc) {
+      }
+    }
+    if (statementFileRead != null) {
+      try {
+        statementFileRead.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (statementResourceUpdate != null) {
+      try {
+        statementResourceUpdate.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
       }
     }
   }

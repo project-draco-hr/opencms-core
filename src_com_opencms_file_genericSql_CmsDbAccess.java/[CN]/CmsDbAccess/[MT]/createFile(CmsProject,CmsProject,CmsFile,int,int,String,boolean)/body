@@ -25,10 +25,12 @@
   int newFileId=file.getFileId();
   int resourceId=nextId(C_TABLE_RESOURCES);
   if (copy) {
+    Connection con=null;
     PreparedStatement statementFileWrite=null;
     try {
+      con=DriverManager.getConnection(m_poolName);
       newFileId=nextId(C_TABLE_FILES);
-      statementFileWrite=m_pool.getPreparedStatement(m_cq.C_FILES_WRITE_KEY);
+      statementFileWrite=con.prepareStatement(m_cq.C_FILES_WRITE);
       statementFileWrite.setInt(1,newFileId);
       statementFileWrite.setBytes(2,file.getContents());
       statementFileWrite.executeUpdate();
@@ -41,13 +43,26 @@
     }
  finally {
       if (statementFileWrite != null) {
-        m_pool.putPreparedStatement(m_cq.C_FILES_WRITE_KEY,statementFileWrite);
+        try {
+          statementFileWrite.close();
+        }
+ catch (        SQLException exc) {
+        }
+      }
+      if (con != null) {
+        try {
+          con.close();
+        }
+ catch (        SQLException exc) {
+        }
       }
     }
   }
+  Connection con=null;
   PreparedStatement statementResourceWrite=null;
   try {
-    statementResourceWrite=m_pool.getPreparedStatement(m_cq.C_RESOURCES_WRITE_KEY);
+    con=DriverManager.getConnection(m_poolName);
+    statementResourceWrite=con.prepareStatement(m_cq.C_RESOURCES_WRITE);
     statementResourceWrite.setInt(1,resourceId);
     statementResourceWrite.setInt(2,parentId);
     statementResourceWrite.setString(3,filename);
@@ -73,7 +88,18 @@
   }
  finally {
     if (statementResourceWrite != null) {
-      m_pool.putPreparedStatement(m_cq.C_RESOURCES_WRITE_KEY,statementResourceWrite);
+      try {
+        statementResourceWrite.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
+      }
     }
   }
   return readFile(project.getId(),onlineProject.getId(),filename);

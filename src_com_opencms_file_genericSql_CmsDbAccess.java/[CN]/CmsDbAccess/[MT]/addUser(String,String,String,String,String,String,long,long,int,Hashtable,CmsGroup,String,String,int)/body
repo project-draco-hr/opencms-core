@@ -1,6 +1,7 @@
 {
   int id=nextId(C_TABLE_USERS);
   byte[] value=null;
+  Connection con=null;
   PreparedStatement statement=null;
   try {
     ByteArrayOutputStream bout=new ByteArrayOutputStream();
@@ -8,7 +9,8 @@
     oout.writeObject(additionalInfos);
     oout.close();
     value=bout.toByteArray();
-    statement=m_pool.getPreparedStatement(m_cq.C_USERS_ADD_KEY);
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareStatement(m_cq.C_USERS_ADD);
     statement.setInt(1,id);
     statement.setString(2,name);
     statement.setString(3,digest(password));
@@ -35,7 +37,18 @@ catch (  IOException e) {
   }
  finally {
     if (statement != null) {
-      m_pool.putPreparedStatement(m_cq.C_USERS_ADD_KEY,statement);
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
+      }
     }
   }
   return readUser(id);

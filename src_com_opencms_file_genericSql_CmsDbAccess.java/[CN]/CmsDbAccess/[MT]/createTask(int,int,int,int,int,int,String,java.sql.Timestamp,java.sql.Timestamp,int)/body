@@ -1,10 +1,12 @@
 {
   int newId=C_UNKNOWN_ID;
   CmsTask task=null;
+  Connection con=null;
   PreparedStatement statement=null;
   try {
     newId=nextId(C_TABLE_TASK);
-    statement=m_pool.getPreparedStatement(m_cq.C_TASK_TYPE_COPY_KEY);
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareStatement(m_cq.C_TASK_TYPE_COPY);
     statement.setInt(1,newId);
     statement.setInt(2,tasktype);
     statement.executeUpdate();
@@ -30,12 +32,22 @@
     task=this.writeTask(task);
   }
  catch (  SQLException exc) {
-    System.err.println(exc.getMessage());
     throw new CmsException(exc.getMessage(),CmsException.C_SQL_ERROR,exc);
   }
  finally {
     if (statement != null) {
-      m_pool.putPreparedStatement(m_cq.C_TASK_TYPE_COPY_KEY,statement);
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
+      }
     }
   }
   return task;

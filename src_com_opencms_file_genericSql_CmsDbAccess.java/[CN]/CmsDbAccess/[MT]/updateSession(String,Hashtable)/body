@@ -1,14 +1,16 @@
 {
   byte[] value=null;
   PreparedStatement statement=null;
+  Connection con=null;
   int retValue;
   try {
+    con=DriverManager.getConnection(m_poolName);
     ByteArrayOutputStream bout=new ByteArrayOutputStream();
     ObjectOutputStream oout=new ObjectOutputStream(bout);
     oout.writeObject(data);
     oout.close();
     value=bout.toByteArray();
-    statement=m_pool.getPreparedStatement(m_cq.C_SESSION_UPDATE_KEY);
+    statement=con.prepareStatement(m_cq.C_SESSION_UPDATE);
     statement.setTimestamp(1,new java.sql.Timestamp(System.currentTimeMillis()));
     statement.setBytes(2,value);
     statement.setString(3,sessionId);
@@ -22,7 +24,18 @@ catch (  IOException e) {
   }
  finally {
     if (statement != null) {
-      m_pool.putPreparedStatement(m_cq.C_SESSION_UPDATE_KEY,statement);
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
+      }
     }
   }
   return retValue;

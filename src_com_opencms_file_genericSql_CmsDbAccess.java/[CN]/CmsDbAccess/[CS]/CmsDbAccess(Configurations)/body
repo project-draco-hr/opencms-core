@@ -1,16 +1,11 @@
 {
-  this.m_cq=getQueries();
+  com.opencms.dbpool.CmsDriver.setConfigurations(config);
+  m_cq=getQueries();
   String rbName=null;
-  String driver=null;
-  String url=null;
-  String user=null;
-  String password=null;
   String digest=null;
   String exportpoint=null;
   String exportpath=null;
-  int sleepTime;
   boolean fillDefaults=true;
-  int maxConn;
   if (A_OpenCms.isLogging()) {
     A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] init the dbaccess-module.");
   }
@@ -24,30 +19,13 @@
     }
     i++;
   }
-  driver=config.getString(C_CONFIGURATION_RESOURCEBROKER + "." + rbName+ "."+ C_CONFIGURATIONS_DRIVER);
+  m_poolName=config.getString(C_CONFIGURATION_RESOURCEBROKER + "." + rbName+ "."+ C_CONFIGURATIONS_POOL);
   if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] read driver from configurations: " + driver);
-  }
-  url=config.getString(C_CONFIGURATION_RESOURCEBROKER + "." + rbName+ "."+ C_CONFIGURATIONS_URL);
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] read url from configurations: " + url);
-  }
-  user=config.getString(C_CONFIGURATION_RESOURCEBROKER + "." + rbName+ "."+ C_CONFIGURATIONS_USER);
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] read user from configurations: " + user);
-  }
-  password=config.getString(C_CONFIGURATION_RESOURCEBROKER + "." + rbName+ "."+ C_CONFIGURATIONS_PASSWORD,"");
-  maxConn=config.getInteger(C_CONFIGURATION_RESOURCEBROKER + "." + rbName+ "."+ C_CONFIGURATIONS_MAX_CONN);
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] read maxConn from configurations: " + maxConn);
+    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] read pool-name from configurations: " + m_poolName);
   }
   digest=config.getString(C_CONFIGURATION_RESOURCEBROKER + "." + rbName+ "."+ C_CONFIGURATIONS_DIGEST,"MD5");
   if (A_OpenCms.isLogging()) {
     A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] read digest from configurations: " + digest);
-  }
-  sleepTime=config.getInteger(C_CONFIGURATION_RESOURCEBROKER + "." + rbName+ "."+ C_CONFIGURATIONS_GUARD,120);
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] read guard-sleeptime from configurations: " + sleepTime);
   }
   try {
     m_digest=MessageDigest.getInstance(digest);
@@ -59,18 +37,6 @@
     if (A_OpenCms.isLogging()) {
       A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] error creating digest - using clear paswords: " + e.getMessage());
     }
-  }
-  m_pool=createCmsDbPool(driver,url,user,password,maxConn);
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] pool created");
-  }
-  initStatements();
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] all statements initialized in the pool");
-  }
-  initMaxIdValues();
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] max-ids initialized");
   }
   try {
     if (readProject(C_PROJECT_ONLINE_ID) != null) {
@@ -85,9 +51,4 @@
     }
     fillDefaults();
   }
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[CmsDbAccess] start connection guard");
-  }
-  m_guard=createCmsConnectionGuard(m_pool,sleepTime);
-  m_guard.start();
 }

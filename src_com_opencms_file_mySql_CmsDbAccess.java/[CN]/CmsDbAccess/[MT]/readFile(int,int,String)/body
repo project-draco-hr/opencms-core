@@ -3,9 +3,11 @@
   PreparedStatement statement=null;
   ResultSet res=null;
   ResultSet res2=null;
+  Connection con=null;
   try {
+    con=DriverManager.getConnection(m_poolName);
     if (projectId == onlineProjectId) {
-      statement=m_pool.getPreparedStatement(m_cq.C_FILE_READ_ONLINE_KEY);
+      statement=con.prepareStatement(m_cq.C_FILE_READ_ONLINE);
       statement.setString(1,filename);
       statement.setInt(2,onlineProjectId);
       res=statement.executeQuery();
@@ -38,7 +40,7 @@
       if ((file != null) && (file.getState() == C_STATE_DELETED)) {
         throw new CmsException("[" + this.getClass().getName() + "] "+ CmsException.C_RESOURCE_DELETED);
       }
-      statement=m_pool.getPreparedStatement(m_cq.C_FILE_READ_KEY);
+      statement=con.prepareStatement(m_cq.C_FILE_READ);
       statement.setInt(1,file.getFileId());
       res2=statement.executeQuery();
       if (res2.next()) {
@@ -59,28 +61,32 @@ catch (  Exception exc) {
     throw new CmsException("readFile " + exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
   }
  finally {
-    if (projectId == onlineProjectId) {
-      if (statement != null) {
-        m_pool.putPreparedStatement(m_cq.C_FILE_READ_ONLINE_KEY,statement);
-      }
-    }
- else {
-      if (statement != null) {
-        m_pool.putPreparedStatement(m_cq.C_FILE_READ_KEY,statement);
-      }
-    }
     if (res != null) {
       try {
         res.close();
       }
- catch (      SQLException sqlex) {
+ catch (      SQLException exc) {
       }
     }
     if (res2 != null) {
       try {
         res2.close();
       }
- catch (      SQLException sqlex) {
+ catch (      SQLException exc) {
+      }
+    }
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
       }
     }
   }
