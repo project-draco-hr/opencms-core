@@ -1,0 +1,56 @@
+{
+  Map sites=A_OpenCms.getSiteManager().getSiteList();
+  List siteroots=new ArrayList(sites.size() + 1);
+  List result=new ArrayList(sites.size() + 1);
+  Iterator i;
+  i=sites.keySet().iterator();
+  while (i.hasNext()) {
+    CmsSite site=(CmsSite)sites.get(i.next());
+    String folder=site.getSiteRoot() + "/";
+    if (!siteroots.contains(folder)) {
+      siteroots.add(folder);
+    }
+  }
+  if (A_OpenCms.getSiteManager().getDefaultSite() != null) {
+    String folder=A_OpenCms.getSiteManager().getDefaultSite().getSiteRoot() + "/";
+    if (!siteroots.contains(folder)) {
+      siteroots.add(folder);
+    }
+  }
+  String currentRoot=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.getRequestContext().setSiteRoot("/");
+    if (includeDefaults && cms.getRequestContext().isAdmin()) {
+      if (!siteroots.contains("/")) {
+        siteroots.add("/");
+      }
+      if (!siteroots.contains(currentRoot + "/")) {
+        siteroots.add(currentRoot + "/");
+      }
+    }
+    Collections.sort(siteroots);
+    i=siteroots.iterator();
+    while (i.hasNext()) {
+      String folder=(String)i.next();
+      try {
+        CmsResource res=cms.readFileHeader(folder);
+        String title=cms.readProperty(folder,I_CmsConstants.C_PROPERTY_TITLE);
+        if (title == null) {
+          title=folder;
+        }
+        result.add(new CmsSite(folder,res.getId(),title));
+      }
+ catch (      CmsException e) {
+      }
+    }
+  }
+ catch (  Throwable t) {
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"CmsSite.getAvailableSites() - Error reading site properties: " + t.getMessage());
+    }
+  }
+ finally {
+    cms.getRequestContext().setSiteRoot(currentRoot);
+  }
+  return result;
+}
