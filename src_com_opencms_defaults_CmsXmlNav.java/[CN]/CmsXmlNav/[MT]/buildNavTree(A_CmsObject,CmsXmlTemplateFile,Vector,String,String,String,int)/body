@@ -11,7 +11,13 @@
       xmlDataBlock.setData("navText",navText[i]);
       xmlDataBlock.setData("count",new Integer(i + 1).toString());
       if (navLink[i].endsWith("/")) {
-        xmlDataBlock.setData("navLink",servletPath + navLink[i] + "index.html");
+        String navIndex=cms.readProperty(navLink[i],C_PROPERTY_NAVINDEX);
+        if (navIndex != null) {
+          xmlDataBlock.setData("navLink",servletPath + navLink[i] + navIndex);
+        }
+ else {
+          xmlDataBlock.setData("navLink",servletPath + navLink[i] + "index.html");
+        }
       }
  else {
         xmlDataBlock.setData("navLink",servletPath + navLink[i]);
@@ -22,15 +28,18 @@
  else {
         result.append(xmlDataBlock.getProcessedDataValue("navEntry"));
       }
-      if (navLink[i].endsWith("/")) {
-        Vector all=cms.getSubFolders(navLink[i]);
-        Vector files=cms.getFilesInFolder(navLink[i]);
-        all.ensureCapacity(all.size() + files.size());
-        Enumeration e=files.elements();
-        while (e.hasMoreElements()) {
-          all.addElement(e.nextElement());
+      depth--;
+      if (depth >= 0) {
+        if (navLink[i].endsWith("/")) {
+          Vector all=cms.getSubFolders(navLink[i]);
+          Vector files=cms.getFilesInFolder(navLink[i]);
+          all.ensureCapacity(all.size() + files.size());
+          Enumeration e=files.elements();
+          while (e.hasMoreElements()) {
+            all.addElement(e.nextElement());
+          }
+          result.append(buildNavTree(cms,xmlDataBlock,all,requestedUri,currentFolder,servletPath,depth));
         }
-        result.append(buildNavTree(cms,xmlDataBlock,all,requestedUri,currentFolder,servletPath));
       }
     }
     result.append(xmlDataBlock.getProcessedDataValue("navTreeEnd"));
