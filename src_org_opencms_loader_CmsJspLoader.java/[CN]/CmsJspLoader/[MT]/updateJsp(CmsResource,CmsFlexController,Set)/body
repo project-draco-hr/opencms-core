@@ -1,0 +1,70 @@
+{
+  CmsObject cms=controller.getCmsObject();
+  String oldSiteRoot=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.getRequestContext().setSiteRoot("");
+    String jspVfsName=cms.readAbsolutePath(resource);
+    String jspTargetName=getJspName(jspVfsName);
+    if (updates.contains(jspTargetName)) {
+      return null;
+    }
+    updates.add(jspTargetName);
+    String jspPath=getJspPath(jspTargetName,controller.getCurrentRequest().isOnline());
+    File d=new File(jspPath).getParentFile();
+    if ((d == null) || (d.exists() && !(d.isDirectory() && d.canRead()))) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Could not access directory for " + jspPath);
+      }
+      throw new ServletException("JspLoader: Could not access directory for " + jspPath);
+    }
+    if (!d.exists()) {
+      d.mkdirs();
+    }
+    boolean mustUpdate=false;
+    File f=new File(jspPath);
+    if (!f.exists()) {
+      mustUpdate=true;
+    }
+ else     if (f.lastModified() <= resource.getDateLastModified()) {
+      mustUpdate=true;
+    }
+ else     if (controller.getCurrentRequest().isDoRecompile()) {
+      mustUpdate=true;
+    }
+    String jspRfsName=getJspUri(jspVfsName,controller.getCurrentRequest().isOnline());
+    if (mustUpdate) {
+      if (OpenCms.getLog(this).isDebugEnabled()) {
+        OpenCms.getLog(this).debug("JspLoader: Writing JSP file '" + jspRfsName + "'");
+      }
+      byte[] contents;
+      String encoding;
+      try {
+        contents=CmsFile.upgrade(resource,cms).getContents();
+        encoding=cms.readProperty(jspVfsName,I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,false,C_DEFAULT_JSP_ENCODING);
+        encoding=encoding.trim().toUpperCase();
+      }
+ catch (      CmsException e) {
+        controller.setThrowable(e,jspVfsName);
+        throw new ServletException("JspLoader: Could not access JSP file '" + jspVfsName + "'",e);
+      }
+      try {
+        contents=parseJsp(contents,encoding,controller,updates);
+        FileOutputStream fs=new FileOutputStream(f);
+        fs.write(contents);
+        fs.close();
+        contents=null;
+        if (OpenCms.getLog(this).isInfoEnabled()) {
+          OpenCms.getLog(this).info("Updated JSP file \"" + jspRfsName + "\" for resource \""+ cms.readAbsolutePath(resource)+ "\"");
+        }
+      }
+ catch (      FileNotFoundException e) {
+        throw new ServletException("JspLoader: Could not write to file '" + f.getName() + "'\n"+ e,e);
+      }
+    }
+    controller.updateDateLastModified(f.lastModified());
+    return jspRfsName;
+  }
+  finally {
+    cms.getRequestContext().setSiteRoot(oldSiteRoot);
+  }
+}
