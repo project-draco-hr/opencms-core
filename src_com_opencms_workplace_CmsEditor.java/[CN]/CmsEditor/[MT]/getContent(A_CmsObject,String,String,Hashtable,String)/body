@@ -1,0 +1,61 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsFile editFile=null;
+  String content=(String)parameters.get("CONTENT");
+  String file=(String)parameters.get("file");
+  String exit=(String)parameters.get("EXIT");
+  String save=(String)parameters.get("save");
+  String jsfile=(String)parameters.get("editor.jsfile");
+  boolean existsContentParam=(content != null && (!"".equals(content)));
+  boolean existsFileParam=((file != null) && (!"".equals(file)));
+  boolean saveRequested=((save != null) && "1".equals(save));
+  boolean exitRequested=((exit != null) && "1".equals(exit));
+  if (existsFileParam && (content == null || saveRequested)) {
+    try {
+      editFile=cms.readFile(file);
+    }
+ catch (    Exception e) {
+      String errorMessage="Error while reading file " + file + ": "+ e;
+      if (A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + errorMessage);
+        if (!(e instanceof CmsException)) {
+          e.printStackTrace();
+        }
+      }
+      if (e instanceof CmsException) {
+        throw (CmsException)e;
+      }
+ else {
+        throw new CmsException(errorMessage,CmsException.C_UNKNOWN_EXCEPTION);
+      }
+    }
+    Encoder enc=new Encoder();
+    if (content == null) {
+      content=new String(editFile.getContents());
+      content=enc.escape(content);
+      parameters.put("CONTENT",content);
+    }
+    if (saveRequested) {
+      String decodedContent=enc.unescape(content);
+      editFile.setContents(decodedContent.getBytes());
+      cms.writeFile(editFile);
+    }
+  }
+  if (exitRequested) {
+    try {
+      cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceMainPath());
+    }
+ catch (    IOException e) {
+      throwException("Could not send redirect to workplace main screen.",e);
+    }
+    return "".getBytes();
+  }
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  xmlTemplateDocument.setXmlData("file",file);
+  xmlTemplateDocument.setXmlData("jsfile",jsfile);
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
