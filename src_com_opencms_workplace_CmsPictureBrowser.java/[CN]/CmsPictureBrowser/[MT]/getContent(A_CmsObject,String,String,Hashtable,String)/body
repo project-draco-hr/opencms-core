@@ -24,25 +24,34 @@
     folder=(String)session.getValue(C_PARA_FOLDER);
     if (folder == null || "".equals(folder)) {
       folder=getConfigFile(cms).getPicGalleryPath();
-      session.putValue(C_PARA_FOLDER,folder);
+      Vector galleries=cms.getSubFolders(folder);
+      if (galleries.size() > 0) {
+        folder=((A_CmsResource)galleries.elementAt(0)).getAbsolutePath();
+        session.putValue(C_PARA_FOLDER,folder);
+      }
+ else {
+        templateSelector="error_no_gallery";
+      }
     }
-    String pageText=(String)parameters.get(C_PARA_PAGE);
-    String filter=(String)parameters.get(C_PARA_FILTER);
-    if (pageText == null || "".equals(pageText)) {
-      pageText="1";
-      parameters.put(C_PARA_PAGE,pageText);
+    if (!"error_no_gallery".equals(templateSelector)) {
+      String pageText=(String)parameters.get(C_PARA_PAGE);
+      String filter=(String)parameters.get(C_PARA_FILTER);
+      if (pageText == null || "".equals(pageText)) {
+        pageText="1";
+        parameters.put(C_PARA_PAGE,pageText);
+      }
+      if (filter == null) {
+        filter="";
+        parameters.put(C_PARA_FILTER,filter);
+      }
+      Vector filteredPics=getFilteredPicList(cms,folder,filter);
+      int maxpage=((filteredPics.size() - 1) / C_PICBROWSER_MAXIMAGES) + 1;
+      xmlTemplateDocument.setData(C_PARA_FOLDER,Encoder.escape(folder));
+      xmlTemplateDocument.setData(C_PARA_PAGE,pageText);
+      xmlTemplateDocument.setData(C_PARA_FILTER,filter);
+      xmlTemplateDocument.setData(C_PARA_MAXPAGE,"" + maxpage);
+      parameters.put("_PICLIST_",filteredPics);
     }
-    if (filter == null) {
-      filter="";
-      parameters.put(C_PARA_FILTER,filter);
-    }
-    Vector filteredPics=getFilteredPicList(cms,folder,filter);
-    int maxpage=((filteredPics.size() - 1) / C_PICBROWSER_MAXIMAGES) + 1;
-    xmlTemplateDocument.setData(C_PARA_FOLDER,Encoder.escape(folder));
-    xmlTemplateDocument.setData(C_PARA_PAGE,pageText);
-    xmlTemplateDocument.setData(C_PARA_FILTER,filter);
-    xmlTemplateDocument.setData(C_PARA_MAXPAGE,"" + maxpage);
-    parameters.put("_PICLIST_",filteredPics);
   }
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }
