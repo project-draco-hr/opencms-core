@@ -1,0 +1,36 @@
+{
+  if (filename.startsWith("/")) {
+    CmsFile file=cms.readFile(filename);
+    init(cms,file);
+  }
+ else {
+    Class actualClass=getClass();
+    Document retValue=null;
+    String completeFilename=null;
+    Vector checkedFilenames=new Vector();
+    while (retValue == null) {
+      completeFilename=C_TEMPLATEPATH + actualClass.getName() + "."+ filename+ C_TEMPLATE_EXTENSION;
+      checkedFilenames.addElement(completeFilename);
+      retValue=readTemplateFile(cms,completeFilename);
+      actualClass=actualClass.getSuperclass();
+      if (actualClass.getName().equals(C_MINIMUM_CLASSNAME)) {
+        if (retValue == null)         completeFilename=C_TEMPLATEPATH + filename + C_TEMPLATE_EXTENSION;
+        checkedFilenames.addElement(completeFilename);
+        retValue=readTemplateFile(cms,completeFilename);
+        break;
+      }
+    }
+    if (retValue != null) {
+      init(cms,retValue,completeFilename);
+    }
+ else {
+      Enumeration checkedEnum=checkedFilenames.elements();
+      if (A_OpenCms.isLogging()) {
+        while (checkedEnum.hasMoreElements()) {
+          A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + "checked: " + (String)checkedEnum.nextElement());
+        }
+      }
+      handleException("Cannot find template file for request \"" + filename + "\".");
+    }
+  }
+}
