@@ -1,0 +1,119 @@
+{
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String template=null;
+  String filename=(String)parameters.get(C_PARA_FILE);
+  if (filename != null) {
+    session.putValue(C_PARA_FILE,filename);
+  }
+  String metadef=(String)parameters.get("selectmeta");
+  if (metadef != null) {
+    session.putValue(C_PARA_METADEF,metadef);
+  }
+  filename=(String)session.getValue(C_PARA_FILE);
+  metadef=(String)session.getValue(C_PARA_METADEF);
+  CmsFile file=(CmsFile)cms.readFileHeader(filename);
+  String edit=(String)parameters.get("EDIT");
+  String delete=(String)parameters.get("DELETE");
+  String newmetainfo=(String)parameters.get("NEWMETAINFO");
+  String newmetadef=(String)parameters.get("ORGANIZE");
+  if (file.isLockedBy() == cms.getRequestContext().currentUser().getId()) {
+    if (edit != null) {
+      template="editmetainfo";
+    }
+ else     if (delete != null) {
+      template="deletemetainfo";
+    }
+ else     if (newmetainfo != null) {
+      template="newmetainfo";
+    }
+ else     if (newmetadef != null) {
+      template="newmetadef";
+    }
+ else {
+      template="ownlocked";
+    }
+  }
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  System.err.println("******");
+  Enumeration enu=parameters.keys();
+  while (enu.hasMoreElements()) {
+    String key=(String)enu.nextElement();
+    String values=(String)parameters.get(key);
+    System.err.println(key + " : " + values);
+  }
+  System.err.println("******");
+  if (edit != null) {
+    if (metadef != null) {
+      xmlTemplateDocument.setXmlData("METADEF",metadef);
+      String newValue=(String)parameters.get("EDITEDMETAINFO");
+      if (newValue != null) {
+        cms.writeMetainformation(filename,metadef,newValue);
+        template="ownlocked";
+        session.removeValue(C_PARA_METADEF);
+      }
+    }
+ else {
+      template="ownlocked";
+    }
+  }
+  if (delete != null) {
+    if (delete.equals("true")) {
+      if (metadef != null) {
+        cms.deleteMetainformation(filename,metadef);
+        template="ownlocked";
+        session.removeValue(C_PARA_METADEF);
+      }
+    }
+  }
+  if (newmetainfo != null) {
+    if (newmetainfo.equals("true")) {
+      String newValue=(String)parameters.get("NEWMETAVALUE");
+      if ((newValue != null) && (metadef != null)) {
+        String testValue=cms.readMetainformation(filename,metadef);
+        if (testValue == null) {
+          cms.writeMetainformation(filename,metadef,newValue);
+          template="ownlocked";
+          session.removeValue(C_PARA_METADEF);
+        }
+ else {
+        }
+      }
+ else {
+        template="ownlocked";
+        session.removeValue(C_PARA_METADEF);
+      }
+    }
+  }
+  if (newmetadef != null) {
+    if (newmetadef.equals("true")) {
+      String newValue=(String)parameters.get("NEWMETADEF");
+      if (newValue != null) {
+        String testValue=cms.readMetainformation(filename,metadef);
+        if (testValue == null) {
+          A_CmsResourceType type=cms.getResourceType(file.getType());
+          A_CmsMetadefinition def=cms.createMetadefinition(newValue,type.getResourceName(),C_METADEF_TYPE_NORMAL);
+          cms.writeMetadefinition(def);
+          template="ownlocked";
+          session.removeValue(C_PARA_METADEF);
+        }
+ else {
+        }
+      }
+ else {
+        template="ownlocked";
+        session.removeValue(C_PARA_METADEF);
+      }
+    }
+  }
+  String title=cms.readMetainformation(file.getAbsolutePath(),C_METAINFO_TITLE);
+  if (title == null) {
+    title="";
+  }
+  A_CmsUser owner=cms.readOwner(file);
+  xmlTemplateDocument.setXmlData("TITLE",title);
+  xmlTemplateDocument.setXmlData("STATE",getState(cms,file,new CmsXmlLanguageFile(cms)));
+  xmlTemplateDocument.setXmlData("OWNER",owner.getFirstname() + " " + owner.getLastname()+ "("+ owner.getName()+ ")");
+  xmlTemplateDocument.setXmlData("GROUP",cms.readGroup(file).getName());
+  xmlTemplateDocument.setXmlData("FILENAME",file.getName());
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}
