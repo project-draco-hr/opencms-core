@@ -1,0 +1,42 @@
+{
+  float newVersion=-1;
+  String versionString=module.getElementsByTagName("version").item(0).getFirstChild().getNodeValue();
+  try {
+    newVersion=Float.parseFloat(versionString);
+  }
+ catch (  NumberFormatException e) {
+  }
+  Vector retValue=new Vector();
+  if (replaceMode) {
+    String name=module.getElementsByTagName("name").item(0).getFirstChild().getNodeValue();
+    float currentVersion=getModuleVersion(name);
+    if (currentVersion > newVersion) {
+      retValue.addElement("For module replacement, the new version (" + newVersion + ") must be higher or equal to the current version "+ currentVersion);
+    }
+  }
+ else {
+    try {
+      Element dependencies=(Element)(module.getElementsByTagName("dependencies").item(0));
+      NodeList deps=dependencies.getElementsByTagName("dependency");
+      for (int i=0; i < deps.getLength(); i++) {
+        String name=((Element)deps.item(i)).getElementsByTagName("name").item(0).getFirstChild().getNodeValue();
+        float minVersion=Float.parseFloat(((Element)deps.item(i)).getElementsByTagName("minversion").item(0).getFirstChild().getNodeValue());
+        float maxVersion=Float.parseFloat(((Element)deps.item(i)).getElementsByTagName("maxversion").item(0).getFirstChild().getNodeValue());
+        float currentVersion=getModuleVersion(name);
+        if (currentVersion == -1) {
+          retValue.addElement("The required module " + name + " doesn't exist");
+        }
+ else         if (currentVersion < minVersion) {
+          retValue.addElement("Module " + name + " version "+ minVersion+ " is not high enough");
+        }
+ else         if ((maxVersion != C_ANY_VERSION) && (currentVersion > maxVersion)) {
+          retValue.addElement("Module " + name + " version "+ maxVersion+ " is to high");
+        }
+      }
+    }
+ catch (    Exception exc) {
+      throw new CmsException("Could not check the dependencies",CmsException.C_REGISTRY_ERROR,exc);
+    }
+  }
+  return retValue;
+}
