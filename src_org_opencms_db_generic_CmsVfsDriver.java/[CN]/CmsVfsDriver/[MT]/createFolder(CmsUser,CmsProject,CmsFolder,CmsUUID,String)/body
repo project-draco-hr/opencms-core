@@ -1,0 +1,96 @@
+{
+  if (foldername.length() > I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME) {
+    throw new CmsException("The resource name '" + foldername + "' is too long! (max. allowed length must be <= "+ I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME+ " chars.!)",CmsException.C_BAD_NAME);
+  }
+  CmsFolder oldFolder=null;
+  int state=0;
+  CmsUUID modifiedByUserId=user.getId();
+  long dateModified=System.currentTimeMillis();
+  if (project.getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
+    state=folder.getState();
+    modifiedByUserId=folder.getResourceLastModifiedBy();
+    dateModified=folder.getDateLastModified();
+  }
+ else {
+    state=I_CmsConstants.C_STATE_NEW;
+  }
+  try {
+    oldFolder=readFolder(project.getId(),foldername);
+    if (oldFolder.getState() == I_CmsConstants.C_STATE_DELETED) {
+      throw new CmsException("[" + this.getClass().getName() + "] ",CmsException.C_FILE_EXISTS);
+    }
+ else {
+      if (oldFolder != null) {
+        throw new CmsException("[" + this.getClass().getName() + "] ",CmsException.C_FILE_EXISTS);
+      }
+    }
+  }
+ catch (  CmsException e) {
+    if (e.getType() == CmsException.C_FILE_EXISTS) {
+      throw e;
+    }
+  }
+  CmsUUID resourceId=new CmsUUID();
+  CmsUUID structureId=new CmsUUID();
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  try {
+    conn=m_sqlManager.getConnection(project);
+    stmt=m_sqlManager.getPreparedStatement(conn,project,"C_RESOURCES_WRITE");
+    stmt.setString(1,resourceId.toString());
+    stmt.setInt(2,folder.getType());
+    stmt.setInt(3,folder.getFlags());
+    stmt.setString(4,folder.getOwnerId().toString());
+    stmt.setString(5,folder.getGroupId().toString());
+    stmt.setString(6,CmsUUID.getNullUUID().toString());
+    stmt.setInt(7,folder.getAccessFlags());
+    stmt.setInt(8,folder.getLauncherType());
+    stmt.setString(9,folder.getLauncherClassname());
+    stmt.setTimestamp(10,new Timestamp(folder.getDateCreated()));
+    stmt.setTimestamp(11,new Timestamp(dateModified));
+    stmt.setInt(12,folder.getLength());
+    stmt.executeUpdate();
+    m_sqlManager.closeAll(null,stmt,null);
+    stmt=m_sqlManager.getPreparedStatement(conn,project,"C_STRUCTURE_WRITE");
+    stmt.setString(1,structureId.toString());
+    stmt.setString(2,parentId.toString());
+    stmt.setString(3,resourceId.toString());
+    stmt.setInt(4,project.getId());
+    stmt.setString(5,foldername);
+    stmt.setInt(6,0);
+    stmt.setInt(7,state);
+    stmt.setString(8,folder.isLockedBy().toString());
+    stmt.setString(9,modifiedByUserId.toString());
+    stmt.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,null);
+  }
+  String parentFolderName="/";
+  if (!folder.getResourceName().equals(I_CmsConstants.C_ROOT)) {
+    parentFolderName=folder.getResourceName().substring(0,folder.getResourceName().length() - 1);
+    parentFolderName=parentFolderName.substring(0,parentFolderName.lastIndexOf("/") + 1);
+  }
+  if (parentId.isNullUUID() || parentFolderName.equals(I_CmsConstants.C_ROOT)) {
+    try {
+      String rootFolder=null;
+      try {
+        rootFolder=readProjectResource(project.getId(),I_CmsConstants.C_ROOT);
+      }
+ catch (      CmsException exc) {
+      }
+      if (rootFolder == null) {
+        createProjectResource(project.getId(),foldername);
+      }
+    }
+ catch (    CmsException e) {
+      if (e.getType() != CmsException.C_FILE_EXISTS) {
+        throw e;
+      }
+    }
+  }
+  return readFolder(project.getId(),foldername);
+}

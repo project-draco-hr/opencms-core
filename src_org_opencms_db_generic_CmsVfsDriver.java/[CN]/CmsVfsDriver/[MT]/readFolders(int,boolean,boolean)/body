@@ -1,0 +1,39 @@
+{
+  Vector folders=new Vector();
+  CmsFolder folder;
+  ResultSet res=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  String onlyChanged=new String();
+  String inProject=new String();
+  if (projectId != I_CmsConstants.C_PROJECT_ONLINE_ID && onlyProject) {
+    inProject=" AND CMS_OFFLINE_STRUCTURE.PROJECT_ID=CMS_PROJECTRESOURCES.PROJECT_ID";
+  }
+  if (!includeUnchanged) {
+    onlyChanged=" AND CMS_OFFLINE_STRUCTURE.STATE!=" + com.opencms.core.I_CmsConstants.C_STATE_UNCHANGED + " ORDER BY CMS_OFFLINE_STRUCTURE.RESOURCE_NAME";
+  }
+ else {
+    onlyChanged=" ORDER BY CMS_OFFLINE_STRUCTURE.RESOURCE_NAME";
+  }
+  try {
+    conn=m_sqlManager.getConnection(projectId);
+    String query=m_sqlManager.get(projectId,"C_RESOURCES_READFOLDERSBYPROJECT") + inProject + onlyChanged;
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,query);
+    stmt.setInt(1,projectId);
+    res=stmt.executeQuery();
+    while (res.next()) {
+      folder=createCmsFolderFromResultSet(res,true);
+      folders.addElement(folder);
+    }
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+catch (  Exception ex) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_UNKNOWN_EXCEPTION,ex,false);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,res);
+  }
+  return folders;
+}

@@ -1,0 +1,33 @@
+{
+  CmsFolder offlineFolder=null;
+  Vector resources=new Vector();
+  Vector retValue=new Vector();
+  try {
+    offlineFolder=readFolder(currentUser,currentProject,folder);
+    if (offlineFolder.getState() == C_STATE_DELETED) {
+      offlineFolder=null;
+    }
+  }
+ catch (  CmsException exc) {
+  }
+  if (offlineFolder == null) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ folder,CmsException.C_NOT_FOUND);
+  }
+ else {
+    String cacheKey=getCacheKey(currentUser.getName() + "_resources",currentUser,currentProject,offlineFolder.getResourceName());
+    retValue=(Vector)m_resourceListCache.get(cacheKey);
+    if (retValue == null || retValue.size() == 0) {
+      resources=m_vfsDriver.getResourcesInFolder(currentProject.getId(),offlineFolder);
+      retValue=new Vector(resources.size());
+      CmsAccessGuard accessGuard=getVfsAccessGuard(currentUser,currentProject);
+      for (Enumeration e=resources.elements(); e.hasMoreElements(); ) {
+        CmsResource res=(CmsResource)e.nextElement();
+        if (accessGuard.check(res,C_VIEW_ACCESS,false)) {
+          retValue.addElement(res);
+        }
+      }
+      m_resourceListCache.put(cacheKey,retValue);
+    }
+  }
+  return (retValue == null) ? null : (Vector)retValue.clone();
+}

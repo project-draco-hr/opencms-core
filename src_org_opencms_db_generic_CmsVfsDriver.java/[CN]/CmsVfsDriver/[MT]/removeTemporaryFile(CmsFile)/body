@@ -1,0 +1,40 @@
+{
+  PreparedStatement stmt=null;
+  PreparedStatement statementCont=null;
+  PreparedStatement statementProp=null;
+  Connection conn=null;
+  ResultSet res=null;
+  String fileId=null;
+  String structureId=null;
+  String tempFilename=file.getRootName() + file.getPath() + I_CmsConstants.C_TEMP_PREFIX+ file.getName()+ "%";
+  try {
+    conn=m_sqlManager.getConnection();
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_GETTEMPFILES");
+    stmt.setString(1,tempFilename);
+    res=stmt.executeQuery();
+    statementProp=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_DELETEALL");
+    statementCont=m_sqlManager.getPreparedStatement(conn,"C_FILE_DELETE");
+    while (res.next()) {
+      fileId=res.getString("FILE_ID");
+      structureId=res.getString("STRUCTURE_ID");
+      statementProp.setString(1,structureId);
+      statementProp.addBatch();
+      statementCont.setString(1,fileId);
+      statementCont.addBatch();
+    }
+    statementProp.executeBatch();
+    statementCont.executeBatch();
+    m_sqlManager.closeAll(null,stmt,res);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_DELETETEMPFILES");
+    stmt.setString(1,tempFilename);
+    stmt.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,null);
+    m_sqlManager.closeAll(null,statementProp,null);
+    m_sqlManager.closeAll(null,statementCont,null);
+  }
+}

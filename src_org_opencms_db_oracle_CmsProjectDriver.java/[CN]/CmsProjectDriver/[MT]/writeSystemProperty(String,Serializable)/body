@@ -1,0 +1,67 @@
+{
+  PreparedStatement stmt=null;
+  PreparedStatement nextStmt=null;
+  PreparedStatement trimStmt=null;
+  ResultSet res=null;
+  Connection conn=null;
+  byte[] value=null;
+  try {
+    ByteArrayOutputStream bout=new ByteArrayOutputStream();
+    ObjectOutputStream oout=new ObjectOutputStream(bout);
+    oout.writeObject(object);
+    oout.close();
+    value=bout.toByteArray();
+    conn=m_sqlManager.getConnection();
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_SYSTEMPROPERTIES_NAMEFORUPDATE");
+    stmt.setString(1,name);
+    conn.setAutoCommit(false);
+    res=stmt.executeQuery();
+    while (res.next()) {
+      oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("SYSTEMPROPERTY_VALUE");
+      trimStmt=m_sqlManager.getPreparedStatement(conn,"C_TRIMBLOB");
+      trimStmt.setBlob(1,blob);
+      trimStmt.setInt(2,0);
+      trimStmt.execute();
+      trimStmt.close();
+      ByteArrayInputStream instream=new ByteArrayInputStream(value);
+      OutputStream outstream=blob.getBinaryOutputStream();
+      byte[] chunk=new byte[blob.getChunkSize()];
+      int i=-1;
+      while ((i=instream.read(chunk)) != -1) {
+        outstream.write(chunk,0,i);
+      }
+      instream.close();
+      outstream.close();
+    }
+    stmt.close();
+    res.close();
+    nextStmt=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
+    nextStmt.execute();
+    nextStmt.close();
+    conn.setAutoCommit(true);
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+catch (  IOException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SERIALIZATION,e,false);
+  }
+ finally {
+    if (stmt != null) {
+      try {
+        stmt.close();
+      }
+ catch (      SQLException se) {
+      }
+      try {
+        nextStmt=m_sqlManager.getPreparedStatement(conn,"C_ROLLBACK");
+        nextStmt.execute();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    m_sqlManager.closeAll(null,nextStmt,null);
+    m_sqlManager.closeAll(conn,trimStmt,res);
+  }
+  return readSystemProperty(name);
+}

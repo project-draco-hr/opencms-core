@@ -1,0 +1,68 @@
+{
+  try {
+    if (readProject(I_CmsConstants.C_PROJECT_ONLINE_ID) != null) {
+      return;
+    }
+  }
+ catch (  CmsException exc) {
+  }
+  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[" + this.getClass().getName() + "] Initial setup of the OpenCms database starts NOW!");
+  }
+  CmsGroup guests=m_driverManager.getUserDriver().createGroup(I_CmsConstants.C_GROUP_GUEST,"the guest-group",I_CmsConstants.C_FLAG_ENABLED,null);
+  CmsGroup administrators=m_driverManager.getUserDriver().createGroup(I_CmsConstants.C_GROUP_ADMIN,"the admin-group",I_CmsConstants.C_FLAG_ENABLED | I_CmsConstants.C_FLAG_GROUP_PROJECTMANAGER,null);
+  CmsGroup users=m_driverManager.getUserDriver().createGroup(I_CmsConstants.C_GROUP_USERS,"the users-group to access the workplace",I_CmsConstants.C_FLAG_ENABLED | I_CmsConstants.C_FLAG_GROUP_ROLE | I_CmsConstants.C_FLAG_GROUP_PROJECTCOWORKER,I_CmsConstants.C_GROUP_GUEST);
+  CmsGroup projectleader=m_driverManager.getUserDriver().createGroup(I_CmsConstants.C_GROUP_PROJECTLEADER,"the projectmanager-group",I_CmsConstants.C_FLAG_ENABLED | I_CmsConstants.C_FLAG_GROUP_PROJECTMANAGER | I_CmsConstants.C_FLAG_GROUP_PROJECTCOWORKER| I_CmsConstants.C_FLAG_GROUP_ROLE,users.getName());
+  CmsUser guest=m_driverManager.getUserDriver().addUser(I_CmsConstants.C_USER_GUEST,"","the guest-user"," "," "," ",0,0,I_CmsConstants.C_FLAG_ENABLED,new Hashtable(),guests," "," ",I_CmsConstants.C_USER_TYPE_SYSTEMUSER);
+  CmsUser admin=m_driverManager.getUserDriver().addUser(I_CmsConstants.C_USER_ADMIN,"admin","the admin-user"," "," "," ",0,0,I_CmsConstants.C_FLAG_ENABLED,new Hashtable(),administrators," "," ",I_CmsConstants.C_USER_TYPE_SYSTEMUSER);
+  m_driverManager.getUserDriver().addUserToGroup(guest.getId(),guests.getId());
+  m_driverManager.getUserDriver().addUserToGroup(admin.getId(),administrators.getId());
+  m_driverManager.getWorkflowDriver().writeTaskType(1,0,"../taskforms/adhoc.asp","Ad-Hoc","30308",1,1);
+  CmsTask task=m_driverManager.getWorkflowDriver().createTask(0,0,1,admin.getId(),admin.getId(),administrators.getId(),I_CmsConstants.C_PROJECT_ONLINE,new java.sql.Timestamp(new java.util.Date().getTime()),new java.sql.Timestamp(new java.util.Date().getTime()),I_CmsConstants.C_TASK_PRIORITY_NORMAL);
+  CmsProject online=createProject(admin,guests,projectleader,task,I_CmsConstants.C_PROJECT_ONLINE,"the online-project",I_CmsConstants.C_FLAG_ENABLED,I_CmsConstants.C_PROJECT_TYPE_NORMAL);
+  CmsUUID siteRootId=CmsUUID.getNullUUID();
+  CmsFolder rootFolder=m_driverManager.getVfsDriver().createFolder(admin,online,CmsUUID.getNullUUID(),CmsUUID.getNullUUID(),I_CmsConstants.C_ROOT,0);
+  rootFolder.setGroupId(users.getId());
+  rootFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+  m_driverManager.getVfsDriver().writeFolder(online,rootFolder,false);
+  rootFolder=m_driverManager.getVfsDriver().createFolder(admin,online,rootFolder.getId(),CmsUUID.getNullUUID(),I_CmsConstants.C_DEFAULT_SITE + I_CmsConstants.C_ROOT,0);
+  rootFolder.setGroupId(users.getId());
+  rootFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+  m_driverManager.getVfsDriver().writeFolder(online,rootFolder,false);
+  siteRootId=rootFolder.getId();
+  m_driverManager.getUserDriver().createAccessControlEntry(online,rootFolder.getResourceAceId(),administrators.getId(),I_CmsConstants.C_PERMISSION_READ | I_CmsConstants.C_PERMISSION_WRITE | I_CmsConstants.C_PERMISSION_VIEW,0,I_CmsConstants.C_ACCESSFLAGS_INHERITED);
+  m_driverManager.getUserDriver().createAccessControlEntry(online,rootFolder.getResourceAceId(),projectleader.getId(),I_CmsConstants.C_PERMISSION_READ | I_CmsConstants.C_PERMISSION_WRITE | I_CmsConstants.C_PERMISSION_VIEW,0,I_CmsConstants.C_ACCESSFLAGS_INHERITED);
+  m_driverManager.getUserDriver().createAccessControlEntry(online,rootFolder.getResourceAceId(),users.getId(),I_CmsConstants.C_PERMISSION_READ | I_CmsConstants.C_PERMISSION_WRITE | I_CmsConstants.C_PERMISSION_VIEW,0,I_CmsConstants.C_ACCESSFLAGS_INHERITED);
+  m_driverManager.getUserDriver().createAccessControlEntry(online,rootFolder.getResourceAceId(),guests.getId(),I_CmsConstants.C_PERMISSION_READ | I_CmsConstants.C_PERMISSION_VIEW,0,I_CmsConstants.C_ACCESSFLAGS_INHERITED);
+  rootFolder=m_driverManager.getVfsDriver().createFolder(admin,online,siteRootId,CmsUUID.getNullUUID(),I_CmsConstants.C_DEFAULT_SITE + I_CmsConstants.C_ROOTNAME_VFS + I_CmsConstants.C_ROOT,0);
+  rootFolder.setGroupId(users.getId());
+  rootFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+  m_driverManager.getVfsDriver().writeFolder(online,rootFolder,false);
+  rootFolder=m_driverManager.getVfsDriver().createFolder(admin,online,siteRootId,CmsUUID.getNullUUID(),I_CmsConstants.C_DEFAULT_SITE + I_CmsConstants.C_ROOTNAME_COS + I_CmsConstants.C_ROOT,0);
+  rootFolder.setGroupId(users.getId());
+  rootFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+  m_driverManager.getVfsDriver().writeFolder(online,rootFolder,false);
+  task=m_driverManager.getWorkflowDriver().createTask(0,0,1,admin.getId(),admin.getId(),administrators.getId(),"_setupProject",new java.sql.Timestamp(new java.util.Date().getTime()),new java.sql.Timestamp(new java.util.Date().getTime()),I_CmsConstants.C_TASK_PRIORITY_NORMAL);
+  CmsProject setup=createProject(admin,administrators,administrators,task,"_setupProject","Initial site import",I_CmsConstants.C_FLAG_ENABLED,I_CmsConstants.C_PROJECT_TYPE_TEMPORARY);
+  rootFolder=m_driverManager.getVfsDriver().createFolder(admin,setup,CmsUUID.getNullUUID(),CmsUUID.getNullUUID(),I_CmsConstants.C_ROOT,0);
+  rootFolder.setGroupId(users.getId());
+  rootFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+  m_driverManager.getVfsDriver().writeFolder(setup,rootFolder,false);
+  rootFolder=m_driverManager.getVfsDriver().createFolder(admin,setup,rootFolder.getId(),CmsUUID.getNullUUID(),I_CmsConstants.C_DEFAULT_SITE + I_CmsConstants.C_ROOT,0);
+  rootFolder.setGroupId(users.getId());
+  rootFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+  m_driverManager.getVfsDriver().writeFolder(setup,rootFolder,false);
+  siteRootId=rootFolder.getId();
+  m_driverManager.getUserDriver().createAccessControlEntry(setup,rootFolder.getResourceAceId(),administrators.getId(),I_CmsConstants.C_PERMISSION_READ | I_CmsConstants.C_PERMISSION_WRITE | I_CmsConstants.C_PERMISSION_VIEW,0,I_CmsConstants.C_ACCESSFLAGS_INHERITED);
+  m_driverManager.getUserDriver().createAccessControlEntry(setup,rootFolder.getResourceAceId(),projectleader.getId(),I_CmsConstants.C_PERMISSION_READ | I_CmsConstants.C_PERMISSION_WRITE | I_CmsConstants.C_PERMISSION_VIEW,0,I_CmsConstants.C_ACCESSFLAGS_INHERITED);
+  m_driverManager.getUserDriver().createAccessControlEntry(setup,rootFolder.getResourceAceId(),users.getId(),I_CmsConstants.C_PERMISSION_READ | I_CmsConstants.C_PERMISSION_WRITE | I_CmsConstants.C_PERMISSION_VIEW,0,I_CmsConstants.C_ACCESSFLAGS_INHERITED);
+  m_driverManager.getUserDriver().createAccessControlEntry(setup,rootFolder.getResourceAceId(),guests.getId(),I_CmsConstants.C_PERMISSION_READ | I_CmsConstants.C_PERMISSION_VIEW,0,I_CmsConstants.C_ACCESSFLAGS_INHERITED);
+  rootFolder=m_driverManager.getVfsDriver().createFolder(admin,setup,siteRootId,CmsUUID.getNullUUID(),I_CmsConstants.C_DEFAULT_SITE + I_CmsConstants.C_ROOTNAME_VFS + I_CmsConstants.C_ROOT,0);
+  rootFolder.setGroupId(users.getId());
+  rootFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+  m_driverManager.getVfsDriver().writeFolder(setup,rootFolder,false);
+  rootFolder=m_driverManager.getVfsDriver().createFolder(admin,setup,siteRootId,CmsUUID.getNullUUID(),I_CmsConstants.C_DEFAULT_SITE + I_CmsConstants.C_ROOTNAME_COS + I_CmsConstants.C_ROOT,0);
+  rootFolder.setGroupId(users.getId());
+  rootFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+  m_driverManager.getVfsDriver().writeFolder(setup,rootFolder,false);
+}

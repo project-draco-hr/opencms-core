@@ -1,0 +1,30 @@
+{
+  CmsResource res=readFileHeader(currentUser,currentProject,resource);
+  getVfsAccessGuard(currentUser,currentProject).check(res,C_READ_ACCESS);
+  search=search && (siteRoot != null);
+  HashMap value=null;
+  String cacheKey=getCacheKey(C_CACHE_ALL_PROPERTIES + search,null,new CmsProject(currentProject.getId(),-1),res.getResourceName());
+  value=(HashMap)m_propertyCache.get(cacheKey);
+  if (value == null) {
+    if (search) {
+      boolean cont;
+      siteRoot+="/";
+      value=new HashMap();
+      HashMap parentValue;
+      do {
+        parentValue=(HashMap)readProperties(currentUser,currentProject,resource,siteRoot,false);
+        parentValue.putAll(value);
+        value.clear();
+        value.putAll(parentValue);
+        resource=CmsResource.getParent(resource);
+        cont=(!siteRoot.equals(resource));
+      }
+ while (cont);
+    }
+ else {
+      value=m_vfsDriver.readProperties(currentProject.getId(),res,res.getType());
+    }
+    m_propertyCache.put(cacheKey,value);
+  }
+  return (Map)value.clone();
+}
