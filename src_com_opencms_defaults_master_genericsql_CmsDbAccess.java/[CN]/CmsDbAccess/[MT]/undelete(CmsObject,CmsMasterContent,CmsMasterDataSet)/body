@@ -1,0 +1,31 @@
+{
+  if (isOnlineProject(cms)) {
+    throw new CmsException("Can't undelete from the online project",CmsException.C_NO_ACCESS);
+  }
+  if (dataset.m_versionId != I_CmsConstants.C_UNKNOWN_ID) {
+    throw new CmsException("Can't undelete a backup cd ",CmsException.C_NO_ACCESS);
+  }
+  if (!content.isWriteable()) {
+    throw new CmsException("Not writeable",CmsException.C_NO_ACCESS);
+  }
+  String statement_key="update_offline";
+  dataset.m_state=I_CmsConstants.C_STATE_CHANGED;
+  dataset.m_lockedBy=cms.getRequestContext().currentUser().getId();
+  dataset.m_lockedInProject=cms.getRequestContext().currentProject().getId();
+  PreparedStatement stmnt=null;
+  Connection con=null;
+  try {
+    con=DriverManager.getConnection(m_poolName);
+    stmnt=sqlPrepare(con,"update_offline");
+    int rowcounter=sqlFillValues(stmnt,content.getSubId(),dataset);
+    stmnt.setInt(rowcounter++,dataset.m_masterId);
+    stmnt.setInt(rowcounter++,content.getSubId());
+    stmnt.executeUpdate();
+  }
+ catch (  SQLException exc) {
+    throw new CmsException(CmsException.C_SQL_ERROR,exc);
+  }
+ finally {
+    sqlClose(con,stmnt,null);
+  }
+}
