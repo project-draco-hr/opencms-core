@@ -1,15 +1,35 @@
 {
   String template=null;
   String filename=null;
-  String title=null;
   String link=null;
   String foldername=null;
   String type=null;
   HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  getLastUrl(cms,parameters);
   String initial=(String)parameters.get(C_PARA_INITIAL);
   if (initial != null) {
     session.removeValue(C_PARA_FILE);
     session.removeValue(C_PARA_LINK);
+  }
+  link=cms.getRequestContext().getRequest().getParameter(C_PARA_LINK);
+  if (link != null) {
+    session.putValue(C_PARA_LINK,link);
+  }
+  String notChange=(String)parameters.get("newlink");
+  String linkName=null;
+  CmsFile editFile=null;
+  String content=null;
+  String step=cms.getRequestContext().getRequest().getParameter("step");
+  if (notChange != null && notChange.equals("false") && step == null) {
+    linkName=(String)parameters.get("file");
+    editFile=cms.readFile(linkName);
+    content=new String(editFile.getContents());
+    xmlTemplateDocument.setXmlData("LINKNAME",editFile.getName());
+    xmlTemplateDocument.setXmlData("LINK",editFile.getAbsolutePath());
+    xmlTemplateDocument.setXmlData("LINKVALUE",content);
+    template="change";
   }
   filename=cms.getRequestContext().getRequest().getParameter(C_PARA_FILE);
   if (filename != null) {
@@ -19,23 +39,39 @@
   if (link != null) {
     session.putValue(C_PARA_LINK,link);
   }
-  String step=cms.getRequestContext().getRequest().getParameter("step");
   if (step != null) {
     if (step.equals("1")) {
       foldername=(String)session.getValue(C_PARA_FILELIST);
-      title=(String)session.getValue(C_PARA_TITLE);
       if (foldername == null) {
         foldername=cms.rootFolder().getAbsolutePath();
       }
       filename=(String)session.getValue(C_PARA_FILE);
       link=(String)session.getValue(C_PARA_LINK);
+      String title=lang.getLanguageValue("explorer.linkto") + " " + link;
       type="link";
-      cms.createFile(foldername,filename,link.getBytes(),type);
+      if (notChange != null && notChange.equals("false")) {
+        linkName=(String)parameters.get("file");
+        editFile=cms.readFile(linkName);
+        editFile.setContents(link.getBytes());
+        cms.writeFile(editFile);
+        cms.writeProperty(linkName,C_PROPERTY_TITLE,title);
+      }
+ else {
+        cms.createFile(foldername,filename,link.getBytes(),type);
+        cms.lockResource(foldername + filename);
+        cms.writeProperty(foldername + filename,C_PROPERTY_TITLE,title);
+      }
       session.removeValue(C_PARA_FILE);
-      session.removeValue(C_PARA_TITLE);
       session.removeValue(C_PARA_LINK);
       try {
-        cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+        String lastUrl=(String)session.getValue("lasturl");
+        String redirectUrl;
+        if (lastUrl != null) {
+          ((HttpServletResponse)cms.getRequestContext().getResponse().getOriginalResponse()).sendRedirect(lastUrl);
+        }
+ else {
+          cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+        }
       }
  catch (      Exception e) {
         throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
@@ -46,6 +82,11 @@
  else {
     session.removeValue(C_PARA_FILE);
   }
-  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
-  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+  String cancelUrl;
+  cancelUrl=(String)session.getValue("lasturl");
+  if (cancelUrl == null) {
+    cancelUrl=C_WP_EXPLORER_FILELIST;
+  }
+  xmlTemplateDocument.setXmlData("lasturl",cancelUrl);
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,template);
 }
