@@ -1,12 +1,32 @@
 {
+  CmsLock parentFolderLock=null;
+  CmsLock siblingLock=null;
+  CmsResource sibling=null;
+  List siblings=null;
   if (context.currentProject().getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
     return CmsLock.getNullLock();
   }
- else {
-    int lockState=getLockState(driverManager,context,resourcename);
-    if (lockState != CmsLock.C_TYPE_UNLOCKED) {
-      return new CmsLock(resourcename,context.currentUser().getId(),context.currentProject().getId(),lockState);
-    }
+  if (m_exclusiveLocks.containsKey(resourcename)) {
+    return (CmsLock)m_exclusiveLocks.get(resourcename);
   }
-  return CmsLock.getNullLock();
+  siblings=driverManager.getAllSiblings(context,resourcename);
+  if ((parentFolderLock=getParentFolderLock(resourcename)) == null) {
+    for (int i=0; i < siblings.size(); i++) {
+      sibling=(CmsResource)siblings.get(i);
+      siblingLock=(CmsLock)m_exclusiveLocks.get(sibling.getFullResourceName());
+      if (siblingLock != null) {
+        return new CmsLock(resourcename,siblingLock.getUserId(),siblingLock.getProjectId(),CmsLock.C_TYPE_SHARED_EXCLUSIVE);
+      }
+    }
+    return CmsLock.getNullLock();
+  }
+ else {
+    for (int i=0; i < siblings.size(); i++) {
+      sibling=(CmsResource)siblings.get(i);
+      if (m_exclusiveLocks.containsKey(sibling.getFullResourceName())) {
+        return new CmsLock(resourcename,parentFolderLock.getUserId(),parentFolderLock.getProjectId(),CmsLock.C_TYPE_SHARED_INHERITED);
+      }
+    }
+    return new CmsLock(resourcename,parentFolderLock.getUserId(),parentFolderLock.getProjectId(),CmsLock.C_TYPE_INHERITED);
+  }
 }
