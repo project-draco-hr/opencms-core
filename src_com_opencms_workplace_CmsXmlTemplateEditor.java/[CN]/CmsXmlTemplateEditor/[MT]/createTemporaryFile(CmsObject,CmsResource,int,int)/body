@@ -1,6 +1,5 @@
 {
   String temporaryFilename=file.getPath() + C_TEMP_PREFIX + file.getName();
-  String extendedTempFile=null;
   boolean ok=true;
   cms.getRequestContext().setCurrentProject(tempProject);
   try {
@@ -8,13 +7,21 @@
     cms.chmod(temporaryFilename,91);
   }
  catch (  CmsException e) {
-    if ((e.getType() != CmsException.C_FILE_EXISTS) && (e.getType() != CmsException.C_SQL_ERROR)) {
-      cms.getRequestContext().setCurrentProject(curProject);
+    if ((e.getType() == CmsException.C_FILE_EXISTS) || (e.getType() != CmsException.C_SQL_ERROR)) {
+      try {
+        cms.changeLockedInProject(tempProject,temporaryFilename);
+        cms.lockResource(temporaryFilename,true);
+        cms.chmod(temporaryFilename,91);
+      }
+ catch (      Exception ex) {
+        ok=false;
+      }
+    }
+ else {
       throw e;
     }
-    ok=false;
   }
-  extendedTempFile=temporaryFilename;
+  String extendedTempFile=temporaryFilename;
   int loop=0;
   while (!ok) {
     ok=true;
