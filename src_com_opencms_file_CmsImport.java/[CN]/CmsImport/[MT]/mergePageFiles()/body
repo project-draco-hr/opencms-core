@@ -5,6 +5,19 @@
  catch (  CmsException e) {
     m_cms.createPropertydefinition(C_XML_CONTROL_TEMPLATE_PROPERTY,CmsResourceTypeNewPage.C_RESOURCE_TYPE_ID);
   }
+  Vector definitions=m_cms.readAllPropertydefinitions(CmsResourceTypePage.C_RESOURCE_TYPE_ID);
+  Iterator j=definitions.iterator();
+  while (j.hasNext()) {
+    CmsPropertydefinition definition=(CmsPropertydefinition)j.next();
+    System.err.println("creating..." + definition);
+    try {
+      m_cms.readPropertydefinition(definition.getName(),CmsResourceTypeNewPage.C_RESOURCE_TYPE_ID);
+    }
+ catch (    Exception e) {
+      m_cms.createPropertydefinition(definition.getName(),CmsResourceTypeNewPage.C_RESOURCE_TYPE_ID);
+    }
+    System.err.println("done");
+  }
   int size=m_pageStorage.size();
   m_report.println(m_report.key("report.merge_start"),I_CmsReport.C_FORMAT_HEADLINE);
   Iterator i=m_pageStorage.iterator();
@@ -18,10 +31,12 @@
     m_report.print(m_report.key("report.merge") + " " + resname,I_CmsReport.C_FORMAT_NOTE);
     CmsFile pagefile=m_cms.readFile(resname);
     InputStream in=new ByteArrayInputStream(pagefile.getContents());
+    Document contentXml;
+    CmsFile bodyfile;
     try {
       String mastertemplate="";
       String bodyname="";
-      Document contentXml=A_CmsXmlContent.getXmlParser().parse(in);
+      contentXml=A_CmsXmlContent.getXmlParser().parse(in);
       NodeList masterTemplateNode=contentXml.getElementsByTagName("masterTemplate");
       if (masterTemplateNode.getLength() == 1) {
         mastertemplate=masterTemplateNode.item(0).getFirstChild().getNodeValue();
@@ -31,7 +46,7 @@
         bodyname=bodyNode.item(0).getFirstChild().getNodeValue();
         m_cms.lockResource(resname);
         Map properties=m_cms.readProperties(resname);
-        CmsFile bodyfile=m_cms.readFile(bodyname);
+        bodyfile=m_cms.readFile(bodyname);
         pagefile.setContents(bodyfile.getContents());
         pagefile.setType(CmsResourceTypeNewPage.C_RESOURCE_TYPE_ID);
         m_cms.writeFile(pagefile);
@@ -45,6 +60,12 @@
     }
  catch (    Exception e) {
       throw new CmsException(e.toString());
+    }
+ finally {
+      pagefile=null;
+      in=null;
+      contentXml=null;
+      bodyfile=null;
     }
     counter++;
   }
