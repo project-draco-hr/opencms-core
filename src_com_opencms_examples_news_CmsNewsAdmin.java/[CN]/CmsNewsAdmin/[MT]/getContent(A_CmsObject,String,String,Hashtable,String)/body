@@ -6,14 +6,14 @@
     file=(String)session.getValue(C_NEWS_PARAM_FILE);
   }
  else {
-    session.putValue("file",file);
+    session.putValue(C_NEWS_PARAM_FILE,file);
   }
-  String action=(String)parameters.get("action");
+  String action=(String)parameters.get(C_NEWS_PARAM_ACTION);
   if (action == null) {
-    action=(String)session.getValue("action");
+    action=(String)session.getValue(C_NEWS_PARAM_ACTION);
   }
  else {
-    session.putValue("action",action);
+    session.putValue(C_NEWS_PARAM_ACTION,action);
   }
   String newDate=(String)parameters.get(C_NEWS_PARAM_DATE);
   String newHeadline=(String)parameters.get(C_NEWS_PARAM_HEADLINE);
@@ -26,7 +26,7 @@
     GregorianCalendar cal=new GregorianCalendar();
     if (newHeadline == null && newShorttext == null && newText == null && newExternalLink == null) {
       if (file != null && !"".equals(file)) {
-        CmsNewsTemplateFile newsFile=getNewsContentFile(cms,cms.readFile(file));
+        CmsNewsContentFile newsFile=getNewsContentFile(cms,cms.readFile(file));
         A_CmsResource newsContentFileObject=cms.readFileHeader(newsFile.getAbsoluteFilename());
         if (!newsContentFileObject.isLocked()) {
           cms.lockResource(newsFile.getAbsoluteFilename());
@@ -34,11 +34,11 @@
         parameters.put(C_NEWS_PARAM_DATE,Utils.getNiceShortDate(newsFile.getNewsDate()));
         parameters.put(C_NEWS_PARAM_HEADLINE,newsFile.getNewsHeadline());
         parameters.put(C_NEWS_PARAM_SHORTTEXT,newsFile.getNewsShortText());
-        parameters.put(C_NEWS_PARAM_TEXT,newsFile.getNewsText());
+        parameters.put(C_NEWS_PARAM_TEXT,newsFile.getNewsText("\n\n"));
         parameters.put(C_NEWS_PARAM_EXTLINK,newsFile.getNewsExternalLink());
         parameters.put(C_NEWS_PARAM_STATE,new Boolean(newsFile.isNewsActive()));
-        xmlTemplateDocument.setXmlData("author",newsFile.getNewsAuthor());
-        session.putValue("author",newsFile.getNewsAuthor());
+        xmlTemplateDocument.setXmlData(C_NEWS_PARAM_AUTHOR,newsFile.getNewsAuthor());
+        session.putValue(C_NEWS_PARAM_AUTHOR,newsFile.getNewsAuthor());
       }
  else {
         A_CmsUser author=cms.getRequestContext().currentUser();
@@ -54,18 +54,18 @@
           authorText=authorText.trim();
           authorText=authorText + " (" + initials+ ")";
         }
-        session.putValue("author",authorText);
-        xmlTemplateDocument.setXmlData("author",authorText);
+        session.putValue(C_NEWS_PARAM_AUTHOR,authorText);
+        xmlTemplateDocument.setXmlData(C_NEWS_PARAM_AUTHOR,authorText);
         String dateText=Utils.getNiceShortDate(cal.getTime().getTime());
         parameters.put(C_NEWS_PARAM_DATE,dateText);
       }
     }
  else {
-      CmsNewsTemplateFile newsContentFile=null;
+      CmsNewsContentFile newsContentFile=null;
       if (file == null || "".equals(file)) {
         A_CmsUser author=cms.getRequestContext().currentUser();
         String dateFileText=getDateFileText(cal);
-        String newsNumber=this.getNewArticleNumber(cms,dateFileText);
+        String newsNumber=getNewArticleNumber(cms,dateFileText);
         String initials=getInitials(author);
         String newsFileName=dateFileText + "-" + newsNumber+ "-"+ initials.toLowerCase();
         parameters.put(C_NEWS_PARAM_FILE,newsFileName);
@@ -74,18 +74,16 @@
         if (newDate == null || "".equals(newDate)) {
           newDate=Utils.getNiceShortDate(cal.getTime().getTime());
         }
-        CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
-        HttpServletRequest req=(HttpServletRequest)(cms.getRequestContext().getRequest().getOriginalRequest());
-        String taskUrl=req.getScheme() + "://" + req.getHeader("HOST")+ req.getServletPath()+ C_NEWS_FOLDER_PAGE+ newsFileName+ "/index.html";
-        String taskcomment="<A HREF=\"javascript:openwinfull('" + taskUrl + "', 'preview', 0, 0);\"> "+ taskUrl+ "</A>";
-        CmsTaskAction.create(cms,C_NEWS_USER,C_NEWS_ROLE,lang.getLanguageValue("task.label.news"),taskcomment,Utils.getNiceShortDate(new Date().getTime() + 345600000),"1","","","","");
+        makeTask(cms,newsFileName);
       }
  else {
         newsContentFile=getNewsContentFile(cms,cms.readFile(file));
       }
-      setNewsFileContent(newsContentFile,(String)session.getValue("author"),newDate,newHeadline,newShorttext,newText,newExternalLink,newState);
+      setNewsFileContent(newsContentFile,(String)session.getValue(C_NEWS_PARAM_AUTHOR),newDate,newHeadline,newShorttext,newText,newExternalLink,newState);
       cms.unlockResource(newsContentFile.getAbsoluteFilename());
-      session.removeValue("file");
+      session.removeValue(C_NEWS_PARAM_FILE);
+      session.removeValue(C_NEWS_PARAM_ACTION);
+      session.removeValue(C_NEWS_PARAM_AUTHOR);
       templateSelector=C_NEWS_DONE;
     }
   }
