@@ -1,18 +1,18 @@
 {
   StringBuffer result=new StringBuffer(64);
   try {
-    boolean nested=!contentDefinition.equals(m_content.getContentDefinition());
+    boolean nested=CmsStringUtil.isNotEmpty(pathPrefix);
     result.append("<table class=\"xmlTable");
     if (nested) {
       result.append("Nested");
     }
     result.append("\">\n");
-    if (!nested && getErrorHandler().hasErrors()) {
-      result.append("<tr><td colspan=\"5\">&nbsp;</td></tr>\n");
+    if (!nested && getErrorHandler().hasErrors(getElementLocale())) {
+      result.append("<tr><td colspan=\"4\">&nbsp;</td></tr>\n");
       result.append("<tr><td colspan=\"2\">&nbsp;</td>");
       result.append("<td class=\"xmlTdErrorHeader\">");
-      result.append(key("editor.xmlcontent.validation.error"));
-      result.append("</td><td colspan=\"2\">&nbsp;");
+      result.append(key("editor.xmlcontent.validation.error.title"));
+      result.append("</td><td>&nbsp;");
       result.append("</td></tr>\n");
     }
     Iterator i=contentDefinition.getTypeSequence().iterator();
@@ -39,6 +39,7 @@
         elementCount=1;
         elementSequence.addValue(getCms(),0);
         disabledElement=true;
+        m_optionalElementPresent=true;
       }
       for (int j=0; j < elementCount; j++) {
         I_CmsXmlContentValue value=elementSequence.getValue(j);
@@ -51,7 +52,7 @@
         result.append("\">");
         result.append(A_CmsXmlWidget.getMessage(this,nestedContentDefinition,value.getElementName()));
         result.append(": </td>");
-        if (!disabledElement && showHelpBubble && value.getIndex() == 0) {
+        if (showHelpBubble && value.getIndex() == 0) {
           result.append(A_CmsXmlWidget.getHelpBubble(getCms(),this,nestedContentDefinition,value.getElementName()));
         }
  else {
@@ -79,24 +80,22 @@
         result.append(buildRemoveElement(name,value.getIndex(),removeValue));
         result.append("</tr></table></td>");
         result.append("</tr>\n");
-        if (getErrorHandler().hasErrors() || getErrorHandler().hasWarnings()) {
-          String key=value.getPath();
-          if (getErrorHandler().getErrors().containsKey(key)) {
-            result.append("<tr><td></td><td><img src=\"");
-            result.append(getEditorResourceUri());
-            result.append("error.gif");
-            result.append("\" border=\"0\" alt=\"\"></td><td class=\"xmlTdError\">");
-            result.append(getErrorHandler().getErrors().get(key));
-            result.append("</td><td></td></tr>\n");
-          }
-          if (getErrorHandler().getWarnings().containsKey(key)) {
-            result.append("<tr><td></td><td><img src=\"");
-            result.append(getEditorResourceUri());
-            result.append("warning.gif");
-            result.append("\" border=\"0\" alt=\"\"></td><td class=\"xmlTdWarning\">");
-            result.append(getErrorHandler().getWarnings().get(key));
-            result.append("</td><td></td></tr>\n");
-          }
+        String key=value.getPath();
+        if (getErrorHandler().hasErrors(getElementLocale()) && getErrorHandler().getErrors(getElementLocale()).containsKey(key)) {
+          result.append("<tr><td></td><td><img src=\"");
+          result.append(getEditorResourceUri());
+          result.append("error.gif");
+          result.append("\" border=\"0\" alt=\"\"></td><td class=\"xmlTdError\">");
+          result.append(resolveMacros((String)getErrorHandler().getErrors(getElementLocale()).get(key)));
+          result.append("</td><td></td></tr>\n");
+        }
+        if (getErrorHandler().hasWarnings(getElementLocale()) && getErrorHandler().getWarnings(getElementLocale()).containsKey(key)) {
+          result.append("<tr><td></td><td><img src=\"");
+          result.append(getEditorResourceUri());
+          result.append("warning.gif");
+          result.append("\" border=\"0\" alt=\"\"></td><td class=\"xmlTdWarning\">");
+          result.append(resolveMacros((String)getErrorHandler().getWarnings(getElementLocale()).get(key)));
+          result.append("</td><td></td></tr>\n");
         }
       }
     }
@@ -105,5 +104,5 @@
  catch (  Throwable t) {
     OpenCms.getLog(this).error("Error in XML editor",t);
   }
-  return result.toString();
+  return result;
 }
