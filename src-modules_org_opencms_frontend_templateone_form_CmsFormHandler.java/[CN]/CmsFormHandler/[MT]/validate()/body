@@ -1,0 +1,48 @@
+{
+  boolean allOk=true;
+  Iterator i=getFormConfiguration().getFields().iterator();
+  while (i.hasNext()) {
+    CmsField currentField=(CmsField)i.next();
+    if (currentField.isMandatory()) {
+      if (currentField.needsItems()) {
+        Iterator k=currentField.getItems().iterator();
+        boolean isSelected=false;
+        while (k.hasNext()) {
+          CmsFieldItem currentItem=(CmsFieldItem)k.next();
+          if (currentItem.isSelected()) {
+            isSelected=true;
+            continue;
+          }
+        }
+        if (!isSelected) {
+          getErrors().put(currentField.getName(),C_ERROR_MANDATORY);
+          allOk=false;
+          continue;
+        }
+      }
+ else {
+        if (CmsStringUtil.isEmpty(currentField.getValue())) {
+          getErrors().put(currentField.getName(),C_ERROR_MANDATORY);
+          allOk=false;
+          continue;
+        }
+      }
+    }
+    if (CmsStringUtil.isNotEmpty(currentField.getValue()) && !currentField.needsItems() && !"".equals(currentField.getValidationExpression())) {
+      Pattern pattern=null;
+      try {
+        pattern=Pattern.compile(currentField.getValidationExpression());
+        if (!pattern.matcher(currentField.getValue()).matches()) {
+          getErrors().put(currentField.getName(),C_ERROR_VALIDATION);
+          allOk=false;
+        }
+      }
+ catch (      PatternSyntaxException e) {
+        if (OpenCms.getLog(this).isErrorEnabled()) {
+          OpenCms.getLog(this).error("A pattern syntax exception occured: " + e.getMessage());
+        }
+      }
+    }
+  }
+  return allOk;
+}
