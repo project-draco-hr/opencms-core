@@ -1,5 +1,10 @@
 {
   setConfiguration(conf);
+  if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
+    log(I_CmsLogChannels.C_OPENCMS_INIT,".");
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms startup      : System time is " + new Date());
+    log(I_CmsLogChannels.C_OPENCMS_INIT,".");
+  }
   String defaultEncoding=getDefaultEncoding();
   defaultEncoding=conf.getString("defaultContentEncoding",defaultEncoding);
   if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))   log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms encoding     : " + defaultEncoding);
@@ -9,7 +14,9 @@
   }
  catch (  SecurityException se) {
   }
-  if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))   log(I_CmsLogChannels.C_OPENCMS_INIT,". System file.encoding : " + systemEncoding);
+  if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". System file.encoding : " + systemEncoding);
+  }
   if (!defaultEncoding.equals(systemEncoding)) {
     String msg="OpenCms startup failure: System file.encoding '" + systemEncoding + "' not equal to OpenCms encoding '"+ defaultEncoding+ "'";
     if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL))     log(I_CmsLogChannels.C_OPENCMS_CRITICAL,". Critical init error/1: " + msg);
@@ -23,9 +30,13 @@
  catch (  Throwable t) {
   }
   setDefaultEncoding(defaultEncoding);
-  if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))   log(I_CmsLogChannels.C_OPENCMS_INIT,". Encoding set to      : " + defaultEncoding);
+  if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". Encoding set to      : " + defaultEncoding);
+  }
   String ethernetAddress=conf.getString("server.ethernet.address",CmsUUID.getDummyEthernetAddress());
-  if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))   log(I_CmsLogChannels.C_OPENCMS_INIT,". Ethernet address used: " + ethernetAddress);
+  if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". Ethernet address used: " + ethernetAddress);
+  }
   CmsUUID.init(ethernetAddress);
   try {
     if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
@@ -44,16 +55,41 @@
     if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL))     log(I_CmsLogChannels.C_OPENCMS_CRITICAL,". Critical init error/2: " + e.getMessage());
     throw e;
   }
+  if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". Default user names   : initializing");
+  }
+  try {
+    String[] defaultUserArray=conf.getStringArray("db.default.users");
+    CmsDefaultUsers defaultUsers=new CmsDefaultUsers(defaultUserArray);
+    setDefaultUsers(defaultUsers);
+  }
+ catch (  Exception e) {
+    if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+      log(I_CmsLogChannels.C_OPENCMS_CRITICAL,". Critical init error/6: " + e.getMessage());
+    }
+  }
+  if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". Admin user           : " + getDefaultUsers().getUserAdmin());
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". Guest user           : " + getDefaultUsers().getUserGuest());
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". Administrators group : " + getDefaultUsers().getGroupAdministrators());
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". Projectmanagers group: " + getDefaultUsers().getGroupProjectmanagers());
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". Users group          : " + getDefaultUsers().getGroupUsers());
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". Guests group         : " + getDefaultUsers().getGroupGuests());
+  }
   try {
     m_driverManager=CmsDriverManager.newInstance(conf);
   }
  catch (  Exception e) {
-    if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL))     log(I_CmsLogChannels.C_OPENCMS_CRITICAL,". Critical init error/3: " + e.getMessage());
+    if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+      log(I_CmsLogChannels.C_OPENCMS_CRITICAL,". Critical init error/3: " + e.getMessage());
+    }
     throw new CmsException("Database init failed",CmsException.C_RB_INIT_ERROR,e);
   }
   try {
     m_mt=m_driverManager.readMimeTypes();
-    if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))     log(I_CmsLogChannels.C_OPENCMS_INIT,". Found mime types     : " + m_mt.size() + " entrys");
+    if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
+      log(I_CmsLogChannels.C_OPENCMS_INIT,". Found mime types     : " + m_mt.size() + " entrys");
+    }
     if (!new Boolean(System.getProperty("opencms.disableScheduler")).booleanValue()) {
       m_table=new CmsCronTable(m_driverManager.readCronTable());
       m_scheduler=new CmsCronScheduler(this,m_table);
@@ -285,5 +321,10 @@
   }
  catch (  Exception e) {
     if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))     log(I_CmsLogChannels.C_OPENCMS_INIT,". Link rules init      : non-critical error " + e.toString());
+  }
+  if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
+    log(I_CmsLogChannels.C_OPENCMS_INIT,".");
+    log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms startup      : Finished!");
+    log(I_CmsLogChannels.C_OPENCMS_INIT,".");
   }
 }
