@@ -1,7 +1,10 @@
 {
   String la="false";
   Object laObject=new Object();
-  String ls="";
+  int ls=-1;
+  String lockString=null;
+  int actUserId=cms.getRequestContext().currentUser().getId();
+  String isLockedBy=null;
   try {
     Method laMethod=cdClass.getMethod("isLockable",new Class[]{});
     laObject=laMethod.invoke(null,null);
@@ -35,40 +38,32 @@ catch (  Exception e) {
   }
  else {
     try {
-      Method lsMethod=cdClass.getMethod("getLockstate",new Class[]{});
-      Object lsObject=lsMethod.invoke(entryObject,null);
-      ls=(String)lsObject;
+      ls=((A_CmsContentDefinition)entryObject).getLockstate();
     }
- catch (    InvocationTargetException ite) {
-      if (A_OpenCms.isLogging()) {
-        A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice setLockstates: Method getLockstate throwed an Invocation target exception!");
-      }
-    }
-catch (    NoSuchMethodException nsm) {
-      if (A_OpenCms.isLogging()) {
-        A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice setLockstates: Requested method getLockstate was not found!");
-      }
-    }
-catch (    Exception e) {
+ catch (    Exception e) {
       if (A_OpenCms.isLogging()) {
         A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice setLockstates: Method getLockstate throwed an exception!");
       }
     }
     try {
-      if (ls.equals("lockuser")) {
-        ls=template.getDataValue("lockuser");
-        template.setData("lockedby",ls);
+      if (ls == actUserId) {
+        isLockedBy=cms.getRequestContext().currentUser().getName();
+        template.setData("isLockedBy",isLockedBy);
+        lockString=template.getProcessedDataValue("lockuser",this,parameters);
+        template.setData("lockedby",lockString);
         template.setData("backofficecontextmenue","backofficelockuser");
       }
  else {
-        if (ls.equals("lock")) {
-          ls=template.getDataValue("lock");
-          template.setData("lockedby",ls);
+        if (ls != C_NOT_LOCKED) {
+          isLockedBy=cms.readUser(ls).getName();
+          template.setData("isLockedBy",isLockedBy);
+          lockString=template.getProcessedDataValue("lock",this,parameters);
+          template.setData("lockedby",lockString);
           template.setData("backofficecontextmenue","backofficelock");
         }
  else {
-          ls=template.getDataValue("nolock");
-          template.setData("lockedby",ls);
+          lockString=template.getProcessedDataValue("nolock",this,parameters);
+          template.setData("lockedby",lockString);
           template.setData("backofficecontextmenue","backofficenolock");
         }
       }

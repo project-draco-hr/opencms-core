@@ -2,6 +2,7 @@
   byte[] processResult=null;
   I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
   Class cdClass=getContentDefinitionClass();
+  int actUserId=cms.getRequestContext().currentUser().getId();
   String id=(String)parameters.get("id");
   if (id == null)   id="";
   if (id != "") {
@@ -18,18 +19,17 @@
   if (action == null || action.equals("")) {
     templateSelector="lock";
     Integer idInteger=null;
-    String ls="";
+    int ls=-1;
     try {
       idInteger=Integer.valueOf(id);
     }
  catch (    Exception e) {
-      ls="";
+      ls=-1;
       String title="no title";
       Object o=null;
       o=getContentDefinition(cms,cdClass,id);
       try {
-        Method getLockstateMethod=(Method)cdClass.getMethod("getLockstate",new Class[]{});
-        ls=(String)getLockstateMethod.invoke(o,new Object[0]);
+        ls=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception exc) {
         exc.printStackTrace();
@@ -40,8 +40,7 @@
     if (idInteger != null) {
       o=getContentDefinition(cms,cdClass,idInteger);
       try {
-        Method getLockstateMethod=(Method)cdClass.getMethod("getLockstate",new Class[]{});
-        ls=(String)getLockstateMethod.invoke(o,new Object[0]);
+        ls=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception e) {
         e.printStackTrace();
@@ -50,8 +49,7 @@
  else {
       o=getContentDefinition(cms,cdClass,id);
       try {
-        Method getLockstateMethod=(Method)cdClass.getMethod("getLockstate",new Class[]{});
-        ls=(String)getLockstateMethod.invoke(o,new Object[0]);
+        ls=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception e) {
         e.printStackTrace();
@@ -63,15 +61,15 @@
     moduleName=moduleName.trim();
     moduleName=moduleName.replace('.','_');
     CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
-    if (ls.equals("lock")) {
+    if (ls != C_NOT_LOCKED && ls != actUserId) {
       template.setData("locktitle",lang.getLanguageValue("messagebox.title.unlock"));
       template.setData("lockstate",lang.getLanguageValue("messagebox.message1.unlock"));
     }
-    if (ls.equals("nolock")) {
+    if (ls == C_NOT_LOCKED) {
       template.setData("locktitle",lang.getLanguageValue("messagebox.title.lock"));
       template.setData("lockstate",lang.getLanguageValue("messagebox.message1.lock"));
     }
-    if (ls.equals("lockuser")) {
+    if (ls == actUserId) {
       template.setData("locktitle",lang.getLanguageValue("messagebox.title.lockchange"));
       template.setData("lockstate",lang.getLanguageValue("messagebox.message1.lockchange"));
     }
@@ -83,18 +81,17 @@
     templateSelector="done";
     session.removeValue("idsave");
     Integer idInteger=null;
-    String ls="";
+    int ls=C_NOT_LOCKED;
     try {
       idInteger=Integer.valueOf(id);
     }
  catch (    Exception e) {
-      ls="";
+      ls=C_NOT_LOCKED;
       String title="no title";
       Object o=null;
       o=getContentDefinition(cms,cdClass,id);
       try {
-        Method getLockstateMethod=(Method)cdClass.getMethod("getLockstate",new Class[]{});
-        ls=(String)getLockstateMethod.invoke(o,new Object[0]);
+        ls=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception exce) {
         exce.printStackTrace();
@@ -104,8 +101,7 @@
     if (idInteger != null) {
       o=getContentDefinition(cms,cdClass,idInteger);
       try {
-        Method getLockstateMethod=(Method)cdClass.getMethod("getLockstate",new Class[]{});
-        ls=(String)getLockstateMethod.invoke(o,new Object[0]);
+        ls=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception e) {
         e.printStackTrace();
@@ -114,26 +110,23 @@
  else {
       o=getContentDefinition(cms,cdClass,id);
       try {
-        Method getLockstateMethod=(Method)cdClass.getMethod("getLockstate",new Class[]{});
-        ls=(String)getLockstateMethod.invoke(o,new Object[0]);
+        ls=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception e) {
         e.printStackTrace();
       }
     }
     try {
-      Method getLockstateMethod=(Method)cdClass.getMethod("getLockstate",new Class[]{});
-      ls=(String)getLockstateMethod.invoke(o,new Object[0]);
+      ls=((A_CmsContentDefinition)o).getLockstate();
     }
  catch (    Exception e) {
       if (A_OpenCms.isLogging()) {
         A_OpenCms.log(C_OPENCMS_INFO,getClassName() + " Backoffice getContentLock: Method getLockstate throwed an exception!");
       }
     }
-    if (ls.equals("lockuser")) {
+    if (ls == actUserId) {
       try {
-        Method setLockstateMethod=(Method)cdClass.getMethod("setLockstate",new Class[]{String.class});
-        setLockstateMethod.invoke(o,new Object[]{"lock"});
+        ((A_CmsContentDefinition)o).setLockstate(C_NOT_LOCKED);
       }
  catch (      Exception e) {
         if (A_OpenCms.isLogging()) {
@@ -151,10 +144,9 @@
       templateSelector="done";
     }
  else {
-      if (ls.equals("lock")) {
+      if ((ls != C_NOT_LOCKED) && (ls != actUserId)) {
         try {
-          Method setLockstateMethod=(Method)cdClass.getMethod("setLockstate",new Class[]{String.class});
-          setLockstateMethod.invoke(o,new Object[]{"nolock"});
+          ((A_CmsContentDefinition)o).setLockstate(actUserId);
         }
  catch (        Exception e) {
           if (A_OpenCms.isLogging()) {
@@ -162,8 +154,7 @@
           }
         }
         try {
-          Method writeMethod=(Method)cdClass.getMethod("write",new Class[]{CmsObject.class});
-          writeMethod.invoke(o,new Object[]{cms});
+          ((A_CmsContentDefinition)o).write(cms);
         }
  catch (        Exception e) {
           if (A_OpenCms.isLogging()) {
@@ -174,8 +165,7 @@
       }
  else {
         try {
-          Method setLockstateMethod=(Method)cdClass.getMethod("setLockstate",new Class[]{String.class});
-          setLockstateMethod.invoke(o,new Object[]{"lock"});
+          ((A_CmsContentDefinition)o).setLockstate(actUserId);
         }
  catch (        Exception e) {
           if (A_OpenCms.isLogging()) {
@@ -183,8 +173,7 @@
           }
         }
         try {
-          Method writeMethod=(Method)cdClass.getMethod("write",new Class[]{CmsObject.class});
-          writeMethod.invoke(o,new Object[]{cms});
+          ((A_CmsContentDefinition)o).write(cms);
         }
  catch (        Exception e) {
           if (A_OpenCms.isLogging()) {
