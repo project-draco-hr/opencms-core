@@ -1,0 +1,37 @@
+{
+  List links=(List)new ArrayList();
+  String link=null;
+  Pattern pattern=null;
+  Matcher matcher=null;
+  String encoding=null;
+  String defaultEncoding=null;
+  CmsFile file=null;
+  String content=null;
+  try {
+    file=m_driverManager.readFile(cms.getRequestContext(),resource.getRootPath());
+  }
+ catch (  CmsException e) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error reading file content of " + resource.getRootPath(),e);
+    }
+    return Collections.EMPTY_LIST;
+  }
+  try {
+    defaultEncoding=cms.getRequestContext().getEncoding();
+    encoding=m_driverManager.readProperty(cms.getRequestContext(),resource.getRootPath(),cms.getRequestContext().getAdjustedSiteRoot(resource.getRootPath()),I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,true,defaultEncoding);
+    content=new String(file.getContents(),encoding);
+  }
+ catch (  Exception e) {
+    content=new String(file.getContents());
+  }
+  int flags=Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL;
+  pattern=Pattern.compile("<(img|a)(\\s+)(.*?)(src|href)=(\"|\')(.*?)(\"|\')(.*?)>",flags);
+  matcher=pattern.matcher(content);
+  while (matcher.find()) {
+    link=matcher.group(6);
+    if (link.length() > 0 && !link.startsWith("]") && !link.endsWith("[")) {
+      links.add(link);
+    }
+  }
+  return links;
+}
