@@ -1,0 +1,71 @@
+{
+  String targetFolder=getTargetFolder();
+  String startFolder=getStartFolder();
+  CmsFolder folder;
+  try {
+    folder=getCms().readFolder(targetFolder);
+  }
+ catch (  CmsException e) {
+    return printError(e);
+  }
+  List projectResources;
+  try {
+    projectResources=getCms().readProjectResources(getCms().getRequestContext().currentProject());
+  }
+ catch (  CmsException e) {
+    projectResources=new ArrayList();
+  }
+  boolean grey;
+  List resources;
+  if ((startFolder == null) || (!targetFolder.startsWith(startFolder))) {
+    try {
+      resources=getCms().getSubFolders(targetFolder);
+    }
+ catch (    CmsException e) {
+      return printError(e);
+    }
+  }
+ else {
+    resources=new ArrayList();
+    try {
+      resources.addAll(getCms().getSubFolders(startFolder));
+      StringTokenizer tok=new StringTokenizer(targetFolder.substring(startFolder.length()),"/");
+      while (tok.hasMoreTokens()) {
+        startFolder+=tok.nextToken() + "/";
+        resources.addAll(getCms().getSubFolders(startFolder));
+      }
+    }
+ catch (    CmsException e) {
+      return printError(e);
+    }
+  }
+  StringBuffer result=new StringBuffer(2048);
+  result.append("function init() {\n");
+  if (newTree()) {
+    result.append("parent.initTree();\n");
+    result.append(getRootNode());
+  }
+  Iterator i=resources.iterator();
+  while (i.hasNext()) {
+    CmsResource resource=(CmsResource)i.next();
+    grey=!CmsProject.isInsideProject(projectResources,resource);
+    result.append(getNode(resource.getResourceName(),resource.getId(),resource.getParentId(),grey));
+  }
+  if (newTree()) {
+    result.append("parent.showTree(parent.tree_display.document, \"");
+    result.append(folder.getId().hashCode());
+    result.append("\");\n");
+  }
+ else {
+    if (resources.size() == 0) {
+      result.append("parent.setNoChilds(\"");
+      result.append(folder.getId().hashCode());
+      result.append("\");\n");
+    }
+    result.append("parent.showLoadedNodes(parent.tree_display.document,\"");
+    result.append(folder.getId().hashCode());
+    result.append("\");\n");
+  }
+  result.append("}\n");
+  return result.toString();
+}
