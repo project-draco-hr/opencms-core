@@ -1,27 +1,18 @@
 {
-  if (param == null) {
-    throw new IllegalArgumentException("Filter requires a parameter in the form '/sites/default/myfolder/|11'");
-  }
-  int pos1=param.indexOf('|');
-  if (pos1 == -1) {
-    throw new IllegalArgumentException("Malformed filter parameter '" + param + "'");
-  }
-  String foldername=CmsResource.getFolderPath(param.substring(0,pos1));
-  int type=Integer.valueOf(param.substring(pos1 + 1)).intValue();
+  CmsFilterData data=new CmsFilterData(param);
+  String foldername=CmsResource.getFolderPath(data.getFileName());
   List result;
   String siteRoot=cms.getRequestContext().getSiteRoot();
   int prefix=siteRoot.length();
   cms.getRequestContext().saveSiteRoot();
   try {
     cms.getRequestContext().setSiteRoot("/");
-    List resources=cms.getFilesInFolder(foldername);
+    CmsResourceFilter filter=CmsResourceFilter.DEFAULT.addRequireType(data.getType());
+    List resources=cms.readResources(foldername,filter,tree);
     result=new ArrayList(resources.size());
     Iterator i=resources.iterator();
     while (i.hasNext()) {
       CmsResource resource=(CmsResource)i.next();
-      if (resource.getTypeId() != type) {
-        continue;
-      }
       result.add(cms.getSitePath(resource).substring(prefix));
     }
   }
@@ -30,5 +21,8 @@
   }
   Collections.sort(result);
   Collections.reverse(result);
+  if ((data.getCount() > 0) && (result.size() > data.getCount())) {
+    result=result.subList(0,data.getCount());
+  }
   return result;
 }
