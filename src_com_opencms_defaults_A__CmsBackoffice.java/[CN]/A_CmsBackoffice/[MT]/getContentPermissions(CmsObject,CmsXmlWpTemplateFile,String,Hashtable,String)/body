@@ -1,0 +1,72 @@
+{
+  byte[] processResult=null;
+  Object o=null;
+  I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  Class cdClass=getContentDefinitionClass();
+  String mode=(String)parameters.get("chmode");
+  if (mode == null || "".equals(mode)) {
+    mode="";
+  }
+  String id=(String)parameters.get("id");
+  if (id == null) {
+    id="";
+  }
+  String action=(String)parameters.get("action");
+  int newOwner=0;
+  int newGroup=0;
+  String newOwnerString=(String)parameters.get("owner");
+  if (newOwnerString != null && !"".equals(newOwnerString)) {
+    newOwner=Integer.parseInt(newOwnerString);
+  }
+  String newGroupString=(String)parameters.get("groupId");
+  if (newGroupString != null && !"".equals(newGroupString)) {
+    newGroup=Integer.parseInt(newGroupString);
+  }
+  int newAccessFlags=getAccessValue(parameters);
+  if (action == null || action.equals("")) {
+    if (id != "" && mode != "") {
+      o=getContentDefinition(cms,cdClass,new Integer(id));
+      templateSelector=mode;
+      int curOwner=((I_CmsExtendedContentDefinition)o).getOwner();
+      int curGroup=((I_CmsExtendedContentDefinition)o).getGroupId();
+      int curAccessFlags=((I_CmsExtendedContentDefinition)o).getAccessFlags();
+      this.setOwnerSelectbox(cms,template,curOwner);
+      this.setGroupSelectbox(cms,template,curGroup);
+      this.setAccessValue(template,curAccessFlags);
+      template.setData("id",id);
+      template.setData("setaction",mode);
+    }
+  }
+ else {
+    templateSelector="done";
+    session.removeValue("idpermissions");
+    Integer idInteger=null;
+    try {
+      idInteger=Integer.valueOf(id);
+      o=getContentDefinition(cms,cdClass,idInteger);
+    }
+ catch (    Exception e) {
+      o=getContentDefinition(cms,cdClass,id);
+    }
+    try {
+      if ("chown".equalsIgnoreCase(action) && newOwner != 0) {
+        ((I_CmsExtendedContentDefinition)o).chown(cms,newOwner);
+      }
+ else       if ("chgrp".equalsIgnoreCase(action) && newGroup != 0) {
+        ((I_CmsExtendedContentDefinition)o).chgrp(cms,newGroup);
+      }
+ else       if ("chmod".equalsIgnoreCase(action)) {
+        ((I_CmsExtendedContentDefinition)o).chmod(cms,newAccessFlags);
+      }
+    }
+ catch (    Exception e) {
+      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice: changing permissions method throwed an exception!");
+      }
+      templateSelector="permissionserror";
+      template.setData("permissionserror",e.getMessage());
+    }
+  }
+  processResult=startProcessing(cms,template,elementName,parameters,templateSelector);
+  return processResult;
+}

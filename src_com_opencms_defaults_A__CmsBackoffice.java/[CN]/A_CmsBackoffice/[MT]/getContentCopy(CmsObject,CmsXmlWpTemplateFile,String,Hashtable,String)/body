@@ -1,0 +1,44 @@
+{
+  byte[] processResult=null;
+  I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  Class cdClass=getContentDefinitionClass();
+  String id=(String)parameters.get("id");
+  if (id == null) {
+    id="";
+  }
+  String action=(String)parameters.get("action");
+  if (action == null || action.equals("")) {
+    if (id != "") {
+      Object o=getContentDefinition(cms,cdClass,new Integer(id));
+      String curOwner=cms.readUser(((I_CmsExtendedContentDefinition)o).getOwner()).getName();
+      String curGroup=cms.readGroup(((I_CmsExtendedContentDefinition)o).getGroupId()).getName();
+      templateSelector="copy";
+      template.setData("username",curOwner);
+      template.setData("groupname",curGroup);
+      template.setData("id",id);
+      template.setData("setaction","default");
+    }
+  }
+ else {
+    templateSelector="done";
+    session.removeValue("idcopy");
+    Integer idInteger=null;
+    Object o=null;
+    try {
+      idInteger=Integer.valueOf(id);
+      o=getContentDefinition(cms,cdClass,idInteger);
+    }
+ catch (    Exception e) {
+      o=getContentDefinition(cms,cdClass,id);
+    }
+    try {
+      ((I_CmsExtendedContentDefinition)o).copy(cms);
+    }
+ catch (    Exception e) {
+      templateSelector="copyerror";
+      template.setData("copyerror",e.getMessage());
+    }
+  }
+  processResult=startProcessing(cms,template,elementName,parameters,templateSelector);
+  return processResult;
+}

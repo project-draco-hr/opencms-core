@@ -1,0 +1,44 @@
+{
+  if (isOnlineProject(cms)) {
+    throw new CmsException("Can't change permissions in online project",CmsException.C_NO_ACCESS);
+  }
+  if (dataset.m_versionId != I_CmsConstants.C_UNKNOWN_ID) {
+    throw new CmsException("Can't change permissions of a backup cd ",CmsException.C_NO_ACCESS);
+  }
+  readLockstate(dataset,content.getSubId());
+  if ((dataset.m_lockedBy != cms.getRequestContext().currentUser().getId())) {
+    throw new CmsException("Not locked by this user",CmsException.C_NO_ACCESS);
+  }
+  if (dataset.m_lockedInProject != dataset.m_projectId) {
+    throw new CmsException("Not locked in this project",CmsException.C_NO_ACCESS);
+  }
+  if (!content.isWriteable()) {
+    throw new CmsException("Not writeable",CmsException.C_NO_ACCESS);
+  }
+  if (dataset.m_state != I_CmsConstants.C_STATE_NEW) {
+    dataset.m_state=I_CmsConstants.C_STATE_CHANGED;
+  }
+  dataset.m_dateLastModified=System.currentTimeMillis();
+  dataset.m_lastModifiedBy=cms.getRequestContext().currentUser().getId();
+  PreparedStatement stmnt=null;
+  Connection con=null;
+  try {
+    con=DriverManager.getConnection(m_poolName);
+    stmnt=sqlPrepare(con,"update_permissions_offline");
+    stmnt.setInt(1,dataset.m_userId);
+    stmnt.setInt(2,dataset.m_groupId);
+    stmnt.setInt(3,dataset.m_accessFlags);
+    stmnt.setInt(4,dataset.m_state);
+    stmnt.setInt(5,dataset.m_lastModifiedBy);
+    stmnt.setTimestamp(6,new Timestamp(dataset.m_dateLastModified));
+    stmnt.setInt(7,dataset.m_masterId);
+    stmnt.setInt(8,content.getSubId());
+    stmnt.executeUpdate();
+  }
+ catch (  SQLException exc) {
+    throw new CmsException(CmsException.C_SQL_ERROR,exc);
+  }
+ finally {
+    sqlClose(con,stmnt,null);
+  }
+}

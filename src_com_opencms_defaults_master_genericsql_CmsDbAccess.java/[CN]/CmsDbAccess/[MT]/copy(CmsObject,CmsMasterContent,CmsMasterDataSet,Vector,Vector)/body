@@ -1,0 +1,39 @@
+{
+  if (isOnlineProject(cms)) {
+    throw new CmsException("Can't write to the online project",CmsException.C_NO_ACCESS);
+  }
+  if (dataset.m_versionId != I_CmsConstants.C_UNKNOWN_ID) {
+    throw new CmsException("Can't update a cd with a backup cd ",CmsException.C_NO_ACCESS);
+  }
+  if (!content.isWriteable()) {
+    throw new CmsException("Not writeable",CmsException.C_NO_ACCESS);
+  }
+  int newMasterId=CmsIdGenerator.nextId(m_poolName,"CMS_MODULE_MASTER");
+  int projectId=cms.getRequestContext().currentProject().getId();
+  int currentUserId=cms.getRequestContext().currentUser().getId();
+  long currentTime=new java.util.Date().getTime();
+  dataset.m_masterId=newMasterId;
+  dataset.m_projectId=projectId;
+  dataset.m_lockedInProject=projectId;
+  dataset.m_state=I_CmsConstants.C_STATE_NEW;
+  dataset.m_lockedBy=currentUserId;
+  dataset.m_lastModifiedBy=currentUserId;
+  dataset.m_dateCreated=currentTime;
+  dataset.m_dateLastModified=currentTime;
+  PreparedStatement stmnt=null;
+  Connection con=null;
+  try {
+    con=DriverManager.getConnection(m_poolName);
+    stmnt=sqlPrepare(con,"insert_offline");
+    sqlFillValues(stmnt,content.getSubId(),dataset);
+    stmnt.executeUpdate();
+    updateMedia(dataset.m_masterId,mediaToAdd,new Vector(),new Vector());
+    updateChannels(cms,dataset.m_masterId,channelToAdd,new Vector());
+  }
+ catch (  SQLException exc) {
+    throw new CmsException(CmsException.C_SQL_ERROR,exc);
+  }
+ finally {
+    sqlClose(con,stmnt,null);
+  }
+}
