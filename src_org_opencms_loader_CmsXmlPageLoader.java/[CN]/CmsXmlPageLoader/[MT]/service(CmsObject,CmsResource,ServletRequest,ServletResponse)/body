@@ -1,0 +1,41 @@
+{
+  I_CmsRequest cms_req=cms.getRequestContext().getRequest();
+  String rnc=cms.getRequestContext().getEncoding().trim();
+  HttpServletRequest originalreq=(HttpServletRequest)cms_req.getOriginalRequest();
+  try {
+    byte[] result=null;
+    String absolutePath=cms.readAbsolutePath(file);
+    CmsXmlPage page=new CmsXmlPage(cms.readFile(absolutePath));
+    String dnc=OpenCms.getDefaultEncoding().trim();
+    String enc=cms.readProperty(cms.readAbsolutePath(page),I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,true,dnc).trim();
+    cms.getRequestContext().setEncoding(enc);
+    if (DEBUG > 1) {
+      System.err.println("CmsXmlPageLoader.service(): Encodig set to " + cms.getRequestContext().getEncoding());
+      System.err.println("CmsXmlPageLoader.service(): Uri set to " + cms.getRequestContext().getUri());
+    }
+    String elementName=req.getParameter(C_TEMPLATE_ELEMENT);
+    String localeProp=OpenCms.getUserDefaultLanguage();
+    result=page.getElementData(elementName,localeProp);
+    if (result != null) {
+      result=Encoder.changeEncoding(result,enc,dnc);
+      if (DEBUG > 1) {
+        System.err.println("CmsXmlPageLoader.service(): encoding=" + enc + " requestEncoding="+ rnc+ " defaultEncoding="+ dnc);
+      }
+      res.getOutputStream().write(result);
+    }
+  }
+ catch (  Throwable t) {
+    if (DEBUG > 0) {
+      t.printStackTrace(System.err);
+    }
+    throw new ServletException("Error in CmsXmlPageLoader while processing " + cms.readAbsolutePath(file),t);
+  }
+ finally {
+    cms_req.setOriginalRequest(originalreq);
+    cms.getRequestContext().setEncoding(rnc);
+    if (DEBUG > 1) {
+      System.err.println("CmsXmlPageLoader.service(): Encodig reset to " + cms.getRequestContext().getEncoding());
+      System.err.println("CmsXmlPageLoader.service(): Uri reset to " + cms.getRequestContext().getUri());
+    }
+  }
+}
