@@ -6,11 +6,39 @@
   }
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
   I_CmsSession session=cms.getRequestContext().getSession(true);
-  String exportTo=(String)parameters.get("filename");
   String action=(String)parameters.get("action");
-  String allResources=(String)parameters.get("ALLRES");
   if (action == null) {
-    xmlTemplateDocument.setData("path",com.opencms.boot.CmsBase.getAbsolutePath(cms.readExportPath()));
+    Vector exportStartPoints=cms.getStaticExportStartPoints();
+    String allStartPoints="";
+    if (exportStartPoints != null) {
+      for (int i=0; i < exportStartPoints.size(); i++) {
+        xmlTemplateDocument.setData("entry",(String)exportStartPoints.elementAt(i));
+        allStartPoints+=xmlTemplateDocument.getProcessedDataValue("exportpoint");
+      }
+    }
+    xmlTemplateDocument.setData("exportpoints",allStartPoints);
+    xmlTemplateDocument.setData("path",cms.getStaticExportPath());
+  }
+  if ((action != null) && ("regTest".equals(action))) {
+    String sub=(String)parameters.get("sub");
+    String link="";
+    String regExpr="";
+    String result="";
+    if (sub != null && "true".equals(sub)) {
+      link=(String)parameters.get("link");
+      regExpr=(String)parameters.get("regExpr");
+      try {
+        Perl5Util subClass=new Perl5Util();
+        result=subClass.substitute(regExpr,link);
+      }
+ catch (      Exception e) {
+        result="error: " + e.getMessage();
+      }
+    }
+    xmlTemplateDocument.setData("link",Encoder.escape(link));
+    xmlTemplateDocument.setData("regExpr",Encoder.escape(regExpr));
+    xmlTemplateDocument.setData("result",Encoder.escape(result));
+    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"regTest");
   }
   if ((action != null) && ("working".equals(action))) {
     Thread doTheWork=(Thread)session.getValue(C_STATICEXPORT_THREAD);
@@ -33,30 +61,15 @@
       }
     }
   }
-  try {
-    if ("export".equals(action)) {
-      Vector resourceNames=parseResources(allResources);
-      String[] exportPaths=new String[resourceNames.size()];
-      CmsXmlLanguageFile lang=xmlTemplateDocument.getLanguageFile();
-      for (int i=0; i < resourceNames.size(); i++) {
-        if (lang.getLanguageValue("title.rootfolder").equals(resourceNames.elementAt(i))) {
-          resourceNames.setElementAt("/",i);
-        }
-        exportPaths[i]=(String)resourceNames.elementAt(i);
-      }
-      if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
-        session.removeValue(C_SESSION_THREAD_ERROR);
-      }
-      Thread doExport=new CmsAdminStaticExportThread(cms,exportTo,exportPaths,session);
-      doExport.start();
-      session.putValue(C_STATICEXPORT_THREAD,doExport);
-      xmlTemplateDocument.setData("time","10");
-      templateSelector="wait";
+  if ("export".equals(action)) {
+    if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
+      session.removeValue(C_SESSION_THREAD_ERROR);
     }
-  }
- catch (  CmsException exc) {
-    xmlTemplateDocument.setData("details",Utils.getStackTrace(exc));
-    templateSelector="error";
+    Thread doExport=new CmsAdminStaticExportThread(cms,session);
+    doExport.start();
+    session.putValue(C_STATICEXPORT_THREAD,doExport);
+    xmlTemplateDocument.setData("time","10");
+    templateSelector="wait";
   }
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }
