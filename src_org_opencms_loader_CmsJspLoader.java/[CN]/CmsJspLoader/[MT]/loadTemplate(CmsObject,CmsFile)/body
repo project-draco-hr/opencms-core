@@ -5,64 +5,56 @@
     timer1=System.currentTimeMillis();
     System.err.println("========== JspLoader (Template) loading: " + cms.readAbsolutePath(file));
   }
-  if (false) {
-    if (DEBUG > 1) {
-      System.err.println("FlexJspLoader.loadTemplate(): Export requested for " + cms.readAbsolutePath(file));
-    }
-    result=exportJsp(cms,file);
+  HttpServletRequest req=(HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest();
+  HttpServletResponse res=(HttpServletResponse)cms.getRequestContext().getResponse().getOriginalResponse();
+  CmsFlexController controller=(CmsFlexController)req.getAttribute(CmsFlexController.ATTRIBUTE_NAME);
+  CmsFlexRequest f_req;
+  CmsFlexResponse f_res;
+  if (controller != null) {
+    f_req=controller.getCurrentRequest();
+    f_res=controller.getCurrentResponse();
   }
  else {
-    HttpServletRequest req=(HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest();
-    HttpServletResponse res=(HttpServletResponse)cms.getRequestContext().getResponse().getOriginalResponse();
-    CmsFlexController controller=(CmsFlexController)req.getAttribute(CmsFlexController.ATTRIBUTE_NAME);
-    CmsFlexRequest f_req;
-    CmsFlexResponse f_res;
-    if (controller != null) {
-      f_req=controller.getCurrentRequest();
-      f_res=controller.getCurrentResponse();
+    controller=new CmsFlexController(cms,file,m_cache,req,res);
+    req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,controller);
+    f_req=new CmsFlexRequest(req,controller);
+    f_res=new CmsFlexResponse(res,controller,false,false);
+    controller.pushRequest(f_req);
+    controller.pushResponse(f_res);
+  }
+  try {
+    f_req.getRequestDispatcher(cms.readAbsolutePath(file)).include(f_req,f_res);
+  }
+ catch (  java.net.SocketException e) {
+    if (DEBUG > 1) {
+      System.err.println("JspLoader.loadTemplate() ignoring SocketException " + e);
     }
- else {
-      controller=new CmsFlexController(cms,file,m_cache,req,res);
-      req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,controller);
-      f_req=new CmsFlexRequest(req,controller);
-      f_res=new CmsFlexResponse(res,controller,false,false);
-      controller.pushRequest(f_req);
-      controller.pushResponse(f_res);
+  }
+catch (  Exception e) {
+    System.err.println("Error in CmsJspLoader.loadTemplate() while loading: " + e.toString());
+    if (DEBUG > 0) {
+      e.printStackTrace(System.err);
     }
+    throw new CmsException("Error in CmsJspLoader.loadTemplate() while loading " + cms.readAbsolutePath(file) + "\n"+ e,CmsException.C_LOADER_ERROR,e);
+  }
+  if (!f_res.isSuspended()) {
     try {
-      f_req.getRequestDispatcher(cms.readAbsolutePath(file)).include(f_req,f_res);
+      if ((res == null) || (!res.isCommitted())) {
+        result=f_res.getWriterBytes();
+        result=CmsEncoder.changeEncoding(result,OpenCms.getDefaultEncoding(),cms.getRequestContext().getEncoding());
+      }
     }
- catch (    java.net.SocketException e) {
+ catch (    IllegalStateException e) {
       if (DEBUG > 1) {
-        System.err.println("JspLoader.loadTemplate() ignoring SocketException " + e);
+        System.err.println("JspLoader.loadTemplate() ignoring IllegalStateException " + e);
       }
     }
 catch (    Exception e) {
-      System.err.println("Error in CmsJspLoader.loadTemplate() while loading: " + e.toString());
+      System.err.println("Error in CmsJspLoader.loadTemplate() while writing buffer to final stream: " + e.toString());
       if (DEBUG > 0) {
         e.printStackTrace(System.err);
       }
-      throw new CmsException("Error in CmsJspLoader.loadTemplate() while loading " + cms.readAbsolutePath(file) + "\n"+ e,CmsException.C_LOADER_ERROR,e);
-    }
-    if (!f_res.isSuspended()) {
-      try {
-        if ((res == null) || (!res.isCommitted())) {
-          result=f_res.getWriterBytes();
-          result=CmsEncoder.changeEncoding(result,OpenCms.getDefaultEncoding(),cms.getRequestContext().getEncoding());
-        }
-      }
- catch (      IllegalStateException e) {
-        if (DEBUG > 1) {
-          System.err.println("JspLoader.loadTemplate() ignoring IllegalStateException " + e);
-        }
-      }
-catch (      Exception e) {
-        System.err.println("Error in CmsJspLoader.loadTemplate() while writing buffer to final stream: " + e.toString());
-        if (DEBUG > 0) {
-          e.printStackTrace(System.err);
-        }
-        throw new CmsException("Error in CmsJspLoader.loadTemplate() while writing buffer to final stream for " + cms.readAbsolutePath(file) + "\n"+ e,CmsException.C_LOADER_ERROR,e);
-      }
+      throw new CmsException("Error in CmsJspLoader.loadTemplate() while writing buffer to final stream for " + cms.readAbsolutePath(file) + "\n"+ e,CmsException.C_LOADER_ERROR,e);
     }
   }
   if (DEBUG > 0) {
