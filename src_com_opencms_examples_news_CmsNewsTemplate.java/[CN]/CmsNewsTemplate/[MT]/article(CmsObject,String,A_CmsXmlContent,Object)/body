@@ -2,8 +2,10 @@
   CmsRequestContext reqCont=cms.getRequestContext();
   HttpServletRequest orgReq=(HttpServletRequest)reqCont.getRequest().getOriginalRequest();
   String servletPath=orgReq.getServletPath();
+  Hashtable parameters=(Hashtable)userObj;
   CmsXmlTemplateFile templateFile=(CmsXmlTemplateFile)doc;
-  CmsNewsContentFile article=(CmsNewsContentFile)((Hashtable)userObj).get("_ARTICLE_");
+  CmsNewsContentFile article=(CmsNewsContentFile)parameters.get("_ARTICLE_");
+  String elementName=(String)parameters.get("_ELEMENT_");
   String result=null;
   if (article != null) {
     if (tagcontent.toLowerCase().equals("externallink")) {
@@ -16,22 +18,36 @@
       }
     }
  else     if (tagcontent.toLowerCase().equals("author")) {
-      result=article.getNewsAuthor();
+      result=Encoder.escapeXml(article.getNewsAuthor());
     }
  else     if (tagcontent.toLowerCase().equals("headline")) {
-      result=article.getNewsHeadline();
+      result=Encoder.escapeXml(article.getNewsHeadline());
     }
  else     if (tagcontent.toLowerCase().equals("shorttext")) {
-      result=article.getNewsShortText();
+      result=Encoder.escapeXml(article.getNewsShortText());
     }
  else     if (tagcontent.toLowerCase().equals("text")) {
-      result=article.getNewsText(templateFile.getDataValue(C_TAG_PARAGRAPHSEP));
+      result=article.getNewsText(templateFile.getDataValue(C_TAG_PARAGRAPHSEP),true);
     }
  else     if (tagcontent.toLowerCase().equals("file")) {
       result=servletPath + C_NEWS_FOLDER_PAGE + article.getFilename()+ "/index.html";
     }
  else     if (tagcontent.toLowerCase().equals("linktext")) {
       result="Artikel lesen";
+    }
+ else     if (tagcontent.toLowerCase().equals("path")) {
+      result=servletPath;
+    }
+ else     if (tagcontent.toLowerCase().equals("index")) {
+      String newsFolder=getNewsFolder(elementName,parameters);
+      Vector v=CmsNewsContentFile.getAllArticles(cms,newsFolder);
+      for (int i=0; i < v.size(); i++) {
+        Object o=v.elementAt(i);
+        CmsNewsContentFile doc2=(CmsNewsContentFile)o;
+        if (doc2.getAbsoluteFilename().equals(article.getAbsoluteFilename())) {
+          result="" + i;
+        }
+      }
     }
   }
   return result;

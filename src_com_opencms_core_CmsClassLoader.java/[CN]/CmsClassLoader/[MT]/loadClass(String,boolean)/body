@@ -26,22 +26,36 @@
   if (A_OpenCms.isLogging()) {
     A_OpenCms.log(C_OPENCMS_DEBUG,"Class " + name + "was NOT found in cache.");
   }
-  String secondNamePart=name.replace('.','/') + ".class";
   Enumeration allRepositories=repository.elements();
   String filename=null;
+  byte[] myClassData=null;
   while (allRepositories.hasMoreElements()) {
-    filename=allRepositories.nextElement() + secondNamePart;
-    try {
-      classFile=m_cms.readFile(filename);
+    filename=(String)allRepositories.nextElement();
+    if (isZipOrJarArchive(filename)) {
+      try {
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(C_OPENCMS_DEBUG,"Try to load archive file " + filename + ".");
+        }
+        myClassData=loadClassFromZipFile(m_cms.readFile(filename),name);
+      }
+ catch (      Exception e) {
+        myClassData=null;
+      }
     }
- catch (    Exception e) {
-      classFile=null;
+ else {
+      try {
+        classFile=m_cms.readFile(filename);
+        myClassData=classFile.getContents();
+      }
+ catch (      Exception e) {
+        classFile=null;
+        myClassData=null;
+      }
+      if (classFile == null) {
+        throw new ClassNotFoundException(name);
+      }
     }
   }
-  if (classFile == null) {
-    throw new ClassNotFoundException(name);
-  }
-  byte[] myClassData=classFile.getContents();
   if (myClassData != null) {
     try {
       c=defineClass(null,myClassData,0,myClassData.length);
@@ -58,6 +72,9 @@ catch (    Error e) {
     cache.put(name,c);
     if (resolve) {
       resolveClass(c);
+    }
+    if (A_OpenCms.isLogging()) {
+      A_OpenCms.log(C_OPENCMS_DEBUG,"Classloader returned class " + name + " successfully!");
     }
     return c;
   }
