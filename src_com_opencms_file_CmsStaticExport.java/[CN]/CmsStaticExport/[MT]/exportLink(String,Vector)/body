@@ -1,0 +1,58 @@
+{
+  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] exporting " + link);
+  }
+  try {
+    CmsExportRequest dReq=new CmsExportRequest();
+    int paraStart=link.indexOf("?");
+    String externLink=getExternLinkName(link);
+    if (paraStart >= 0) {
+      Hashtable parameter=javax.servlet.http.HttpUtils.parseQueryString(link.substring(paraStart + 1));
+      link=link.substring(0,paraStart);
+      dReq.setParameters(parameter);
+    }
+    CmsExportResponse dRes=new CmsExportResponse();
+    String folder=externLink.substring(0,externLink.lastIndexOf('/'));
+    File discFolder=new File(m_exportPath + folder);
+    if (!discFolder.exists()) {
+      if (!discFolder.mkdirs()) {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ "could't create all folders for "+ folder+ ".");
+      }
+    }
+    File discFile=new File(m_exportPath + externLink);
+    try {
+      OutputStream outStream=new FileOutputStream(discFile);
+      dRes.putOutputStream(outStream);
+    }
+ catch (    Exception e) {
+      throw new CmsException("[" + this.getClass().getName() + "] "+ "could't open file "+ m_exportPath+ externLink+ ": "+ e.getMessage());
+    }
+    CmsObject cmsForStaticExport=m_cms.getCmsObjectForStaticExport(dReq,dRes);
+    cmsForStaticExport.setMode(C_MODUS_EXPORT);
+    CmsFile file=m_cms.readFile(link);
+    int launcherId=file.getLauncherType();
+    String startTemplateClass=file.getLauncherClassname();
+    I_CmsLauncher launcher=cmsForStaticExport.getLauncherManager().getLauncher(launcherId);
+    if (launcher == null) {
+      throw new CmsException("Could not launch file " + link + ". Launcher for requested launcher ID "+ launcherId+ " could not be found.");
+    }
+    ((CmsExportRequest)cmsForStaticExport.getRequestContext().getRequest()).setRequestedResource(link);
+    launcher.initlaunch(cmsForStaticExport,file,startTemplateClass,null);
+    Vector linksToAdd=cmsForStaticExport.getRequestContext().getLinkVector();
+    for (int i=0; i < linksToAdd.size(); i++) {
+      if (!allLinks.contains(linksToAdd.elementAt(i))) {
+        allLinks.add(linksToAdd.elementAt(i));
+      }
+    }
+  }
+ catch (  CmsException exc) {
+    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport]  export " + link + " failed: "+ exc.toString());
+    }
+  }
+catch (  Exception e) {
+    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport]  export " + link + " failed: "+ e.toString());
+    }
+  }
+}
