@@ -6,39 +6,33 @@
   if (parameterTypes == null) {
     parameterTypes=new Class[0];
   }
-  if (instanceCache.containsKey(classname)) {
-    o=instanceCache.get(classname);
+  try {
+    Class c=CmsTemplateClassManager.class.getClassLoader().loadClass(classname);
+    Constructor con=c.getConstructor(parameterTypes);
+    o=con.newInstance(callParameters);
   }
- else {
-    try {
-      Class c=CmsTemplateClassManager.class.getClassLoader().loadClass(classname);
-      Constructor con=c.getConstructor(parameterTypes);
-      o=con.newInstance(callParameters);
+ catch (  Exception e) {
+    String errorMessage=null;
+    if (e instanceof ClassNotFoundException) {
+      errorMessage="Could not load template class " + classname + ". "+ e.getMessage();
     }
- catch (    Exception e) {
-      String errorMessage=null;
-      if (e instanceof ClassNotFoundException) {
-        errorMessage="Could not load template class " + classname + ". "+ e.getMessage();
+ else {
+      if (e instanceof InstantiationException) {
+        errorMessage="Could not instantiate template class " + classname;
       }
  else {
-        if (e instanceof InstantiationException) {
-          errorMessage="Could not instantiate template class " + classname;
+        if (e instanceof NoSuchMethodException) {
+          errorMessage="Could not find constructor of template class " + classname;
         }
  else {
-          if (e instanceof NoSuchMethodException) {
-            errorMessage="Could not find constructor of template class " + classname;
-          }
- else {
-            errorMessage="Unknown error while getting instance of template class " + classname;
-          }
+          errorMessage="Unknown error while getting instance of template class " + classname;
         }
       }
-      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-        A_OpenCms.log(C_OPENCMS_CRITICAL,"[CmsTemplateClassManager] " + errorMessage);
-      }
-      throw new CmsException(errorMessage,CmsException.C_CLASSLOADER_ERROR,e);
     }
-    instanceCache.put(classname,o);
+    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+      A_OpenCms.log(C_OPENCMS_CRITICAL,"[CmsTemplateClassManager] " + errorMessage);
+    }
+    throw new CmsException(errorMessage,CmsException.C_CLASSLOADER_ERROR,e);
   }
   return o;
 }
