@@ -2,16 +2,20 @@
   String result=null;
   HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
   String template=null;
-  String lock=(String)parameters.get(C_PARA_LOCK);
   String filename=(String)parameters.get(C_PARA_FILE);
   if (filename != null) {
     session.putValue(C_PARA_FILE,filename);
   }
   filename=(String)session.getValue(C_PARA_FILE);
-  if (lock != null) {
-    if (lock.equals("true")) {
-      cms.lockResource(filename,true);
-      session.removeValue(C_PARA_FILE);
+  String newFolder=(String)parameters.get("newfolder");
+  String flags=(String)parameters.get("flags");
+  CmsFile file=(CmsFile)cms.readFileHeader(filename);
+  if (newFolder != null) {
+    cms.moveFile(file.getAbsolutePath(),newFolder + file.getName());
+    if (flags.equals("false")) {
+      CmsFile newfile=cms.readFile(newFolder,file.getName());
+      newfile.setAccessFlags(C_ACCESS_DEFAULT_FLAGS);
+      cms.writeFile(newfile);
     }
     try {
       cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
@@ -21,5 +25,8 @@
     }
   }
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  xmlTemplateDocument.setXmlData("OWNER",cms.readOwner(file).getName());
+  xmlTemplateDocument.setXmlData("GROUP",cms.readGroup(file).getName());
+  xmlTemplateDocument.setXmlData("FILENAME",file.getName());
   return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
 }
