@@ -8,11 +8,14 @@
   CmsHighlightExtractor highlighter=null;
   I_TermHighlighter termHighlighter=null;
   int maxExcerptLength=OpenCms.getSearchManager().getMaxExcerptLength();
+  IndexReader reader=null;
   try {
     if (rawContent != null) {
       if (!C_SEARCH_QUERY_RETURN_ALL.equalsIgnoreCase(searchQuery)) {
+        reader=IndexReader.open(m_path);
         analyzer=OpenCms.getSearchManager().getAnalyzer(m_locale);
         query=QueryParser.parse(searchQuery,I_CmsDocumentFactory.DOC_CONTENT,analyzer);
+        query=query.rewrite(reader);
         termHighlighter=OpenCms.getSearchManager().getHighlighter();
         highlighter=new CmsHighlightExtractor(termHighlighter,query,analyzer);
         excerpt=highlighter.getBestFragments(rawContent,highlightFragmentSizeInBytes,maxNumFragmentsRequired,fragmentSeparator);
@@ -35,6 +38,15 @@
       message+=rawContent + "]";
     }
     throw new CmsException(message,e);
+  }
+ finally {
+    if (reader != null) {
+      try {
+        reader.close();
+      }
+ catch (      IOException exc) {
+      }
+    }
   }
   return excerpt;
 }
