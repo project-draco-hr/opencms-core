@@ -1,0 +1,27 @@
+{
+  try {
+    CmsResource res=cmsObject.readFileHeader(filename);
+    int currentProject=cmsObject.getRequestContext().currentProject().getId();
+    if (currentProject == I_CmsConstants.C_PROJECT_ONLINE_ID) {
+      return null;
+    }
+ else     if (CmsResource.getName(filename).startsWith(com.opencms.core.I_CmsConstants.C_TEMP_PREFIX)) {
+      return C_EDITMODE_INACTIVE;
+    }
+ else     if (!cmsObject.isInsideCurrentProject(res)) {
+      return C_EDITMODE_INACTIVE;
+    }
+ else     if (!cmsObject.hasPermissions(res,new CmsPermissionSet(I_CmsConstants.C_PERMISSION_WRITE))) {
+      return C_EDITMODE_INACTIVE;
+    }
+    org.opencms.lock.CmsLock lock=cmsObject.getLock(filename);
+    org.opencms.util.CmsUUID userId=cmsObject.getRequestContext().currentUser().getId();
+    if (!(lock.isNullLock() || (lock.getUserId().equals(userId) && lock.getProjectId() == currentProject))) {
+      return C_EDITMODE_DISABLED;
+    }
+    return C_EDITMODE_ENABLED;
+  }
+ catch (  CmsException exc) {
+    return C_EDITMODE_INACTIVE;
+  }
+}
