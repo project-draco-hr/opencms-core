@@ -2,44 +2,56 @@
   if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
     A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] exporting " + link);
   }
+  String deleteFileOnError=null;
+  OutputStream outStream=null;
   try {
     CmsExportRequest dReq=new CmsExportRequest();
     int paraStart=link.indexOf("?");
     String externLink=getExternLinkName(link);
+    boolean writeFile=true;
+    if (externLink == null || externLink.equals("")) {
+      writeFile=false;
+    }
     if (paraStart >= 0) {
       Hashtable parameter=javax.servlet.http.HttpUtils.parseQueryString(link.substring(paraStart + 1));
       link=link.substring(0,paraStart);
       dReq.setParameters(parameter);
     }
     CmsExportResponse dRes=new CmsExportResponse();
-    String folder=externLink.substring(0,externLink.lastIndexOf('/'));
-    String correctur="";
-    if (!externLink.startsWith("/")) {
-      correctur="/";
-      boolean linkIsExtern=true;
+    if (writeFile) {
+      String folder=externLink.substring(0,externLink.lastIndexOf('/'));
+      String correctur="";
+      if (!externLink.startsWith("/")) {
+        correctur="/";
+        boolean linkIsExtern=true;
+        try {
+          URL test=new URL(externLink);
+        }
+ catch (        MalformedURLException e) {
+          linkIsExtern=false;
+        }
+        if (linkIsExtern) {
+          throw new CmsException(" This is a extern link.");
+        }
+      }
+      File discFolder=new File(m_exportPath + correctur + folder);
+      if (!discFolder.exists()) {
+        if (!discFolder.mkdirs()) {
+          throw new CmsException("[" + this.getClass().getName() + "] "+ "could't create all folders for "+ folder+ ".");
+        }
+      }
+      File discFile=new File(m_exportPath + correctur + externLink);
+      deleteFileOnError=m_exportPath + correctur + externLink;
       try {
-        URL test=new URL(externLink);
+        outStream=new FileOutputStream(discFile);
+        dRes.putOutputStream(outStream);
       }
- catch (      MalformedURLException e) {
-        linkIsExtern=false;
-      }
-      if (linkIsExtern) {
-        throw new CmsException(" This is a extern link.");
+ catch (      Exception e) {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ "could't open file "+ m_exportPath+ correctur+ externLink+ ": "+ e.getMessage());
       }
     }
-    File discFolder=new File(m_exportPath + correctur + folder);
-    if (!discFolder.exists()) {
-      if (!discFolder.mkdirs()) {
-        throw new CmsException("[" + this.getClass().getName() + "] "+ "could't create all folders for "+ folder+ ".");
-      }
-    }
-    File discFile=new File(m_exportPath + correctur + externLink);
-    try {
-      OutputStream outStream=new FileOutputStream(discFile);
-      dRes.putOutputStream(outStream);
-    }
- catch (    Exception e) {
-      throw new CmsException("[" + this.getClass().getName() + "] "+ "could't open file "+ m_exportPath+ correctur+ externLink+ ": "+ e.getMessage());
+ else {
+      dRes.putOutputStream(new ByteArrayOutputStream());
     }
     CmsObject cmsForStaticExport=m_cms.getCmsObjectForStaticExport(dReq,dRes);
     cmsForStaticExport.setMode(C_MODUS_EXPORT);
@@ -58,10 +70,26 @@
         allLinks.add(linksToAdd.elementAt(i));
       }
     }
+    if (outStream != null) {
+      outStream.close();
+    }
   }
  catch (  CmsException exc) {
     if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport]  export " + link + " failed: "+ exc.toString());
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] " + deleteFileOnError + " export "+ link+ " failed: "+ exc.toString());
+    }
+    if (deleteFileOnError != null) {
+      try {
+        File deleteMe=new File(deleteFileOnError);
+        if (deleteMe.exists() && deleteMe.length() == 0) {
+          if (outStream != null) {
+            outStream.close();
+          }
+          deleteMe.delete();
+        }
+      }
+ catch (      Exception e) {
+      }
     }
   }
 catch (  Exception e) {

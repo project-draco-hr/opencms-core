@@ -17,6 +17,13 @@
       }
     }
   }
+  boolean httpsMode=false;
+  if (modus == cms.C_MODUS_ONLINE) {
+    String scheme=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getScheme();
+    if ("https".equalsIgnoreCase(scheme)) {
+      httpsMode=true;
+    }
+  }
   String[] rules=cms.getLinkRules(modus);
   if (rules == null || rules.length == 0) {
     return link;
@@ -24,8 +31,16 @@
   String retValue=link;
   for (int i=0; i < rules.length; i++) {
     try {
-      retValue=c_perlUtil.substitute(rules[i],link);
+      if ("*dynamicRules*".equals(rules[i])) {
+        retValue=CmsStaticExport.handleDynamicRules(link,modus);
+      }
+ else {
+        retValue=c_perlUtil.substitute(rules[i],link);
+      }
       if (!link.equals(retValue)) {
+        if (httpsMode && !retValue.startsWith("http")) {
+          retValue=cms.getUrlPrefixArray()[3] + retValue;
+        }
         return retValue;
       }
     }
@@ -34,6 +49,9 @@
         A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + "] problems with rule:\""+ rules[i]+ "\" ("+ e+ "). ");
       }
     }
+  }
+  if (httpsMode && !retValue.startsWith("http")) {
+    retValue=cms.getUrlPrefixArray()[3] + retValue;
   }
   return retValue;
 }
