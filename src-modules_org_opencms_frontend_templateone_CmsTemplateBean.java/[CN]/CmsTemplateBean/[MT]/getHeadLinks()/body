@@ -1,0 +1,65 @@
+{
+  List links=new ArrayList(10);
+  String propertyFile=getConfigPath() + C_FILE_LINKS_HEAD;
+  CmsXmlContent configuration=getConfigurationFile(propertyFile,getCmsObject());
+  boolean showMainLink=true;
+  if (configuration != null) {
+    Locale locale=getRequestContext().getLocale();
+    for (int i=1; i < 11; i++) {
+      String prefix="link" + i;
+      try {
+        String url=configuration.getStringValue(null,prefix + ".url",locale);
+        String text=configuration.getStringValue(null,prefix + ".text",locale);
+        String target=configuration.getStringValue(null,prefix + ".target",locale);
+        if (CmsStringUtil.isEmpty(url) || CmsStringUtil.isEmpty(text)) {
+          break;
+        }
+        if (url.startsWith("/")) {
+          url=link(url);
+        }
+        CmsTemplateLink link=new CmsTemplateLink(url,text,target,i);
+        links.add(link);
+      }
+ catch (      CmsXmlException e) {
+        if (OpenCms.getLog(this).isDebugEnabled()) {
+          OpenCms.getLog(this).debug(e);
+        }
+      }
+      if (i == 10) {
+        showMainLink=false;
+      }
+    }
+  }
+  if (showMainLink) {
+    String defaultLink=(String)m_properties.get(C_PROPERTY_HEAD_DEFAULTLINK);
+    if (defaultLink != null) {
+      String url=defaultLink;
+      String text=defaultLink;
+      String target="";
+      int sepIndex=defaultLink.indexOf("|");
+      try {
+        if (sepIndex != -1) {
+          url=defaultLink.substring(0,sepIndex);
+          text=defaultLink.substring(sepIndex + 1);
+          sepIndex=text.indexOf("|");
+          if (sepIndex != -1) {
+            target=text.substring(sepIndex + 1);
+            text=text.substring(0,sepIndex);
+          }
+        }
+        if (url.startsWith("/")) {
+          url=link(url);
+        }
+      }
+ catch (      Exception e) {
+        if (OpenCms.getLog(this).isErrorEnabled()) {
+          OpenCms.getLog(this).error(e);
+        }
+      }
+      CmsTemplateLink link=new CmsTemplateLink(url,text,target,0);
+      links.add(link);
+      Collections.sort(links);
+    }
+  }
+  return links;
+}
