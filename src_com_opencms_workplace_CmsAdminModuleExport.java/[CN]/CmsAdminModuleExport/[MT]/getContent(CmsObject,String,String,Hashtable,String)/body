@@ -4,21 +4,42 @@
     A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
     A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
   }
-  CmsXmlTemplateFile templateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
   CmsRequestContext reqCont=cms.getRequestContext();
   I_CmsRegistry reg=cms.getRegistry();
+  I_CmsSession session=cms.getRequestContext().getSession(true);
   String step=(String)parameters.get(C_ACTION);
-  String moduleName=(String)parameters.get(C_MODULE);
-  if ((step != null) && ("ok".equals(step))) {
-    String exportName=(String)parameters.get("modulename");
+  String moduleName=(String)parameters.get(C_MODULENAME);
+  if (step == null) {
+    xmlTemplateDocument.setData("modulename",(String)parameters.get(C_MODULE));
+  }
+ else   if ("showResult".equals(step)) {
+    if (DEBUG > 1)     System.out.println("showResult for export");
+    CmsAdminModuleExportThread doTheWork=(CmsAdminModuleExportThread)session.getValue(C_MODULE_THREAD);
+    if (doTheWork.isAlive()) {
+      if (DEBUG > 1)       System.out.println("showResult: thread is still running");
+      xmlTemplateDocument.setData("endMethod","");
+      xmlTemplateDocument.setData("text","");
+    }
+ else {
+      if (DEBUG > 1)       System.out.println("showResult: thread is finished");
+      xmlTemplateDocument.setData("endMethod",xmlTemplateDocument.getDataValue("endMethod"));
+      xmlTemplateDocument.setData("autoUpdate","");
+      xmlTemplateDocument.setData("text",xmlTemplateDocument.getLanguageFile().getDataValue("module.lable.exportend"));
+      session.removeValue(C_MODULE_THREAD);
+    }
+    xmlTemplateDocument.setData("data",doTheWork.getReportUpdate());
+    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"updateReport");
+  }
+ else   if ("ok".equals(step)) {
     String[] resourcen=null;
     int resourceCount=0;
     int i=0;
-    if (reg.getModuleType(exportName).equals(CmsRegistry.C_MODULE_TYPE_SIMPLE)) {
+    if (reg.getModuleType(moduleName).equals(CmsRegistry.C_MODULE_TYPE_SIMPLE)) {
       if (DEBUG > 0) {
-        System.out.println(exportName + " is a simple module");
+        System.out.println(moduleName + " is a simple module");
       }
-      String additionalResources=OpenCms.getRegistry().getModuleParameterString(exportName,I_CmsConstants.C_MODULE_PROPERTY_ADDITIONAL_RESOURCES);
+      String additionalResources=OpenCms.getRegistry().getModuleParameterString(moduleName,I_CmsConstants.C_MODULE_PROPERTY_ADDITIONAL_RESOURCES);
       int additionalResourceCount=0;
       StringTokenizer additionalResourceTokens=null;
       if (additionalResources != null && !additionalResources.equals("")) {
@@ -43,16 +64,16 @@
     }
  else {
       if (DEBUG > 0) {
-        System.out.println(exportName + " is a traditional module");
+        System.out.println(moduleName + " is a traditional module");
       }
       resourceCount=CmsAdminModuleExport.C_MINIMUM_MODULE_RESOURCE_COUNT;
       resourcen=new String[resourceCount];
       i=0;
     }
-    resourcen[i++]=C_VFS_PATH_MODULES + exportName + "/";
+    resourcen[i++]=C_VFS_PATH_MODULES + moduleName + "/";
     if (!C_VFS_NEW_STRUCTURE) {
-      resourcen[i++]=C_VFS_PATH_MODULEDEMOS + exportName + "/";
-      resourcen[i++]=C_VFS_PATH_BODIES.substring(0,C_VFS_PATH_BODIES.length() - 1) + C_VFS_PATH_MODULEDEMOS + exportName+ "/";
+      resourcen[i++]=C_VFS_PATH_MODULEDEMOS + moduleName + "/";
+      resourcen[i++]=C_VFS_PATH_BODIES.substring(0,C_VFS_PATH_BODIES.length() - 1) + C_VFS_PATH_MODULEDEMOS + moduleName+ "/";
     }
     for (i=0; i < resourceCount; i++) {
       try {
@@ -77,13 +98,14 @@
       if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
         A_OpenCms.log(I_CmsLogChannels.C_MODULE_DEBUG,"error exporting module: couldn't add " + resourcen[resourceCount - CmsAdminModuleExport.C_MINIMUM_MODULE_RESOURCE_COUNT] + " to Module\n"+ "You dont have this module in this project!");
       }
-      return startProcessing(cms,templateDocument,elementName,parameters,"done");
+      return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"done");
     }
-    reg.exportModule(exportName,resourcen,com.opencms.boot.CmsBase.getAbsolutePath(cms.readExportPath()) + "/" + I_CmsRegistry.C_MODULE_PATH+ exportName+ "_"+ reg.getModuleVersion(exportName));
-    templateSelector="done";
+    String filename=CmsBase.getAbsolutePath(cms.readExportPath()) + "/" + I_CmsRegistry.C_MODULE_PATH+ moduleName+ "_"+ reg.getModuleVersion(moduleName);
+    Thread doExport=new CmsAdminModuleExportThread(cms,reg,moduleName,resourcen,filename);
+    doExport.start();
+    session.putValue(C_MODULE_THREAD,doExport);
+    xmlTemplateDocument.setData("time","5");
+    templateSelector="showresult";
   }
- else {
-    templateDocument.setData("modulename",moduleName);
-  }
-  return startProcessing(cms,templateDocument,elementName,parameters,templateSelector);
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }

@@ -1,22 +1,25 @@
 {
-  CmsRequestContext reqCont=m_cms.getRequestContext();
-  String at="createProject: ";
   try {
-    CmsProject project=m_cms.createProject("DeleteModule","A System generated Project to delete The Module " + m_moduleName,C_GROUP_ADMIN,C_GROUP_ADMIN,C_PROJECT_TYPE_TEMPORARY);
-    reqCont.setCurrentProject(project.getId());
-    at="copyResourceToProject: ";
+    if (DEBUG)     System.err.println("CmsAdminModuleDeleteThread() started");
+    String moduleName=m_moduleName.replace('\\','/');
+    CmsProject project=m_cms.createProject("DeleteModule","A System generated project to delete the module " + moduleName,I_CmsConstants.C_GROUP_ADMIN,I_CmsConstants.C_GROUP_ADMIN,I_CmsConstants.C_PROJECT_TYPE_TEMPORARY);
+    m_cms.getRequestContext().setCurrentProject(project.getId());
+    m_report.addSeperator(I_CmsReport.C_MODULE_DELETE_BEGIN," <i>" + moduleName + "</i>");
     for (int i=0; i < m_projectFiles.size(); i++) {
       m_cms.copyResourceToProject((String)m_projectFiles.elementAt(i));
     }
-    at="delete files: ";
-    m_registry.deleteModule(m_moduleName,m_exclusion);
-    at="publishProject: ";
+    m_registry.deleteModule(m_moduleName,m_conflictFiles,m_report);
+    m_report.addSeperator(I_CmsReport.C_PUBLISH_PROJECT_BEGIN);
     m_cms.unlockProject(project.getId());
-    m_cms.publishProject(project.getId());
+    m_cms.publishProject(project.getId(),m_report);
+    m_report.addSeperator(I_CmsReport.C_PUBLISH_PROJECT_END);
+    m_report.addSeperator(I_CmsReport.C_MODULE_DELETE_END);
+    if (DEBUG)     System.err.println("CmsAdminModuleDeleteThread() finished");
   }
  catch (  CmsException e) {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(A_OpenCms.C_OPENCMS_CRITICAL,"delete module failed " + at + e.getMessage());
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,e.getMessage());
     }
+    if (DEBUG)     System.err.println("CmsAdminModuleDeleteThread() Exception:" + e.getMessage());
   }
 }

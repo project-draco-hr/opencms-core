@@ -6,10 +6,24 @@
   String initial=(String)parameters.get(C_PARA_INITIAL);
   if (initial != null) {
     session.removeValue(C_PARA_FILE);
+    session.removeValue(C_PUBLISH_THREAD);
+    session.removeValue(C_PUBLISH_LINKCHECK_THREAD);
+    session.removeValue(C_PUBLISH_LASTURL);
     session.removeValue("lasturl");
   }
+  String filename=(String)parameters.get(C_PARA_FILE);
+  if (filename != null) {
+    session.putValue(C_PARA_FILE,filename);
+  }
+  filename=(String)session.getValue(C_PARA_FILE);
   String action=(String)parameters.get("action");
-  if ("showResult".equals(action)) {
+  if (action == null) {
+    CmsResource file=readResource(cms,filename);
+    xmlTemplateDocument.setData("CHANGEDATE",Utils.getNiceDate(file.getDateLastModified()));
+    xmlTemplateDocument.setData("USER",cms.readUser(file.getResourceLastModifiedBy()).getName());
+    xmlTemplateDocument.setData("FILENAME",file.getName());
+  }
+ else   if ("showResult".equals(action)) {
     CmsAdminLinkmanagementThread doTheWork=(CmsAdminLinkmanagementThread)session.getValue(C_PUBLISH_LINKCHECK_THREAD);
     if (doTheWork.isAlive()) {
       xmlTemplateDocument.setData("endMethod","");
@@ -31,17 +45,16 @@
     xmlTemplateDocument.setData("data",doTheWork.getReportUpdate());
     return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"updateReport");
   }
-  if ("doThePublish".equals(action)) {
-    int projectId=((Integer)session.getValue(C_TEMP_PROJECT_ID)).intValue();
-    session.removeValue(C_TEMP_PROJECT_ID);
-    Thread doPublish=new CmsAdminPublishProjectThread(cms,projectId,session);
+ else   if ("doThePublish".equals(action)) {
+    CmsResource file=readResource(cms,filename);
+    Thread doPublish=new CmsPublishResourceThread(cms,file.getAbsolutePath());
     doPublish.start();
     session.putValue(C_PUBLISH_THREAD,doPublish);
     xmlTemplateDocument.setData("actionParameter","showPublishResult");
     return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"showresult");
   }
-  if ("showPublishResult".equals(action)) {
-    CmsAdminPublishProjectThread doTheWork=(CmsAdminPublishProjectThread)session.getValue(C_PUBLISH_THREAD);
+ else   if ("showPublishResult".equals(action)) {
+    CmsPublishResourceThread doTheWork=(CmsPublishResourceThread)session.getValue(C_PUBLISH_THREAD);
     if (doTheWork.isAlive()) {
       xmlTemplateDocument.setData("endMethod","");
       xmlTemplateDocument.setData("text",lang.getDataValue("project.publish.message_publish"));
@@ -55,19 +68,10 @@
     xmlTemplateDocument.setData("data",doTheWork.getReportUpdate());
     return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"updateReport");
   }
-  if ("done".equals(action)) {
-    String delTempProject=(String)parameters.get("deleteTempProject");
-    if ("true".equals(delTempProject)) {
-      String resourceName=(String)session.getValue(C_PARA_FILE);
-      cms.lockResource(resourceName,true);
-      cms.unlockResource(resourceName);
-      int delProjectId=((Integer)session.getValue(C_TEMP_PROJECT_ID)).intValue();
-      cms.deleteProject(delProjectId);
-    }
-    session.removeValue("lasturlForPublishResource");
+ else   if ("done".equals(action)) {
+    session.removeValue(C_PUBLISH_LASTURL);
     session.removeValue(C_PARA_FILE);
-    session.removeValue(C_TEMP_PROJECT_ID);
-    String lasturl=(String)session.getValue("lasturlForPublishResource");
+    String lasturl=getLastUrl(cms,parameters);
     try {
       if (lasturl == null || "".equals(lasturl)) {
         cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
@@ -81,37 +85,26 @@
     }
     return null;
   }
-  String lasturl=getLastUrl(cms,parameters);
-  String filename=(String)parameters.get(C_PARA_FILE);
-  if (filename != null) {
-    session.putValue(C_PARA_FILE,filename);
-  }
-  filename=(String)session.getValue(C_PARA_FILE);
-  CmsResource file=null;
-  if (filename.endsWith("/")) {
-    file=(CmsResource)cms.readFolder(filename,true);
-  }
  else {
-    file=(CmsResource)cms.readFileHeader(filename);
-  }
-  if (action != null) {
+    CmsResource file=readResource(cms,filename);
+    String lasturl=getLastUrl(cms,parameters);
     if ("check".equals(action)) {
       if (file.getState() != C_STATE_DELETED) {
         if (checkLocked(cms,file)) {
-          action="wait";
+          action="ok";
         }
  else {
           return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"asklock");
         }
       }
  else {
-        action="wait";
+        action="ok";
       }
     }
  else     if ("rmlocks".equals(action)) {
       try {
         unlockResource(cms,file);
-        action="wait";
+        action="ok";
       }
  catch (      CmsException exc) {
         xmlTemplateDocument.setData("details",Utils.getStackTrace(exc));
@@ -119,18 +112,14 @@
         return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"errorlock");
       }
     }
-    if ("wait".equals(action)) {
-      return startProcessing(cms,xmlTemplateDocument,"",parameters,"wait");
-    }
     if ("ok".equals(action)) {
       try {
         int tempProjectId=cms.publishResource(file.getAbsolutePath(),true);
-        session.putValue(C_TEMP_PROJECT_ID,new Integer(tempProjectId));
         if (lasturl == null) {
           lasturl="";
         }
-        session.putValue("lasturlForPublishResource",lasturl);
-        CmsAdminLinkmanagementThread doCheck=new CmsAdminLinkmanagementThread(cms,tempProjectId);
+        session.putValue(C_PUBLISH_LASTURL,lasturl);
+        CmsAdminLinkmanagementThread doCheck=new CmsAdminLinkmanagementThread(cms,tempProjectId,file.getAbsolutePath());
         doCheck.start();
         session.putValue(C_PUBLISH_LINKCHECK_THREAD,doCheck);
         template="showresult";
@@ -142,11 +131,6 @@
         return startProcessing(cms,xmlTemplateDocument,"",parameters,"error");
       }
     }
-  }
-  if (action == null) {
-    xmlTemplateDocument.setData("CHANGEDATE",Utils.getNiceDate(file.getDateLastModified()));
-    xmlTemplateDocument.setData("USER",cms.readUser(file.getResourceLastModifiedBy()).getName());
-    xmlTemplateDocument.setData("FILENAME",file.getName());
   }
   return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
 }
