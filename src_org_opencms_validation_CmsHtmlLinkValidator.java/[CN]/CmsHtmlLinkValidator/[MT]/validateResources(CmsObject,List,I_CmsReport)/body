@@ -3,37 +3,21 @@
   List brokenLinks=null;
   Map offlineFilesLookup=null;
   List links=null;
+  List validatableResources=null;
   Map invalidResources=(Map)new HashMap();
   String resourceName=null;
-  int index=I_CmsConstants.C_UNKNOWN_ID;
+  int i=I_CmsConstants.C_UNKNOWN_ID, j=I_CmsConstants.C_UNKNOWN_ID;
   I_CmsResourceType resourceType=null;
-  report.println(report.key("report.linkvalidation.begin"),I_CmsReport.C_FORMAT_HEADLINE);
+  boolean foundBrokenLinks=false;
+  report.println(report.key("report.htmllink_validator.begin"),I_CmsReport.C_FORMAT_HEADLINE);
   offlineFilesLookup=(Map)new HashMap();
-  for (index=0; index < offlineFiles.size(); index++) {
-    resource=(CmsResource)offlineFiles.get(index);
-    offlineFilesLookup.put(resource.getRootPath(),resource);
-  }
-  Iterator i=offlineFiles.iterator();
-  while (i.hasNext()) {
-    brokenLinks=null;
-    resource=(CmsResource)i.next();
-    resourceName=resource.getRootPath();
+  validatableResources=(List)new ArrayList();
+  for (i=0; i < offlineResource.size(); i++) {
+    resource=(CmsResource)offlineResource.get(i);
     try {
       if ((resourceType=cms.getResourceType(resource.getType())) instanceof I_CmsHtmlLinkValidatable) {
-        report.print(report.key("report.linkvalidation.file"),I_CmsReport.C_FORMAT_NOTE);
-        report.print(resourceName);
-        report.print(report.key("report.dots"));
-        links=((I_CmsHtmlLinkValidatable)resourceType).findLinks(cms,resource);
-        if (links.size() > 0) {
-          brokenLinks=validateLinks(links,offlineFilesLookup);
-        }
-        if (brokenLinks != null && brokenLinks.size() > 0) {
-          invalidResources.put(resourceName,brokenLinks);
-          report.println(report.key("report.linkvalidation.file.has_broken_links"),I_CmsReport.C_FORMAT_ERROR);
-        }
- else {
-          report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
-        }
+        offlineFilesLookup.put(resource.getRootPath(),resource);
+        validatableResources.add(resource);
       }
     }
  catch (    CmsException e) {
@@ -42,6 +26,45 @@
       }
     }
   }
-  report.println(report.key("report.linkvalidation.end"),I_CmsReport.C_FORMAT_HEADLINE);
+  foundBrokenLinks=false;
+  for (i=0, j=validatableResources.size(); i < j; i++) {
+    brokenLinks=null;
+    resource=(CmsResource)validatableResources.get(i);
+    resourceName=resource.getRootPath();
+    report.print("( " + (i + 1) + " / "+ j+ " ) ");
+    report.print(report.key("report.htmllink_validator.validating"),I_CmsReport.C_FORMAT_NOTE);
+    report.print(resourceName);
+    report.print(report.key("report.dots"));
+    links=((I_CmsHtmlLinkValidatable)resourceType).findLinks(cms,resource);
+    if (links.size() > 0) {
+      brokenLinks=validateLinks(links,offlineFilesLookup);
+    }
+    if (brokenLinks != null && brokenLinks.size() > 0) {
+      invalidResources.put(resourceName,brokenLinks);
+      foundBrokenLinks=true;
+      report.println(report.key("report.htmllink_validator.found_broken_links"),I_CmsReport.C_FORMAT_WARNING);
+    }
+ else {
+      report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+    }
+  }
+  if (foundBrokenLinks) {
+    report.println(report.key("report.htmllink_validator.summary.begin"),I_CmsReport.C_FORMAT_HEADLINE);
+    Iterator outer=invalidResources.keySet().iterator();
+    while (outer.hasNext()) {
+      resourceName=(String)outer.next();
+      brokenLinks=(List)invalidResources.get(resourceName);
+      report.print(report.key("report.htmllink_validator.summary.broken_links_in"),I_CmsReport.C_FORMAT_NOTE);
+      report.print(resourceName);
+      report.println("\u0020:");
+      Iterator inner=brokenLinks.iterator();
+      while (inner.hasNext()) {
+        report.println("\u0020" + (String)inner.next(),I_CmsReport.C_FORMAT_WARNING);
+      }
+    }
+    report.println(report.key("report.htmllink_validator.summary.end"),I_CmsReport.C_FORMAT_HEADLINE);
+    report.println(report.key("report.htmllink_validator.error"),I_CmsReport.C_FORMAT_ERROR);
+  }
+  report.println(report.key("report.htmllink_validator.end"),I_CmsReport.C_FORMAT_HEADLINE);
   return invalidResources;
 }
