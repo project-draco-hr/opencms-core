@@ -1,5 +1,5 @@
 {
-  Vector connections;
+  Vector connections=null;
   Connection connection;
   Statement statement;
   while (true) {
@@ -15,18 +15,25 @@
     if (OpenCms.isLogging()) {
       A_OpenCms.log(C_OPENCMS_INFO,"[CmsConnectionGuard] Keeping alive database connection.");
     }
-    connections=((com.opencms.file.mySql.CmsDbPool)m_pool).getAllConnections();
-    for (int i=0; i < connections.size(); i++) {
-      try {
-        connection=(Connection)connections.elementAt(i);
-        statement=connection.createStatement();
-        statement.execute(C_KEEP_ALIVE_STATEMENT);
-        statement.close();
-      }
- catch (      SQLException exc) {
-        if (OpenCms.isLogging()) {
-          A_OpenCms.log(C_OPENCMS_INFO,"[CmsConnectionGuard] error while sending keep-alive query: " + exc.getMessage());
+    connections=((com.opencms.file.oracleplsql.CmsDbPool)m_pool).getAllConnections();
+    if (connections != null) {
+      for (int i=0; i < connections.size(); i++) {
+        try {
+          connection=(Connection)connections.elementAt(i);
+          statement=connection.createStatement();
+          statement.execute("select null from dual");
+          statement.close();
         }
+ catch (        SQLException exc) {
+          if (OpenCms.isLogging()) {
+            A_OpenCms.log(C_OPENCMS_INFO,"[CmsConnectionGuard] error while sending keep-alive query: " + exc.getMessage());
+          }
+        }
+      }
+    }
+ else {
+      if (OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_INFO,"[CmsConnectionGuard] error while keeping-alive database connection.");
       }
     }
   }
