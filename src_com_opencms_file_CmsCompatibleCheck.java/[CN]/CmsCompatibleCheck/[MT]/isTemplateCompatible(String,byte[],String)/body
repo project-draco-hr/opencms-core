@@ -9,8 +9,8 @@
     try {
       org.w3c.dom.Document xmlDoc=A_CmsXmlContent.getXmlParser().parse(new java.io.StringReader(new String(content)));
       for (Node n=xmlDoc.getFirstChild(); n != null; n=treeWalker(xmlDoc,n)) {
-        System.err.println("mgm--node:" + n.getNodeName() + " type:"+ n.getNodeType()+ " value:"+ n.getNodeValue());
-        if ((n.getNodeType() > n.CDATA_SECTION_NODE) || (n.getNodeType() == n.ATTRIBUTE_NODE)) {
+        short ntype=n.getNodeType();
+        if (((ntype > n.CDATA_SECTION_NODE) && ntype < n.DOCUMENT_TYPE_NODE) || (ntype == n.ATTRIBUTE_NODE)) {
           return false;
         }
         if (n.getNodeType() == n.ELEMENT_NODE) {
@@ -32,8 +32,42 @@
     try {
       org.w3c.dom.Document xmlDoc=A_CmsXmlContent.getXmlParser().parse(new java.io.StringReader(new String(content)));
       NodeList list=xmlDoc.getChildNodes();
+      list=(list.item(0)).getChildNodes();
+      int counterEldefs=0;
+      int counterTeplate=0;
       for (int i=0; i < list.getLength(); i++) {
         Node n=list.item(i);
+        short nodeType=n.getNodeType();
+        if (nodeType == n.ELEMENT_NODE) {
+          String nodeName=n.getNodeName();
+          if ("elementdef".equalsIgnoreCase(nodeName)) {
+            if (!isElementDefOk((Element)n)) {
+              return false;
+            }
+            counterEldefs++;
+          }
+ else           if ("template".equalsIgnoreCase(nodeName)) {
+            if (!isTemplateTagOk((Element)n)) {
+              return false;
+            }
+            counterTeplate++;
+          }
+ else {
+            return false;
+          }
+        }
+ else         if (nodeType == n.TEXT_NODE) {
+          String nodeValue=n.getNodeValue();
+          if ((nodeValue != null) && (nodeValue.trim().length() > 0)) {
+            return false;
+          }
+        }
+ else {
+          return false;
+        }
+      }
+      if (counterEldefs != 2 || counterTeplate != 1) {
+        return false;
       }
     }
  catch (    Exception e) {
