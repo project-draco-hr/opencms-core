@@ -1,5 +1,6 @@
 {
-  String datablockName=this.getTemplateDatablockName(templateSelector);
+  String editDatablockName=getEditTemplateDatablockName(templateSelector);
+  String copyOfContent=content;
   if (html) {
     int startIndex=content.indexOf("<BODY");
     startIndex=content.indexOf(">",startIndex + 1) + 1;
@@ -11,7 +12,7 @@
   StringBuffer tempXmlString=new StringBuffer();
   tempXmlString.append("<?xml version=\"1.0\"?>\n");
   tempXmlString.append("<" + getXmlDocumentTagName() + ">");
-  tempXmlString.append("<template>\n");
+  tempXmlString.append("<" + C_EDIT_TEMPLATE + ">\n");
   if (html) {
     tempXmlString.append("<![CDATA[");
     content=replace(content,"[","]]><");
@@ -21,7 +22,7 @@
  else {
     tempXmlString.append(content);
   }
-  tempXmlString.append("</template>\n");
+  tempXmlString.append("</" + C_EDIT_TEMPLATE + ">\n");
   tempXmlString.append("</" + getXmlDocumentTagName() + ">\n");
   I_CmsXmlParser parser=getXmlParser();
   StringReader parserReader=new StringReader(tempXmlString.toString());
@@ -33,5 +34,46 @@
     throwException("PARSING ERROR!",CmsException.C_XML_PARSING_ERROR);
   }
   Element templateNode=(Element)tempDoc.getDocumentElement().getFirstChild();
-  setData(datablockName,templateNode);
+  setData(editDatablockName,templateNode);
+  String datablockName=this.getTemplateDatablockName(templateSelector);
+  String parsedContent=null;
+  if (!html) {
+    copyOfContent="<HTML><HEAD></HEAD><body>" + copyOfContent.substring(9,copyOfContent.lastIndexOf("]]>")) + "</body></HTML>";
+  }
+ else {
+    copyOfContent=replace(copyOfContent,"","");
+  }
+  try {
+    LinkSubstitution sub=new LinkSubstitution();
+    copyOfContent=sub.substituteEditorContent(copyOfContent);
+  }
+ catch (  CmsException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] cant parse the content:",e);
+  }
+  int startIndex=copyOfContent.indexOf("<body");
+  startIndex=copyOfContent.indexOf(">",startIndex + 1) + 1;
+  int endIndex=copyOfContent.lastIndexOf("</body>");
+  if (startIndex > 0) {
+    copyOfContent=copyOfContent.substring(startIndex,endIndex);
+  }
+  tempXmlString=new StringBuffer();
+  tempXmlString.append("<?xml version=\"1.0\"?>\n");
+  tempXmlString.append("<" + getXmlDocumentTagName() + ">");
+  tempXmlString.append("<template>\n");
+  tempXmlString.append("<![CDATA[");
+  tempXmlString.append(copyOfContent.trim());
+  tempXmlString.append("]]>");
+  tempXmlString.append("</template>\n");
+  tempXmlString.append("</" + getXmlDocumentTagName() + ">\n");
+  I_CmsXmlParser parser2=getXmlParser();
+  StringReader parserReader2=new StringReader(tempXmlString.toString());
+  Document tempDoc2=null;
+  try {
+    tempDoc2=parser2.parse(parserReader2);
+  }
+ catch (  Exception e) {
+    throwException("PARSING ERROR!",CmsException.C_XML_PARSING_ERROR);
+  }
+  Element templateNode2=(Element)tempDoc2.getDocumentElement().getFirstChild();
+  setData(datablockName,templateNode2);
 }
