@@ -5,47 +5,57 @@
     CmsResource res=cms.readResource(dialog.getParamResource(),CmsResourceFilter.ALL);
     int currentResTypeId=res.getTypeId();
     List resTypes=OpenCms.getWorkplaceManager().getExplorerTypeSettings();
+    boolean isFolder=res.isFolder();
     for (int i=0; i < resTypes.size(); i++) {
+      boolean changeable=false;
       CmsExplorerTypeSettings settings=(CmsExplorerTypeSettings)resTypes.get(i);
       int resTypeId=OpenCms.getResourceManager().getResourceType(settings.getName()).getTypeId();
-      CmsPermissionSet permissions;
-      try {
-        permissions=settings.getAccess().getAccessControlList().getPermissions(cms.getRequestContext().currentUser(),cms.getGroupsOfUser(cms.getRequestContext().currentUser().getName()));
+      if (isFolder && OpenCms.getResourceManager().getResourceType(resTypeId).isFolder()) {
+        changeable=true;
       }
- catch (      CmsException e) {
-        permissions=settings.getAccess().getAccessControlList().getPermissions(cms.getRequestContext().currentUser());
-        if (OpenCms.getLog(dialog.getClass()).isErrorEnabled()) {
-          OpenCms.getLog(dialog.getClass()).error("Error reading groups of user " + cms.getRequestContext().currentUser().getName());
+ else       if (!isFolder && !OpenCms.getResourceManager().getResourceType(resTypeId).isFolder()) {
+        changeable=true;
+      }
+      if (changeable) {
+        CmsPermissionSet permissions;
+        try {
+          permissions=settings.getAccess().getAccessControlList().getPermissions(cms.getRequestContext().currentUser(),cms.getGroupsOfUser(cms.getRequestContext().currentUser().getName()));
         }
-      }
-      if (permissions.getPermissionString().indexOf("+w") == -1 || settings.getName().equals(CmsResourceTypeFolder.C_RESOURCE_TYPE_NAME)) {
-        continue;
-      }
-      result.append("<tr><td>");
-      result.append("<input type=\"radio\" name=\"");
-      result.append(PARAM_NEWRESOURCETYPE);
-      result.append("\" value=\"");
-      if (useTypeId) {
-        result.append(resTypeId);
-      }
+ catch (        CmsException e) {
+          permissions=settings.getAccess().getAccessControlList().getPermissions(cms.getRequestContext().currentUser());
+          if (OpenCms.getLog(dialog.getClass()).isErrorEnabled()) {
+            OpenCms.getLog(dialog.getClass()).error("Error reading groups of user " + cms.getRequestContext().currentUser().getName());
+          }
+        }
+        if (permissions.getPermissionString().indexOf("+w") == -1) {
+          continue;
+        }
+        result.append("<tr><td>");
+        result.append("<input type=\"radio\" name=\"");
+        result.append(PARAM_NEWRESOURCETYPE);
+        result.append("\" value=\"");
+        if (useTypeId) {
+          result.append(resTypeId);
+        }
  else {
-        result.append(settings.getName());
+          result.append(settings.getName());
+        }
+        result.append("\"");
+        if (resTypeId == currentResTypeId) {
+          result.append(" checked=\"checked\"");
+        }
+        result.append("></td>");
+        result.append("\t<td><img src=\"");
+        result.append(getSkinUri());
+        result.append("filetypes/");
+        result.append(settings.getIcon());
+        result.append("\" border=\"0\" title=\"");
+        result.append(dialog.key(settings.getKey()));
+        result.append("\"></td>\n");
+        result.append("<td>");
+        result.append(dialog.key(settings.getKey()));
+        result.append("</td></tr>\n");
       }
-      result.append("\"");
-      if (resTypeId == currentResTypeId) {
-        result.append(" checked=\"checked\"");
-      }
-      result.append("></td>");
-      result.append("\t<td><img src=\"");
-      result.append(getSkinUri());
-      result.append("filetypes/");
-      result.append(settings.getIcon());
-      result.append("\" border=\"0\" title=\"");
-      result.append(dialog.key(settings.getKey()));
-      result.append("\"></td>\n");
-      result.append("<td>");
-      result.append(dialog.key(settings.getKey()));
-      result.append("</td></tr>\n");
     }
   }
  catch (  CmsException e) {
