@@ -17,7 +17,26 @@
   CmsFile file=(CmsFile)cms.readFileHeader(filename);
   if (newtype != null) {
     int type=cms.getResourceTypeId(newtype);
+    Map fileProperties=cms.readProperties(filename);
+    cms.deleteAllProperties(filename);
     cms.chtype(cms.readAbsolutePath(file),type);
+    Iterator i=fileProperties.keySet().iterator();
+    while (i.hasNext()) {
+      String curKey=(String)i.next();
+      String curValue=(String)fileProperties.get(curKey);
+      try {
+        cms.writeProperty(filename,curKey,curValue);
+      }
+ catch (      CmsException e) {
+        if (e.getType() == CmsException.C_NOT_FOUND) {
+          cms.createPropertydefinition(curKey,cms.readFileHeader(filename).getType());
+          cms.writeProperty(filename,curKey,curValue);
+        }
+ else {
+          throw e;
+        }
+      }
+    }
     session.removeValue(C_PARA_RESOURCE);
     try {
       if (lasturl == null || "".equals(lasturl)) {
