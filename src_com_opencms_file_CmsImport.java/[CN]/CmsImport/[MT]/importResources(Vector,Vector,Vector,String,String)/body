@@ -1,0 +1,58 @@
+{
+  NodeList fileNodes, propertyNodes;
+  Element currentElement, currentProperty;
+  String source, destination, type, user, group, access;
+  Hashtable properties;
+  Vector types=new Vector();
+  m_cms.lockResource(m_importPath);
+  try {
+    fileNodes=m_docXml.getElementsByTagName(C_EXPORT_TAG_FILE);
+    for (int i=0; i < fileNodes.getLength(); i++) {
+      currentElement=(Element)fileNodes.item(i);
+      source=getTextNodeValue(currentElement,C_EXPORT_TAG_SOURCE);
+      destination=getTextNodeValue(currentElement,C_EXPORT_TAG_DESTINATION);
+      type=getTextNodeValue(currentElement,C_EXPORT_TAG_TYPE);
+      user=getTextNodeValue(currentElement,C_EXPORT_TAG_USER);
+      group=getTextNodeValue(currentElement,C_EXPORT_TAG_GROUP);
+      access=getTextNodeValue(currentElement,C_EXPORT_TAG_ACCESS);
+      if (!inExcludeList(excludeList,m_importPath + destination)) {
+        propertyNodes=currentElement.getElementsByTagName(C_EXPORT_TAG_PROPERTY);
+        properties=new Hashtable();
+        if (propertyName != null && propertyValue != null && !"".equals(propertyName)) {
+          if (!types.contains(type)) {
+            types.addElement(type);
+            createPropertydefinition(propertyName,"" + C_PROPERTYDEF_TYPE_OPTIONAL,type);
+          }
+          properties.put(propertyName,propertyValue);
+        }
+        for (int j=0; j < propertyNodes.getLength(); j++) {
+          currentProperty=(Element)propertyNodes.item(j);
+          String name=getTextNodeValue(currentProperty,C_EXPORT_TAG_NAME);
+          String propertyType=getTextNodeValue(currentProperty,C_EXPORT_TAG_TYPE);
+          String value=getTextNodeValue(currentProperty,C_EXPORT_TAG_VALUE);
+          if ((name != null) && (value != null)) {
+            properties.put(name,value);
+            createPropertydefinition(name,propertyType,type);
+          }
+        }
+        boolean succes=importFile(source,destination,type,user,group,access,properties);
+        boolean isFile=(source != null);
+        if (succes && isFile) {
+          if (writtenFilenames != null) {
+            writtenFilenames.addElement(m_importPath + destination);
+          }
+          if (fileCodes != null) {
+            fileCodes.addElement("code of " + m_importPath + destination);
+          }
+        }
+      }
+ else {
+        System.out.print("skipping " + destination);
+      }
+    }
+  }
+ catch (  Exception exc) {
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+  m_cms.unlockResource(m_importPath);
+}
