@@ -69,7 +69,6 @@
       parameters.put("editor",editor);
     }
     oldEdit=editor;
-    body="-- unnamed --";
     title=cms.readMetainformation(file,C_METAINFO_TITLE);
     if (title == null) {
       title="";
@@ -77,10 +76,6 @@
     oldTitle=title;
     tempPageFilename=createTemporaryFile(cms,pageFileResource);
     tempBodyFilename=createTemporaryFile(cms,contentFileResource);
-    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
-    temporaryControlFile.setElementTemplSelector("body",body);
-    temporaryControlFile.setElementTemplate("body",tempBodyFilename);
-    temporaryControlFile.write();
     session.putValue("te_temppagefile",tempPageFilename);
     session.putValue("te_tempbodyfile",tempBodyFilename);
   }
@@ -115,6 +110,19 @@
   CmsXmlTemplateFile bodyTemplateFile=bodyElementClassObject.getOwnTemplateFile(cms,tempBodyFilename,"body",parameters,null);
   Element bodyTag=layoutTemplateFile.getBodyTag();
   bodyTemplateFile.setBodyTag(bodyTag);
+  if (!existsContentParam) {
+    Vector allBodys=bodyTemplateFile.getAllSections();
+    if (allBodys == null || allBodys.size() == 0) {
+      body="";
+    }
+ else {
+      body=(String)allBodys.elementAt(0);
+    }
+    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
+    temporaryControlFile.setElementTemplSelector("body",body);
+    temporaryControlFile.setElementTemplate("body",tempBodyFilename);
+    temporaryControlFile.write();
+  }
   if (existsContentParam) {
     Encoder encoder=new Encoder();
     content=encoder.unescape(content);
@@ -143,7 +151,7 @@
   }
   if (saveRequested) {
     commitTemporaryFile(cms,bodyElementFilename,tempBodyFilename);
-    cms.writeMetainformation(file,"Title",cms.readMetainformation(tempPageFilename,"Title"));
+    cms.writeMetainformation(file,C_METAINFO_TITLE,cms.readMetainformation(tempPageFilename,C_METAINFO_TITLE));
     CmsXmlControlFile originalControlFile=new CmsXmlControlFile(cms,file);
     CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
     originalControlFile.setMasterTemplate(temporaryControlFile.getMasterTemplate());
