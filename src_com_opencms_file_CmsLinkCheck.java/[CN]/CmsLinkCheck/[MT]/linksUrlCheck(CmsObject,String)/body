@@ -1,0 +1,68 @@
+{
+  Vector inList=null;
+  Hashtable notAvailable=new Hashtable();
+  Vector linkList=new Vector();
+  Hashtable linkckecktable=cms.readLinkCheckTable();
+  Hashtable newLinkchecktable=new Hashtable();
+  CmsXmlTemplateFile template=getOwnTemplateFile(cms,C_MAIL_TEMPLATE,"",null,"");
+  GregorianCalendar actDate=new GregorianCalendar();
+  String actDateString=actDate.get(GregorianCalendar.DATE) + "." + (actDate.get(GregorianCalendar.MONTH) + 1)+ "."+ actDate.get(GregorianCalendar.YEAR)+ " "+ actDate.get(GregorianCalendar.HOUR_OF_DAY)+ ":"+ actDate.get(GregorianCalendar.MINUTE)+ ":"+ actDate.get(GregorianCalendar.SECOND);
+  template.setData("actdate",actDateString);
+  newLinkchecktable.put(C_LINKCHECKTABLE_DATE,actDateString);
+  StringBuffer mailContent=new StringBuffer(template.getProcessedDataValue("single_message"));
+  linkList=cms.readFilesByType(I_CmsConstants.C_UNKNOWN_INT,cms.getResourceType(CmsResourceTypeLink.C_TYPE_RESOURCE_NAME).getResourceType());
+  for (int i=0; i < linkList.size(); i++) {
+    CmsFile linkElement=(CmsFile)linkList.elementAt(i);
+    String linkName=linkElement.getAbsolutePath();
+    String linkUrl=new String(linkElement.getContents());
+    if (!linkUrl.startsWith("/")) {
+      int failedCheck=0;
+      String numFromTable=(String)linkckecktable.get(linkName + ", " + linkUrl);
+      if ((numFromTable != null) && (!"".equals(numFromTable.trim()))) {
+        failedCheck=Integer.parseInt(numFromTable);
+      }
+      if (!checkUrl(linkUrl)) {
+        inList=(Vector)notAvailable.get(linkUrl);
+        if (inList == null) {
+          inList=new Vector();
+        }
+        inList.addElement(linkName);
+        notAvailable.put(linkUrl,inList);
+        newLinkchecktable.put(linkName + ", " + linkUrl,"" + (failedCheck + 1));
+      }
+    }
+  }
+  cms.writeLinkCheckTable(newLinkchecktable);
+  if ((parameter != null) && (!"".equals(parameter.trim()))) {
+    if (notAvailable.size() > 0) {
+      Enumeration linkKeys=notAvailable.keys();
+      StringBuffer mailUrls=new StringBuffer();
+      while (linkKeys.hasMoreElements()) {
+        String url=(String)linkKeys.nextElement();
+        template.setData("url",url);
+        Vector linknames=(Vector)notAvailable.get(url);
+        StringBuffer mailLinks=new StringBuffer();
+        for (int j=0; j < linknames.size(); j++) {
+          String nextLink=(String)linknames.elementAt(j);
+          template.setData("linkname",nextLink);
+          mailLinks.append(template.getProcessedDataValue("single_link"));
+        }
+        template.setData("links",mailLinks.toString());
+        mailUrls.append(template.getProcessedDataValue("single_url"));
+      }
+      mailContent.append(mailUrls.toString());
+      if ("email".equals(parameter.trim())) {
+        String mailSubject=template.getProcessedDataValue("emailsubject");
+        String mailFrom=template.getDataValue("emailfrom");
+        String[] mailTo=getReceiverArray(template.getDataValue("emailto"));
+        String[] mailCc=getReceiverArray(template.getDataValue("emailcc"));
+        String[] mailBcc=getReceiverArray(template.getDataValue("emailbcc"));
+        String mailType=template.getDataValue("emailtype");
+        generateEmail(mailFrom,mailTo,mailCc,mailBcc,mailSubject,mailContent.toString(),mailType);
+      }
+ else {
+        generateFile(mailContent.toString(),parameter,actDate);
+      }
+    }
+  }
+}
