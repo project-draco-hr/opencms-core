@@ -4,17 +4,23 @@
     timer1=System.currentTimeMillis();
     System.err.println("========== XmlTemplateLoader loading: " + file.getAbsolutePath());
   }
+  String rnc=cms.getRequestContext().getEncoding().trim();
+  I_CmsRequest cms_req=cms.getRequestContext().getRequest();
+  HttpServletRequest originalreq=(HttpServletRequest)cms_req.getOriginalRequest();
   try {
-    I_CmsRequest cms_req=cms.getRequestContext().getRequest();
     byte[] result=null;
-    HttpServletRequest originalreq=(HttpServletRequest)cms_req.getOriginalRequest();
     com.opencms.file.CmsFile fx=req.getCmsObject().readFile(file.getAbsolutePath());
+    String dnc=A_OpenCms.getDefaultEncoding().trim();
+    String enc=cms.readProperty(fx.getAbsolutePath(),C_PROPERTY_CONTENT_ENCODING,true,dnc).trim();
     cms.getRequestContext().setUri(fx.getAbsolutePath());
     cms_req.setOriginalRequest(req);
+    cms.getRequestContext().setEncoding(enc);
     result=generateOutput(cms,fx,fx.getLauncherClassname(),cms_req,m_openCms);
-    cms_req.setOriginalRequest(originalreq);
-    cms.getRequestContext().setUri(null);
     if (result != null) {
+      if (DEBUG > 1)       System.out.println("CmsXmlTemplateLoader.service(): encoding=" + enc + " requestEncoding="+ rnc+ " defaultEncoding="+ dnc);
+      if (!enc.equalsIgnoreCase(dnc)) {
+        result=(new String(result,enc)).getBytes(dnc);
+      }
       res.getOutputStream().write(result);
     }
   }
@@ -22,6 +28,11 @@
     System.err.println("Error in CmsXmlTemplateLoader: " + e.toString());
     if (DEBUG > 0)     e.printStackTrace(System.err);
     throw new ServletException("Error in CmsXmlTemplateLoader processing",e);
+  }
+ finally {
+    cms_req.setOriginalRequest(originalreq);
+    cms.getRequestContext().setEncoding(rnc);
+    cms.getRequestContext().setUri(null);
   }
   if (DEBUG > 0) {
     long timer2=System.currentTimeMillis() - timer1;
