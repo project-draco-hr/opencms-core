@@ -1,0 +1,82 @@
+{
+  String sLanguageToken="_lang_";
+  String sLanguageIdent="";
+  String sNoFoundLink="";
+  String sTokenReplaceType="0";
+  String sLinkLeftSide="/";
+  String currentFolder=cms.getRequestContext().getUri();
+  String sReturnPath="";
+  int iParamCount;
+  String sParam="";
+  if (!tagcontent.equals("")) {
+    try {
+      StringTokenizer st=new StringTokenizer(tagcontent.toString(),",");
+      iParamCount=st.countTokens();
+      if (iParamCount < 1) {
+        throw new CmsException("Not enough parameters!");
+      }
+      if (st.hasMoreTokens()) {
+        sLanguageIdent=st.nextToken().trim();
+      }
+      if (st.hasMoreTokens()) {
+        sParam=st.nextToken().trim();
+        if (!sParam.equals("")) {
+          sLanguageToken=sParam;
+        }
+      }
+      if (st.hasMoreTokens()) {
+        sParam=st.nextToken().trim();
+        if (!sParam.equals("")) {
+          sTokenReplaceType=sParam;
+        }
+      }
+      if (st.hasMoreTokens()) {
+        sParam=st.nextToken().trim();
+        if (!sParam.equals("")) {
+          sNoFoundLink=sParam;
+        }
+      }
+    }
+ catch (    Exception e) {
+      throw new CmsException(e.getMessage());
+    }
+    int ifound=0;
+    if (sTokenReplaceType.equals("0")) {
+      ifound=currentFolder.indexOf(sLanguageToken);
+    }
+ else {
+      currentFolder=currentFolder.substring(1);
+      ifound=currentFolder.indexOf("/");
+    }
+    if (ifound > (-1)) {
+      String sTemp=currentFolder.substring(0,ifound);
+      sLinkLeftSide=sTemp.substring(0,sTemp.lastIndexOf("/") + 1);
+      sReturnPath=sLinkLeftSide + "" + sLanguageIdent+ currentFolder.substring(ifound);
+      boolean resourceExists=false;
+      try {
+        CmsResource dummy=cms.readFileHeader(sReturnPath);
+        if (dummy != null) {
+          resourceExists=true;
+        }
+      }
+ catch (      CmsException e) {
+        resourceExists=false;
+      }
+      if (!resourceExists) {
+        if (iParamCount > 3) {
+          sReturnPath="/" + sNoFoundLink;
+        }
+ else {
+          sReturnPath=sReturnPath.substring(0,sReturnPath.lastIndexOf("/") + 1);
+        }
+      }
+    }
+ else {
+      currentFolder=cms.getRequestContext().getUri();
+    }
+  }
+ else {
+    throw new CmsException("Not enough parameters!");
+  }
+  return cms.getRequestContext().getRequest().getServletUrl() + sReturnPath;
+}
