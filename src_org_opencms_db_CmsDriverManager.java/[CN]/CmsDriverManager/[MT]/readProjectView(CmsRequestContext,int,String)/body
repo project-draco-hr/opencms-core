@@ -3,27 +3,33 @@
   List resources=null;
   CmsResource currentResource=null;
   CmsLock currentLock=null;
-  resources=readChangedResourcesInsideProject(context,projectId,I_CmsConstants.C_UNKNOWN_ID);
+  int state=-1;
+  if ("new".equalsIgnoreCase(filter))   state=I_CmsConstants.C_STATE_NEW;
+ else   if ("changed".equalsIgnoreCase(filter))   state=I_CmsConstants.C_STATE_CHANGED;
+ else   if ("deleted".equalsIgnoreCase(filter))   state=I_CmsConstants.C_STATE_DELETED;
+ else   if ("all".equalsIgnoreCase(filter))   state=I_CmsConstants.C_STATE_UNCHANGED;
+  if ("locked".equalsIgnoreCase(filter)) {
+    resources=m_vfsDriver.readResources(projectId,state,I_CmsConstants.C_READMODE_IGNORESTATE);
+  }
+ else {
+    if ((state == I_CmsConstants.C_STATE_NEW) || (state == I_CmsConstants.C_STATE_CHANGED) || (state == I_CmsConstants.C_STATE_DELETED)) {
+      resources=m_vfsDriver.readResources(projectId,state,I_CmsConstants.C_READMODE_MATCHSTATE);
+    }
+ else     if (state == I_CmsConstants.C_STATE_UNCHANGED) {
+      resources=m_vfsDriver.readResources(projectId,state,I_CmsConstants.C_READMODE_UNMATCHSTATE);
+    }
+  }
   Iterator i=resources.iterator();
   while (i.hasNext()) {
     currentResource=(CmsResource)i.next();
     if (hasPermissions(context,currentResource,I_CmsConstants.C_READ_ACCESS,false)) {
-      if ("new".equalsIgnoreCase(filter) && currentResource.getState() == I_CmsConstants.C_STATE_NEW) {
-        retValue.addElement(currentResource);
-      }
- else       if ("changed".equalsIgnoreCase(filter) && currentResource.getState() == I_CmsConstants.C_STATE_CHANGED) {
-        retValue.addElement(currentResource);
-      }
- else       if ("deleted".equalsIgnoreCase(filter) && currentResource.getState() == I_CmsConstants.C_STATE_DELETED) {
-        retValue.addElement(currentResource);
-      }
- else       if ("locked".equalsIgnoreCase(filter)) {
+      if ("locked".equalsIgnoreCase(filter)) {
         currentLock=getLock(context,currentResource);
         if (!currentLock.isNullLock()) {
           retValue.addElement(currentResource);
         }
       }
- else       if ("all".equalsIgnoreCase(filter) && currentResource.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
+ else {
         retValue.addElement(currentResource);
       }
     }
