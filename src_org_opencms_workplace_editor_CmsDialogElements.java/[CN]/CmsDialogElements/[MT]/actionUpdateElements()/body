@@ -1,32 +1,32 @@
 {
   try {
     List elementList=computeElements();
-    if (elementList == null) {
-      throw new CmsException("Elements not specified on template file!");
-    }
     CmsFile file=getCms().readFile(this.getParamTempfile());
     CmsXmlPage page=CmsXmlPage.read(getCms(),file);
     boolean foundMandatory=false;
     m_changeElement="";
     Iterator i=elementList.iterator();
     while (i.hasNext()) {
-      String[] currentElement=(String[])i.next();
-      String elementName=currentElement[0];
-      boolean isExisting=page.hasElement(elementName,getElementLocale());
-      boolean isMandatory="1".equals(currentElement[2]);
-      if (isMandatory || "true".equals(getJsp().getRequest().getParameter(PREFIX_PARAM_BODY + elementName))) {
-        if (!isExisting) {
-          page.addElement(elementName,getElementLocale());
+      CmsDialogElement element=(CmsDialogElement)i.next();
+      if (element.isMandantory() || "true".equals(getJsp().getRequest().getParameter(PREFIX_PARAM_BODY + element.getName()))) {
+        if (!element.isExisting()) {
+          page.addElement(element.getName(),getElementLocale());
         }
-        page.setEnabled(elementName,getElementLocale(),true);
-        if (isMandatory && !foundMandatory) {
-          m_changeElement=elementName;
+        page.setEnabled(element.getName(),getElementLocale(),true);
+        if (element.isMandantory() && !foundMandatory) {
+          m_changeElement=element.getName();
           foundMandatory=true;
         }
       }
  else {
-        if (isExisting) {
-          page.setEnabled(elementName,getElementLocale(),false);
+        if (element.isExisting()) {
+          page.setEnabled(element.getName(),getElementLocale(),true);
+          if (!element.isTemplateElement() && "".equals(page.getContent(getCms(),element.getName(),getElementLocale()))) {
+            page.removeElement(element.getName(),getElementLocale());
+          }
+ else {
+            page.setEnabled(element.getName(),getElementLocale(),false);
+          }
         }
       }
     }
@@ -35,7 +35,9 @@
       m_changeElement=getParamElementname();
     }
  else     if (!foundMandatory) {
-      m_changeElement=((String[])elementList.get(0))[0];
+      if (elementList.size() > 0) {
+        m_changeElement=((CmsDialogElement)elementList.get(0)).getName();
+      }
     }
   }
  catch (  CmsException e) {
