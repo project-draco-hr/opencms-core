@@ -1,21 +1,17 @@
 {
   CmsObject cms=jsp.getCmsObject();
   List fieldValues=content.getValues(C_NODE_INPUTFIELD,locale);
-  List fields=new ArrayList(fieldValues.size());
-  Iterator i=fieldValues.iterator();
-  while (i.hasNext()) {
-    I_CmsXmlContentValue inputField=(I_CmsXmlContentValue)i.next();
+  int fieldValueSize=fieldValues.size();
+  List fields=new ArrayList(fieldValueSize);
+  for (int i=0; i < fieldValueSize; i++) {
+    I_CmsXmlContentValue inputField=(I_CmsXmlContentValue)fieldValues.get(i);
     String inputFieldPath=inputField.getPath() + "/";
     CmsField field=new CmsField();
     String stringValue=content.getStringValue(cms,inputFieldPath + C_NODE_FIELDTYPE,locale);
-    if (CmsStringUtil.isNotEmpty(stringValue)) {
-      field.setType(stringValue);
-    }
+    field.setType(getConfigurationValue(stringValue,CmsField.C_TYPE_TEXT));
     field.setName(inputFieldPath.substring(0,inputFieldPath.length() - 1));
     stringValue=content.getStringValue(cms,inputFieldPath + C_NODE_FIELDLABEL,locale);
-    if (CmsStringUtil.isNotEmpty(stringValue)) {
-      field.setDescription(stringValue);
-    }
+    field.setLabel(getConfigurationValue(stringValue,""));
     if (initial) {
       String fieldValue=content.getStringValue(cms,inputFieldPath + C_NODE_FIELDDEFAULTVALUE,locale);
       if (CmsStringUtil.isNotEmpty(fieldValue)) {
@@ -33,14 +29,17 @@
     }
     if (!CmsField.C_TYPE_HIDDEN.equals(field.getType())) {
       stringValue=content.getStringValue(cms,inputFieldPath + C_NODE_FIELDVALIDATION,locale);
-      if (CmsStringUtil.isNotEmpty(stringValue)) {
-        field.setValidationExpression(stringValue);
+      if (CmsField.C_TYPE_EMAIL.equals(field.getType()) && CmsStringUtil.isEmpty(stringValue)) {
+        field.setValidationExpression(CmsField.C_VALIDATION_EMAIL);
+      }
+ else {
+        field.setValidationExpression(getConfigurationValue(stringValue,""));
       }
       stringValue=content.getStringValue(cms,inputFieldPath + C_NODE_FIELDMANDATORY,locale);
       boolean isMandatory=Boolean.valueOf(stringValue).booleanValue();
       field.setMandatory(isMandatory);
       if (isMandatory) {
-        setHasMandatoryFields(isMandatory);
+        setHasMandatoryFields(true);
       }
       if (field.needsItems()) {
         String fieldValue=content.getStringValue(cms,inputFieldPath + C_NODE_FIELDDEFAULTVALUE,locale);
@@ -86,4 +85,8 @@
     fields.add(field);
   }
   setFields(fields);
+  validateFormConfiguration(messages);
+  if (isConfirmationMailEnabled() && isConfirmationMailOptional()) {
+    getFields().add(createConfirmationMailCheckbox(jsp,messages,initial));
+  }
 }
