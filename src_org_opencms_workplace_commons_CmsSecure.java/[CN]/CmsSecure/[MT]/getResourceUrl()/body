@@ -1,18 +1,29 @@
 {
-  boolean secure=Boolean.valueOf(readProperty(I_CmsConstants.C_PROPERTY_SECURE)).booleanValue();
-  StringBuffer result=new StringBuffer();
-  CmsSite currentSite=CmsSiteManager.getCurrentSite(getCms());
-  if (currentSite == OpenCms.getSiteManager().getDefaultSite()) {
-    result.append(OpenCms.getSiteManager().getWorkplaceServer());
+  CmsObject cms=getCms();
+  String address="";
+  String vfsName=CmsLinkManager.getAbsoluteUri(getParamResource(),cms.getRequestContext().getUri());
+  String secureResource="";
+  String exportedResource="";
+  try {
+    secureResource=getCms().readPropertyObject(getParamResource(),I_CmsConstants.C_PROPERTY_SECURE,false).getValue();
+    exportedResource=getCms().readPropertyObject(getParamResource(),I_CmsConstants.C_PROPERTY_EXPORT,false).getValue();
+  }
+ catch (  CmsException e) {
+    if (OpenCms.getLog(this).isInfoEnabled()) {
+      OpenCms.getLog(this).info(e);
+    }
+  }
+  if (Boolean.valueOf(exportedResource).booleanValue()) {
+    address=OpenCms.getStaticExportManager().getRfsName(cms,vfsName);
   }
  else {
-    if (secure) {
-      result.append(currentSite.getSecureUrl());
-    }
- else {
-      result.append(currentSite.getUrl());
-    }
+    address=OpenCms.getStaticExportManager().getVfsPrefix().concat(vfsName);
   }
-  result.append(OpenCms.getLinkManager().substituteLink(getCms(),getParamResource()));
-  return result.toString();
+  if (Boolean.valueOf(secureResource).booleanValue()) {
+    address=CmsSiteManager.getCurrentSite(cms).getSecureUrl().concat(address);
+  }
+ else {
+    address=CmsSiteManager.getCurrentSite(cms).getUrl().concat(address);
+  }
+  return address;
 }
