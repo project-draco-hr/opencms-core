@@ -1,8 +1,6 @@
 {
-  PreparedStatement statement=null;
-  Connection con=null;
-  String usedPool;
-  String usedStatement;
+  PreparedStatement stmt=null;
+  Connection conn=null;
   CmsUUID modifiedByUserId=userId;
   long dateModified=resource.isTouched() ? resource.getDateLastModified() : System.currentTimeMillis();
   boolean isFolder=false;
@@ -12,54 +10,47 @@
   if (filecontent == null) {
     filecontent=new byte[0];
   }
-  int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
-  if (project.getId() == onlineProject) {
-    usedPool=m_poolNameOnline;
-    usedStatement="_ONLINE";
+  if (project.getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
     modifiedByUserId=resource.getResourceLastModifiedBy();
   }
- else {
-    usedPool=m_poolName;
-    usedStatement="";
-  }
   try {
-    con=DriverManager.getConnection(usedPool);
-    statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_UPDATE" + usedStatement));
-    statement.setInt(1,resource.getType());
-    statement.setInt(2,resource.getFlags());
-    statement.setString(3,resource.getOwnerId().toString());
-    statement.setString(4,resource.getGroupId().toString());
-    statement.setInt(5,resource.getProjectId());
-    statement.setInt(6,resource.getAccessFlags());
+    conn=m_SqlQueries.getConnection(project);
+    stmt=m_SqlQueries.getPreparedStatement(conn,project,"C_RESOURCES_UPDATE");
+    stmt.setInt(1,resource.getType());
+    stmt.setInt(2,resource.getFlags());
+    stmt.setString(3,resource.getOwnerId().toString());
+    stmt.setString(4,resource.getGroupId().toString());
+    stmt.setInt(5,resource.getProjectId());
+    stmt.setInt(6,resource.getAccessFlags());
     int state=resource.getState();
     if ((state == C_STATE_NEW) || (state == C_STATE_CHANGED)) {
-      statement.setInt(7,state);
+      stmt.setInt(7,state);
     }
  else {
       if (isChanged == true) {
-        statement.setInt(7,C_STATE_CHANGED);
+        stmt.setInt(7,C_STATE_CHANGED);
       }
  else {
-        statement.setInt(7,resource.getState());
+        stmt.setInt(7,resource.getState());
       }
     }
-    statement.setString(8,resource.isLockedBy().toString());
-    statement.setInt(9,resource.getLauncherType());
-    statement.setString(10,resource.getLauncherClassname());
-    statement.setTimestamp(11,new Timestamp(dateModified));
-    statement.setString(12,modifiedByUserId.toString());
-    statement.setInt(13,filecontent.length);
-    statement.setString(14,resource.getFileId().toString());
-    statement.setString(15,resource.getResourceId().toString());
-    statement.executeUpdate();
+    stmt.setString(8,resource.isLockedBy().toString());
+    stmt.setInt(9,resource.getLauncherType());
+    stmt.setString(10,resource.getLauncherClassname());
+    stmt.setTimestamp(11,new Timestamp(dateModified));
+    stmt.setString(12,modifiedByUserId.toString());
+    stmt.setInt(13,filecontent.length);
+    stmt.setString(14,resource.getFileId().toString());
+    stmt.setString(15,resource.getResourceId().toString());
+    stmt.executeUpdate();
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
  finally {
-    m_SqlQueries.closeAll(con,statement,null);
+    m_SqlQueries.closeAll(conn,stmt,null);
   }
   if (!isFolder) {
-    this.writeFileContent(resource.getFileId(),filecontent,usedPool,usedStatement);
+    this.writeFileContent(resource.getFileId(),filecontent,project.getId(),false);
   }
 }

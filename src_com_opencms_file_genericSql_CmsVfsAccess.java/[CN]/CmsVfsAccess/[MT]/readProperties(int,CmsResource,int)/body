@@ -1,35 +1,24 @@
 {
   HashMap returnValue=new HashMap();
   ResultSet result=null;
-  PreparedStatement statement=null;
-  Connection con=null;
-  String usedPool;
-  String usedStatement;
+  PreparedStatement stmt=null;
+  Connection conn=null;
   CmsUUID resourceId=resource.getResourceId();
-  int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
-  if (projectId == onlineProject) {
-    usedPool=m_poolNameOnline;
-    usedStatement="_ONLINE";
-  }
- else {
-    usedPool=m_poolName;
-    usedStatement="";
-  }
   try {
-    con=DriverManager.getConnection(usedPool);
-    statement=con.prepareStatement(m_SqlQueries.get("C_PROPERTIES_READALL" + usedStatement));
-    statement.setString(1,resourceId.toString());
-    statement.setInt(2,resourceType);
-    result=statement.executeQuery();
+    conn=m_SqlQueries.getConnection(projectId);
+    stmt=m_SqlQueries.getPreparedStatement(conn,projectId,"C_PROPERTIES_READALL");
+    stmt.setString(1,resourceId.toString());
+    stmt.setInt(2,resourceType);
+    result=stmt.executeQuery();
     while (result.next()) {
       returnValue.put(result.getString(m_SqlQueries.get("C_PROPERTYDEF_NAME")),result.getString(m_SqlQueries.get("C_PROPERTY_VALUE")));
     }
   }
  catch (  SQLException exc) {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ exc.getMessage(),CmsException.C_SQL_ERROR,exc);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,exc);
   }
  finally {
-    m_SqlQueries.closeAll(con,statement,result);
+    m_SqlQueries.closeAll(conn,stmt,result);
   }
   return (returnValue);
 }

@@ -1,6 +1,4 @@
 {
-  String usedPool=null;
-  String usedStatement=null;
   if (filename.length() > C_MAX_LENGTH_RESOURCE_NAME) {
     throw new CmsException("[" + this.getClass().getName() + "] "+ "Resourcename too long(>"+ C_MAX_LENGTH_RESOURCE_NAME+ ") ",CmsException.C_BAD_NAME);
   }
@@ -8,14 +6,6 @@
     contents=" ".getBytes();
   }
   int state=C_STATE_NEW;
-  if (project.equals(onlineProject)) {
-    usedPool=m_poolNameOnline;
-    usedStatement="_ONLINE";
-  }
- else {
-    usedPool=m_poolName;
-    usedStatement="";
-  }
   try {
     readFileHeader(project.getId(),filename,false);
     throw new CmsException("[" + this.getClass().getName() + "] ",CmsException.C_FILE_EXISTS);
@@ -31,38 +21,38 @@
   }
   CmsUUID resourceId=new CmsUUID();
   CmsUUID fileId=new CmsUUID();
-  Connection con=null;
-  PreparedStatement statement=null;
+  Connection conn=null;
+  PreparedStatement stmt=null;
   try {
-    con=DriverManager.getConnection(usedPool);
-    statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_WRITE" + usedStatement));
-    statement.setString(1,resourceId.toString());
-    statement.setString(2,parentId.toString());
-    statement.setString(3,filename);
-    statement.setInt(4,resourceType.getResourceType());
-    statement.setInt(5,flags);
-    statement.setString(6,user.getId().toString());
-    statement.setString(7,user.getDefaultGroupId().toString());
-    statement.setInt(8,project.getId());
-    statement.setString(9,fileId.toString());
-    statement.setInt(10,C_ACCESS_DEFAULT_FLAGS);
-    statement.setInt(11,state);
-    statement.setString(12,CmsUUID.getNullUUID().toString());
-    statement.setInt(13,resourceType.getLauncherType());
-    statement.setString(14,resourceType.getLauncherClass());
-    statement.setTimestamp(15,new Timestamp(System.currentTimeMillis()));
-    statement.setTimestamp(16,new Timestamp(System.currentTimeMillis()));
-    statement.setInt(17,contents.length);
-    statement.setString(18,user.getId().toString());
-    statement.executeUpdate();
-    statement.close();
-    createFileContent(fileId,contents,0,usedPool,usedStatement);
+    conn=m_SqlQueries.getConnection(project);
+    stmt=m_SqlQueries.getPreparedStatement(conn,project,"C_RESOURCES_WRITE");
+    stmt.setString(1,resourceId.toString());
+    stmt.setString(2,parentId.toString());
+    stmt.setString(3,filename);
+    stmt.setInt(4,resourceType.getResourceType());
+    stmt.setInt(5,flags);
+    stmt.setString(6,user.getId().toString());
+    stmt.setString(7,user.getDefaultGroupId().toString());
+    stmt.setInt(8,project.getId());
+    stmt.setString(9,fileId.toString());
+    stmt.setInt(10,C_ACCESS_DEFAULT_FLAGS);
+    stmt.setInt(11,state);
+    stmt.setString(12,CmsUUID.getNullUUID().toString());
+    stmt.setInt(13,resourceType.getLauncherType());
+    stmt.setString(14,resourceType.getLauncherClass());
+    stmt.setTimestamp(15,new Timestamp(System.currentTimeMillis()));
+    stmt.setTimestamp(16,new Timestamp(System.currentTimeMillis()));
+    stmt.setInt(17,contents.length);
+    stmt.setString(18,user.getId().toString());
+    stmt.executeUpdate();
+    stmt.close();
+    createFileContent(fileId,contents,0,project.getId(),false);
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
  finally {
-    m_SqlQueries.closeAll(con,statement,null);
+    m_SqlQueries.closeAll(conn,stmt,null);
   }
   return readFile(project.getId(),onlineProject.getId(),filename);
 }

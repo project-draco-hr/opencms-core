@@ -1,21 +1,15 @@
 {
-  String query="C_SELECT_RESOURCE_DATE_LASTMODIFIED";
-  String pool=m_poolName;
-  PreparedStatement stmnt=null;
-  Connection con=null;
-  ResultSet result=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  ResultSet res=null;
   long date_lastModified=theDefaultDate;
-  if (theProjectId == I_CmsConstants.C_PROJECT_ONLINE_ID) {
-    pool=m_poolNameOnline;
-    query+="_ONLINE";
-  }
   try {
-    con=DriverManager.getConnection(pool);
-    stmnt=con.prepareStatement(m_SqlQueries.get(query));
-    stmnt.setInt(1,theResourceId);
-    result=stmnt.executeQuery();
-    if (result.next()) {
-      date_lastModified=SqlHelper.getTimestamp(result,m_SqlQueries.get("C_RESOURCES_DATE_LASTMODIFIED")).getTime();
+    conn=m_SqlQueries.getConnection(theProjectId);
+    stmt=m_SqlQueries.getPreparedStatement(conn,theProjectId,"C_SELECT_RESOURCE_DATE_LASTMODIFIED");
+    stmt.setInt(1,theResourceId);
+    res=stmt.executeQuery();
+    if (res.next()) {
+      date_lastModified=SqlHelper.getTimestamp(res,m_SqlQueries.get("C_RESOURCES_DATE_LASTMODIFIED")).getTime();
     }
  else {
       date_lastModified=theDefaultDate;
@@ -23,10 +17,10 @@
   }
  catch (  SQLException e) {
     date_lastModified=theDefaultDate;
-    throw new CmsException("[" + this.getClass().getName() + ".fetchDateFromResource()] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
  finally {
-    m_SqlQueries.closeAll(con,stmnt,null);
+    m_SqlQueries.closeAll(conn,stmt,res);
   }
   return date_lastModified;
 }

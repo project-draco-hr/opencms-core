@@ -1,24 +1,13 @@
 {
-  PreparedStatement statement=null;
+  PreparedStatement stmt=null;
   ResultSet res=null;
-  Connection con=null;
-  String usedPool;
-  String usedStatement;
-  int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
-  if (projectId == onlineProject) {
-    usedPool=m_poolNameOnline;
-    usedStatement="_ONLINE";
-  }
- else {
-    usedPool=m_poolName;
-    usedStatement="";
-  }
+  Connection conn=null;
   byte[] returnValue=null;
   try {
-    con=DriverManager.getConnection(usedPool);
-    statement=con.prepareStatement(m_SqlQueries.get("C_FILE_READ" + usedStatement));
-    statement.setInt(1,fileId);
-    res=statement.executeQuery();
+    conn=m_SqlQueries.getConnection(projectId);
+    stmt=m_SqlQueries.getPreparedStatement(conn,projectId,"C_FILE_READ");
+    stmt.setInt(1,fileId);
+    res=stmt.executeQuery();
     if (res.next()) {
       returnValue=res.getBytes(m_SqlQueries.get("C_FILE_CONTENT"));
     }
@@ -27,10 +16,10 @@
     }
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
  finally {
-    m_SqlQueries.closeAll(con,statement,res);
+    m_SqlQueries.closeAll(conn,stmt,res);
   }
   return returnValue;
 }

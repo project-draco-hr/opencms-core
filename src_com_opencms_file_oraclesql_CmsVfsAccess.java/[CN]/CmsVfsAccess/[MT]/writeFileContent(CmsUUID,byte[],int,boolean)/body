@@ -1,19 +1,25 @@
 {
-  PreparedStatement statement=null;
+  PreparedStatement stmt=null;
   PreparedStatement nextStatement=null;
   PreparedStatement trimStatement=null;
-  Connection con=null;
+  Connection conn=null;
   ResultSet res=null;
   try {
-    con=DriverManager.getConnection(usedPool);
-    statement=con.prepareStatement(m_SqlQueries.get("C_ORACLE_FILESFORUPDATE" + usedStatement));
-    statement.setString(1,fileId.toString());
-    con.setAutoCommit(false);
-    res=statement.executeQuery();
+    if (writeBackup) {
+      conn=m_SqlQueries.getConnectionForBackup();
+      stmt=m_SqlQueries.getPreparedStatement(conn,"C_ORACLE_FILESFORUPDATE_BACKUP");
+    }
+ else {
+      conn=m_SqlQueries.getConnection(projectId);
+      stmt=m_SqlQueries.getPreparedStatement(conn,projectId,"C_ORACLE_FILESFORUPDATE");
+    }
+    stmt.setString(1,fileId.toString());
+    conn.setAutoCommit(false);
+    res=stmt.executeQuery();
     try {
       while (res.next()) {
         oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("FILE_CONTENT");
-        trimStatement=con.prepareStatement(m_SqlQueries.get("C_TRIMBLOB"));
+        trimStatement=conn.prepareStatement(m_SqlQueries.get("C_TRIMBLOB"));
         trimStatement.setBlob(1,blobnew);
         trimStatement.setInt(2,0);
         trimStatement.execute();
@@ -27,10 +33,10 @@
         instream.close();
         outstream.close();
       }
-      nextStatement=con.prepareStatement(m_SqlQueries.get("C_COMMIT"));
+      nextStatement=conn.prepareStatement(m_SqlQueries.get("C_COMMIT"));
       nextStatement.execute();
       nextStatement.close();
-      con.setAutoCommit(true);
+      conn.setAutoCommit(true);
     }
  catch (    IOException e) {
       throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),e);
@@ -40,7 +46,7 @@
     throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
   }
  finally {
-    m_SqlQueries.closeAll(con,statement,res);
+    m_SqlQueries.closeAll(conn,stmt,res);
     m_SqlQueries.closeAll(null,nextStatement,null);
     m_SqlQueries.closeAll(null,trimStatement,null);
   }

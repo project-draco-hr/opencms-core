@@ -2,37 +2,33 @@
   Vector resources=new Vector();
   CmsResource file;
   ResultSet res=null;
-  PreparedStatement statement=null;
-  Connection con=null;
-  String usedPool;
-  String usedStatement;
-  int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
-  if (project.getId() == onlineProject) {
-    usedPool=m_poolNameOnline;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  String usedStatement="";
+  if (project.getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
     usedStatement="_ONLINE";
   }
  else {
-    usedPool=m_poolName;
     usedStatement="";
   }
   try {
-    con=DriverManager.getConnection(usedPool);
-    statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_READ_LIKENAME_1" + usedStatement) + resourcename + m_SqlQueries.get("C_RESOURCES_READ_LIKENAME_2" + usedStatement));
-    statement.setInt(1,project.getId());
-    res=statement.executeQuery();
+    conn=m_SqlQueries.getConnection(project);
+    stmt=conn.prepareStatement(m_SqlQueries.get("C_RESOURCES_READ_LIKENAME_1" + usedStatement) + resourcename + m_SqlQueries.get("C_RESOURCES_READ_LIKENAME_2" + usedStatement));
+    stmt.setInt(1,project.getId());
+    res=stmt.executeQuery();
     while (res.next()) {
       file=createCmsResourceFromResultSet(res,project.getId());
       resources.addElement(file);
     }
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
 catch (  Exception ex) {
     throw new CmsException("[" + this.getClass().getName() + "]",ex);
   }
  finally {
-    m_SqlQueries.closeAll(con,statement,res);
+    m_SqlQueries.closeAll(conn,stmt,res);
   }
   return resources;
 }

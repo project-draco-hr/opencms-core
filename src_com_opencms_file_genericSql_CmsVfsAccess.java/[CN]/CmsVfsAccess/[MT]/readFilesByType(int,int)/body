@@ -2,24 +2,13 @@
   Vector files=new Vector();
   CmsFile file;
   ResultSet res=null;
-  PreparedStatement statement=null;
-  Connection con=null;
-  String usedPool;
-  String usedStatement;
-  int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
-  if (projectId == onlineProject) {
-    usedPool=m_poolNameOnline;
-    usedStatement="_ONLINE";
-  }
- else {
-    usedPool=m_poolName;
-    usedStatement="";
-  }
+  PreparedStatement stmt=null;
+  Connection conn=null;
   try {
-    con=DriverManager.getConnection(usedPool);
-    statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_READ_FILESBYTYPE" + usedStatement));
-    statement.setInt(1,resourcetype);
-    res=statement.executeQuery();
+    conn=m_SqlQueries.getConnection(projectId);
+    stmt=m_SqlQueries.getPreparedStatement(conn,projectId,"C_RESOURCES_READ_FILESBYTYPE");
+    stmt.setInt(1,resourcetype);
+    res=stmt.executeQuery();
     while (res.next()) {
       file=createCmsFileFromResultSet(res,true,true);
       files.addElement(file);
@@ -27,13 +16,13 @@
   }
  catch (  SQLException e) {
     e.printStackTrace();
-    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
 catch (  Exception ex) {
     throw new CmsException("[" + this.getClass().getName() + "]",ex);
   }
  finally {
-    m_SqlQueries.closeAll(con,statement,res);
+    m_SqlQueries.closeAll(conn,stmt,res);
   }
   return files;
 }

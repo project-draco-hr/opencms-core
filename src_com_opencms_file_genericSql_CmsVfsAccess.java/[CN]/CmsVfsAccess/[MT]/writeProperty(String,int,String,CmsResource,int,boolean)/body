@@ -14,42 +14,31 @@
     }
   }
  else {
-    String usedPool;
-    String usedStatement;
-    int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
-    if (projectId == onlineProject) {
-      usedPool=m_poolNameOnline;
-      usedStatement="_ONLINE";
-    }
- else {
-      usedPool=m_poolName;
-      usedStatement="";
-    }
-    PreparedStatement statement=null;
-    Connection con=null;
+    PreparedStatement stmt=null;
+    Connection conn=null;
     try {
-      con=DriverManager.getConnection(usedPool);
+      conn=m_SqlQueries.getConnection(projectId);
       if (readProperty(propdef.getName(),projectId,resource,resourceType) != null) {
-        statement=con.prepareStatement(m_SqlQueries.get("C_PROPERTIES_UPDATE" + usedStatement));
-        statement.setString(1,m_SqlQueries.validateNull(value));
-        statement.setString(2,resource.getResourceId().toString());
-        statement.setInt(3,propdef.getId());
-        statement.executeUpdate();
+        stmt=m_SqlQueries.getPreparedStatement(conn,projectId,"C_PROPERTIES_UPDATE");
+        stmt.setString(1,m_SqlQueries.validateNull(value));
+        stmt.setString(2,resource.getResourceId().toString());
+        stmt.setInt(3,propdef.getId());
+        stmt.executeUpdate();
       }
  else {
-        statement=con.prepareStatement(m_SqlQueries.get("C_PROPERTIES_CREATE" + usedStatement));
-        statement.setInt(1,nextId(m_SqlQueries.get("C_TABLE_PROPERTIES" + usedStatement)));
-        statement.setInt(2,propdef.getId());
-        statement.setString(3,resource.getResourceId().toString());
-        statement.setString(4,m_SqlQueries.validateNull(value));
-        statement.executeUpdate();
+        stmt=m_SqlQueries.getPreparedStatement(conn,projectId,"C_PROPERTIES_CREATE");
+        stmt.setInt(1,nextId(m_SqlQueries.get(projectId,"C_TABLE_PROPERTIES")));
+        stmt.setInt(2,propdef.getId());
+        stmt.setString(3,resource.getResourceId().toString());
+        stmt.setString(4,m_SqlQueries.validateNull(value));
+        stmt.executeUpdate();
       }
     }
  catch (    SQLException exc) {
-      throw new CmsException("[" + this.getClass().getName() + ".writeProperty/2] "+ exc.getMessage(),CmsException.C_SQL_ERROR,exc);
+      throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,exc);
     }
  finally {
-      m_SqlQueries.closeAll(con,statement,null);
+      m_SqlQueries.closeAll(conn,stmt,null);
     }
   }
 }
