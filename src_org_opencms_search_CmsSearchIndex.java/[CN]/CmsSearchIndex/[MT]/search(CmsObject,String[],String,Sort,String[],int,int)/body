@@ -3,11 +3,21 @@
   long timeLucene;
   long timeResultProcessing;
   if (OpenCms.getLog(this).isDebugEnabled()) {
-    OpenCms.getLog(this).debug("Searching for \"" + searchQuery + "\" in fields \""+ fields+ "\" of index "+ m_name);
+    StringBuffer searchFields=new StringBuffer();
+    if (fields != null) {
+      for (int i=0; i < fields.length; i++) {
+        searchFields.append(fields[i]);
+        if (i + 1 < fields.length) {
+          searchFields.append(", ");
+        }
+      }
+    }
+    OpenCms.getLog(this).debug("Searching for \"" + searchQuery + "\" in fields ["+ searchFields+ "] of index "+ m_name);
   }
   CmsRequestContext context=cms.getRequestContext();
   CmsProject currentProject=context.currentProject();
   Searcher searcher=null;
+  IndexReader reader=null;
   Hits hits;
   List searchResults=new ArrayList();
   int previousPriority=Thread.currentThread().getPriority();
@@ -26,7 +36,6 @@
     }
     timeLucene=-System.currentTimeMillis();
     Analyzer languageAnalyzer=OpenCms.getSearchManager().getAnalyzer(m_locale);
-    BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
     BooleanQuery query=new BooleanQuery();
     StringBuffer phrase=new StringBuffer();
     phrase.append("+(");
@@ -49,22 +58,30 @@
       query.add(QueryParser.parse(searchQuery,I_CmsDocumentFactory.DOC_CONTENT,languageAnalyzer),true,false);
     }
     searcher=new IndexSearcher(m_path);
+    Query finalQuery;
     if (OpenCms.getLog(this).isDebugEnabled()) {
-      IndexReader reader=IndexReader.open(m_path);
-      Query rewrittenQuery=query.rewrite(reader);
       OpenCms.getLog(this).debug("Base query: " + query);
-      OpenCms.getLog(this).debug("Rewritten query: " + rewrittenQuery);
-      reader.close();
     }
-    if (sortOrder != Sort.RELEVANCE) {
-      hits=searcher.search(query,sortOrder);
+    if (m_createExcerpt || OpenCms.getLog(this).isDebugEnabled()) {
+      reader=IndexReader.open(m_path);
+      finalQuery=query.rewrite(reader);
     }
  else {
-      hits=searcher.search(query);
+      finalQuery=query;
+    }
+    if (OpenCms.getLog(this).isDebugEnabled()) {
+      OpenCms.getLog(this).debug("Rewritten query: " + finalQuery);
+      reader.close();
+    }
+    if ((sortOrder != null) && (sortOrder != Sort.RELEVANCE)) {
+      hits=searcher.search(finalQuery,sortOrder);
+    }
+ else {
+      hits=searcher.search(finalQuery);
     }
     timeLucene+=System.currentTimeMillis();
     timeResultProcessing=-System.currentTimeMillis();
-    Document luceneDocument;
+    Document doc;
     CmsSearchResult searchResult;
     String excerpt=null;
     if (hits != null) {
@@ -79,37 +96,22 @@
         start=0;
         end=hits.length();
       }
-      if (m_checkPermissions) {
-        for (int i=0, cnt=0; i < hits.length() && cnt < end; i++) {
-          try {
-            luceneDocument=hits.doc(i);
-            if (getIndexResource(cms,luceneDocument) != null) {
-              if (cnt >= start) {
-                if (m_createExcerpt) {
-                  excerpt=getExcerpt(luceneDocument.getField(I_CmsDocumentFactory.DOC_CONTENT).stringValue(),searchQuery);
-                }
-                searchResult=new CmsSearchResult(Math.round(hits.score(i) * 100f),luceneDocument,excerpt);
-                searchResults.add(searchResult);
+      for (int i=0, cnt=0; i < hits.length() && cnt < end; i++) {
+        try {
+          doc=hits.doc(i);
+          if (hasReadPermission(cms,doc)) {
+            if (cnt >= start) {
+              if (m_createExcerpt) {
+                excerpt=getExcerpt(doc.getField(I_CmsDocumentFactory.DOC_CONTENT).stringValue(),finalQuery,languageAnalyzer);
               }
-              cnt++;
+              searchResult=new CmsSearchResult(Math.round(hits.score(i) * 100f),doc,excerpt);
+              searchResults.add(searchResult);
             }
-          }
- catch (          Exception exc) {
+            cnt++;
           }
         }
-      }
- else {
-        for (int i=start; i < end; i++) {
-          try {
-            luceneDocument=hits.doc(i);
-            if (m_createExcerpt) {
-              excerpt=getExcerpt(luceneDocument.getField(I_CmsDocumentFactory.DOC_CONTENT).stringValue(),searchQuery);
-            }
-            searchResult=new CmsSearchResult(Math.round(hits.score(i) * 100f),luceneDocument,excerpt);
-            searchResults.add(searchResult);
-          }
- catch (          Exception exc) {
-          }
+ catch (        Exception e) {
+          OpenCms.getLog(this).warn("Error during search result iteration",e);
         }
       }
       searchResults.add(new Integer(hits.length()));
