@@ -1,6 +1,4 @@
 {
-  List searchResults=new ArrayList();
-  Query query=null;
   Searcher searcher=null;
   Hits hits=null;
   Document luceneDocument=null;
@@ -15,9 +13,11 @@
   }
   CmsRequestContext context=cms.getRequestContext();
   CmsProject currentProject=context.currentProject();
+  List searchResults=new ArrayList();
+  int previousPriority=Thread.currentThread().getPriority();
   try {
-    if (m_priority >= 0) {
-      Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
+    if (m_priority > 0) {
+      Thread.currentThread().setPriority(m_priority);
     }
     if (hits == null) {
       context.setCurrentProject(cms.readProject(m_project));
@@ -27,27 +27,20 @@
  else {
         searchRoot=cms.getRequestContext().getSiteRoot();
       }
-      if (!C_SEARCH_QUERY_RETURN_ALL.equals(searchQuery)) {
-        searchQuery="(" + searchQuery + ")"+ " AND "+ I_CmsDocumentFactory.DOC_PATH+ ":"+ searchRoot+ "*";
-        BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
-        if (fields != null) {
-          BooleanQuery fieldsQuery=new BooleanQuery();
-          BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
-          String fList[]=org.opencms.util.CmsStringUtil.splitAsArray(fields,' ');
-          for (int i=0; i < fList.length; i++) {
-            fieldsQuery.add(QueryParser.parse(searchQuery,fList[i],OpenCms.getSearchManager().getAnalyzer(m_locale)),false,false);
-          }
-          query=fieldsQuery;
-        }
- else {
-          query=QueryParser.parse(searchQuery,I_CmsDocumentFactory.DOC_CONTENT,OpenCms.getSearchManager().getAnalyzer(m_locale));
-        }
-      }
- else {
-        searchQuery=I_CmsDocumentFactory.DOC_PATH + ":" + searchRoot+ "*";
-        query=QueryParser.parse(searchQuery,I_CmsDocumentFactory.DOC_CONTENT,OpenCms.getSearchManager().getAnalyzer(m_locale));
-      }
       luceneSearchDuration=-System.currentTimeMillis();
+      Analyzer languageAnalyzer=OpenCms.getSearchManager().getAnalyzer(m_locale);
+      BooleanQuery query=new BooleanQuery();
+      query.add(new PrefixQuery(new Term(I_CmsDocumentFactory.DOC_PATH,searchRoot)),true,false);
+      if (!C_SEARCH_QUERY_RETURN_ALL.equals(searchQuery) && (fields != null) && (fields.length > 0)) {
+        BooleanQuery fieldsQuery=new BooleanQuery();
+        for (int i=0; i < fields.length; i++) {
+          fieldsQuery.add(QueryParser.parse(searchQuery,fields[i],languageAnalyzer),false,false);
+        }
+        query.add(fieldsQuery,true,false);
+      }
+ else {
+        query.add(QueryParser.parse(searchQuery,I_CmsDocumentFactory.DOC_CONTENT,languageAnalyzer),true,false);
+      }
       searcher=new IndexSearcher(m_path);
       hits=searcher.search(query);
       luceneSearchDuration+=System.currentTimeMillis();
@@ -110,6 +103,7 @@
     throw new CmsException("[" + this.getClass().getName() + "] "+ "Search on "+ m_path+ " failed. ",exc);
   }
  finally {
+    Thread.currentThread().setPriority(previousPriority);
     if (searcher != null) {
       try {
         searcher.close();
@@ -117,7 +111,6 @@
  catch (      IOException exc) {
       }
     }
-    Thread.currentThread().setPriority(Thread.NORM_PRIORITY);
     context.setCurrentProject(currentProject);
   }
   totalSearchDuration+=System.currentTimeMillis();
