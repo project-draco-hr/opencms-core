@@ -23,13 +23,14 @@
       currentLock=getLock(context,currentResource);
       if (!currentLock.equals(CmsLock.getNullLock()) && !currentLock.getUserId().equals(context.currentUser().getId())) {
         int exceptionType=currentLock.getUserId().equals(context.currentUser().getId()) ? CmsLockException.C_RESOURCE_LOCKED_BY_CURRENT_USER : CmsLockException.C_RESOURCE_LOCKED_BY_OTHER_USER;
-        throw new CmsLockException("The VFS link " + currentResource.getFullResourceName() + " pointing to "+ filename+ " is locked!",exceptionType);
+        throw new CmsLockException("VFS link " + currentResource.getFullResourceName() + " pointing to "+ filename+ " is locked by another user!",exceptionType);
       }
     }
   }
   resources.add(resource);
   i=resources.iterator();
   while (i.hasNext()) {
+    existsOnline=false;
     currentResource=(CmsResource)i.next();
     checkPermissions(context,currentResource,I_CmsConstants.C_WRITE_ACCESS);
     try {
@@ -39,16 +40,16 @@
  catch (    CmsException exc) {
       existsOnline=false;
     }
+    unlockResource(context,currentResource.getFullResourceName(),true);
     if (!existsOnline) {
-      m_vfsDriver.removeFile(context.currentProject(),currentResource);
       deleteAllProperties(context,currentResource.getFullResourceName());
       m_userDriver.removeAllAccessControlEntries(context.currentProject(),currentResource.getResourceAceId());
+      m_vfsDriver.removeFile(context.currentProject(),currentResource);
     }
  else {
-      m_vfsDriver.deleteFile(context.currentProject(),currentResource);
       deleteAllAccessControlEntries(context,currentResource);
+      m_vfsDriver.deleteFile(context.currentProject(),currentResource);
     }
-    m_lockDispatcher.removeResource(currentResource.getFullResourceName());
   }
   clearAccessControlListCache();
   clearResourceCache();
