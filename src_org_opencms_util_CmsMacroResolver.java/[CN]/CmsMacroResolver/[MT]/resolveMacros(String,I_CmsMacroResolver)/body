@@ -1,33 +1,51 @@
 {
-  if (CmsStringUtil.isEmpty(input)) {
+  int len;
+  if ((input == null) || ((len=input.length()) < 3)) {
     return input;
   }
-  String[] segments=CmsStringUtil.splitAsArray(input,I_CmsMacroResolver.MACRO_DELIMITER);
-  if (segments.length == 1) {
+  int p=input.indexOf(I_CmsMacroResolver.MACRO_DELIMITER);
+  if (p == -1) {
     return input;
   }
-  String macro;
-  String value;
-  int pos;
   StringBuffer result=new StringBuffer(input.length() * 2);
-  for (int i=0; i < segments.length; i++) {
-    if ((segments[i].length() > 0) && (segments[i].charAt(0) == I_CmsMacroResolver.MACRO_START) && (pos=segments[i].indexOf(I_CmsMacroResolver.MACRO_END)) > 0) {
-      macro=segments[i].substring(1,pos);
-      value=resolver.getMacroValue(macro);
-      if (value != null) {
-        result.append(value);
+  int np, pp1, pp2, e;
+  String macro, value;
+  boolean keep=resolver.isKeepEmptyMacros();
+  result.append(input.substring(0,p));
+  do {
+    pp1=p + 1;
+    pp2=pp1 + 1;
+    if (pp2 >= len) {
+      result.append(input.substring(p,len));
+      break;
+    }
+    np=input.indexOf(I_CmsMacroResolver.MACRO_DELIMITER,pp1);
+    if (np == -1) {
+      np=len;
+    }
+    if (input.charAt(pp1) == I_CmsMacroResolver.MACRO_START) {
+      e=input.indexOf(I_CmsMacroResolver.MACRO_END,p);
+      if ((e > 0) && (e < np)) {
+        macro=input.substring(pp2,e);
+        value=resolver.getMacroValue(macro);
+        e++;
+        if (value != null) {
+          result.append(value);
+        }
+ else         if (keep) {
+          result.append(input.substring(p,e));
+        }
       }
- else       if (resolver.isKeepEmptyMacros()) {
-        result.append(formatMacro(macro));
+ else {
+        e=p;
       }
-      result.append(segments[i].substring(pos + 1));
     }
  else {
-      if (i > 0) {
-        result.append(I_CmsMacroResolver.MACRO_DELIMITER);
-      }
-      result.append(segments[i]);
+      e=p;
     }
+    result.append(input.substring(e,np));
+    p=np;
   }
+ while (p < len);
   return result.toString();
 }
