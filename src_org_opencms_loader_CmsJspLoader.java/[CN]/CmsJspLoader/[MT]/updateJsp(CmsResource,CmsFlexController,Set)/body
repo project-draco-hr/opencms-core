@@ -4,12 +4,22 @@
   try {
     cms.getRequestContext().setSiteRoot("");
     String jspVfsName=cms.readAbsolutePath(resource);
-    String jspTargetName=getJspName(jspVfsName);
+    String extension;
+    boolean isHardInclude;
+    if ((resource.getLoaderId() == CmsJspLoader.C_RESOURCE_LOADER_ID) && (!jspVfsName.endsWith(C_JSP_EXTENSION))) {
+      extension=C_JSP_EXTENSION;
+      isHardInclude=false;
+    }
+ else {
+      extension="";
+      isHardInclude=true;
+    }
+    String jspTargetName=getJspUri(m_jspWebAppRepository,jspVfsName + extension,controller.getCurrentRequest().isOnline());
     if (updates.contains(jspTargetName)) {
-      return null;
+      return jspTargetName;
     }
     updates.add(jspTargetName);
-    String jspPath=getJspPath(jspTargetName,controller.getCurrentRequest().isOnline());
+    String jspPath=getJspUri(m_jspRepository,jspVfsName + extension,controller.getCurrentRequest().isOnline());
     File d=new File(jspPath).getParentFile();
     if ((d == null) || (d.exists() && !(d.isDirectory() && d.canRead()))) {
       if (OpenCms.getLog(this).isErrorEnabled()) {
@@ -31,16 +41,15 @@
  else     if (controller.getCurrentRequest().isDoRecompile()) {
       mustUpdate=true;
     }
-    String jspRfsName=getJspUri(jspVfsName,controller.getCurrentRequest().isOnline());
     if (mustUpdate) {
       if (OpenCms.getLog(this).isDebugEnabled()) {
-        OpenCms.getLog(this).debug("JspLoader: Writing JSP file '" + jspRfsName + "'");
+        OpenCms.getLog(this).debug("JspLoader: Writing JSP file '" + jspTargetName + "'");
       }
       byte[] contents;
       String encoding;
       try {
         contents=CmsFile.upgrade(resource,cms).getContents();
-        encoding=cms.readProperty(jspVfsName,I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,false,C_DEFAULT_JSP_ENCODING);
+        encoding=cms.readPropertyObject(jspVfsName,I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,false).getValue(C_DEFAULT_JSP_ENCODING);
         encoding=encoding.trim().toUpperCase();
       }
  catch (      CmsException e) {
@@ -48,13 +57,13 @@
         throw new ServletException("JspLoader: Could not access JSP file '" + jspVfsName + "'",e);
       }
       try {
-        contents=parseJsp(contents,encoding,controller,updates);
+        contents=parseJsp(contents,encoding,controller,updates,isHardInclude);
         FileOutputStream fs=new FileOutputStream(f);
         fs.write(contents);
         fs.close();
         contents=null;
         if (OpenCms.getLog(this).isInfoEnabled()) {
-          OpenCms.getLog(this).info("Updated JSP file \"" + jspRfsName + "\" for resource \""+ cms.readAbsolutePath(resource)+ "\"");
+          OpenCms.getLog(this).info("Updated JSP file \"" + jspTargetName + "\" for resource \""+ cms.readAbsolutePath(resource)+ "\"");
         }
       }
  catch (      FileNotFoundException e) {
@@ -62,7 +71,7 @@
       }
     }
     controller.updateDateLastModified(f.lastModified());
-    return jspRfsName;
+    return jspTargetName;
   }
   finally {
     cms.getRequestContext().setSiteRoot(oldSiteRoot);
