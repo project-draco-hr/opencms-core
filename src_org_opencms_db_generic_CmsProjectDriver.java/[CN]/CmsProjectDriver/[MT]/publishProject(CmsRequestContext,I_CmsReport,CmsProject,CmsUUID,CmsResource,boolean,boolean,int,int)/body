@@ -7,7 +7,7 @@
   List deletedFolders=(List)new ArrayList();
   String currentResourceName=null;
   long publishDate=System.currentTimeMillis();
-  Iterator i, j=null;
+  Iterator i=null;
   boolean publishCurrentResource=false;
   List projectResources=null;
   Map sortedFolderMap=null;
@@ -19,8 +19,6 @@
   Set publishedContentIds=(Set)new HashSet();
   boolean directPublishFile=context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_DIRECT_PUBLISH && directPublishResource != null && directPublishResource.isFile();
   List siblings=null;
-  CmsResource currentSibling=null;
-  String currentSiblingName=null;
   try {
     if (backupEnabled) {
       m_driverManager.backupProject(context,context.currentProject(),backupTagId,publishDate);
@@ -98,218 +96,127 @@
       sortedFolderMap.clear();
       sortedFolderMap=null;
     }
-    report.println(report.key("report.publish_prepare_files"),I_CmsReport.C_FORMAT_HEADLINE);
-    report.print(report.key("report.publish_read_projectfiles") + report.key("report.dots"));
-    if (directPublishFile) {
-      offlineFiles=(List)new ArrayList();
-      offlineFiles.add(directPublishResource);
-      if (directPublishSiblings) {
-        siblings=m_driverManager.readSiblings(context,directPublishResource.getRootPath(),false,true);
-        i=siblings.iterator();
-        while (i.hasNext()) {
-          currentSibling=(CmsResource)i.next();
-          try {
-            m_driverManager.getVfsDriver().readFolder(I_CmsConstants.C_PROJECT_ONLINE_ID,currentSibling.getParentStructureId());
-            offlineFiles.add(currentSibling);
-          }
- catch (          CmsException e) {
-          }
-        }
-      }
-    }
- else {
-      offlineFiles=m_driverManager.getVfsDriver().readFiles(context.currentProject().getId());
-    }
-    report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
-    report.print(report.key("report.publish_filter_files") + report.key("report.dots"));
+    offlineFiles=m_driverManager.filterOfflineFiles(context,directPublishResource,directPublishSiblings,report);
+    publishedFileCount=0;
+    n=offlineFiles.size();
     i=offlineFiles.iterator();
+    if (n > 0) {
+      report.println(report.key("report.publish_files_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+    }
     while (i.hasNext()) {
-      publishCurrentResource=false;
       currentFileHeader=(CmsResource)i.next();
-      currentResourceName=m_driverManager.readPath(context,currentFileHeader,true);
+      currentResourceName=currentFileHeader.getRootPath();
       currentFileHeader.setFullResourceName(currentResourceName);
-      currentLock=m_driverManager.getLock(context,currentResourceName);
-switch (currentFileHeader.getState()) {
-case I_CmsConstants.C_STATE_DELETED:
-        String delProject=m_driverManager.getVfsDriver().readProperty(I_CmsConstants.C_PROPERTY_INTERNAL,context.currentProject().getId(),currentFileHeader,currentFileHeader.getType());
-      if (delProject != null && delProject.equals("" + context.currentProject().getId())) {
-        publishCurrentResource=true;
+      m_driverManager.getProjectDriver().publishFile(context,report,++publishedFileCount,n,onlineProject,currentFileHeader,publishedContentIds,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
+      if (currentFileHeader.getState() != I_CmsConstants.C_STATE_DELETED) {
+        internalResetResourceState(context,currentFileHeader);
       }
- else {
-        publishCurrentResource=false;
-      }
-    break;
-case I_CmsConstants.C_STATE_NEW:
-  publishCurrentResource=currentFileHeader.getProjectLastModified() == context.currentProject().getId() || currentFileHeader.getProjectLastModified() == 0;
-break;
-case I_CmsConstants.C_STATE_CHANGED:
-publishCurrentResource=currentFileHeader.getProjectLastModified() == context.currentProject().getId();
-break;
-case I_CmsConstants.C_STATE_UNCHANGED:
-default :
-publishCurrentResource=false;
-break;
-}
-if (context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_DIRECT_PUBLISH && directPublishResource != null) {
-if (directPublishResource.isFolder()) {
-if (directPublishSiblings) {
-if (currentFileHeader.getLinkCount() == 1) {
-publishCurrentResource=publishCurrentResource && currentResourceName.startsWith(directPublishResource.getRootPath());
-}
- else {
-siblings=m_driverManager.readSiblings(context,currentResourceName,true,true);
-j=siblings.iterator();
-boolean siblingInside=false;
-while (j.hasNext()) {
-currentSibling=(CmsResource)j.next();
-currentSiblingName=m_driverManager.readPath(context,currentSibling,true);
-if (currentSiblingName.startsWith(directPublishResource.getRootPath())) {
-siblingInside=true;
-break;
-}
-}
-publishCurrentResource=publishCurrentResource && siblingInside;
-}
-}
- else {
-publishCurrentResource=publishCurrentResource && currentResourceName.startsWith(directPublishResource.getRootPath());
-}
-}
-}
- else {
-publishCurrentResource=publishCurrentResource && CmsProject.isInsideProject(projectResources,currentFileHeader);
-}
-publishCurrentResource=publishCurrentResource && currentLock.isNullLock();
-if (currentFileHeader.getName().startsWith(I_CmsConstants.C_TEMP_PREFIX)) {
-m_driverManager.getVfsDriver().deleteProperties(context.currentProject().getId(),currentFileHeader);
-m_driverManager.getVfsDriver().removeFile(context.currentProject(),currentFileHeader,true);
-}
-if (!publishCurrentResource) {
-i.remove();
-}
-}
-report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
-report.println(report.key("report.publish_prepare_files_finished"),I_CmsReport.C_FORMAT_HEADLINE);
-publishedFileCount=0;
-n=offlineFiles.size();
-i=offlineFiles.iterator();
-if (n > 0) {
-report.println(report.key("report.publish_files_begin"),I_CmsReport.C_FORMAT_HEADLINE);
-}
-while (i.hasNext()) {
-currentFileHeader=(CmsResource)i.next();
-currentResourceName=currentFileHeader.getRootPath();
-currentFileHeader.setFullResourceName(currentResourceName);
-m_driverManager.getProjectDriver().publishFile(context,report,++publishedFileCount,n,onlineProject,currentFileHeader,publishedContentIds,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
-if (currentFileHeader.getState() != I_CmsConstants.C_STATE_DELETED) {
-internalResetResourceState(context,currentFileHeader);
-}
-i.remove();
-currentFileHeader=null;
-currentResourceName=null;
-}
-if (n > 0) {
-report.println(report.key("report.publish_files_end"),I_CmsReport.C_FORMAT_HEADLINE);
-}
-if (offlineFiles != null) {
-offlineFiles.clear();
-offlineFiles=null;
-}
-if (deletedFolders.isEmpty()) {
-return;
-}
-sortedFolderMap=(Map)new HashMap();
-i=deletedFolders.iterator();
-while (i.hasNext()) {
-currentFolder=(CmsFolder)i.next();
-currentResourceName=currentFolder.getRootPath();
-sortedFolderMap.put(currentResourceName,currentFolder);
-}
-sortedFolderList=(List)new ArrayList(sortedFolderMap.keySet());
-Collections.sort(sortedFolderList);
-Collections.reverse(sortedFolderList);
-if (deletedFolders != null) {
-deletedFolders.clear();
-deletedFolders=null;
-}
-deletedFolderCount=0;
-n=sortedFolderList.size();
-i=sortedFolderList.iterator();
-if (n > 0) {
-report.println(report.key("report.publish_delete_folders_begin"),I_CmsReport.C_FORMAT_HEADLINE);
-}
-while (i.hasNext()) {
-currentResourceName=(String)i.next();
-currentFolder=(CmsFolder)sortedFolderMap.get(currentResourceName);
-m_driverManager.getProjectDriver().publishDeletedFolder(context,report,++deletedFolderCount,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
-i.remove();
-}
-if (n > 0) {
-report.println(report.key("report.publish_delete_folders_end"),I_CmsReport.C_FORMAT_HEADLINE);
-}
-if (sortedFolderList != null) {
-sortedFolderList.clear();
-sortedFolderList=null;
-}
-if (sortedFolderMap != null) {
-sortedFolderMap.clear();
-sortedFolderMap=null;
-}
-}
- catch (Exception e) {
-if (C_DEBUG) {
-System.err.println(e.getMessage());
-e.printStackTrace(System.err);
-}
-throw e;
-}
-catch (OutOfMemoryError o) {
-if (OpenCms.getLog(this).isFatalEnabled()) {
-OpenCms.getLog(this).fatal("Out of memory error during publishing",o);
-}
-OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_CLEAR_CACHES,Collections.EMPTY_MAP,false));
-System.runFinalization();
-Runtime.getRuntime().runFinalization();
-System.gc();
-Runtime.getRuntime().gc();
-throw o;
-}
+      i.remove();
+      currentFileHeader=null;
+      currentResourceName=null;
+    }
+    if (n > 0) {
+      report.println(report.key("report.publish_files_end"),I_CmsReport.C_FORMAT_HEADLINE);
+    }
+    if (offlineFiles != null) {
+      offlineFiles.clear();
+      offlineFiles=null;
+    }
+    if (deletedFolders.isEmpty()) {
+      return;
+    }
+    sortedFolderMap=(Map)new HashMap();
+    i=deletedFolders.iterator();
+    while (i.hasNext()) {
+      currentFolder=(CmsFolder)i.next();
+      currentResourceName=currentFolder.getRootPath();
+      sortedFolderMap.put(currentResourceName,currentFolder);
+    }
+    sortedFolderList=(List)new ArrayList(sortedFolderMap.keySet());
+    Collections.sort(sortedFolderList);
+    Collections.reverse(sortedFolderList);
+    if (deletedFolders != null) {
+      deletedFolders.clear();
+      deletedFolders=null;
+    }
+    deletedFolderCount=0;
+    n=sortedFolderList.size();
+    i=sortedFolderList.iterator();
+    if (n > 0) {
+      report.println(report.key("report.publish_delete_folders_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+    }
+    while (i.hasNext()) {
+      currentResourceName=(String)i.next();
+      currentFolder=(CmsFolder)sortedFolderMap.get(currentResourceName);
+      m_driverManager.getProjectDriver().publishDeletedFolder(context,report,++deletedFolderCount,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
+      i.remove();
+    }
+    if (n > 0) {
+      report.println(report.key("report.publish_delete_folders_end"),I_CmsReport.C_FORMAT_HEADLINE);
+    }
+    if (sortedFolderList != null) {
+      sortedFolderList.clear();
+      sortedFolderList=null;
+    }
+    if (sortedFolderMap != null) {
+      sortedFolderMap.clear();
+      sortedFolderMap=null;
+    }
+  }
+ catch (  Exception e) {
+    if (C_DEBUG) {
+      System.err.println(e.getMessage());
+      e.printStackTrace(System.err);
+    }
+    throw e;
+  }
+catch (  OutOfMemoryError o) {
+    if (OpenCms.getLog(this).isFatalEnabled()) {
+      OpenCms.getLog(this).fatal("Out of memory error during publishing",o);
+    }
+    OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_CLEAR_CACHES,Collections.EMPTY_MAP,false));
+    System.runFinalization();
+    Runtime.getRuntime().runFinalization();
+    System.gc();
+    Runtime.getRuntime().gc();
+    throw o;
+  }
  finally {
-if (sortedFolderList != null) {
-sortedFolderList.clear();
-sortedFolderList=null;
-}
-if (sortedFolderMap != null) {
-sortedFolderMap.clear();
-sortedFolderMap=null;
-}
-if (deletedFolders != null) {
-deletedFolders.clear();
-deletedFolders=null;
-}
-if (offlineFiles != null) {
-offlineFiles.clear();
-offlineFiles=null;
-}
-if (siblings != null) {
-siblings.clear();
-siblings=null;
-}
-currentFileHeader=null;
-currentFolder=null;
-StringBuffer stats=new StringBuffer();
-stats.append(report.key("report.publish_stats"));
-stats.append(report.key("report.publish_stats_files"));
-stats.append(publishedFileCount + ",");
-stats.append(report.key("report.publish_stats_folders"));
-stats.append(publishedFolderCount + ",");
-stats.append(report.key("report.publish_stats_deleted_folders"));
-stats.append(deletedFolderCount + ",");
-stats.append(report.key("report.publish_stats_duration"));
-stats.append(report.formatRuntime());
-if (OpenCms.getLog(this).isInfoEnabled()) {
-OpenCms.getLog(this).info(stats.toString());
-}
-report.println(stats.toString());
-}
+    if (sortedFolderList != null) {
+      sortedFolderList.clear();
+      sortedFolderList=null;
+    }
+    if (sortedFolderMap != null) {
+      sortedFolderMap.clear();
+      sortedFolderMap=null;
+    }
+    if (deletedFolders != null) {
+      deletedFolders.clear();
+      deletedFolders=null;
+    }
+    if (offlineFiles != null) {
+      offlineFiles.clear();
+      offlineFiles=null;
+    }
+    if (siblings != null) {
+      siblings.clear();
+      siblings=null;
+    }
+    currentFileHeader=null;
+    currentFolder=null;
+    StringBuffer stats=new StringBuffer();
+    stats.append(report.key("report.publish_stats"));
+    stats.append(report.key("report.publish_stats_files"));
+    stats.append(publishedFileCount + ",");
+    stats.append(report.key("report.publish_stats_folders"));
+    stats.append(publishedFolderCount + ",");
+    stats.append(report.key("report.publish_stats_deleted_folders"));
+    stats.append(deletedFolderCount + ",");
+    stats.append(report.key("report.publish_stats_duration"));
+    stats.append(report.formatRuntime());
+    if (OpenCms.getLog(this).isInfoEnabled()) {
+      OpenCms.getLog(this).info(stats.toString());
+    }
+    report.println(stats.toString());
+  }
 }
