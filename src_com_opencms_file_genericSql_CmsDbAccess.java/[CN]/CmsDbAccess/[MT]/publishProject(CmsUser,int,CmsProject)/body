@@ -1,4 +1,5 @@
 {
+  CmsAccessFilesystem discAccess=new CmsAccessFilesystem(m_exportpointStorage);
   CmsFolder currentFolder=null;
   CmsFile currentFile=null;
   Vector offlineFolders;
@@ -12,6 +13,10 @@
       deletedFolders.addElement(currentFolder);
     }
  else     if (currentFolder.getState() == C_STATE_NEW) {
+      String exportKey=checkExport(currentFolder.getAbsolutePath());
+      if (exportKey != null) {
+        discAccess.createFolder(currentFolder.getAbsolutePath(),exportKey);
+      }
       Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFolder.getParentId()));
       if (parentId == null) {
         CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFolder.getParent());
@@ -33,6 +38,10 @@
       }
     }
  else     if (currentFolder.getState() == C_STATE_CHANGED) {
+      String exportKey=checkExport(currentFolder.getAbsolutePath());
+      if (exportKey != null) {
+        discAccess.createFolder(currentFolder.getAbsolutePath(),exportKey);
+      }
       CmsFolder onlineFolder=null;
       try {
         onlineFolder=readFolder(onlineProject.getId(),currentFolder.getAbsolutePath());
@@ -133,6 +142,10 @@
       removeFile(projectId,currentFile.getAbsolutePath());
     }
  else     if (currentFile.getState() == C_STATE_DELETED) {
+      String exportKey=checkExport(currentFile.getAbsolutePath());
+      if (exportKey != null) {
+        discAccess.removeResource(currentFile.getAbsolutePath(),exportKey);
+      }
       CmsFile currentOnlineFile=readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getAbsolutePath());
       try {
         deleteAllProperties(currentOnlineFile.getResourceId());
@@ -152,6 +165,10 @@
       }
     }
  else     if (currentFile.getState() == C_STATE_CHANGED) {
+      String exportKey=checkExport(currentFile.getAbsolutePath());
+      if (exportKey != null) {
+        discAccess.writeFile(currentFile.getAbsolutePath(),exportKey,readFileContent(currentFile.getFileId()));
+      }
       CmsFile onlineFile=null;
       try {
         onlineFile=readFileHeader(onlineProject.getId(),currentFile.getAbsolutePath());
@@ -208,6 +225,10 @@
       }
     }
  else     if (currentFile.getState() == C_STATE_NEW) {
+      String exportKey=checkExport(currentFile.getAbsolutePath());
+      if (exportKey != null) {
+        discAccess.writeFile(currentFile.getAbsolutePath(),exportKey,readFileContent(currentFile.getFileId()));
+      }
       Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFile.getParentId()));
       if (parentId == null) {
         CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFile.getParent());
@@ -228,8 +249,12 @@
       }
     }
   }
-  for (int i=0; i < deletedFolders.size(); i++) {
+  for (int i=deletedFolders.size() - 1; i > -1; i--) {
     currentFolder=((CmsFolder)deletedFolders.elementAt(i));
+    String exportKey=checkExport(currentFolder.getAbsolutePath());
+    if (exportKey != null) {
+      discAccess.removeResource(currentFolder.getAbsolutePath(),exportKey);
+    }
     try {
       deleteAllProperties(currentFolder.getResourceId());
     }
