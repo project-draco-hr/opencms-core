@@ -1,0 +1,57 @@
+{
+  List resources=(List)new ArrayList();
+  CmsResource currentResource=null;
+  CmsLock currentLock=null;
+  CmsResource resource=null;
+  Iterator i=null;
+  boolean existsOnline=false;
+  resource=readFileHeader(context,filename,false);
+  if (resource.isHardLink() && deleteOption == I_CmsConstants.C_DELETE_OPTION_PRESERVE_VFS_LINKS) {
+    List vfsSoftLinks=getAllVfsSoftLinks(context,filename);
+    if (vfsSoftLinks.size() > 0) {
+      CmsResource softlink=(CmsResource)vfsSoftLinks.get(0);
+      m_vfsDriver.switchLinkType(context.currentUser(),context.currentProject(),softlink,resource);
+      clearResourceCache();
+      resource=readFileHeader(context,filename,false);
+    }
+  }
+ else   if (resource.isHardLink() && deleteOption == I_CmsConstants.C_DELETE_OPTION_DELETE_VFS_LINKS) {
+    resources.addAll(getAllVfsSoftLinks(context,filename));
+    i=resources.iterator();
+    while (i.hasNext()) {
+      currentResource=(CmsResource)i.next();
+      currentLock=getLock(context,currentResource);
+      if (!currentLock.equals(CmsLock.getNullLock()) && !currentLock.getUserId().equals(context.currentUser().getId())) {
+        int exceptionType=currentLock.getUserId().equals(context.currentUser().getId()) ? CmsLockException.C_RESOURCE_LOCKED_BY_CURRENT_USER : CmsLockException.C_RESOURCE_LOCKED_BY_OTHER_USER;
+        throw new CmsLockException("The VFS link " + currentResource.getFullResourceName() + " pointing to "+ filename+ " is locked!",exceptionType);
+      }
+    }
+  }
+  resources.add(resource);
+  i=resources.iterator();
+  while (i.hasNext()) {
+    currentResource=(CmsResource)i.next();
+    checkPermissions(context,currentResource,I_CmsConstants.C_WRITE_ACCESS);
+    try {
+      readFileHeaderInProject(context,I_CmsConstants.C_PROJECT_ONLINE_ID,currentResource.getFullResourceName(),false);
+      existsOnline=true;
+    }
+ catch (    CmsException exc) {
+      existsOnline=false;
+    }
+    if (!existsOnline) {
+      m_vfsDriver.removeFile(context.currentProject(),currentResource);
+      deleteAllProperties(context,currentResource.getFullResourceName());
+      m_userDriver.removeAllAccessControlEntries(context.currentProject(),currentResource.getResourceAceId());
+    }
+ else {
+      m_vfsDriver.deleteFile(context.currentProject(),currentResource);
+      deleteAllAccessControlEntries(context,currentResource);
+    }
+    m_lockDispatcher.removeResource(currentResource.getFullResourceName());
+  }
+  clearAccessControlListCache();
+  clearResourceCache();
+  m_accessCache.clear();
+  fileSystemChanged(false);
+}
