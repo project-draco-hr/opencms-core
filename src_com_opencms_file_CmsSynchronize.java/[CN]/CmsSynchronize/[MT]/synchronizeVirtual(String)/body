@@ -1,6 +1,6 @@
 {
   File sfsFile=new File(m_synchronizePath + resourceName);
-  String sfsAbsolutePath=sfsFile.getPath().substring(m_synchronizePath.length());
+  String sfsAbsolutePath=resourceName;
   String[] diskFiles=sfsFile.list();
   File currentFile;
   CmsFile hashFile=null;
@@ -8,7 +8,7 @@
   for (int i=0; i < diskFiles.length; i++) {
     currentFile=new File(sfsFile,diskFiles[i]);
     if (currentFile.isDirectory()) {
-      hashFolder=(CmsFolder)m_vfsFolders.get(sfsFile.getPath() + currentFile.getName() + "/");
+      hashFolder=(CmsFolder)m_vfsFolders.get(m_synchronizePath + resourceName + currentFile.getName()+ "/");
       if (hashFolder == null) {
         try {
           m_cms.createFolder(sfsAbsolutePath,currentFile.getName());
@@ -24,19 +24,20 @@
       synchronizeVirtual(sfsAbsolutePath + currentFile.getName() + "/");
     }
  else {
-      hashFile=(CmsFile)m_vfsFiles.get(sfsFile.getPath() + currentFile.getName());
+      hashFile=(CmsFile)m_vfsFiles.get(m_synchronizePath + resourceName + currentFile.getName());
       if (hashFile == null) {
         try {
           byte[] content=getFileBytes(currentFile);
           String type=getFileType(currentFile.getName());
           if (!currentFile.getName().startsWith("$")) {
             try {
-              m_cms.createFile(sfsAbsolutePath,currentFile.getName(),content,type);
+              CmsFile newFile=m_cms.createFile(sfsAbsolutePath,currentFile.getName(),content,type);
               m_cms.lockResource(sfsAbsolutePath + currentFile.getName());
-              m_synchronizeList.putDates(sfsAbsolutePath + currentFile.getName(),(long)System.currentTimeMillis(),currentFile.lastModified());
+              m_synchronizeList.putDates(sfsAbsolutePath + currentFile.getName(),newFile.getDateLastModified(),currentFile.lastModified());
             }
  catch (            CmsException e) {
               if (e.getType() == CmsException.C_FILE_EXISTS) {
+                System.out.println("File " + sfsAbsolutePath + currentFile.getName()+ " already exists!");
               }
  else {
                 throw e;
