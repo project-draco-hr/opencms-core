@@ -1,0 +1,40 @@
+{
+  if (resource.hasFullResourceName()) {
+    return resource.getRootPath();
+  }
+  CmsResource currentResource=resource;
+  String cachedPath=null;
+  String path="";
+  CmsUUID currentParentId=null;
+  CmsUUID parentId=currentResource.getParentStructureId();
+  String resourceCacheKey=null;
+  String pathCacheKey=null;
+  String resourceName=currentResource.getName();
+  boolean isFolder=currentResource.getType() == CmsResourceTypeFolder.C_RESOURCE_TYPE_ID;
+  while (!(currentParentId=currentResource.getParentStructureId()).equals(CmsUUID.getNullUUID())) {
+    pathCacheKey=getCacheKey("path",projectId,currentParentId.toString());
+    if ((cachedPath=(String)m_resourceCache.get(pathCacheKey)) != null) {
+      path=cachedPath + path;
+      break;
+    }
+    resourceCacheKey=getCacheKey("parent",projectId,currentParentId.toString());
+    if ((currentResource=(CmsResource)m_resourceCache.get(resourceCacheKey)) == null) {
+      currentResource=m_vfsDriver.readFileHeader(projectId,currentParentId,filter.includeDeleted());
+      m_resourceCache.put(resourceCacheKey,currentResource);
+    }
+    if (!currentResource.getParentStructureId().equals(CmsUUID.getNullUUID())) {
+      path=currentResource.getName() + I_CmsConstants.C_FOLDER_SEPARATOR + path;
+    }
+ else {
+      path=currentResource.getName() + path;
+    }
+  }
+  pathCacheKey=getCacheKey("path",projectId,parentId.toString());
+  m_resourceCache.put(pathCacheKey,path);
+  resourceName=path + resourceName;
+  if (isFolder && !resourceName.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+    resourceName+=I_CmsConstants.C_FOLDER_SEPARATOR;
+  }
+  resource.setFullResourceName(resourceName);
+  return resourceName;
+}
