@@ -1,0 +1,99 @@
+{
+  String usedPool=null;
+  String usedStatement=null;
+  Connection con=null;
+  PreparedStatement statement=null;
+  if (newResource.getResourceName().length() > C_MAX_LENGTH_RESOURCE_NAME) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ "Resourcename too long(>"+ C_MAX_LENGTH_RESOURCE_NAME+ ") ",CmsException.C_BAD_NAME);
+  }
+  int state=0;
+  int modifiedBy=userId;
+  long dateModified=System.currentTimeMillis();
+  if (project.equals(onlineProject)) {
+    state=newResource.getState();
+    usedPool=m_poolNameOnline;
+    usedStatement="_ONLINE";
+    modifiedBy=newResource.getResourceLastModifiedBy();
+    dateModified=newResource.getDateLastModified();
+  }
+ else {
+    state=C_STATE_NEW;
+    usedPool=m_poolName;
+    usedStatement="";
+  }
+  try {
+    CmsResource exResource=readResource(project,newResource.getResourceName());
+    throw new CmsException("[" + this.getClass().getName() + "] ",CmsException.C_FILE_EXISTS);
+  }
+ catch (  CmsException e) {
+    if (e.getType() == CmsException.C_RESOURCE_DELETED) {
+      if (isFolder) {
+        removeFolder(project.getId(),(CmsFolder)newResource);
+      }
+ else {
+        removeFile(project.getId(),newResource.getResourceName());
+      }
+      state=C_STATE_CHANGED;
+    }
+    if (e.getType() == CmsException.C_FILE_EXISTS) {
+      throw e;
+    }
+  }
+  int newFileId=-1;
+  int resourceId=nextId(m_cq.get("C_TABLE_RESOURCES" + usedStatement));
+  try {
+    con=DriverManager.getConnection(usedPool);
+    if (!isFolder) {
+      newFileId=nextId(m_cq.get("C_TABLE_FILES" + usedStatement));
+      try {
+        createFileContent(newFileId,filecontent,0,usedPool,usedStatement);
+      }
+ catch (      CmsException se) {
+        if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+          A_OpenCms.log(C_OPENCMS_CRITICAL,"[CmsDbAccess] " + se.getMessage());
+        }
+      }
+    }
+    statement=con.prepareStatement(m_cq.get("C_RESOURCES_WRITE" + usedStatement));
+    statement.setInt(1,resourceId);
+    statement.setInt(2,newResource.getParentId());
+    statement.setString(3,newResource.getResourceName());
+    statement.setInt(4,newResource.getType());
+    statement.setInt(5,newResource.getFlags());
+    statement.setInt(6,newResource.getOwnerId());
+    statement.setInt(7,newResource.getGroupId());
+    statement.setInt(8,project.getId());
+    statement.setInt(9,newFileId);
+    statement.setInt(10,newResource.getAccessFlags());
+    statement.setInt(11,state);
+    statement.setInt(12,newResource.isLockedBy());
+    statement.setInt(13,newResource.getLauncherType());
+    statement.setString(14,newResource.getLauncherClassname());
+    statement.setTimestamp(15,new Timestamp(newResource.getDateCreated()));
+    statement.setTimestamp(16,new Timestamp(dateModified));
+    statement.setInt(17,newResource.getLength());
+    statement.setInt(18,modifiedBy);
+    statement.executeUpdate();
+    statement.close();
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+  }
+  return readResource(project,newResource.getResourceName());
+}

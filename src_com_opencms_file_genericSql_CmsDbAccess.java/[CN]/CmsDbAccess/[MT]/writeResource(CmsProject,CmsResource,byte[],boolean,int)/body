@@ -1,0 +1,79 @@
+{
+  PreparedStatement statement=null;
+  Connection con=null;
+  String usedPool;
+  String usedStatement;
+  int modifiedBy=userId;
+  long dateModified=System.currentTimeMillis();
+  boolean isFolder=false;
+  if (resource.getType() == C_TYPE_FOLDER) {
+    isFolder=true;
+  }
+  if (filecontent == null) {
+    filecontent=new byte[0];
+  }
+  int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
+  if (project.getId() == onlineProject) {
+    usedPool=m_poolNameOnline;
+    usedStatement="_ONLINE";
+    modifiedBy=resource.getResourceLastModifiedBy();
+    dateModified=resource.getDateLastModified();
+  }
+ else {
+    usedPool=m_poolName;
+    usedStatement="";
+  }
+  try {
+    con=DriverManager.getConnection(usedPool);
+    statement=con.prepareStatement(m_cq.get("C_RESOURCES_UPDATE" + usedStatement));
+    statement.setInt(1,resource.getType());
+    statement.setInt(2,resource.getFlags());
+    statement.setInt(3,resource.getOwnerId());
+    statement.setInt(4,resource.getGroupId());
+    statement.setInt(5,resource.getProjectId());
+    statement.setInt(6,resource.getAccessFlags());
+    int state=resource.getState();
+    if ((state == C_STATE_NEW) || (state == C_STATE_CHANGED)) {
+      statement.setInt(7,state);
+    }
+ else {
+      if (changed == true) {
+        statement.setInt(7,C_STATE_CHANGED);
+      }
+ else {
+        statement.setInt(7,resource.getState());
+      }
+    }
+    statement.setInt(8,resource.isLockedBy());
+    statement.setInt(9,resource.getLauncherType());
+    statement.setString(10,resource.getLauncherClassname());
+    statement.setTimestamp(11,new Timestamp(dateModified));
+    statement.setInt(12,modifiedBy);
+    statement.setInt(13,filecontent.length);
+    statement.setInt(14,resource.getFileId());
+    statement.setInt(15,resource.getResourceId());
+    statement.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+  }
+  if (!isFolder) {
+    this.writeFileContent(resource.getFileId(),filecontent,usedPool,usedStatement);
+  }
+}

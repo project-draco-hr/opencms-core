@@ -1,0 +1,29 @@
+{
+  CmsResource resource=readFileHeader(currentUser,currentProject,resourcename,true);
+  if (accessWrite(currentUser,currentProject,resource)) {
+    CmsUser owner=readUser(currentUser,currentProject,username);
+    CmsGroup group=readGroup(currentUser,currentProject,groupname);
+    if ((resource.getOwnerId() != owner.getId()) || (resource.getGroupId() != group.getId()) || (resource.getAccessFlags() != accessFlags)|| (resource.getType() != resourceType)) {
+      if ((resource.getOwnerId() == currentUser.getId()) || isAdmin(currentUser,currentProject)) {
+        resource.setUserId(owner.getId());
+        resource.setGroupId(group.getId());
+        resource.setAccessFlags(accessFlags);
+        resource.setType(resourceType);
+      }
+ else {
+        throw new CmsException("[" + this.getClass().getName() + "] change owner, group, access or type of "+ resource.getAbsolutePath(),CmsException.C_NO_ACCESS);
+      }
+    }
+    if (resource.getState() == C_STATE_UNCHANGED) {
+      resource.setState(C_STATE_CHANGED);
+    }
+    m_dbAccess.writeResource(currentProject,resource,filecontent,true,currentUser.getId());
+    m_dbAccess.writeProperties(properties,currentProject.getId(),resource,resource.getType(),true);
+    this.clearResourceCache(resource.getResourceName());
+    m_accessCache.clear();
+    fileSystemChanged(false);
+  }
+ else {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ resource.getAbsolutePath(),CmsException.C_NO_ACCESS);
+  }
+}
