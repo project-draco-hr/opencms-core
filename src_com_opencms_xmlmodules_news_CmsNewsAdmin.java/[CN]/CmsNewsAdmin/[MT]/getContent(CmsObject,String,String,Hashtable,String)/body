@@ -1,0 +1,107 @@
+{
+  HttpServletRequest orgReq=(HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest();
+  HttpSession session=orgReq.getSession(true);
+  String file=(String)parameters.get(C_PARAM_FILE);
+  if (file == null) {
+    file=(String)session.getValue(C_PARAM_FILE);
+  }
+ else {
+    session.putValue(C_PARAM_FILE,file);
+  }
+  String action=(String)parameters.get(C_PARAM_ACTION);
+  if (action == null) {
+    action=(String)session.getValue(C_PARAM_ACTION);
+  }
+ else {
+    session.putValue(C_PARAM_ACTION,action);
+  }
+  String newDate=(String)parameters.get(C_XML_DATE);
+  String newHeadline=(String)parameters.get(C_XML_HEADLINE);
+  String newShorttext=(String)parameters.get(C_XML_SHORTTEXT);
+  String newText=(String)parameters.get(C_XML_TEXT);
+  String newExternalLink=(String)parameters.get(C_XML_EXTLINK);
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  if ("edit".equals(action)) {
+    GregorianCalendar cal=new GregorianCalendar();
+    if (newHeadline == null && newShorttext == null && newText == null && newExternalLink == null) {
+      if (file != null && !"".equals(file)) {
+        CmsNewsObject contentFile=(CmsNewsObject)getContentFile(cms,cms.readFile(file));
+        CmsResource contentFileObject=cms.readFileHeader(contentFile.getAbsoluteFilename());
+        if (!contentFileObject.isLocked()) {
+          cms.lockResource(contentFile.getAbsoluteFilename());
+        }
+        parameters.put(C_XML_DATE,Utils.getNiceShortDate(contentFile.getDate()));
+        parameters.put(C_XML_HEADLINE,Encoder.escapeXml(contentFile.getHeadline()));
+        parameters.put(C_XML_SHORTTEXT,Encoder.escapeXml(contentFile.getShortText()));
+        parameters.put(C_XML_TEXT,contentFile.getText("\n\n",true));
+        parameters.put(C_XML_EXTLINK,contentFile.getExternalLink());
+        parameters.put(C_PARAM_STATE,new Boolean(contentFile.isActive()));
+        xmlTemplateDocument.setData(C_XML_AUTHOR,Encoder.escapeXml(contentFile.getAuthor()));
+        session.putValue(C_XML_AUTHOR,contentFile.getAuthor());
+      }
+ else {
+        CmsUser author=cms.getRequestContext().currentUser();
+        String authorText=null;
+        String initials=getInitials(author);
+        String firstName=author.getFirstname();
+        String lastName=author.getLastname();
+        if ((firstName == null || "".equals(firstName)) && (lastName == null || "".equals(lastName))) {
+          authorText=initials;
+        }
+ else {
+          authorText=firstName + " " + lastName;
+          authorText=authorText.trim();
+          authorText=authorText + " (" + initials+ ")";
+        }
+        session.putValue(C_XML_AUTHOR,authorText);
+        xmlTemplateDocument.setData(C_XML_AUTHOR,authorText);
+        String dateText=Utils.getNiceShortDate(cal.getTime().getTime());
+        parameters.put(C_XML_DATE,dateText);
+      }
+    }
+ else {
+      CmsXmlTemplateFile iniFile=new CmsXmlTemplateFile(cms,C_INI_FILE);
+      CmsNewsObject contentFile=null;
+      if (file == null || "".equals(file)) {
+        CmsUser author=cms.getRequestContext().currentUser();
+        String dateFileText=getDateFileText(cal);
+        String number=getNewArticleNumber(cms,dateFileText,C_FOLDER_CONTENT);
+        String initials=getInitials(author);
+        String fileName=dateFileText + "-" + number+ "-"+ initials.toLowerCase();
+        parameters.put(C_PARAM_FILE,fileName);
+        contentFile=(CmsNewsObject)createFile(cms,fileName);
+        createPageFile(cms,fileName,iniFile.getDataValue("mastertemplate"));
+        if (newDate == null || "".equals(newDate)) {
+          newDate=Utils.getNiceShortDate(cal.getTime().getTime());
+        }
+        try {
+          makeTask(cms,fileName,C_FOLDER_PAGE,iniFile.getDataValue("newstask.agent"),iniFile.getDataValue("newstask.role"),"task.label.news");
+        }
+ catch (        Exception e) {
+          if (A_OpenCms.isLogging()) {
+            A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + "Cannot create task for news article " + fileName+ ". ");
+            A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + e.getMessage());
+          }
+        }
+      }
+ else {
+        contentFile=(CmsNewsObject)getContentFile(cms,cms.readFile(file));
+        cms.writeFileHeader((CmsFile)cms.readFileHeader(C_FOLDER_PAGE + contentFile.getFilename() + "/index.html"));
+      }
+      setFileContent(contentFile,session,parameters);
+      session.removeValue(C_PARAM_FILE);
+      session.removeValue(C_PARAM_ACTION);
+      session.removeValue(C_XML_AUTHOR);
+      templateSelector=C_DONE;
+    }
+  }
+  if (xmlTemplateDocument.hasData(C_NEW_DISABLED) && xmlTemplateDocument.hasData(C_NEW_ENABLED)) {
+    if (cms.getRequestContext().currentProject().equals(cms.onlineProject()) || !checkWriteAccess(cms,C_FOLDER_PAGE,C_FOLDER_CONTENT)) {
+      xmlTemplateDocument.setData(C_NEW,xmlTemplateDocument.getProcessedDataValue(C_NEW_DISABLED,this));
+    }
+ else {
+      xmlTemplateDocument.setData(C_NEW,xmlTemplateDocument.getProcessedDataValue(C_NEW_ENABLED,this));
+    }
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
