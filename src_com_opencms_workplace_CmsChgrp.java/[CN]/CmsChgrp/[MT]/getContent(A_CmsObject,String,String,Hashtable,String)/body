@@ -1,0 +1,39 @@
+{
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String template=null;
+  String newgroup=(String)parameters.get(C_PARA_NEWGROUP);
+  String filename=(String)parameters.get(C_PARA_FILE);
+  if (filename != null) {
+    session.putValue(C_PARA_FILE,filename);
+  }
+  filename=(String)session.getValue(C_PARA_FILE);
+  CmsFile file=(CmsFile)cms.readFileHeader(filename);
+  if (newgroup != null) {
+    if ((cms.getRequestContext().currentUser().equals(cms.readOwner(file))) || (cms.userInGroup(cms.getRequestContext().currentUser().getName(),C_GROUP_ADMIN))) {
+      cms.chgrp(file.getAbsolutePath(),newgroup);
+      if ((cms.getResourceType(file.getType()).getResourceName()).equals(C_TYPE_PAGE_NAME)) {
+        String bodyPath=getBodyPath(cms,file);
+        int help=C_CONTENTBODYPATH.lastIndexOf("/");
+        String hbodyPath=(C_CONTENTBODYPATH.substring(0,help)) + (file.getAbsolutePath());
+        if (hbodyPath.equals(bodyPath)) {
+          cms.chgrp(hbodyPath,newgroup);
+        }
+      }
+      session.removeValue(C_PARA_FILE);
+      try {
+        cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+      }
+ catch (      Exception e) {
+        throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+      }
+    }
+ else {
+      template="error";
+    }
+  }
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  xmlTemplateDocument.setXmlData("OWNER",cms.readOwner(file).getName());
+  xmlTemplateDocument.setXmlData("GROUP",cms.readGroup(file).getName());
+  xmlTemplateDocument.setXmlData("FILENAME",file.getName());
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}
