@@ -1,34 +1,31 @@
 {
-  CmsFile editFile=null;
   try {
-    editFile=getCms().readFile(getParamResource(),CmsResourceFilter.ALL);
     String decodedContent=CmsEncoder.adjustHtmlEncoding(decodeContent(getParamContent()),getFileEncoding());
-    CmsXmlContent content=CmsXmlContentFactory.unmarshal(decodedContent,getFileEncoding(),new CmsXmlEntityResolver(getCms()));
-    CmsXmlContentDefinition contentDefinition=content.getContentDefinition(new CmsXmlEntityResolver(getCms()));
-    int todo=0;
-    Locale locale=(Locale)content.getLocales().get(0);
-    List typeSequence=contentDefinition.getTypeSequence();
+    Locale locale=getElementLocale();
+    List typeSequence=m_contentDefinition.getTypeSequence();
     Iterator i=typeSequence.iterator();
     while (i.hasNext()) {
       I_CmsXmlSchemaType schemaType=(I_CmsXmlSchemaType)i.next();
       String name=schemaType.getNodeName();
-      int count=content.getIndexCount(name,locale);
+      int count=m_content.getIndexCount(name,locale);
       for (int j=0; j < count; j++) {
-        I_CmsXmlContentValue value=content.getValue(name,locale,j);
+        I_CmsXmlContentValue value=m_content.getValue(name,locale,j);
         I_CmsXmlWidget widget=OpenCms.getXmlContentTypeManager().getEditorWidget(value.getTypeName());
-        widget.setEditorValue(getCms(),content,getJsp().getRequest().getParameterMap(),this,value);
+        widget.setEditorValue(getCms(),m_content,getJsp().getRequest().getParameterMap(),this,value);
       }
     }
-    decodedContent=content.toString();
+    decodedContent=m_content.toString();
     try {
-      editFile.setContents(decodedContent.getBytes(getFileEncoding()));
+      m_file.setContents(decodedContent.getBytes(getFileEncoding()));
     }
  catch (    UnsupportedEncodingException e) {
       throw new CmsException("Invalid content encoding encountered while editing file '" + getParamResource() + "'");
     }
-    CmsFile writtenFile=getCms().writeFile(editFile);
+    m_file=getCms().writeFile(m_file);
+    m_content=CmsXmlContentFactory.unmarshal(getCms(),m_file);
+    m_contentDefinition=m_content.getContentDefinition(new CmsXmlEntityResolver(getCms()));
     try {
-      decodedContent=new String(writtenFile.getContents(),getFileEncoding());
+      decodedContent=new String(m_file.getContents(),getFileEncoding());
     }
  catch (    UnsupportedEncodingException e) {
       throw new CmsException("Invalid content encoding encountered while editing file '" + getParamResource() + "'");
