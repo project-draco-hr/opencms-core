@@ -4,9 +4,11 @@
   String servletPath=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getServletPath();
   StringBuffer result=new StringBuffer();
   Vector allFolders=cms.getSubFolders("/");
-  Hashtable sortedFolders=new Hashtable();
   int numFolders=allFolders.size();
   int maxfolder=0;
+  String folderNames[]=new String[numFolders];
+  String folderTitles[]=new String[numFolders];
+  String folderPos[]=new String[numFolders];
   for (int i=0; i < numFolders; i++) {
     A_CmsResource currFolder=(A_CmsResource)allFolders.elementAt(i);
     String filename=currFolder.getAbsolutePath();
@@ -14,60 +16,23 @@
     String navtext=cms.readMetainformation(filename,C_METAINFO_NAVTITLE);
     if (currFolder.getState() != C_STATE_DELETED) {
       if (navpos != null && navtext != null && (!"".equals(navpos)) && (!"".equals(navtext)) && ((!currFolder.getName().startsWith(C_TEMP_PREFIX)) || filename.equals(requestedUri))) {
-        Integer npValue=new Integer(navpos);
-        int npIntValue=npValue.intValue();
-        if (maxfolder < npIntValue) {
-          maxfolder=npIntValue;
-        }
-        sortedFolders.put(npValue,filename);
+        folderNames[maxfolder]=filename;
+        folderTitles[maxfolder]=navtext;
+        folderPos[maxfolder]=navpos;
+        maxfolder++;
       }
     }
   }
-  for (int i=1; i <= maxfolder; i++) {
-    String currFolder=(String)sortedFolders.get(new Integer(i));
-    if (currFolder != null && !"".equals(currFolder)) {
-      String navtext=cms.readMetainformation(currFolder,C_METAINFO_NAVTITLE);
-      if (!requestedUri.startsWith(currFolder)) {
-        result.append(xmlTemplateDocument.getOtherSectionNavEntry(servletPath + currFolder + "index.html",navtext));
-      }
+  sort(cms,folderNames,folderTitles,folderPos,maxfolder);
+  for (int i=0; i < maxfolder; i++) {
+    String currFolder=folderNames[i];
+    String navtext=folderTitles[i];
+    if (!requestedUri.startsWith(currFolder)) {
+      result.append(xmlTemplateDocument.getOtherSectionNavEntry(servletPath + currFolder + "index.html",navtext));
+    }
  else {
-        result.append(xmlTemplateDocument.getCurrentSectionNavEntry(servletPath + currFolder + "index.html",navtext));
-        Vector allFiles=cms.getFilesInFolder(currFolder);
-        Hashtable sortedNav=new Hashtable();
-        int numFiles=0;
-        if (allFiles != null) {
-          numFiles=allFiles.size();
-        }
-        int maxindex=0;
-        for (int j=0; j < numFiles; j++) {
-          A_CmsResource currFile=(A_CmsResource)allFiles.elementAt(j);
-          String filename=currFile.getAbsolutePath();
-          String navpos=cms.readMetainformation(filename,C_METAINFO_NAVPOS);
-          navtext=cms.readMetainformation(filename,C_METAINFO_NAVTITLE);
-          if (currFile.getState() != C_STATE_DELETED) {
-            if (navpos != null && navtext != null && (!"".equals(navpos)) && (!"".equals(navtext)) && ((!currFile.getName().startsWith(C_TEMP_PREFIX)) || filename.equals(requestedUri))) {
-              Integer npValue=new Integer(navpos);
-              int npIntValue=npValue.intValue();
-              if (maxindex < npIntValue) {
-                maxindex=npIntValue;
-              }
-              sortedNav.put(npValue,filename);
-            }
-          }
-        }
-        for (int j=1; j <= maxindex; j++) {
-          String filename=(String)sortedNav.get(new Integer(j));
-          if (filename != null && !"".equals(filename)) {
-            navtext=cms.readMetainformation(filename,C_METAINFO_NAVTITLE);
-            if (filename.equals(requestedUri)) {
-              result.append(xmlTemplateDocument.getCurrentNavEntry(navtext));
-            }
- else {
-              result.append(xmlTemplateDocument.getOtherNavEntry(servletPath + filename,navtext));
-            }
-          }
-        }
-      }
+      result.append(xmlTemplateDocument.getCurrentSectionNavEntry(servletPath + currFolder + "index.html",navtext));
+      result.append(filesNav(cms,currFolder,xmlTemplateDocument));
     }
   }
   return result.toString().getBytes();

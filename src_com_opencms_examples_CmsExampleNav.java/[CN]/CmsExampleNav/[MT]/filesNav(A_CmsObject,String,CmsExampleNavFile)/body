@@ -1,0 +1,40 @@
+{
+  String requestedUri=cms.getRequestContext().getUri();
+  String servletPath=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getServletPath();
+  StringBuffer result=new StringBuffer();
+  Vector allFiles=cms.getFilesInFolder(folderName);
+  int numFiles=0;
+  if (allFiles != null) {
+    numFiles=allFiles.size();
+  }
+  String fileNames[]=new String[numFiles];
+  String fileTitles[]=new String[numFiles];
+  String filePos[]=new String[numFiles];
+  int maxindex=0;
+  for (int j=0; j < numFiles; j++) {
+    A_CmsResource currFile=(A_CmsResource)allFiles.elementAt(j);
+    String filename=currFile.getAbsolutePath();
+    String navpos=cms.readMetainformation(filename,C_METAINFO_NAVPOS);
+    String navtext=cms.readMetainformation(filename,C_METAINFO_NAVTITLE);
+    if (currFile.getState() != C_STATE_DELETED) {
+      if (navpos != null && navtext != null && (!"".equals(navpos)) && (!"".equals(navtext)) && ((!currFile.getName().startsWith(C_TEMP_PREFIX)) || filename.equals(requestedUri))) {
+        fileNames[maxindex]=filename;
+        fileTitles[maxindex]=navtext;
+        filePos[maxindex]=navpos;
+        maxindex++;
+      }
+    }
+  }
+  sort(cms,fileNames,fileTitles,filePos,maxindex);
+  for (int j=0; j < maxindex; j++) {
+    String filename=fileNames[j];
+    String navtext=fileTitles[j];
+    if (filename.equals(requestedUri)) {
+      result.append(xmlTemplateDocument.getCurrentNavEntry(navtext));
+    }
+ else {
+      result.append(xmlTemplateDocument.getOtherNavEntry(servletPath + filename,navtext));
+    }
+  }
+  return new String(result);
+}
