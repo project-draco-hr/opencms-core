@@ -5,17 +5,27 @@
   PreparedStatement trimStatement=null;
   Connection con=null;
   ResultSet res=null;
+  String usedPool;
+  String usedStatement;
+  if (project.getId() == onlineProject.getId()) {
+    usedPool=m_poolNameOnline;
+    usedStatement="_ONLINE";
+  }
+ else {
+    usedPool=m_poolName;
+    usedStatement="";
+  }
   try {
     writeFileHeader(project,file,changed);
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(cq.C_PLSQL_FILESFORUPDATE);
+    con=DriverManager.getConnection(usedPool);
+    statement=con.prepareStatement(cq.get("C_PLSQL_FILESFORUPDATE" + usedStatement));
     statement.setInt(1,file.getFileId());
     con.setAutoCommit(false);
     res=statement.executeQuery();
     try {
       while (res.next()) {
         oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("FILE_CONTENT");
-        trimStatement=con.prepareStatement(cq.C_TRIMBLOB);
+        trimStatement=con.prepareStatement(cq.get("C_TRIMBLOB"));
         trimStatement.setBlob(1,blobnew);
         trimStatement.setInt(2,0);
         trimStatement.execute();
@@ -29,7 +39,7 @@
         instream.close();
         outstream.close();
       }
-      nextStatement=con.prepareStatement(cq.C_COMMIT);
+      nextStatement=con.prepareStatement(cq.get("C_COMMIT"));
       nextStatement.execute();
       nextStatement.close();
       con.setAutoCommit(true);
@@ -58,7 +68,7 @@
  catch (      SQLException exc) {
       }
       try {
-        nextStatement=con.prepareStatement(cq.C_ROLLBACK);
+        nextStatement=con.prepareStatement(cq.get("C_ROLLBACK"));
         nextStatement.execute();
       }
  catch (      SQLException se) {

@@ -1,45 +1,21 @@
 {
   ResultSet res=null;
-  byte[] content;
-  PreparedStatement statementFileRead=null;
   PreparedStatement statementResourceUpdate=null;
   Connection con=null;
-  try {
-    con=DriverManager.getConnection(m_poolName);
-    if ((file.getState() == C_STATE_UNCHANGED) && (changed == true)) {
-      statementFileRead=con.prepareStatement(m_cq.C_FILE_READ);
-      statementFileRead.setInt(1,file.getFileId());
-      res=statementFileRead.executeQuery();
-      if (res.next()) {
-        content=res.getBytes(m_cq.C_FILE_CONTENT);
-      }
+  String usedPool;
+  String usedStatement;
+  int onlineProject=getOnlineProject(project.getId()).getId();
+  if (project.getId() == onlineProject) {
+    usedPool=m_poolNameOnline;
+    usedStatement="_ONLINE";
+  }
  else {
-        throw new CmsException("[" + this.getClass().getName() + "]"+ file.getAbsolutePath(),CmsException.C_NOT_FOUND);
-      }
-      PreparedStatement statementFileWrite=null;
-      try {
-        file.setFileId(nextId(C_TABLE_FILES));
-        statementFileWrite=con.prepareStatement(m_cq.C_FILES_WRITE);
-        statementFileWrite.setInt(1,file.getFileId());
-        statementFileWrite.setBytes(2,content);
-        statementFileWrite.executeUpdate();
-      }
- catch (      SQLException se) {
-        if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-          A_OpenCms.log(C_OPENCMS_CRITICAL,"[CmsAccessFileMySql] " + se.getMessage());
-        }
-      }
- finally {
-        if (statementFileWrite != null) {
-          try {
-            statementFileWrite.close();
-          }
- catch (          SQLException exc) {
-          }
-        }
-      }
-    }
-    statementResourceUpdate=con.prepareStatement(m_cq.C_RESOURCES_UPDATE);
+    usedPool=m_poolName;
+    usedStatement="";
+  }
+  try {
+    con=DriverManager.getConnection(usedPool);
+    statementResourceUpdate=con.prepareStatement(m_cq.get("C_RESOURCES_UPDATE" + usedStatement));
     statementResourceUpdate.setInt(1,file.getType());
     statementResourceUpdate.setInt(2,file.getFlags());
     statementResourceUpdate.setInt(3,file.getOwnerId());
@@ -75,13 +51,6 @@
     if (res != null) {
       try {
         res.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (statementFileRead != null) {
-      try {
-        statementFileRead.close();
       }
  catch (      SQLException exc) {
       }

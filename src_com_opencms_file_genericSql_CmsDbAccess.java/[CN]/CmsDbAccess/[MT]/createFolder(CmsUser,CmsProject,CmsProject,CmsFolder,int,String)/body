@@ -1,4 +1,6 @@
 {
+  String usedPool=null;
+  String usedStatement=null;
   if (foldername.length() > C_MAX_LENGTH_RESOURCE_NAME) {
     throw new CmsException("[" + this.getClass().getName() + "] "+ "Resourcename too long(>"+ C_MAX_LENGTH_RESOURCE_NAME+ ") ",CmsException.C_BAD_NAME);
   }
@@ -6,9 +8,13 @@
   int state=0;
   if (project.equals(onlineProject)) {
     state=folder.getState();
+    usedPool=m_poolNameOnline;
+    usedStatement="_ONLINE";
   }
  else {
     state=C_STATE_NEW;
+    usedPool=m_poolName;
+    usedStatement="";
   }
   try {
     oldFolder=readFolder(project.getId(),foldername);
@@ -25,25 +31,14 @@
     if (e.getType() == CmsException.C_FILE_EXISTS) {
       throw e;
     }
-    if (e.getType() == CmsException.C_NOT_FOUND) {
-      try {
-        readFolder(C_PROJECT_ONLINE_ID,foldername);
-        throw new CmsException("[" + this.getClass().getName() + "] ",CmsException.C_FILE_EXISTS);
-      }
- catch (      CmsException e2) {
-        if (e2.getType() == CmsException.C_FILE_EXISTS) {
-          throw e2;
-        }
-      }
-    }
   }
-  int resourceId=nextId(C_TABLE_RESOURCES);
-  int fileId=nextId(C_TABLE_FILES);
+  int resourceId=nextId(m_cq.get("C_TABLE_RESOURCES" + usedStatement));
+  int fileId=nextId(m_cq.get("C_TABLE_FILES" + usedStatement));
   Connection con=null;
   PreparedStatement statement=null;
   try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_cq.C_RESOURCES_WRITE);
+    con=DriverManager.getConnection(usedPool);
+    statement=con.prepareStatement(m_cq.get("C_RESOURCES_WRITE" + usedStatement));
     statement.setInt(1,resourceId);
     statement.setInt(2,parentId);
     statement.setString(3,foldername);
@@ -80,6 +75,24 @@
         con.close();
       }
  catch (      SQLException exc) {
+      }
+    }
+  }
+  if (parentId == C_UNKNOWN_ID || folder.getParent().equals(C_ROOT)) {
+    try {
+      String rootFolder=null;
+      try {
+        rootFolder=readProjectResource(project.getId(),C_ROOT);
+      }
+ catch (      CmsException exc) {
+      }
+      if (rootFolder == null) {
+        createProjectResource(project.getId(),foldername);
+      }
+    }
+ catch (    CmsException e) {
+      if (e.getType() != CmsException.C_FILE_EXISTS) {
+        throw e;
       }
     }
   }

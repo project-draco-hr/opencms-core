@@ -15,11 +15,13 @@
     session.removeValue(C_NEWMANAGERGROUP);
     session.removeValue(C_NEWFOLDER);
     session.removeValue(C_NEWRESOURCES);
+    session.removeValue(C_NEWTYPE);
     session.removeValue("lasturl");
     session.removeValue("newProjectCallingFrom");
     reqCont.setCurrentProject(cms.onlineProject().getId());
   }
-  String newName, newGroup, newDescription, newManagerGroup, newFolder;
+  String newName, newGroup, newDescription, newManagerGroup, newFolder, projectType;
+  String newType=new String();
   String action=new String();
   action=(String)parameters.get("action");
   CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
@@ -63,6 +65,7 @@
   newDescription=(String)parameters.get(C_PROJECTNEW_DESCRIPTION);
   newManagerGroup=(String)parameters.get(C_PROJECTNEW_MANAGERGROUP);
   String allResources=(String)parameters.get(C_NEWRESOURCES);
+  newType=(String)parameters.get(C_NEWTYPE);
   if (newGroup == null) {
     newGroup=(String)session.getValue(C_NEWGROUP);
   }
@@ -90,59 +93,65 @@
   if (allResources == null) {
     allResources="";
   }
+  if (newType == null || "".equals(newType)) {
+    projectType="" + I_CmsConstants.C_PROJECT_TYPE_NORMAL;
+    newType="";
+  }
+ else {
+    projectType="" + I_CmsConstants.C_PROJECT_TYPE_TEMPORARY;
+  }
   if ((action != null) && ("working".equals(action))) {
-    Thread doProjectNew=(Thread)session.getValue(C_PROJECTNEW_THREAD);
-    if (doProjectNew.isAlive()) {
-      String time=(String)parameters.get("time");
-      int wert=Integer.parseInt(time);
-      wert+=20;
-      xmlTemplateDocument.setData("time","" + wert);
-      return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"wait");
+    session.removeValue(C_NEWNAME);
+    session.removeValue(C_NEWGROUP);
+    session.removeValue(C_NEWDESCRIPTION);
+    session.removeValue(C_NEWMANAGERGROUP);
+    session.removeValue(C_NEWFOLDER);
+    session.removeValue(C_NEWTYPE);
+    session.removeValue("lasturl");
+    session.removeValue("newProjectCallingFrom");
+    long startTime=((Long)session.getValue("startTime")).longValue();
+    session.removeValue("startTime");
+    long stopTime=System.currentTimeMillis();
+    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsAdminProjectNew] createProject time: " + (stopTime - startTime));
     }
- else {
-      String errordetails=(String)session.getValue(C_SESSION_THREAD_ERROR);
-      if (errordetails == null) {
-        session.removeValue(C_NEWNAME);
-        session.removeValue(C_NEWGROUP);
-        session.removeValue(C_NEWDESCRIPTION);
-        session.removeValue(C_NEWMANAGERGROUP);
-        session.removeValue(C_NEWFOLDER);
-        session.removeValue("lasturl");
-        session.removeValue("newProjectCallingFrom");
-        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"done");
-      }
- else {
-        xmlTemplateDocument.setData(C_NEWNAME,newName);
-        xmlTemplateDocument.setData(C_NEWDESCRIPTION,newDescription);
-        xmlTemplateDocument.setData("details",errordetails);
-        session.removeValue(C_SESSION_THREAD_ERROR);
-        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"errornewproject" + errorTemplateAddOn);
-      }
-    }
+    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"done");
   }
   if (parameters.get("submitform") != null) {
     session.putValue(C_NEWNAME,newName);
     session.putValue(C_NEWGROUP,newGroup);
     session.putValue(C_NEWDESCRIPTION,newDescription);
     session.putValue(C_NEWMANAGERGROUP,newManagerGroup);
+    session.putValue(C_NEWTYPE,newType);
     if (newName.equals("") || newGroup.equals("") || newManagerGroup.equals("")|| allResources.equals("")) {
       templateSelector="datamissing" + errorTemplateAddOn;
     }
  else {
       session.putValue(C_NEWRESOURCES,allResources);
+      templateSelector="wait";
       action="start";
     }
   }
   if ("start".equals(action)) {
+    session.putValue("startTime",new Long(System.currentTimeMillis()));
     newName=(String)session.getValue(C_NEWNAME);
     newGroup=(String)session.getValue(C_NEWGROUP);
     newDescription=(String)session.getValue(C_NEWDESCRIPTION);
     newManagerGroup=(String)session.getValue(C_NEWMANAGERGROUP);
     allResources=(String)session.getValue(C_NEWRESOURCES);
+    newType=(String)session.getValue(C_NEWTYPE);
     try {
       String picspath=getConfigFile(cms).getPicGalleryPath();
       String downloadpath=getConfigFile(cms).getDownGalleryPath();
-      allResources=allResources + C_CONTENTPATH + ";"+ picspath+ ";"+ downloadpath;
+      String contentpath=";" + C_CONTENTDEFAULTBODIESPATH + ";"+ C_CONTENTINTERNALPATH+ ";"+ C_CONTENTTEMPLATEPATH;
+      Vector addResources=parseResources(allResources);
+      for (int j=0; j < addResources.size(); j++) {
+        String foldername=(String)addResources.get(j);
+        if (!(foldername.startsWith(C_CONTENTPATH) || foldername.startsWith(picspath) || foldername.startsWith(downloadpath)|| foldername.startsWith("/system/"))) {
+          contentpath=contentpath + ";/content/bodys" + foldername;
+        }
+      }
+      allResources=allResources + contentpath + ";"+ picspath+ ";"+ downloadpath;
       Vector folders=parseResources(allResources);
       int numRes=folders.size();
       for (int i=0; i < numRes; i++) {
@@ -152,16 +161,20 @@
       }
       checkRedundancies(folders);
       numRes=folders.size();
-      CmsProject project=cms.createProject(newName,newDescription,newGroup,newManagerGroup);
+      CmsProject project=cms.createProject(newName,newDescription,newGroup,newManagerGroup,projectType);
       reqCont.setCurrentProject(project.getId());
-      if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
-        session.removeValue(C_SESSION_THREAD_ERROR);
-      }
-      Thread doProjectNew=new CmsAdminNewProjectThread(cms,folders,session);
-      doProjectNew.start();
-      session.putValue(C_PROJECTNEW_THREAD,doProjectNew);
-      xmlTemplateDocument.setData("time","10");
       templateSelector="wait";
+      try {
+        for (int i=0; i < folders.size(); i++) {
+          cms.copyResourceToProject((String)folders.elementAt(i));
+        }
+      }
+ catch (      CmsException e) {
+        if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+          A_OpenCms.log(A_OpenCms.C_OPENCMS_CRITICAL,e.getMessage());
+        }
+        throw e;
+      }
     }
  catch (    CmsException exc) {
       xmlTemplateDocument.setData("details",Utils.getStackTrace(exc));
@@ -170,5 +183,6 @@
   }
   xmlTemplateDocument.setData(C_NEWNAME,newName);
   xmlTemplateDocument.setData(C_NEWDESCRIPTION,newDescription);
+  xmlTemplateDocument.setData(C_NEWTYPE,newType);
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }

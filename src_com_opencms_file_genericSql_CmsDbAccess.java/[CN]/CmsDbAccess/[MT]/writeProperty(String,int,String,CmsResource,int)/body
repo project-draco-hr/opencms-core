@@ -1,0 +1,61 @@
+{
+  CmsPropertydefinition propdef=readPropertydefinition(meta,resourceType);
+  if (propdef == null) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ meta,CmsException.C_NOT_FOUND);
+  }
+ else {
+    String usedPool;
+    String usedStatement;
+    int onlineProject=getOnlineProject(projectId).getId();
+    if (projectId == onlineProject) {
+      usedPool=m_poolNameOnline;
+      usedStatement="_ONLINE";
+    }
+ else {
+      usedPool=m_poolName;
+      usedStatement="";
+    }
+    PreparedStatement statement=null;
+    Connection con=null;
+    boolean newprop=true;
+    try {
+      con=DriverManager.getConnection(usedPool);
+      if (readProperty(propdef.getName(),projectId,resource,resourceType) != null) {
+        statement=con.prepareStatement(m_cq.get("C_PROPERTIES_UPDATE" + usedStatement));
+        statement.setString(1,checkNull(value));
+        statement.setInt(2,resource.getResourceId());
+        statement.setInt(3,propdef.getId());
+        statement.executeUpdate();
+        newprop=false;
+      }
+ else {
+        statement=con.prepareStatement(m_cq.get("C_PROPERTIES_CREATE" + usedStatement));
+        statement.setInt(1,nextId(m_cq.get("C_TABLE_PROPERTIES" + usedStatement)));
+        statement.setInt(2,propdef.getId());
+        statement.setInt(3,resource.getResourceId());
+        statement.setString(4,checkNull(value));
+        statement.executeUpdate();
+        newprop=true;
+      }
+    }
+ catch (    SQLException exc) {
+      throw new CmsException("[" + this.getClass().getName() + "] "+ exc.getMessage(),CmsException.C_SQL_ERROR,exc);
+    }
+ finally {
+      if (statement != null) {
+        try {
+          statement.close();
+        }
+ catch (        SQLException exc) {
+        }
+      }
+      if (con != null) {
+        try {
+          con.close();
+        }
+ catch (        SQLException exc) {
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,6 @@
 {
+  String usedPool=null;
+  String usedStatement=null;
   if (filename.length() > C_MAX_LENGTH_RESOURCE_NAME) {
     throw new CmsException("[" + this.getClass().getName() + "] "+ "Resourcename too long(>"+ C_MAX_LENGTH_RESOURCE_NAME+ ") ",CmsException.C_BAD_NAME);
   }
@@ -6,6 +8,14 @@
     contents=" ".getBytes();
   }
   int state=C_STATE_NEW;
+  if (project.equals(onlineProject)) {
+    usedPool=m_poolNameOnline;
+    usedStatement="_ONLINE";
+  }
+ else {
+    usedPool=m_poolName;
+    usedStatement="";
+  }
   try {
     readFileHeader(project.getId(),filename);
     throw new CmsException("[" + this.getClass().getName() + "] ",CmsException.C_FILE_EXISTS);
@@ -30,14 +40,14 @@
       }
     }
   }
-  int resourceId=nextId(C_TABLE_RESOURCES);
-  int fileId=nextId(C_TABLE_FILES);
+  int resourceId=nextId(m_cq.get("C_TABLE_RESOURCES" + usedStatement));
+  int fileId=nextId(m_cq.get("C_TABLE_FILES" + usedStatement));
   Connection con=null;
   PreparedStatement statement=null;
   PreparedStatement statementFileWrite=null;
   try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_cq.C_RESOURCES_WRITE);
+    con=DriverManager.getConnection(usedPool);
+    statement=con.prepareStatement(m_cq.get("C_RESOURCES_WRITE" + usedStatement));
     statement.setInt(1,resourceId);
     statement.setInt(2,parentId);
     statement.setString(3,filename);
@@ -57,7 +67,8 @@
     statement.setInt(17,contents.length);
     statement.setInt(18,user.getId());
     statement.executeUpdate();
-    statementFileWrite=con.prepareStatement(m_cq.C_FILES_WRITE);
+    statement.close();
+    statementFileWrite=con.prepareStatement(m_cq.get("C_FILES_WRITE" + usedStatement));
     statementFileWrite.setInt(1,fileId);
     statementFileWrite.setBytes(2,contents);
     statementFileWrite.executeUpdate();

@@ -31,17 +31,27 @@
       }
     }
   }
-  int resourceId=nextId(C_TABLE_RESOURCES);
-  int fileId=nextId(C_TABLE_FILES);
+  int resourceId=nextId(m_cq.get("C_TABLE_RESOURCES"));
+  int fileId=nextId(m_cq.get("C_TABLE_FILES"));
   PreparedStatement statement=null;
   PreparedStatement statementFileIns=null;
   PreparedStatement statementFileUpd=null;
   PreparedStatement nextStatement=null;
   Connection con=null;
   ResultSet res=null;
+  String usedPool;
+  String usedStatement;
+  if (project.getId() == onlineProject.getId()) {
+    usedPool=m_poolNameOnline;
+    usedStatement="_ONLINE";
+  }
+ else {
+    usedPool=m_poolName;
+    usedStatement="";
+  }
   try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_cq.C_RESOURCES_WRITE);
+    con=DriverManager.getConnection(usedPool);
+    statement=con.prepareStatement(m_cq.get("C_RESOURCES_WRITE" + usedStatement));
     statement.setInt(1,resourceId);
     statement.setInt(2,parentId);
     statement.setString(3,filename);
@@ -62,11 +72,11 @@
     statement.setInt(18,user.getId());
     statement.executeUpdate();
     statement.close();
-    statementFileIns=con.prepareStatement(cq.C_PLSQL_FILESFORINSERT);
+    statementFileIns=con.prepareStatement(cq.get("C_PLSQL_FILESFORINSERT" + usedStatement));
     statementFileIns.setInt(1,fileId);
     statementFileIns.executeUpdate();
     statementFileIns.close();
-    statementFileUpd=con.prepareStatement(cq.C_PLSQL_FILESFORUPDATE);
+    statementFileUpd=con.prepareStatement(cq.get("C_PLSQL_FILESFORUPDATE" + usedStatement));
     statementFileUpd.setInt(1,fileId);
     con.setAutoCommit(false);
     res=statementFileUpd.executeQuery();
@@ -83,7 +93,7 @@
         instream.close();
         outstream.close();
       }
-      nextStatement=con.prepareStatement(cq.C_COMMIT);
+      nextStatement=con.prepareStatement(cq.get("C_COMMIT"));
       nextStatement.execute();
       nextStatement.close();
       con.setAutoCommit(true);
@@ -126,7 +136,7 @@
  catch (      SQLException exc) {
       }
       try {
-        nextStatement=con.prepareStatement(cq.C_ROLLBACK);
+        nextStatement=con.prepareStatement(cq.get("C_ROLLBACK"));
         nextStatement.execute();
       }
  catch (      SQLException se) {

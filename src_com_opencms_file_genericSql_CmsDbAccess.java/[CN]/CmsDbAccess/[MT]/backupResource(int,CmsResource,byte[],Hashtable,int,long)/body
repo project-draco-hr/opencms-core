@@ -1,0 +1,78 @@
+{
+  Connection con=null;
+  PreparedStatement statement=null;
+  ResultSet res=null;
+  int resourceId=nextId(m_cq.get("C_TABLE_RESOURCES_BACKUP"));
+  int fileId=C_UNKNOWN_ID;
+  try {
+    con=DriverManager.getConnection(m_poolNameBackup);
+    if (resource.getType() != C_TYPE_FOLDER) {
+      fileId=nextId(m_cq.get("C_TABLE_FILES_BACKUP"));
+      statement=con.prepareStatement(m_cq.get("C_FILES_WRITE_BACKUP"));
+      statement.setInt(1,fileId);
+      statement.setBytes(2,content);
+      statement.executeUpdate();
+      statement.close();
+    }
+    statement=con.prepareStatement(m_cq.get("C_RESOURCES_WRITE_BACKUP"));
+    statement.setInt(1,resourceId);
+    statement.setInt(2,C_UNKNOWN_ID);
+    statement.setString(3,resource.getAbsolutePath());
+    statement.setInt(4,resource.getType());
+    statement.setInt(5,resource.getFlags());
+    statement.setInt(6,resource.getOwnerId());
+    statement.setInt(7,resource.getGroupId());
+    statement.setInt(8,projectId);
+    statement.setInt(9,fileId);
+    statement.setInt(10,resource.getAccessFlags());
+    statement.setInt(11,C_STATE_UNCHANGED);
+    statement.setInt(12,resource.getFlags());
+    statement.setInt(13,resource.getLauncherType());
+    statement.setString(14,resource.getLauncherClassname());
+    statement.setTimestamp(15,new Timestamp(publishDate));
+    statement.setTimestamp(16,new Timestamp(resource.getDateLastModified()));
+    statement.setInt(17,content.length);
+    statement.setInt(18,resource.getResourceLastModifiedBy());
+    statement.setInt(19,versionId);
+    statement.executeUpdate();
+    statement.close();
+    Enumeration keys=properties.keys();
+    String key;
+    while (keys.hasMoreElements()) {
+      key=(String)keys.nextElement();
+      CmsPropertydefinition propdef=readPropertydefinition(key,resource.getType());
+      String value=(String)properties.get(key);
+      if (propdef == null) {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ key,CmsException.C_NOT_FOUND);
+      }
+ else {
+        statement=con.prepareStatement(m_cq.get("C_PROPERTIES_CREATE_BACKUP"));
+        statement.setInt(1,nextId(m_cq.get("C_TABLE_PROPERTIES_BACKUP")));
+        statement.setInt(2,propdef.getId());
+        statement.setInt(3,resourceId);
+        statement.setString(4,checkNull(value));
+        statement.executeUpdate();
+        statement.close();
+      }
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+  }
+}
