@@ -5,13 +5,30 @@
   long usedMemory=totalMemory - freeMemory;
   long usage=usedMemory * 100 / maxMemory;
   if ((m_maxUsage > 0) && (usage > m_maxUsage)) {
+    String warning="Memory usage of " + usage + "% exceeds max usage of "+ m_maxUsage+ "%, clearing caches.";
     if (OpenCms.getLog(this).isWarnEnabled()) {
-      OpenCms.getLog(this).warn("Memory usage of " + usage + "% exceeds max usage of "+ m_maxUsage+ "%, clearing caches");
+      OpenCms.getLog(this).warn(warning);
     }
     OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_CLEAR_CACHES,Collections.EMPTY_MAP,false));
     System.gc();
     if (OpenCms.getLog(this).isWarnEnabled()) {
       OpenCms.getLog(this).warn("" + "Memory max: ," + maxMemory / 1048576 + " ," + "total: ," + totalMemory / 1048576 + " ," + "free: ," + freeMemory / 1048576 + " ," + "used: ," + usedMemory / 1048576);
+      if (!m_emergencyMail) {
+        m_emergencyMail=true;
+        String from=m_emailSender;
+        String[] to=m_emailReceiver;
+        String subject="OpenCms Memory Warning " + Utils.getNiceDate(System.currentTimeMillis());
+        String content=warning + "Memory usage of OpenCms at " + Utils.getNiceDate(System.currentTimeMillis())+ ":"+ "Memory max: ,"+ (Runtime.getRuntime().maxMemory() / 1048576)+ " ,"+ "total: ,"+ (Runtime.getRuntime().totalMemory() / 1048576)+ " ,"+ "free: ,"+ (Runtime.getRuntime().freeMemory() / 1048576);
+        try {
+          if (from != null && to != null) {
+            CmsMail email=new CmsMail(from,to,subject,content,"text/plain");
+            email.start();
+          }
+        }
+ catch (        CmsException e) {
+          e.printStackTrace();
+        }
+      }
     }
   }
 }
