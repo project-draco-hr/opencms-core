@@ -3,7 +3,8 @@
   PreparedStatement stmt=null;
   String lastModifiedName=null;
   String createdName=null;
-  CmsUUID backupId=new CmsUUID();
+  CmsUUID backupPkId=new CmsUUID();
+  byte[] content=null;
   try {
     CmsUser lastModified=m_driverManager.getUserDriver().readUser(resource.getResourceLastModifiedBy());
     lastModifiedName=lastModified.getName() + " " + lastModified.getFirstname()+ " "+ lastModified.getLastname();
@@ -17,6 +18,7 @@
   try {
     conn=m_sqlManager.getConnectionForBackup();
     if (resource.getType() != I_CmsConstants.C_TYPE_FOLDER) {
+      content=((CmsFile)resource).getContents();
       stmt=m_sqlManager.getPreparedStatement(conn,"C_FILES_WRITE_BACKUP");
       stmt.setString(1,resource.getFileId().toString());
       if (content.length < 2000) {
@@ -26,8 +28,9 @@
         stmt.setBinaryStream(2,new ByteArrayInputStream(content),content.length);
       }
       stmt.setInt(3,versionId);
-      stmt.setString(4,backupId.toString());
+      stmt.setString(4,backupPkId.toString());
       stmt.executeUpdate();
+      m_sqlManager.closeAll(null,stmt,null);
     }
     stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_WRITE_BACKUP");
     stmt.setString(1,resource.getResourceId().toString());
@@ -40,7 +43,7 @@
     stmt.setTimestamp(8,new Timestamp(resource.getDateLastModified()));
     stmt.setInt(9,resource.getLength());
     stmt.setInt(10,versionId);
-    stmt.setString(11,backupId.toString());
+    stmt.setString(11,backupPkId.toString());
     stmt.executeUpdate();
     m_sqlManager.closeAll(null,stmt,null);
     stmt=m_sqlManager.getPreparedStatement(conn,"C_STRUCTURE_WRITE_BACKUP");
@@ -57,8 +60,12 @@
     stmt.setString(11,lastModifiedName);
     stmt.setString(12,createdName);
     stmt.setInt(13,versionId);
-    stmt.setString(14,backupId.toString());
+    stmt.setString(14,backupPkId.toString());
     stmt.executeUpdate();
+    List existingBackups=readAllBackupFileHeaders(resource.getId());
+    if (existingBackups.size() > getMaxResourceVersionCount()) {
+      deleteBackups(existingBackups);
+    }
   }
  catch (  SQLException e) {
     throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
