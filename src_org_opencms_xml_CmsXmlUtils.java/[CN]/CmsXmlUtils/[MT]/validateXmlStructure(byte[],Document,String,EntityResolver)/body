@@ -1,0 +1,73 @@
+{
+  XMLReader reader;
+  try {
+    reader=XMLReaderFactory.createXMLReader("org.apache.xerces.parsers.SAXParser");
+  }
+ catch (  SAXException e) {
+    if (OpenCms.getLog(CmsXmlUtils.class).isWarnEnabled()) {
+      OpenCms.getLog(CmsXmlUtils.class).warn("Could not initialize Xerces SAX reader for validation",e);
+    }
+    return;
+  }
+  try {
+    reader.setFeature("http://xml.org/sax/features/validation",true);
+    reader.setFeature("http://apache.org/xml/features/validation/schema",true);
+    reader.setFeature("http://xml.org/sax/features/namespaces",true);
+    reader.setFeature("http://xml.org/sax/features/namespace-prefixes",false);
+  }
+ catch (  SAXNotRecognizedException e) {
+    if (OpenCms.getLog(CmsXmlUtils.class).isWarnEnabled()) {
+      OpenCms.getLog(CmsXmlUtils.class).warn("Required SAX reader feature not recognized",e);
+    }
+    return;
+  }
+catch (  SAXNotSupportedException e) {
+    if (OpenCms.getLog(CmsXmlUtils.class).isWarnEnabled()) {
+      OpenCms.getLog(CmsXmlUtils.class).warn("Required SAX reader feature not supported",e);
+    }
+    return;
+  }
+  XMLErrorHandler errorHandler=new XMLErrorHandler();
+  reader.setErrorHandler(errorHandler);
+  if (resolver != null) {
+    reader.setEntityResolver(resolver);
+  }
+  try {
+    if (xmlData == null) {
+      xmlData=((ByteArrayOutputStream)marshal(document,new ByteArrayOutputStream(512),encoding)).toByteArray();
+    }
+    reader.parse(new InputSource(new ByteArrayInputStream(xmlData)));
+  }
+ catch (  IOException e) {
+    if (OpenCms.getLog(CmsXmlUtils.class).isErrorEnabled()) {
+      OpenCms.getLog(CmsXmlUtils.class).error("Could not read XML from byte array",e);
+    }
+    return;
+  }
+catch (  SAXException e) {
+    if (OpenCms.getLog(CmsXmlUtils.class).isErrorEnabled()) {
+      OpenCms.getLog(CmsXmlUtils.class).error("Unexpected SAX exception while parsing content",e);
+    }
+    return;
+  }
+  if (errorHandler.getErrors().elements().size() > 0) {
+    StringWriter out=new StringWriter(256);
+    OutputFormat format=OutputFormat.createPrettyPrint();
+    XMLWriter writer=new XMLWriter(out,format);
+    try {
+      writer.write(errorHandler.getErrors());
+      writer.close();
+    }
+ catch (    IOException e) {
+      if (OpenCms.getLog(CmsXmlUtils.class).isErrorEnabled()) {
+        OpenCms.getLog(CmsXmlUtils.class).error("Unexpected IO exception while writing to StringWriter",e);
+      }
+    }
+    String content=CmsEncoder.createString(xmlData,encoding);
+    out.write("\n\nThe verfified XML content was:");
+    out.write("\n-------------------------------------------------------------------\n");
+    out.write(content);
+    out.write("\n-------------------------------------------------------------------\n");
+    throw new CmsXmlException("XML validation error:\n" + out.toString() + "\n");
+  }
+}

@@ -1,31 +1,47 @@
 {
   byte[] content;
-  content=(byte[])m_cacheTemporary.get(systemId);
-  if (content != null) {
-    return new InputSource(new ByteArrayInputStream(content));
-  }
   content=(byte[])m_cachePermanent.get(systemId);
   if (content != null) {
     return new InputSource(new ByteArrayInputStream(content));
   }
-  if (systemId.equals(CmsXmlPage.C_XMLPAGE_DTD_SYSTEM_ID) || systemId.endsWith(C_XMLPAGE_DTD_OLD_SYSTEM_ID)) {
+ else   if (systemId.equals(CmsXmlPage.C_XMLPAGE_DTD_SYSTEM_ID) || systemId.endsWith(C_XMLPAGE_DTD_OLD_SYSTEM_ID)) {
     try {
-      return new InputSource(getClass().getClassLoader().getResourceAsStream(C_XMLPAGE_DTD_LOCATION));
+      InputStream stream=getClass().getClassLoader().getResourceAsStream(C_XMLPAGE_DTD_LOCATION);
+      ByteArrayOutputStream bytes=new ByteArrayOutputStream(1024);
+      for (int b=stream.read(); b > -1; b=stream.read()) {
+        bytes.write(b);
+      }
+      content=bytes.toByteArray();
+      m_cachePermanent.put(systemId,content);
+      return new InputSource(new ByteArrayInputStream(content));
     }
  catch (    Throwable t) {
-      OpenCms.getLog(this).error("Did not find CmsXmlPage DTD at " + C_XMLPAGE_DTD_LOCATION);
+      OpenCms.getLog(this).error("Did not find CmsXmlPage DTD at " + C_XMLPAGE_DTD_LOCATION,t);
     }
   }
- else   if (systemId.startsWith(C_OPENCMS_SCHEME)) {
-    String uri=systemId.substring(C_OPENCMS_SCHEME.length() - 1);
+ else   if ((m_cms != null) && systemId.startsWith(C_OPENCMS_SCHEME)) {
+    String filename=systemId.substring(C_OPENCMS_SCHEME.length() - 1);
+    String cacheKey=getCacheKey(filename,m_cms.getRequestContext().currentProject().isOnlineProject());
+    content=(byte[])m_cacheTemporary.get(cacheKey);
+    if (content != null) {
+      return new InputSource(new ByteArrayInputStream(content));
+    }
     try {
-      CmsFile file=m_cms.readFile(uri);
+      m_cms.getRequestContext().saveSiteRoot();
+      m_cms.getRequestContext().setSiteRoot("/");
+      CmsFile file=m_cms.readFile(filename);
       content=file.getContents();
-      cacheSystemId(systemId,content,false);
+      m_cacheTemporary.put(cacheKey,content);
+      if (OpenCms.getLog(this).isDebugEnabled()) {
+        OpenCms.getLog(this).debug("Xml entity resolver cached " + cacheKey);
+      }
       return new InputSource(new ByteArrayInputStream(content));
     }
  catch (    Throwable t) {
       OpenCms.getLog(this).error("Could not resolve OpenCms xml entity reference '" + systemId + "'",t);
+    }
+ finally {
+      m_cms.getRequestContext().restoreSiteRoot();
     }
   }
   return null;
