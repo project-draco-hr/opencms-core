@@ -12,18 +12,36 @@
   if (dependencies.size() != 0) {
     throw new CmsException("the dependencies for the module are not fulfilled.",CmsException.C_REGISTRY_ERROR);
   }
+  if (I_CmsWpConstants.C_VFS_NEW_STRUCTURE && false) {
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_SYSTEM);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_MODULES);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_BODIES);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_WORKPLACE);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_MODULEDEMOS);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_GALLERIES);
+    exclusion.add(I_CmsWpConstants.C_VFS_GALLERY_PICS);
+    exclusion.add(I_CmsWpConstants.C_VFS_GALLERY_HTML);
+    exclusion.add(I_CmsWpConstants.C_VFS_GALLERY_DOWNLOAD);
+    exclusion.add(I_CmsWpConstants.C_VFS_GALLERY_EXTERNALLINKS);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_DEFAULT_BODIES);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_DEFAULT_INTERNAL);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_DEFAULT_TEMPLATES);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_HELP);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_LOCALES);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_SCRIPTS);
+    exclusion.add(I_CmsWpConstants.C_VFS_PATH_SYSTEMPICS);
+  }
   Vector resourceNames=new Vector();
   Vector resourceCodes=new Vector();
   String propertyName=null;
   String propertyValue=null;
+  boolean isSimpleModule=false;
   try {
-    String moduleType=newModule.getElementsByTagName("type").item(0).getFirstChild().getNodeValue();
-    if (moduleType == null || !moduleType.equals(CmsRegistry.C_MODULE_TYPE_SIMPLE)) {
-      propertyName="module";
-      propertyValue=newModuleName + "_" + newModuleVersion;
-    }
+    isSimpleModule=CmsRegistry.C_MODULE_TYPE_SIMPLE.equals(newModule.getElementsByTagName("type").item(0).getFirstChild().getNodeValue());
   }
  catch (  Exception e) {
+  }
+  if (!isSimpleModule) {
     propertyName="module";
     propertyValue=newModuleName + "_" + newModuleVersion;
   }
@@ -36,18 +54,20 @@
   Node uploadBy=newModule.getOwnerDocument().createElement("uploadedby");
   uploadBy.appendChild(newModule.getOwnerDocument().createTextNode(m_cms.getRequestContext().currentUser().getName()));
   newModule.appendChild(uploadBy);
-  Node files=newModule.getOwnerDocument().createElement("files");
-  for (int i=0; i < resourceNames.size(); i++) {
-    Node file=newModule.getOwnerDocument().createElement("file");
-    files.appendChild(file);
-    Node name=newModule.getOwnerDocument().createElement("name");
-    file.appendChild(name);
-    Node checksum=newModule.getOwnerDocument().createElement("checksum");
-    file.appendChild(checksum);
-    name.appendChild(newModule.getOwnerDocument().createTextNode((String)resourceNames.elementAt(i)));
-    checksum.appendChild(newModule.getOwnerDocument().createTextNode(com.opencms.util.Encoder.escape((String)resourceCodes.elementAt(i),m_cms.getRequestContext().getEncoding())));
+  if (!isSimpleModule) {
+    Node files=newModule.getOwnerDocument().createElement("files");
+    for (int i=0; i < resourceNames.size(); i++) {
+      Node file=newModule.getOwnerDocument().createElement("file");
+      files.appendChild(file);
+      Node name=newModule.getOwnerDocument().createElement("name");
+      file.appendChild(name);
+      Node checksum=newModule.getOwnerDocument().createElement("checksum");
+      file.appendChild(checksum);
+      name.appendChild(newModule.getOwnerDocument().createTextNode((String)resourceNames.elementAt(i)));
+      checksum.appendChild(newModule.getOwnerDocument().createTextNode(com.opencms.util.Encoder.escape((String)resourceCodes.elementAt(i),m_cms.getRequestContext().getEncoding())));
+    }
+    newModule.appendChild(files);
   }
-  newModule.appendChild(files);
   Node newNode=getXmlParser().importNode(m_xmlReg,newModule);
   regModules.appendChild(newNode);
   saveRegistry();
