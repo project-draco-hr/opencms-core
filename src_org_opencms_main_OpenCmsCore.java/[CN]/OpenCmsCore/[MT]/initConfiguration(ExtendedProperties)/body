@@ -1,14 +1,4 @@
 {
-  String setEncoding=configuration.getString("defaultContentEncoding",OpenCms.getSystemInfo().getDefaultEncoding());
-  String defaultEncoding=CmsEncoder.lookupEncoding(setEncoding,null);
-  if (defaultEncoding == null) {
-    String msg="OpenCms startup failure: Configured encoding '" + setEncoding + "' not supported by the Java VM";
-    getLog(this).fatal(OpenCmsCore.C_MSG_CRITICAL_ERROR + "1: " + msg);
-    throw new Exception(msg);
-  }
-  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms encoding     : " + defaultEncoding);
-  }
   String systemEncoding=null;
   try {
     systemEncoding=System.getProperty("file.encoding");
@@ -18,7 +8,6 @@
   if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
     getLog(CmsLog.CHANNEL_INIT).info(". System file.encoding : " + systemEncoding);
   }
-  getSystemInfo().setDefaultEncoding(defaultEncoding);
   String ethernetAddress=configuration.getString("server.ethernet.address",CmsUUID.getDummyEthernetAddress());
   if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
     getLog(CmsLog.CHANNEL_INIT).info(". Ethernet address used: " + ethernetAddress);
@@ -27,7 +16,6 @@
   String serverName=configuration.getString("server.name","OpenCmsServer");
   getSystemInfo().setServerName(serverName);
   m_lockManager=CmsLockManager.getInstance();
-  m_memoryMonitor=CmsMemoryMonitor.initialize(configuration);
   try {
     if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
       String jdkinfo=System.getProperty("java.vm.name") + " ";
@@ -47,25 +35,24 @@
     }
     throw e;
   }
-  m_defaultUsers=CmsDefaultUsers.initialize(configuration);
-  try {
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : starting");
-    }
-    new CmsFlexCache(configuration);
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : finished");
-    }
-  }
- catch (  Exception e) {
-    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).warn(". Flex cache init      : non-critical error " + e.toString());
-    }
-  }
+  m_memoryMonitor=new CmsMemoryMonitor();
   m_configurationManager=new CmsConfigurationManager(getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("config/"));
   m_configurationManager.loadXmlConfiguration();
   m_configurationManager.setConfiguration(configuration);
   CmsSystemConfiguration systemConfiguration=(CmsSystemConfiguration)m_configurationManager.getConfiguration(CmsSystemConfiguration.class);
+  String setEncoding=systemConfiguration.getDefaultContentEncoding();
+  String defaultEncoding=CmsEncoder.lookupEncoding(setEncoding,null);
+  if (defaultEncoding == null) {
+    String msg="OpenCms startup failure: Configured encoding '" + setEncoding + "' not supported by the Java VM";
+    getLog(this).fatal(OpenCmsCore.C_MSG_CRITICAL_ERROR + "1: " + msg);
+    throw new Exception(msg);
+  }
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms encoding     : " + defaultEncoding);
+  }
+  getSystemInfo().setDefaultEncoding(defaultEncoding);
+  CmsMemoryMonitorConfiguration memoryMonitorConfiguration=systemConfiguration.getCmsMemoryMonitorConfiguration();
+  m_memoryMonitor.initialize(memoryMonitorConfiguration);
   getSystemInfo().setVersionHistorySettings(systemConfiguration.isVersionHistoryEnabled(),systemConfiguration.getVersionHistoryMaxCount());
   getSystemInfo().setMailSettings(systemConfiguration.getMailSettings());
   getSystemInfo().setSynchronizeSettings(new CmsSynchronizeSettings());
@@ -79,11 +66,37 @@
       getLog(CmsLog.CHANNEL_INIT).warn(". Request handler class: " + handler.getClass().getName() + " activated");
     }
   }
+  m_defaultUsers=systemConfiguration.getCmsDefaultUsers();
   m_siteManager=systemConfiguration.getSiteManager();
   CmsVfsConfiguration vfsConfiguation=(CmsVfsConfiguration)m_configurationManager.getConfiguration(CmsVfsConfiguration.class);
   m_resourceManager=vfsConfiguation.getResourceManager();
   m_xmlContentTypeManager=vfsConfiguation.getXmlContentTypeManager();
   m_defaultFiles=vfsConfiguation.getDefaultFiles();
+  CmsFlexCache flexCache=null;
+  try {
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : starting");
+    }
+    CmsFlexCacheConfiguration flexCacheConfiguration=systemConfiguration.getCmsFlexCacheConfiguration();
+    flexCache=new CmsFlexCache(flexCacheConfiguration);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : finished");
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).warn(". Flex cache init      : non-critical error " + e.toString());
+    }
+  }
+  if (flexCache != null) {
+    Iterator i=m_resourceManager.getLoaders().iterator();
+    while (i.hasNext()) {
+      Object o=i.next();
+      if (o instanceof I_CmsFlexCacheEnabledLoader) {
+        ((I_CmsFlexCacheEnabledLoader)o).setFlexCache(flexCache);
+      }
+    }
+  }
   CmsImportExportConfiguration importExportConfiguration=(CmsImportExportConfiguration)m_configurationManager.getConfiguration(CmsImportExportConfiguration.class);
   m_importExportManager=importExportConfiguration.getImportExportManager();
   m_staticExportManager=importExportConfiguration.getStaticExportManager();
