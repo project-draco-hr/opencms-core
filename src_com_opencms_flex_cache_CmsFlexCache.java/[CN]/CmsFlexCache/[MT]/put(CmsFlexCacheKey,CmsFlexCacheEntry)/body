@@ -1,17 +1,24 @@
 {
   Object o=m_resourceMap.get(key.Resource);
-  if (key.m_timeout > 0)   value.setTimeout(key.m_timeout * 60000);
+  if (key.m_timeout > 0)   theCacheEntry.setTimeout(key.m_timeout * 60000);
   if (o != null) {
     java.util.Map m=((CmsFlexCacheVariation)o).map;
-    if (!m.containsKey(key.Variation))     incSize();
-    m.put(key.Variation,value);
+    theCacheEntry.setVariationData(key.Variation,m);
+    if (!m.containsKey(key.Variation)) {
+      this.getLruCache().add((I_FlexLruObject)theCacheEntry);
+    }
+ else {
+      this.getLruCache().touch((I_FlexLruObject)theCacheEntry);
+    }
+    m.put(key.Variation,theCacheEntry);
   }
  else {
     CmsFlexCacheVariation list=new CmsFlexCacheVariation(key);
-    list.map.put(key.Variation,value);
+    list.map.put(key.Variation,theCacheEntry);
     m_resourceMap.put(key.Resource,list);
-    incSize();
+    theCacheEntry.setVariationData(key.Variation,list.map);
+    this.m_CacheEntryLruCache.add((I_FlexLruObject)theCacheEntry);
   }
   if (DEBUG > 0)   System.err.println("FlexCache: Entry " + m_size + " added for resource "+ key.Resource+ " with variation "+ key.Variation);
-  if (DEBUG > 2)   System.err.println("FlexCache: Entry added was:\n" + value);
+  if (DEBUG > 2)   System.err.println("FlexCache: Entry added was:\n" + theCacheEntry.toString());
 }
