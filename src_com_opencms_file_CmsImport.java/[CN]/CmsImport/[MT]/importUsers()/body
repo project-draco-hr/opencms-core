@@ -1,12 +1,12 @@
 {
   NodeList userNodes;
   NodeList groupNodes;
-  NodeList infoNodes;
   Element currentElement, currentGroup, currentInfo;
   Vector userGroups;
-  Hashtable userInfo;
+  Hashtable userInfo=new Hashtable();
   sun.misc.BASE64Decoder dec;
-  String name, description, flags, password, recoveryPassword, firstname, lastname, email, address, section, defaultGroup, type, pwd;
+  String name, description, flags, password, recoveryPassword, firstname, lastname, email, address, section, defaultGroup, type, pwd, infoNode;
+  getImportResource();
   try {
     userNodes=m_docXml.getElementsByTagName(C_EXPORT_TAG_USERDATA);
     for (int i=0; i < userNodes.getLength(); i++) {
@@ -27,17 +27,15 @@
       section=getTextNodeValue(currentElement,C_EXPORT_TAG_SECTION);
       defaultGroup=getTextNodeValue(currentElement,C_EXPORT_TAG_DEFAULTGROUP);
       type=getTextNodeValue(currentElement,C_EXPORT_TAG_TYPE);
-      infoNodes=currentElement.getElementsByTagName(C_EXPORT_TAG_INFO);
-      userInfo=new Hashtable();
-      for (int j=0; j < infoNodes.getLength(); j++) {
-        currentInfo=(Element)infoNodes.item(j);
-        String infoName=getTextNodeValue(currentInfo,C_EXPORT_TAG_NAME);
-        String value=getTextNodeValue(currentInfo,C_EXPORT_TAG_VALUE);
-        dec=new sun.misc.BASE64Decoder();
-        String decstr=new String(dec.decodeBuffer(value.trim()));
-        if (infoName != null) {
-          userInfo.put(infoName,decstr);
-        }
+      infoNode=getTextNodeValue(currentElement,C_EXPORT_TAG_USERINFO);
+      try {
+        byte[] value=getFileBytes(infoNode);
+        ByteArrayInputStream bin=new ByteArrayInputStream(value);
+        ObjectInputStream oin=new ObjectInputStream(bin);
+        userInfo=(Hashtable)oin.readObject();
+      }
+ catch (      IOException ioex) {
+        System.out.println(ioex.getMessage());
       }
       groupNodes=currentElement.getElementsByTagName(C_EXPORT_TAG_GROUPNAME);
       userGroups=new Vector();
@@ -50,5 +48,13 @@
   }
  catch (  Exception exc) {
     throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+  if (m_importZip != null) {
+    try {
+      m_importZip.close();
+    }
+ catch (    IOException exc) {
+      throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+    }
   }
 }
