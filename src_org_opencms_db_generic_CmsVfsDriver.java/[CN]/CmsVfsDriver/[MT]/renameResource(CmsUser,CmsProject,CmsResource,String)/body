@@ -3,26 +3,20 @@
   Connection conn=null;
   int count=0;
   long dateModified=resource.isTouched() ? resource.getDateLastModified() : System.currentTimeMillis();
+  int state=resource.getState();
+  if (state == I_CmsConstants.C_STATE_UNCHANGED)   state=I_CmsConstants.C_STATE_CHANGED;
   try {
     conn=m_sqlManager.getConnection(currentProject);
     stmt=m_sqlManager.getPreparedStatement(conn,currentProject,"C_RESOURCE_RENAME");
     stmt.setString(1,newname);
     stmt.setString(2,currentUser.getId().toString());
-    int state=resource.getState();
-    if ((state == I_CmsConstants.C_STATE_NEW) || (state == I_CmsConstants.C_STATE_CHANGED)) {
-      stmt.setInt(3,state);
-    }
- else     if (state == I_CmsConstants.C_STATE_UNCHANGED) {
-      stmt.setInt(3,I_CmsConstants.C_STATE_CHANGED);
-    }
- else {
-      stmt.setInt(3,state);
-    }
+    stmt.setInt(3,state);
     stmt.setString(4,resource.getId().toString());
     count=stmt.executeUpdate();
     stmt=m_sqlManager.getPreparedStatement(conn,currentProject,"C_RESOURCE_SETLASTMODIFIED");
     stmt.setTimestamp(1,new Timestamp(dateModified));
-    stmt.setString(2,resource.getResourceId().toString());
+    stmt.setInt(2,state);
+    stmt.setString(3,resource.getResourceId().toString());
     stmt.executeUpdate();
   }
  catch (  SQLException e) {
