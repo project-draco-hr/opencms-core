@@ -1,0 +1,52 @@
+{
+  String tempReplaceString, valueParam;
+  if (m_tools.checkTag(node.getNodeName(),m_configuration.getRemoveBlocks())) {
+    return true;
+  }
+  if (!m_tools.checkTag(node.getNodeName(),m_configuration.getRemoveTags())) {
+    if (replaceBlock != -1) {
+      m_blockObject=(CmsHtmlConverterObjectReplaceBlocks)m_configuration.getReplaceBlocks().get(replaceBlock);
+      tempReplaceString=m_blockObject.getReplaceString();
+      if (!m_blockObject.getParameter().equals("")) {
+        valueParam=m_tools.scanNodeAttrs(node,m_blockObject.getParameter());
+        tempReplaceString=m_tools.replaceString(tempReplaceString,"$parameter$",valueParam);
+      }
+      m_tempString.append(tempReplaceString);
+      if (replaceBlock > (m_numberReplaceBlocks - 1)) {
+        m_configuration.removeObjectReplaceBlock(replaceBlock);
+      }
+      return true;
+    }
+ else {
+      if (replaceTag != -1) {
+        m_tagObject=(CmsHtmlConverterObjectReplaceTags)m_configuration.getReplaceTags().get(replaceTag);
+        tempReplaceString=m_tagObject.getReplaceStartTag();
+        if (!m_tagObject.getParameter().equals("")) {
+          valueParam=m_tools.scanNodeAttrs(node,m_tagObject.getParameter());
+          if (m_tagObject.getReplaceParamAttr()) {
+            valueParam=m_tools.modifyParameter(valueParam);
+            tempReplaceString=m_tools.reconstructTag(tempReplaceString,node,m_tagObject.getParameter(),m_configuration.getQuotationmark());
+          }
+          tempReplaceString=m_tools.replaceString(tempReplaceString,"$parameter$",valueParam);
+        }
+        m_tempString.append(tempReplaceString);
+      }
+ else {
+        m_tempString.append("<");
+        m_tempString.append(node.getNodeName());
+        NamedNodeMap attrs=node.getAttributes();
+        for (int i=attrs.getLength() - 1; i >= 0; i--) {
+          m_tempString.append(" " + attrs.item(i).getNodeName() + "="+ m_configuration.getQuotationmark());
+          String helpString=m_tools.scanChar(attrs.item(i).getNodeValue(),m_configuration.getReplaceExtendedChars());
+          helpString=m_tools.scanString(helpString,m_configuration.getReplaceStrings());
+          m_tempString.append(helpString + m_configuration.getQuotationmark());
+        }
+        if (m_configuration.getXhtmlOutput() && m_tools.checkTag(node.getNodeName(),m_configuration.getInlineTags())) {
+          m_tempString.append("/");
+        }
+        m_tempString.append(">");
+      }
+    }
+  }
+  return false;
+}
