@@ -6,6 +6,7 @@
   int totalBytes=0;
   int offset=0;
   byte[] buffer=null;
+  boolean resourceExists;
   while (true) {
     j=0;
     stop=0;
@@ -99,22 +100,21 @@
         }
       }
       filename=actImportPath + path[path.length - 1];
-      Map oldProperties=null;
       try {
-        m_cms.lockResource(filename,true);
-        oldProperties=m_cms.readProperties(filename);
-        m_cms.deleteResource(filename,I_CmsConstants.C_DELETE_OPTION_IGNORE_VFS_LINKS);
+        m_cms.readFileHeader(filename);
+        resourceExists=true;
       }
  catch (      CmsException e) {
+        resourceExists=false;
       }
-      try {
-        m_cms.createResource(actImportPath,path[path.length - 1],type,null,buffer);
-        if (oldProperties != null) {
-          m_cms.writeProperties(filename,oldProperties);
-        }
+      if (resourceExists) {
+        CmsResource res=m_cms.readFileHeader(filename,true);
+        m_cms.deleteAllProperties(filename);
+        m_cms.replaceResource(filename,type,Collections.EMPTY_MAP,buffer);
+        OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_PROPERTY_MAP_MODIFIED,Collections.singletonMap("resource",res)));
       }
- catch (      CmsException e) {
-        throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,e);
+ else {
+        m_cms.createResource(actImportPath,path[path.length - 1],type,Collections.EMPTY_MAP,buffer);
       }
     }
     zipStreamIn.closeEntry();
