@@ -1,0 +1,39 @@
+{
+  String listMethod=n.getAttribute(C_PROJECTLIST_METHOD);
+  CmsXmlWpTemplateFile listdef=getProjectlistDefinitions(cms);
+  Method callingMethod=null;
+  Vector list=new Vector();
+  try {
+    callingMethod=callingObject.getClass().getMethod(listMethod,new Class[]{A_CmsObject.class,CmsXmlLanguageFile.class});
+    list=(Vector)callingMethod.invoke(callingObject,new Object[]{cms,lang});
+  }
+ catch (  NoSuchMethodException exc) {
+    throwException("Could not find method " + listMethod + " in calling class "+ callingObject.getClass().getName()+ " for generating projectlist content.",CmsException.C_NOT_FOUND);
+  }
+catch (  InvocationTargetException targetEx) {
+    Throwable e=targetEx.getTargetException();
+    if (!(e instanceof CmsException)) {
+      e.printStackTrace();
+      throwException("User method " + listMethod + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+    }
+ else {
+      throw (CmsException)e;
+    }
+  }
+catch (  Exception exc2) {
+    throwException("User method " + listMethod + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+  }
+  StringBuffer result=new StringBuffer();
+  for (int i=0; i < list.size(); i++) {
+    A_CmsProject project=(A_CmsProject)list.elementAt(i);
+    listdef.setXmlData(C_PROJECTLIST_NAME,project.getName());
+    listdef.setXmlData(C_PROJECTLIST_DESCRIPTION,project.getDescription());
+    listdef.setXmlData(C_PROJECTLIST_STATE,"state");
+    listdef.setXmlData(C_PROJECTLIST_PROJECTMANAGER,"projectmanager");
+    listdef.setXmlData(C_PROJECTLIST_PROJECTWORKER,"projectworker");
+    listdef.setXmlData(C_PROJECTLIST_DATECREATED,"datecreated");
+    listdef.setXmlData(C_PROJECTLIST_OWNER,"owner");
+    result.append(listdef.getProcessedXmlDataValue(C_TAG_PROJECTLIST_DEFAULT,callingObject,parameters));
+  }
+  return result.toString();
+}
