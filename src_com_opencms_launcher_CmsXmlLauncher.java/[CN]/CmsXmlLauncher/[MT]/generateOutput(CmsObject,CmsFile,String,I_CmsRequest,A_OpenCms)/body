@@ -16,6 +16,17 @@
     uriLoc=elementCache.getUriLocator();
     cmsUri=uriLoc.get(uriDesc);
   }
+  String replace=req.getParameter("_CMS_ELEMENTREPLACE");
+  boolean elementreplace=false;
+  CmsElementDefinition replaceDef=null;
+  if (replace != null) {
+    int index=replace.indexOf(":");
+    if (index != -1) {
+      elementreplace=true;
+      cmsUri=null;
+      replaceDef=new CmsElementDefinition(replace.substring(0,index),"com.opencms.template.CmsXmlTemplate",replace.substring(index + 1),null,new Hashtable());
+    }
+  }
   if (cmsUri == null || !elementCacheEnabled) {
     try {
       doc=new CmsXmlControlFile(cms,file);
@@ -95,8 +106,14 @@
   if (elementCacheEnabled && cmsUri == null) {
     CmsElementDescriptor elemDesc=new CmsElementDescriptor(templateClass,templateName);
     CmsElementDefinitionCollection eldefs=doc.getElementDefinitionCollection();
-    cmsUri=new CmsUri(elemDesc,cms.getReadingpermittedGroup(cms.getRequestContext().currentProject().getId(),templateName),eldefs,Utils.isHttpsResource(cms,file));
-    elementCache.getUriLocator().put(uriDesc,cmsUri);
+    if (elementreplace) {
+      eldefs.add(replaceDef);
+      cmsUri=new CmsUri(elemDesc,cms.getReadingpermittedGroup(cms.getRequestContext().currentProject().getId(),templateName),eldefs,Utils.isHttpsResource(cms,file));
+    }
+ else {
+      cmsUri=new CmsUri(elemDesc,cms.getReadingpermittedGroup(cms.getRequestContext().currentProject().getId(),templateName),eldefs,Utils.isHttpsResource(cms,file));
+      elementCache.getUriLocator().put(uriDesc,cmsUri);
+    }
   }
   if (elementCacheEnabled) {
     if (cms.getMode() == C_MODUS_ONLINE) {
@@ -110,7 +127,12 @@
         }
       }
     }
-    output=elementCache.callCanonicalRoot(cms,newParameters);
+    if (elementreplace) {
+      output=cmsUri.callCanonicalRoot(elementCache,cms,newParameters);
+    }
+ else {
+      output=elementCache.callCanonicalRoot(cms,newParameters);
+    }
   }
  else {
     try {
