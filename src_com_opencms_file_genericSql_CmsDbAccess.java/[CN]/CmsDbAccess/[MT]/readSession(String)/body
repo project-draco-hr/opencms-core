@@ -1,0 +1,33 @@
+{
+  PreparedStatement statement=null;
+  ResultSet res=null;
+  Hashtable session=null;
+  try {
+    statement=m_pool.getPreparedStatement(C_SESSION_READ_KEY);
+    statement.setString(1,sessionId);
+    statement.setTimestamp(2,new java.sql.Timestamp(System.currentTimeMillis() - C_SESSION_TIMEOUT));
+    res=statement.executeQuery();
+    if (res.next()) {
+      byte[] value=res.getBytes(1);
+      ByteArrayInputStream bin=new ByteArrayInputStream(value);
+      ObjectInputStream oin=new ObjectInputStream(bin);
+      session=(Hashtable)oin.readObject();
+    }
+ else {
+      deleteSessions();
+    }
+    res.close();
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+catch (  Exception e) {
+    throw new CmsException("[" + this.getClass().getName() + "]",e);
+  }
+ finally {
+    if (statement != null) {
+      m_pool.putPreparedStatement(C_SESSION_READ_KEY,statement);
+    }
+  }
+  return session;
+}
