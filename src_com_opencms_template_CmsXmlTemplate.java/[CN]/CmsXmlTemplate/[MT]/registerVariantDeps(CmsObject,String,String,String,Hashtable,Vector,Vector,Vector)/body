@@ -1,0 +1,58 @@
+{
+  String cacheKey=getCacheDirectives(cms,templateName,elementName,parameters,templateSelector).getCacheKey(cms,parameters);
+  if (cms.getRequestContext().isElementCacheEnabled() && (cacheKey != null) && (cms.getRequestContext().currentProject().equals(cms.onlineProject()))) {
+    Hashtable externVarDeps=cms.getVariantDependencies();
+    String variantEntry=getClass().getName() + "|" + templateName+ "|"+ cacheKey;
+    Vector allDeps=new Vector();
+    if (cosDeps != null) {
+      for (int i=0; i < cosDeps.size(); i++) {
+        A_CmsContentDefinition contentDef=(A_CmsContentDefinition)cosDeps.elementAt(i);
+        String key="cos/" + contentDef.getClass().getName() + "/"+ contentDef.getUniqueId(cms);
+        allDeps.add(key);
+      }
+    }
+    if (cosClassDeps != null) {
+      for (int i=0; i < cosClassDeps.size(); i++) {
+        String key="cos/" + ((Class)cosClassDeps.elementAt(i)).getName() + "/";
+        allDeps.add(key);
+      }
+    }
+    if (vfsDeps != null) {
+      for (int i=0; i < vfsDeps.size(); i++) {
+        allDeps.add("vfs:" + ((CmsResource)vfsDeps.elementAt(i)).getAbsolutePath());
+      }
+    }
+    for (int i=0; i < allDeps.size(); i++) {
+      String key=(String)allDeps.elementAt(i);
+      Vector variantsForDep=(Vector)externVarDeps.get(key);
+      if (variantsForDep == null) {
+        variantsForDep=new Vector();
+      }
+      if (!variantsForDep.contains(variantEntry)) {
+        variantsForDep.add(variantEntry);
+      }
+      externVarDeps.put(key,variantsForDep);
+    }
+    CmsElementCache elementCache=cms.getRequestContext().getElementCache();
+    CmsElementDescriptor elKey=new CmsElementDescriptor(getClass().getName(),templateName);
+    A_CmsElement currElem=elementCache.getElementLocator().get(cms,elKey,parameters);
+    CmsElementVariant emptyVar=new CmsElementVariant();
+    emptyVar.addDependencies(allDeps);
+    Vector removedVar=currElem.addVariant(cacheKey,emptyVar);
+    if ((removedVar != null)) {
+      String key=(String)removedVar.firstElement();
+      CmsElementVariant oldVar=(CmsElementVariant)removedVar.lastElement();
+      Vector oldVarDeps=oldVar.getDependencies();
+      if (oldVarDeps != null) {
+        String oldVariantEntry=getClass().getName() + "|" + templateName+ "|"+ key;
+        for (int i=0; i < oldVarDeps.size(); i++) {
+          Vector externEntrys=(Vector)externVarDeps.get(oldVarDeps.elementAt(i));
+          if (externEntrys != null) {
+            externEntrys.removeElement(oldVariantEntry);
+          }
+        }
+      }
+    }
+    currElem.thisElementHasDepVariants();
+  }
+}

@@ -7,7 +7,21 @@
     CmsElementDescriptor elKey=new CmsElementDescriptor(getClass().getName(),xmlTemplateDocument.getAbsoluteFilename());
     A_CmsElement currElem=elementCache.getElementLocator().get(cms,elKey,parameters);
     if (currElem.getCacheDirectives().isInternalCacheable()) {
-      currElem.addVariant(currElem.getCacheDirectives().getCacheKey(cms,parameters),variant);
+      Vector removedVar=currElem.addVariant(currElem.getCacheDirectives().getCacheKey(cms,parameters),variant);
+      if ((removedVar != null) && currElem.hasDependenciesVariants()) {
+        String key=(String)removedVar.firstElement();
+        CmsElementVariant oldVar=(CmsElementVariant)removedVar.lastElement();
+        Vector oldVarDeps=oldVar.getDependencies();
+        if (oldVarDeps != null) {
+          String oldVariantEntry=getClass().getName() + "|" + xmlTemplateDocument.getAbsoluteFilename()+ "|"+ key;
+          for (int i=0; i < oldVarDeps.size(); i++) {
+            Vector externEntrys=(Vector)cms.getVariantDependencies().get(oldVarDeps.elementAt(i));
+            if (externEntrys != null) {
+              externEntrys.removeElement(oldVariantEntry);
+            }
+          }
+        }
+      }
     }
     result=((CmsElementXml)currElem).resolveVariant(cms,variant,elementCache,mergedElDefs,elementName,parameters);
   }
