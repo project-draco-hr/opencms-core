@@ -1,0 +1,245 @@
+{
+  int currentSite=1, matchPerPage=10;
+  int counter=1, site=0, pageset=0;
+  int compare;
+  boolean noSingleRestrict=false, errorContentDef=false;
+  String contentDefName="", areaRestrict="", singleRestrict="", localRestrict="";
+  String configuration, noContentDef, noServer, noMatch, noWord, syntaxError, buildQuery;
+  String list="", navigate="", buildquery="";
+  String server=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getServletPath();
+  String uri=cms.getRequestContext().getUri();
+  Vector getResult=new Vector();
+  Object cd=null;
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  CmsXmlTemplateFile templateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  String sessionCheck=(String)parameters.get("newsearch");
+  if (sessionCheck == null) {
+    session.removeValue("searchengineSort");
+    session.removeValue("searchengineMethod");
+    session.removeValue("searchengineFormat");
+    session.removeValue("searchengineName");
+    session.removeValue("searchengineRestrict");
+    sessionCheck="";
+  }
+  try {
+    contentDefName=(String)templateDocument.getDataValue("contentDefinition");
+    parameters.put("searchengineContentDefinition",contentDefName);
+  }
+ catch (  CmsException e) {
+    contentDefName="";
+  }
+  try {
+    configuration=(String)templateDocument.getDataValue("configurationFile");
+  }
+ catch (  CmsException e) {
+    configuration="contentDefinitionSearchengineConfiguration";
+  }
+  try {
+    matchPerPage=Integer.parseInt(templateDocument.getDataValue("matchesperpage"));
+    if (matchPerPage < 1)     matchPerPage=10;
+  }
+ catch (  CmsException e) {
+    matchPerPage=10;
+  }
+catch (  NumberFormatException e) {
+    matchPerPage=10;
+  }
+  try {
+    singleRestrict=(String)templateDocument.getDataValue("singleRestriction");
+  }
+ catch (  CmsException e) {
+    noSingleRestrict=true;
+  }
+  try {
+    areaRestrict=(String)templateDocument.getDataValue("areaRestrict");
+    parameters.put("searchengineAreaRestrict",areaRestrict);
+  }
+ catch (  CmsException e) {
+    areaRestrict="";
+  }
+  try {
+    noContentDef=(String)templateDocument.getDataValue("cdNotFound");
+  }
+ catch (  CmsException e) {
+    noContentDef="Content Definition not Found!";
+  }
+  try {
+    noServer=(String)templateDocument.getDataValue("serverNotFound");
+  }
+ catch (  CmsException e) {
+    noServer="Serverpath not found!";
+  }
+  try {
+    noMatch=(String)templateDocument.getDataValue("noMatch");
+  }
+ catch (  CmsException e) {
+    noMatch="No match!";
+  }
+  try {
+    noWord=(String)templateDocument.getDataValue("noWord");
+  }
+ catch (  CmsException e) {
+    noWord="Please insert a search word!";
+  }
+  try {
+    syntaxError=(String)templateDocument.getDataValue("syntax");
+  }
+ catch (  CmsException e) {
+    syntaxError="Syntax error";
+  }
+  String page=(String)parameters.get("page");
+  String action=(String)parameters.get("action");
+  try {
+    Class c=Class.forName(contentDefName);
+    String serverpath=cms.getRegistry().getModuleParameter(contentDefName.substring(0,contentDefName.lastIndexOf(".")),"Serverpath");
+    if (serverpath == null) {
+      templateDocument.setData("message",noServer);
+    }
+ else {
+      if ((action == null || action.equals("")) && (page == null || page.equals(""))) {
+        templateSelector="default";
+        templateDocument.setData("setaction","default");
+        if (sessionCheck.equals("start")) {
+          templateDocument.setData("lastname",(String)session.getValue("searchengineName"));
+        }
+      }
+ else {
+        String word=(String)parameters.get("words");
+        String method=(String)parameters.get("method");
+        String format=(String)parameters.get("format");
+        String sort=(String)parameters.get("sort");
+        if (method == null)         method="and";
+        if (format == null)         format="long";
+        if (sort == null)         sort="score";
+        if (noSingleRestrict == true || singleRestrict == null || singleRestrict.equals("")) {
+          if (areaRestrict.equals("") || areaRestrict == null)           localRestrict="restricttoall";
+ else {
+            localRestrict=(String)parameters.get("restrict");
+          }
+          if (localRestrict == null)           localRestrict="restricttoall";
+        }
+ else {
+          localRestrict=singleRestrict;
+        }
+        try {
+          if (word == null || word.equals("")) {
+            templateDocument.setData("message",noWord);
+            templateDocument.setData("setaction","default");
+            templateSelector="default";
+          }
+ else {
+            session.putValue("searchengineSort",sort);
+            session.putValue("searchengineMethod",method);
+            session.putValue("searchengineFormat",format);
+            session.putValue("searchengineName",word);
+            session.putValue("searchengineRestrict",localRestrict);
+            Integer setMatch=new Integer(matchPerPage);
+            Method m=c.getMethod("read",new Class[]{String.class,String.class,String.class,String.class,String.class,String.class,String.class,Integer.class,CmsObject.class});
+            getResult=(Vector)m.invoke(null,new Object[]{word,method,sort,page,configuration,localRestrict,serverpath,setMatch,cms});
+            if (getResult.size() <= 1) {
+              if (getResult.elementAt(0).equals("syntax")) {
+                templateDocument.setData("message",syntaxError);
+              }
+ else {
+                templateDocument.setData("message",noMatch);
+              }
+              templateDocument.setData("lastname",(String)session.getValue("searchengineName"));
+              templateDocument.setData("setaction","default");
+              templateSelector="default";
+            }
+ else {
+              templateSelector="Result";
+              cd=c.newInstance();
+              cd=(I_CmsSearchEngine)getResult.elementAt(0);
+              pageset=((I_CmsSearchEngine)cd).getPages();
+              if (page != null) {
+                compare=Integer.parseInt(page);
+                for (int i=1; i <= pageset; i++) {
+                  if (compare == i)                   counter=((i * matchPerPage) - (matchPerPage - 1));
+                }
+              }
+              for (int i=0; i < getResult.size(); i++) {
+                cd=c.newInstance();
+                cd=(I_CmsSearchEngine)getResult.elementAt(i);
+                if (i == 0) {
+                  templateDocument.setData("searchword",((I_CmsSearchEngine)cd).getSearchWord());
+                  templateDocument.setData("first",String.valueOf(((I_CmsSearchEngine)cd).getFirstDisplay()));
+                  templateDocument.setData("last",String.valueOf(((I_CmsSearchEngine)cd).getLastDisplay()));
+                  templateDocument.setData("match",String.valueOf(((I_CmsSearchEngine)cd).getMatch()));
+                  templateDocument.setData("pages",String.valueOf(((I_CmsSearchEngine)cd).getPages()));
+                  site=((I_CmsSearchEngine)cd).getPages();
+                }
+ else {
+                  if (format.equals("long") || (format == null)) {
+                    templateDocument.setData("number",counter + "");
+                    templateDocument.setData("url",((I_CmsSearchEngine)cd).getUrl());
+                    templateDocument.setData("title",((I_CmsSearchEngine)cd).getTitle());
+                    templateDocument.setData("percent",String.valueOf(((I_CmsSearchEngine)cd).getPercentMatch()));
+                    templateDocument.setData("excerpt",((I_CmsSearchEngine)cd).getExcerpt());
+                    templateDocument.setData("size",String.valueOf(((I_CmsSearchEngine)cd).getSize()));
+                    String longrow=templateDocument.getProcessedDataValue("longrow");
+                    list+=longrow;
+                  }
+ else {
+                    templateDocument.setData("number",counter + "");
+                    templateDocument.setData("url",((I_CmsSearchEngine)cd).getUrl());
+                    templateDocument.setData("title",((I_CmsSearchEngine)cd).getTitle());
+                    templateDocument.setData("percent",String.valueOf(((I_CmsSearchEngine)cd).getPercentMatch()));
+                    String shortrow=templateDocument.getProcessedDataValue("shortrow");
+                    list+=shortrow;
+                  }
+                  counter++;
+                }
+              }
+            }
+            templateDocument.setData("resultlist",list);
+            if (page == null) {
+              page="1";
+            }
+            for (int i=1; i <= site; i++) {
+              if (Integer.parseInt(page) == i) {
+                templateDocument.setData("currentpage",String.valueOf(i));
+                String currentnav=templateDocument.getProcessedDataValue("currentnav");
+                navigate+=currentnav;
+              }
+ else {
+                buildquery=setQuery(localRestrict,word,method,format,sort,String.valueOf(i));
+                templateDocument.setData("server",server + uri);
+                templateDocument.setData("query",buildquery);
+                templateDocument.setData("numberurl",String.valueOf(i));
+                String nav=templateDocument.getProcessedDataValue("nav");
+                navigate+=nav;
+              }
+            }
+          }
+          templateDocument.setData("navigation",navigate);
+        }
+ catch (        ClassCastException e) {
+          System.err.println(e.toString());
+        }
+catch (        InstantiationException e) {
+          System.err.println(e.toString());
+        }
+catch (        IllegalAccessException e) {
+          System.err.println(e.toString());
+        }
+catch (        InvocationTargetException e) {
+          e.printStackTrace(System.err);
+          templateDocument.setData("message",noServer);
+        }
+catch (        NoSuchMethodException e) {
+          e.printStackTrace();
+          System.err.println(e.toString());
+        }
+catch (        Exception e) {
+          System.err.println(e.toString());
+        }
+      }
+    }
+  }
+ catch (  ClassNotFoundException e) {
+    System.err.println("Fehler liegt hier!");
+    templateDocument.setData("message",noContentDef);
+  }
+  return startProcessing(cms,templateDocument,elementName,parameters,templateSelector);
+}
