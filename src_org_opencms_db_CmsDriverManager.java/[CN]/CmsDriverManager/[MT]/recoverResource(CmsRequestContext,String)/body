@@ -1,0 +1,44 @@
+{
+  CmsFile onlineFile=null;
+  byte[] contents=null;
+  Map properties=null;
+  CmsFile newFile=null;
+  CmsFolder newFolder=null;
+  CmsResource newResource=null;
+  CmsFolder parentFolder=null;
+  CmsFolder onlineFolder=null;
+  CmsProject oldProject=null;
+  try {
+    parentFolder=readFolder(context,CmsResource.getPath(resourcename));
+    oldProject=context.currentProject();
+    context.setCurrentProject(I_CmsConstants.C_PROJECT_ONLINE_ID);
+    if (!resourcename.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+      onlineFile=readFile(context,resourcename);
+      contents=onlineFile.getContents();
+      properties=readProperties(context,resourcename,context.getAdjustedSiteRoot(resourcename),false);
+    }
+ else {
+      onlineFolder=readFolder(context,resourcename);
+      contents=new byte[0];
+      properties=readProperties(context,resourcename,context.getAdjustedSiteRoot(resourcename),false);
+    }
+    context.setCurrentProject(oldProject.getId());
+    if (!resourcename.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+      newFile=new CmsFile(onlineFile.getId(),onlineFile.getResourceId(),parentFolder.getId(),onlineFile.getFileId(),CmsResource.getName(resourcename),onlineFile.getType(),onlineFile.getFlags(),0,com.opencms.core.I_CmsConstants.C_STATE_UNCHANGED,getResourceType(onlineFile.getType()).getLoaderId(),0,context.currentUser().getId(),0,context.currentUser().getId(),contents,contents.length,1);
+      newResource=(CmsResource)m_vfsDriver.createFile(context.currentProject(),newFile,context.currentUser().getId(),parentFolder.getId(),CmsResource.getName(resourcename));
+    }
+ else {
+      newFolder=new CmsFolder(onlineFolder.getId(),onlineFolder.getResourceId(),parentFolder.getId(),CmsUUID.getNullUUID(),CmsResource.getName(resourcename),CmsResourceTypeFolder.C_RESOURCE_TYPE_ID,onlineFolder.getFlags(),0,com.opencms.core.I_CmsConstants.C_STATE_UNCHANGED,0,context.currentUser().getId(),0,context.currentUser().getId(),1);
+      newResource=(CmsResource)m_vfsDriver.createFolder(context.currentUser(),context.currentProject(),newFolder,parentFolder.getId(),CmsResource.getName(resourcename));
+    }
+    writeProperties(context,resourcename,properties);
+  }
+ catch (  CmsException e) {
+    throw e;
+  }
+ finally {
+    context.setCurrentProject(oldProject.getId());
+    clearResourceCache();
+  }
+  return newResource;
+}
