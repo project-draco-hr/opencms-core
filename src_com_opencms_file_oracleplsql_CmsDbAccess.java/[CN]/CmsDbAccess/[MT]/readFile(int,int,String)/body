@@ -1,11 +1,13 @@
 {
-  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
   com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
   CmsFile file=null;
   CallableStatement statement=null;
+  Connection con=null;
   ResultSet res=null;
   try {
-    statement=(CallableStatement)pool.getPreparedStatement(cq.C_PLSQL_RESOURCES_READFILEACC_KEY);
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareCall(cq.C_PLSQL_RESOURCES_READFILEACC);
+    statement.registerOutParameter(1,oracle.jdbc.driver.OracleTypes.CURSOR);
     statement.setInt(2,currentUserId);
     statement.setInt(3,currentProjectId);
     statement.setString(4,filename);
@@ -48,12 +50,23 @@ catch (  Exception exc) {
     throw new CmsException("readFile " + exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
   }
  finally {
-    if (statement != null) {
-      pool.putPreparedStatement(cq.C_PLSQL_RESOURCES_READFILEACC_KEY,statement);
-    }
     if (res != null) {
       try {
         res.close();
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
       }
  catch (      SQLException se) {
       }

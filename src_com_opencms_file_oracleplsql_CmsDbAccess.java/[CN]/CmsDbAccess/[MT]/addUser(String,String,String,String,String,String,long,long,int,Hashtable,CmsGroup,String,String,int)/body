@@ -1,13 +1,11 @@
 {
-  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
   com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
   int id=nextId(C_TABLE_USERS);
   byte[] value=null;
   PreparedStatement statement=null;
   PreparedStatement statement2=null;
   PreparedStatement nextStatement=null;
-  OraclePreparedStatement trimStatement=null;
-  Connection conn=null;
+  Connection con=null;
   ResultSet res=null;
   try {
     ByteArrayOutputStream bout=new ByteArrayOutputStream();
@@ -15,7 +13,8 @@
     oout.writeObject(additionalInfos);
     oout.close();
     value=bout.toByteArray();
-    statement=pool.getPreparedStatement(cq.C_PLSQL_USERSFORINSERT_KEY);
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareStatement(cq.C_PLSQL_USERSFORINSERT);
     statement.setInt(1,id);
     statement.setString(2,name);
     statement.setString(3,digest(password));
@@ -32,10 +31,10 @@
     statement.setString(14,checkNull(section));
     statement.setInt(15,type);
     statement.executeUpdate();
-    statement2=pool.getNextPreparedStatement(statement,cq.C_PLSQL_USERSFORUPDATE_KEY);
+    statement.close();
+    statement2=con.prepareStatement(cq.C_PLSQL_USERSFORUPDATE);
     statement2.setInt(1,id);
-    conn=pool.getConnectionOfStatement(statement);
-    conn.setAutoCommit(false);
+    con.setAutoCommit(false);
     res=statement2.executeQuery();
     while (res.next()) {
       oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("USER_INFO");
@@ -49,9 +48,12 @@
       instream.close();
       outstream.close();
     }
-    nextStatement=pool.getNextPreparedStatement(statement,cq.C_COMMIT_KEY);
+    statement2.close();
+    res.close();
+    nextStatement=con.prepareStatement(cq.C_COMMIT);
     nextStatement.execute();
-    conn.setAutoCommit(true);
+    nextStatement.close();
+    con.setAutoCommit(true);
   }
  catch (  SQLException e) {
     throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
@@ -60,27 +62,50 @@ catch (  IOException e) {
     throw new CmsException("[CmsAccessUserInfoMySql/addUserInformation(id,object)]:" + CmsException.C_SERIALIZATION,e);
   }
  finally {
-    if (statement != null) {
-      try {
-        nextStatement=pool.getNextPreparedStatement(statement,cq.C_ROLLBACK_KEY);
-        nextStatement.execute();
-      }
- catch (      SQLException se) {
-      }
-      pool.putPreparedStatement(cq.C_PLSQL_USERSFORINSERT_KEY,statement);
-    }
-    if (conn != null) {
-      try {
-        conn.setAutoCommit(true);
-      }
- catch (      SQLException se) {
-      }
-    }
     if (res != null) {
       try {
         res.close();
       }
  catch (      SQLException se) {
+      }
+    }
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (statement2 != null) {
+      try {
+        statement2.close();
+      }
+ catch (      SQLException exc) {
+      }
+      try {
+        nextStatement=con.prepareStatement(cq.C_ROLLBACK);
+        nextStatement.execute();
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (nextStatement != null) {
+      try {
+        nextStatement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.setAutoCommit(true);
+      }
+ catch (      SQLException se) {
+      }
+      try {
+        con.close();
+      }
+ catch (      SQLException e) {
       }
     }
   }

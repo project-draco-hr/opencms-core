@@ -1,17 +1,22 @@
 {
-  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
   com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
   CmsAccessFilesystem discAccess=new CmsAccessFilesystem(m_exportpointStorage);
   CallableStatement statement=null;
+  Connection con=null;
   ResultSet res1=null;
   ResultSet res2=null;
   ResultSet res3=null;
   ResultSet res4=null;
   try {
-    statement=(CallableStatement)pool.getPreparedStatement(cq.C_PLSQL_PROJECTS_PUBLISHPROJECT_KEY);
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareCall(cq.C_PLSQL_PROJECTS_PUBLISHPROJECT);
     statement.setInt(1,currentUser.getId());
     statement.setInt(2,id);
     statement.setInt(3,onlineProject.getId());
+    statement.registerOutParameter(4,oracle.jdbc.driver.OracleTypes.CURSOR);
+    statement.registerOutParameter(5,oracle.jdbc.driver.OracleTypes.CURSOR);
+    statement.registerOutParameter(6,oracle.jdbc.driver.OracleTypes.CURSOR);
+    statement.registerOutParameter(7,oracle.jdbc.driver.OracleTypes.CURSOR);
     statement.execute();
     res1=(ResultSet)statement.getObject(4);
     while (res1.next()) {
@@ -50,9 +55,6 @@ catch (  Exception e) {
     throw new CmsException("[" + this.getClass().getName() + "]",e);
   }
  finally {
-    if (statement != null) {
-      pool.putPreparedStatement(cq.C_PLSQL_RESOURCES_LOCKRESOURCE_KEY,statement);
-    }
     if (res1 != null) {
       try {
         res1.close();
@@ -77,6 +79,20 @@ catch (  Exception e) {
     if (res4 != null) {
       try {
         res4.close();
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
       }
  catch (      SQLException se) {
       }

@@ -1,32 +1,32 @@
 {
-  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
   com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
   byte[] value=null;
   PreparedStatement statement=null;
   PreparedStatement statement2=null;
   PreparedStatement nextStatement=null;
   OraclePreparedStatement trimStatement=null;
+  Connection con=null;
   int retValue;
   ResultSet res=null;
-  Connection conn=null;
   try {
     ByteArrayOutputStream bout=new ByteArrayOutputStream();
     ObjectOutputStream oout=new ObjectOutputStream(bout);
     oout.writeObject(data);
     oout.close();
     value=bout.toByteArray();
-    statement=pool.getPreparedStatement(cq.C_PLSQL_SESSION_UPDATE_KEY);
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareStatement(cq.C_PLSQL_SESSION_UPDATE);
     statement.setTimestamp(1,new java.sql.Timestamp(System.currentTimeMillis()));
     statement.setString(2,sessionId);
     retValue=statement.executeUpdate();
-    statement2=pool.getNextPreparedStatement(statement,cq.C_PLSQL_SESSION_FORUPDATE_KEY);
+    statement.close();
+    statement2=con.prepareStatement(cq.C_PLSQL_SESSION_FORUPDATE);
     statement2.setString(1,sessionId);
-    conn=pool.getConnectionOfStatement(statement);
-    conn.setAutoCommit(false);
+    con.setAutoCommit(false);
     res=statement2.executeQuery();
     while (res.next()) {
       oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("SESSION_DATA");
-      trimStatement=(OraclePreparedStatement)pool.getNextPreparedStatement(statement,cq.C_TRIMBLOB_KEY);
+      trimStatement=(OraclePreparedStatement)con.prepareStatement(cq.C_TRIMBLOB);
       trimStatement.setBLOB(1,blob);
       trimStatement.setInt(2,0);
       trimStatement.execute();
@@ -40,9 +40,12 @@
       instream.close();
       outstream.close();
     }
-    nextStatement=pool.getNextPreparedStatement(statement,cq.C_COMMIT_KEY);
+    statement2.close();
+    res.close();
+    nextStatement=con.prepareStatement(cq.C_COMMIT);
     nextStatement.execute();
-    conn.setAutoCommit(true);
+    nextStatement.close();
+    con.setAutoCommit(true);
   }
  catch (  SQLException e) {
     throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
@@ -51,25 +54,55 @@ catch (  IOException e) {
     throw new CmsException("[" + this.getClass().getName() + "]:"+ CmsException.C_SERIALIZATION,e);
   }
  finally {
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException se) {
+      }
+    }
     if (statement != null) {
       try {
-        nextStatement=pool.getNextPreparedStatement(statement,cq.C_ROLLBACK_KEY);
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (statement2 != null) {
+      try {
+        statement2.close();
+      }
+ catch (      SQLException exc) {
+      }
+      try {
+        nextStatement=con.prepareStatement(cq.C_ROLLBACK);
         nextStatement.execute();
       }
  catch (      SQLException se) {
       }
-      pool.putPreparedStatement(cq.C_PLSQL_SESSION_UPDATE_KEY,statement);
     }
-    if (conn != null) {
+    if (nextStatement != null) {
       try {
-        conn.setAutoCommit(true);
+        nextStatement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (trimStatement != null) {
+      try {
+        trimStatement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.setAutoCommit(true);
       }
  catch (      SQLException se) {
       }
-    }
-    if (res != null) {
       try {
-        res.close();
+        con.close();
       }
  catch (      SQLException se) {
       }

@@ -1,10 +1,12 @@
 {
-  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
   com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
   boolean userInGroup=false;
   CallableStatement statement=null;
+  Connection con=null;
   try {
-    statement=(CallableStatement)pool.getPreparedStatement(cq.C_PLSQL_GROUPS_USERINGROUP_KEY);
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareCall(cq.C_PLSQL_GROUPS_USERINGROUP);
+    statement.registerOutParameter(1,Types.INTEGER);
     statement.setInt(2,userid);
     statement.setInt(3,groupid);
     statement.execute();
@@ -21,7 +23,18 @@ catch (  Exception e) {
   }
  finally {
     if (statement != null) {
-      pool.putPreparedStatement(cq.C_PLSQL_GROUPS_USERINGROUP_KEY,statement);
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException se) {
+      }
     }
   }
   return userInGroup;

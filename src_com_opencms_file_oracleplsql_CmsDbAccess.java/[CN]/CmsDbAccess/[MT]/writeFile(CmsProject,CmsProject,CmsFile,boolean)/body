@@ -1,22 +1,21 @@
 {
-  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
   com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
   PreparedStatement statement=null;
   PreparedStatement nextStatement=null;
   OraclePreparedStatement trimStatement=null;
-  Connection conn=null;
+  Connection con=null;
   ResultSet res=null;
   try {
     writeFileHeader(project,file,changed);
-    statement=pool.getPreparedStatement(cq.C_PLSQL_FILESFORUPDATE_KEY);
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareStatement(cq.C_PLSQL_FILESFORUPDATE);
     statement.setInt(1,file.getFileId());
-    conn=pool.getConnectionOfStatement(statement);
-    conn.setAutoCommit(false);
+    con.setAutoCommit(false);
     res=statement.executeQuery();
     try {
       while (res.next()) {
         oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("FILE_CONTENT");
-        trimStatement=(OraclePreparedStatement)pool.getNextPreparedStatement(statement,cq.C_TRIMBLOB_KEY);
+        trimStatement=(OraclePreparedStatement)con.prepareStatement(cq.C_TRIMBLOB);
         trimStatement.setBLOB(1,blobnew);
         trimStatement.setInt(2,0);
         trimStatement.execute();
@@ -30,37 +29,63 @@
         instream.close();
         outstream.close();
       }
-      nextStatement=pool.getNextPreparedStatement(statement,cq.C_COMMIT_KEY);
+      nextStatement=con.prepareStatement(cq.C_COMMIT);
       nextStatement.execute();
-      conn.setAutoCommit(true);
+      nextStatement.close();
+      con.setAutoCommit(true);
     }
  catch (    IOException e) {
       throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),e);
     }
+    statement.close();
+    res.close();
   }
  catch (  SQLException e) {
     throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
   }
  finally {
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException se) {
+      }
+    }
     if (statement != null) {
       try {
-        nextStatement=pool.getNextPreparedStatement(statement,cq.C_ROLLBACK_KEY);
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+      try {
+        nextStatement=con.prepareStatement(cq.C_ROLLBACK);
         nextStatement.execute();
       }
  catch (      SQLException se) {
       }
-      pool.putPreparedStatement(cq.C_PLSQL_FILESFORUPDATE_KEY,statement);
     }
-    if (conn != null) {
+    if (nextStatement != null) {
       try {
-        conn.setAutoCommit(true);
+        nextStatement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (trimStatement != null) {
+      try {
+        trimStatement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.setAutoCommit(true);
       }
  catch (      SQLException se) {
       }
-    }
-    if (res != null) {
       try {
-        res.close();
+        con.close();
       }
  catch (      SQLException se) {
       }
