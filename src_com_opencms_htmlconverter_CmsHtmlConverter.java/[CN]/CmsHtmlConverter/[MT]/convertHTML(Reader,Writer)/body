@@ -1,0 +1,50 @@
+{
+  int streamInput;
+  StringBuffer htmlString=new StringBuffer();
+  Node node;
+  String outString="";
+  m_tidy.setShowWarnings(false);
+  m_tidy.setQuiet(true);
+  if (m_tidyConfFileDefined == false) {
+    m_tidy.setOnlyErrors(false);
+    m_tidy.setTidyMark(false);
+  }
+  PrintWriter errorLog=new PrintWriter(new ByteArrayOutputStream(),true);
+  m_tidy.setErrout(errorLog);
+  try {
+    int c;
+    while ((c=input.read()) != -1) {
+      htmlString.append((char)c);
+    }
+  }
+ catch (  IOException e) {
+    System.err.println("Conversion error: " + e.toString());
+    return;
+  }
+  outString=htmlString.toString();
+  outString=m_tools.scanContent(outString,m_configuration.getReplaceContent());
+  InputStream in;
+  try {
+    in=new ByteArrayInputStream(outString.getBytes("utf-8"));
+    m_tidy.setCharEncoding(org.w3c.tidy.Configuration.UTF8);
+  }
+ catch (  UnsupportedEncodingException e) {
+    in=new ByteArrayInputStream(outString.getBytes());
+    m_tidy.setCharEncoding(org.w3c.tidy.Configuration.LATIN1);
+  }
+  node=m_tidy.parseDOM(in,null);
+  if (m_tidy.getParseErrors() != 0) {
+    System.err.println("Conversion error: HTML code has errors!");
+  }
+  this.printDocument(node);
+  outString=m_tools.scanString(m_tempString.toString(),m_configuration.getReplaceStrings());
+  outString=this.cleanOutput(outString);
+  try {
+    output.write(outString);
+    output.close();
+  }
+ catch (  IOException e) {
+    System.err.println("Conversion error: " + e.toString());
+    return;
+  }
+}
