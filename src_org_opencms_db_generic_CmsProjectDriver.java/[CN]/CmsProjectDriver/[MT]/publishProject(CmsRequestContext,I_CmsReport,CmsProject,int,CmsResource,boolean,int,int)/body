@@ -1,13 +1,10 @@
 {
-  CmsExportPointDriver discAccess=null;
   CmsFolder currentFolder=null;
   CmsResource currentFileHeader=null;
   CmsLock currentLock=null;
   List offlineFolders=null;
   List offlineFiles=null;
   List deletedFolders=(List)new ArrayList();
-  Vector changedResources=new Vector();
-  String currentExportKey=null;
   String currentResourceName=null;
   long publishDate=System.currentTimeMillis();
   Iterator i=null;
@@ -15,11 +12,9 @@
   List projectResources=null;
   Map sortedFolderMap=null;
   List sortedFolderList=null;
-  int publishHistoryId=readNextPublishVersionId();
   int m, n;
   Set publishedContentIds=(Set)new HashSet();
   try {
-    discAccess=new CmsExportPointDriver(exportpoints);
     if (backupEnabled) {
       m_driverManager.backupProject(context,context.currentProject(),backupTagId,publishDate);
     }
@@ -59,24 +54,14 @@
     while (i.hasNext()) {
       currentResourceName=(String)i.next();
       currentFolder=(CmsFolder)sortedFolderMap.get(currentResourceName);
-      currentExportKey=internalCheckExportPoint(currentResourceName,exportpoints);
       if (currentFolder.getState() == I_CmsConstants.C_STATE_DELETED) {
         deletedFolders.add(currentFolder);
-        changedResources.addElement(currentResourceName);
       }
  else       if (currentFolder.getState() == I_CmsConstants.C_STATE_NEW) {
-        changedResources.addElement(currentResourceName);
-        if (currentExportKey != null) {
-          discAccess.createFolder(currentResourceName,currentExportKey);
-        }
         m_driverManager.getProjectDriver().publishFolder(context,report,m++,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
         internalResetResourceState(context,currentFolder);
       }
  else       if (currentFolder.getState() == I_CmsConstants.C_STATE_CHANGED) {
-        changedResources.addElement(currentResourceName);
-        if (currentExportKey != null) {
-          discAccess.createFolder(currentResourceName,currentExportKey);
-        }
         m_driverManager.getProjectDriver().publishFolder(context,report,m++,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
         internalResetResourceState(context,currentFolder);
       }
@@ -150,23 +135,10 @@ while (i.hasNext()) {
 currentFileHeader=(CmsResource)i.next();
 currentResourceName=currentFileHeader.getRootPath();
 currentFileHeader.setFullResourceName(currentResourceName);
-currentExportKey=internalCheckExportPoint(currentResourceName,exportpoints);
-changedResources.addElement(currentResourceName);
-if (currentFileHeader.getState() == I_CmsConstants.C_STATE_DELETED) {
-if (currentExportKey != null) {
-internalDeleteExportPoint(discAccess,currentExportKey,currentFileHeader);
-}
-}
- else if (currentFileHeader.getState() == I_CmsConstants.C_STATE_CHANGED || currentFileHeader.getState() == I_CmsConstants.C_STATE_NEW) {
-if (currentExportKey != null) {
-internalWriteExportPoint(context,discAccess,currentExportKey,currentFileHeader);
-}
-}
 m_driverManager.getProjectDriver().publishFile(context,report,m++,n,onlineProject,currentFileHeader,publishedContentIds,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
 i.remove();
 currentFileHeader=null;
 currentResourceName=null;
-currentExportKey=null;
 }
 if (n > 0) {
 report.println(report.key("report.publish_files_end"),I_CmsReport.C_FORMAT_HEADLINE);
@@ -176,7 +148,7 @@ offlineFiles.clear();
 offlineFiles=null;
 }
 if (deletedFolders.isEmpty()) {
-return changedResources;
+return;
 }
 sortedFolderMap=(Map)new HashMap();
 i=deletedFolders.iterator();
@@ -201,10 +173,6 @@ report.println(report.key("report.publish_delete_folders_begin"),I_CmsReport.C_F
 while (i.hasNext()) {
 currentResourceName=(String)i.next();
 currentFolder=(CmsFolder)sortedFolderMap.get(currentResourceName);
-currentExportKey=internalCheckExportPoint(currentResourceName,exportpoints);
-if (currentExportKey != null) {
-discAccess.removeResource(currentResourceName,currentExportKey);
-}
 m_driverManager.getProjectDriver().publishDeletedFolder(context,report,m++,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
 i.remove();
 }
@@ -257,8 +225,5 @@ offlineFiles=null;
 }
 currentFileHeader=null;
 currentFolder=null;
-discAccess=null;
-currentExportKey=null;
 }
-return changedResources;
 }

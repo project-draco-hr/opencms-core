@@ -1,0 +1,64 @@
+{
+  Hashtable exportPoints=null;
+  CmsExportPointDriver discAccess=null;
+  List publishedResources=null;
+  CmsPublishedResource currentPublishedResource=null;
+  String currentExportKey=null;
+  try {
+    if (report != null) {
+      report.println(report.key("report.export_points_write_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+    }
+    publishedResources=getProjectDriver().readPublishedResources(context.currentProject().getId(),publishHistoryId);
+    exportPoints=m_registry.getExportpoints();
+    discAccess=new CmsExportPointDriver(exportPoints);
+    Iterator i=publishedResources.iterator();
+    while (i.hasNext()) {
+      currentPublishedResource=(CmsPublishedResource)i.next();
+      currentExportKey=checkExportPoint(currentPublishedResource.getRootPath(),exportPoints);
+      if (currentExportKey != null) {
+        if (currentPublishedResource.getResourceType() == CmsResourceTypeFolder.C_RESOURCE_TYPE_ID) {
+          if (currentPublishedResource.getResourceState() == I_CmsConstants.C_STATE_DELETED) {
+            discAccess.removeResource(currentPublishedResource.getRootPath(),currentExportKey);
+          }
+ else {
+            discAccess.createFolder(currentPublishedResource.getRootPath(),currentExportKey);
+          }
+        }
+ else {
+          if (currentPublishedResource.getResourceState() == I_CmsConstants.C_STATE_DELETED) {
+            discAccess.removeResource(currentPublishedResource.getRootPath(),currentExportKey);
+          }
+ else {
+            writeExportPoint(context,discAccess,currentExportKey,currentPublishedResource);
+          }
+        }
+        if (report != null) {
+          if (currentPublishedResource.getResourceState() == I_CmsConstants.C_STATE_DELETED) {
+            report.println(report.key("report.export_points_delete") + currentPublishedResource.getRootPath(),I_CmsReport.C_FORMAT_NOTE);
+          }
+ else {
+            report.println(report.key("report.export_points_write") + currentPublishedResource.getRootPath(),I_CmsReport.C_FORMAT_NOTE);
+          }
+        }
+ else         if (OpenCms.getLog(this).isDebugEnabled()) {
+          if (currentPublishedResource.getResourceState() == I_CmsConstants.C_STATE_DELETED) {
+            OpenCms.getLog(this).debug(report.key("report.export_points_delete") + currentPublishedResource.getRootPath());
+          }
+ else {
+            OpenCms.getLog(this).debug(report.key("report.export_points_write") + currentPublishedResource.getRootPath());
+          }
+        }
+      }
+    }
+  }
+ catch (  CmsException e) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error writing export points",e);
+    }
+  }
+ finally {
+    if (report != null) {
+      report.println(report.key("report.export_points_write_end"),I_CmsReport.C_FORMAT_HEADLINE);
+    }
+  }
+}
