@@ -1,18 +1,24 @@
 {
   PreparedStatement stmt=null;
   Connection conn=null;
-  long dateModified=folder.isTouched() ? folder.getDateLastModified() : System.currentTimeMillis();
-  int state=folder.getState();
-  if (state != com.opencms.core.I_CmsConstants.C_STATE_NEW && changed)   state=com.opencms.core.I_CmsConstants.C_STATE_CHANGED;
+  long resourceDateModified=folder.isTouched() ? folder.getDateLastModified() : System.currentTimeMillis();
+  long structureDateModified=folder.getDateLastModified();
+  int structureState=folder.getState();
+  int resourceState=folder.getState();
+  if (structureState != com.opencms.core.I_CmsConstants.C_STATE_NEW && (changed > CmsDriverManager.C_NOTHING_CHANGED)) {
+    if (changed == CmsDriverManager.C_UPDATE_RESOURCE_STATE)     resourceState=com.opencms.core.I_CmsConstants.C_STATE_CHANGED;
+ else     if (changed == CmsDriverManager.C_UPDATE_STRUCTURE_STATE)     structureState=com.opencms.core.I_CmsConstants.C_STATE_CHANGED;
+ else     resourceState=structureState=com.opencms.core.I_CmsConstants.C_STATE_CHANGED;
+  }
   try {
     conn=m_sqlManager.getConnection(project);
     stmt=m_sqlManager.getPreparedStatement(conn,project,"C_RESOURCES_UPDATE_RESOURCES");
     stmt.setInt(1,folder.getType());
     stmt.setInt(2,folder.getFlags());
     stmt.setInt(3,folder.getLauncherType());
-    stmt.setTimestamp(4,new Timestamp(dateModified));
+    stmt.setTimestamp(4,new Timestamp(resourceDateModified));
     stmt.setString(5,userId.toString());
-    stmt.setInt(6,state);
+    stmt.setInt(6,structureState);
     stmt.setInt(7,folder.getVfsLinkType());
     stmt.setString(8,CmsUUID.getNullUUID().toString());
     stmt.setString(9,folder.isLockedBy().toString());
@@ -24,9 +30,10 @@
     stmt.setString(1,folder.getParentId().toString());
     stmt.setString(2,folder.getResourceName());
     stmt.setInt(3,folder.getVfsLinkType());
-    stmt.setInt(4,state);
-    stmt.setString(5,userId.toString());
-    stmt.setString(6,folder.getId().toString());
+    stmt.setInt(4,resourceState);
+    stmt.setTimestamp(5,new Timestamp(structureDateModified));
+    stmt.setString(6,userId.toString());
+    stmt.setString(7,folder.getId().toString());
     stmt.executeUpdate();
   }
  catch (  SQLException e) {

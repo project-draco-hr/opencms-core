@@ -4,26 +4,15 @@
   ResultSet res=null;
   PreparedStatement stmt=null;
   Connection conn=null;
-  String changedClause=null;
-  String projectClause=null;
-  String orderClause=" ORDER BY CMS_T_STRUCTURE.STRUCTURE_ID ASC";
-  String query=null;
-  if (projectId != I_CmsConstants.C_PROJECT_ONLINE_ID && onlyProject) {
-    projectClause=" AND CMS_T_RESOURCES.PROJECT_ID=" + projectId;
-  }
- else {
-    projectClause="";
-  }
-  if (!includeUnchanged) {
-    changedClause=" AND CMS_T_STRUCTURE.STRUCTURE_STATE!=" + com.opencms.core.I_CmsConstants.C_STATE_UNCHANGED;
-  }
- else {
-    changedClause="";
-  }
+  String queryName=null, query=null;
+  if (includeUnchanged && onlyProject)   queryName="C_RESOURCES_READ_FILES_BY_PROJECT";
+ else   if (includeUnchanged && !onlyProject)   queryName="C_RESOURCES_READ_FILES";
+ else   if (onlyProject)   queryName="C_RESOURCES_READ_CHANGED_FILES_BY_PROJECT";
+ else   queryName="C_RESOURCES_READ_CHANGED_FILES";
   try {
     conn=m_sqlManager.getConnection(projectId);
-    query=m_sqlManager.get(projectId,"C_RESOURCES_READ_FILES_BY_PROJECT") + CmsSqlManager.replaceTableKey(projectId,projectClause + changedClause + orderClause);
-    stmt=m_sqlManager.getPreparedStatementForSql(conn,query);
+    stmt=m_sqlManager.getPreparedStatement(conn,projectId,queryName);
+    if (onlyProject)     stmt.setInt(1,projectId);
     res=stmt.executeQuery();
     while (res.next()) {
       currentFile=createCmsFileFromResultSet(res,projectId,true);
