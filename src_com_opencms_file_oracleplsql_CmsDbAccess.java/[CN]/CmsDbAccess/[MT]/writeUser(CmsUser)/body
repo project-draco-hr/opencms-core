@@ -1,0 +1,74 @@
+{
+  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
+  com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
+  byte[] value=null;
+  PreparedStatement statement=null;
+  PreparedStatement statement2=null;
+  PreparedStatement nextStatement=null;
+  OraclePreparedStatement trimStatement=null;
+  try {
+    ByteArrayOutputStream bout=new ByteArrayOutputStream();
+    ObjectOutputStream oout=new ObjectOutputStream(bout);
+    oout.writeObject(user.getAdditionalInfo());
+    oout.close();
+    value=bout.toByteArray();
+    statement=pool.getPreparedStatement(cq.C_PLSQL_USERSWRITE_KEY);
+    statement.setString(1,checkNull(user.getDescription()));
+    statement.setString(2,checkNull(user.getFirstname()));
+    statement.setString(3,checkNull(user.getLastname()));
+    statement.setString(4,checkNull(user.getEmail()));
+    statement.setTimestamp(5,new Timestamp(user.getLastlogin()));
+    statement.setTimestamp(6,new Timestamp(user.getLastUsed()));
+    statement.setInt(7,user.getFlags());
+    statement.setInt(8,user.getDefaultGroupId());
+    statement.setString(9,checkNull(user.getAddress()));
+    statement.setString(10,checkNull(user.getSection()));
+    statement.setInt(11,user.getType());
+    statement.setInt(12,user.getId());
+    statement.executeUpdate();
+    statement2=pool.getPreparedStatement(cq.C_PLSQL_USERSFORUPDATE_KEY);
+    statement2.setInt(1,user.getId());
+    Connection conn=pool.getConnectionOfStatement(statement2);
+    conn.setAutoCommit(false);
+    ResultSet res=statement2.executeQuery();
+    try {
+      while (res.next()) {
+        oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("USER_INFO");
+        trimStatement=(OraclePreparedStatement)pool.getNextPreparedStatement(statement2,cq.C_TRIMBLOB_KEY);
+        trimStatement.setBLOB(1,blobnew);
+        trimStatement.setInt(2,0);
+        trimStatement.execute();
+        ByteArrayInputStream instream=new ByteArrayInputStream(value);
+        OutputStream outstream=blobnew.getBinaryOutputStream();
+        byte[] chunk=new byte[blobnew.getChunkSize()];
+        int i=-1;
+        while ((i=instream.read(chunk)) != -1) {
+          outstream.write(chunk,0,i);
+        }
+        instream.close();
+        outstream.close();
+      }
+      res.close();
+      nextStatement=pool.getNextPreparedStatement(statement2,cq.C_COMMIT_KEY);
+      nextStatement.execute();
+      conn.setAutoCommit(true);
+    }
+ catch (    IOException e) {
+      throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),e);
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+catch (  IOException e) {
+    throw new CmsException("[CmsAccessUserInfoMySql/addUserInformation(id,object)]:" + CmsException.C_SERIALIZATION,e);
+  }
+ finally {
+    if (statement != null) {
+      m_pool.putPreparedStatement(m_cq.C_USERS_WRITE_KEY,statement);
+    }
+    if (statement2 != null) {
+      pool.putPreparedStatement(cq.C_PLSQL_USERSFORUPDATE_KEY,statement2);
+    }
+  }
+}

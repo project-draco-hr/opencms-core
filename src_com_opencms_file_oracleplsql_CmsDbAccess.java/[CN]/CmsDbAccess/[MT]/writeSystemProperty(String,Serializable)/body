@@ -1,0 +1,52 @@
+{
+  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
+  com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
+  PreparedStatement statement=null;
+  PreparedStatement nextStatement=null;
+  OraclePreparedStatement trimStatement=null;
+  byte[] value=null;
+  try {
+    ByteArrayOutputStream bout=new ByteArrayOutputStream();
+    ObjectOutputStream oout=new ObjectOutputStream(bout);
+    oout.writeObject(object);
+    oout.close();
+    value=bout.toByteArray();
+    statement=pool.getPreparedStatement(cq.C_PLSQL_SYSTEMPROPERTIES_NAMEFORUPDATE_KEY);
+    statement.setString(1,name);
+    Connection conn=pool.getConnectionOfStatement(statement);
+    conn.setAutoCommit(false);
+    ResultSet res=statement.executeQuery();
+    while (res.next()) {
+      oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("SYSTEMPROPERTY_VALUE");
+      trimStatement=(OraclePreparedStatement)pool.getNextPreparedStatement(statement,cq.C_TRIMBLOB_KEY);
+      trimStatement.setBLOB(1,blob);
+      trimStatement.setInt(2,0);
+      trimStatement.execute();
+      ByteArrayInputStream instream=new ByteArrayInputStream(value);
+      OutputStream outstream=blob.getBinaryOutputStream();
+      byte[] chunk=new byte[blob.getChunkSize()];
+      int i=-1;
+      while ((i=instream.read(chunk)) != -1) {
+        outstream.write(chunk,0,i);
+      }
+      instream.close();
+      outstream.close();
+    }
+    res.close();
+    nextStatement=pool.getNextPreparedStatement(statement,cq.C_COMMIT_KEY);
+    nextStatement.execute();
+    conn.setAutoCommit(true);
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+catch (  IOException e) {
+    throw new CmsException("[" + this.getClass().getName() + "]"+ CmsException.C_SERIALIZATION,e);
+  }
+ finally {
+    if (statement != null) {
+      pool.putPreparedStatement(cq.C_PLSQL_SYSTEMPROPERTIES_NAMEFORUPDATE_KEY,statement);
+    }
+  }
+  return readSystemProperty(name);
+}

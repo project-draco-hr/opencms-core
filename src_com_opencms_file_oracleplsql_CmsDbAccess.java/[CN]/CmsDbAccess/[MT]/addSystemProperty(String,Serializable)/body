@@ -1,0 +1,52 @@
+{
+  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
+  com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
+  byte[] value;
+  PreparedStatement statement=null;
+  PreparedStatement statement2=null;
+  PreparedStatement nextStatement=null;
+  try {
+    int id=nextId(C_TABLE_SYSTEMPROPERTIES);
+    ByteArrayOutputStream bout=new ByteArrayOutputStream();
+    ObjectOutputStream oout=new ObjectOutputStream(bout);
+    oout.writeObject(object);
+    oout.close();
+    value=bout.toByteArray();
+    statement=pool.getPreparedStatement(cq.C_PLSQL_SYSTEMPROPERTIES_FORINSERT_KEY);
+    statement.setInt(1,id);
+    statement.setString(2,name);
+    statement.executeUpdate();
+    statement2=pool.getNextPreparedStatement(statement,cq.C_PLSQL_SYSTEMPROPERTIES_FORUPDATE_KEY);
+    statement2.setInt(1,id);
+    Connection conn=pool.getConnectionOfStatement(statement);
+    conn.setAutoCommit(false);
+    ResultSet res=statement2.executeQuery();
+    while (res.next()) {
+      oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("SYSTEMPROPERTY_VALUE");
+      ByteArrayInputStream instream=new ByteArrayInputStream(value);
+      OutputStream outstream=blob.getBinaryOutputStream();
+      byte[] chunk=new byte[blob.getChunkSize()];
+      int i=-1;
+      while ((i=instream.read(chunk)) != -1) {
+        outstream.write(chunk,0,i);
+      }
+      instream.close();
+      outstream.close();
+    }
+    nextStatement=pool.getNextPreparedStatement(statement,cq.C_COMMIT_KEY);
+    nextStatement.execute();
+    conn.setAutoCommit(true);
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+catch (  IOException e) {
+    throw new CmsException("[" + this.getClass().getName() + "]"+ CmsException.C_SERIALIZATION,e);
+  }
+ finally {
+    if (statement != null) {
+      pool.putPreparedStatement(cq.C_PLSQL_SYSTEMPROPERTIES_FORINSERT_KEY,statement);
+    }
+  }
+  return readSystemProperty(name);
+}
