@@ -1,0 +1,69 @@
+{
+  if (target == null) {
+    target=req.getCmsObject().getRequestContext().getUri();
+  }
+  if (parameterMap == null) {
+    parameterMap=new HashMap();
+  }
+  if (element != null) {
+    addParameter(parameterMap,CmsJspTagTemplate.C_TEMPLATE_ELEMENT,element);
+    if (!("body".equals(element) || "(default)".equals(element))) {
+      addParameter(parameterMap,CmsXmlTemplate.C_FRAME_SELECTOR,element);
+    }
+  }
+  boolean isPageTarget=false;
+  try {
+    target=req.toAbsolute(target);
+    CmsResource resource=req.getCmsObject().readFileHeader(target);
+    isPageTarget=((req.getCmsObject().getResourceType("page").getResourceType() == resource.getType()));
+  }
+ catch (  CmsException e) {
+    throw new JspException("File not found: " + target,e);
+  }
+  String bodyAttribute=(String)req.getCmsObject().getRequestContext().getAttribute(I_CmsConstants.C_XML_BODY_ELEMENT);
+  if (bodyAttribute == null) {
+    if (isPageTarget) {
+      if (!target.startsWith(I_CmsWpConstants.C_VFS_PATH_BODIES)) {
+        target=I_CmsWpConstants.C_VFS_PATH_BODIES + target.substring(1);
+      }
+      addParameter(parameterMap,CmsXmlLauncher.C_ELEMENT_REPLACE,"body:" + target);
+      target=C_BODYLOADER_URI;
+    }
+  }
+ else {
+    if (target.equals(req.getCmsObject().getRequestContext().getUri())) {
+      addParameter(parameterMap,CmsXmlLauncher.C_ELEMENT_REPLACE,"body:" + bodyAttribute);
+      target=C_BODYLOADER_URI;
+    }
+ else {
+      if (isPageTarget) {
+        if (!target.startsWith(I_CmsWpConstants.C_VFS_PATH_BODIES)) {
+          target=I_CmsWpConstants.C_VFS_PATH_BODIES + target.substring(1);
+        }
+        addParameter(parameterMap,CmsXmlLauncher.C_ELEMENT_REPLACE,"body:" + target);
+        target=C_BODYLOADER_URI;
+      }
+    }
+  }
+  java.util.Map oldParamterMap=null;
+  oldParamterMap=req.getParameterMap();
+  req.addParameterMap(parameterMap);
+  try {
+    context.getOut().print((char)com.opencms.flex.cache.CmsFlexResponse.C_FLEX_CACHE_DELIMITER);
+    res.addToIncludeList(target,parameterMap);
+    req.getCmsRequestDispatcher(target).include(req,res);
+  }
+ catch (  javax.servlet.ServletException e) {
+    if (DEBUG)     System.err.println("JspTagInclude: ServletException in Jsp 'include' tag processing: " + e);
+    if (DEBUG)     System.err.println(com.opencms.util.Utils.getStackTrace(e));
+    throw new JspException(e);
+  }
+catch (  java.io.IOException e) {
+    if (DEBUG)     System.err.println("JspTagInclude: IOException in Jsp 'include' tag processing: " + e);
+    if (DEBUG)     System.err.println(com.opencms.util.Utils.getStackTrace(e));
+    throw new JspException(e);
+  }
+ finally {
+    if (oldParamterMap != null)     req.setParameterMap(oldParamterMap);
+  }
+}
