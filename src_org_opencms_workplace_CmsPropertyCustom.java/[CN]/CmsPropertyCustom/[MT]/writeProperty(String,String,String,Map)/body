@@ -1,4 +1,9 @@
 {
+  CmsProperty currentProperty=(CmsProperty)activeProperties.get(propName);
+  if (currentProperty == null) {
+    currentProperty=new CmsProperty();
+    currentProperty.setKey(propName);
+  }
   boolean emptyParam=true;
   if (propValue != null) {
     if (!"".equals(propValue.trim())) {
@@ -8,19 +13,39 @@
   if (emptyParam) {
     if (activeProperties.containsKey(propName)) {
       checkLock(getParamResource());
-      getCms().deleteProperty(getParamResource(),propName);
+      if (currentProperty.getStructureValue() != null) {
+        currentProperty.setStructureValue("");
+      }
+ else {
+        currentProperty.setResourceValue("");
+      }
+      getCms().writePropertyObject(getParamResource(),currentProperty);
     }
   }
  else {
     if (!propValue.equals(oldValue)) {
       try {
         checkLock(getParamResource());
-        getCms().writeProperty(getParamResource(),propName,propValue);
+        if (currentProperty.getStructureValue() == null && currentProperty.getResourceValue() == null) {
+          if (OpenCms.getWorkplaceManager().isDefaultPropertiesOnStructure()) {
+            currentProperty.setStructureValue(propValue);
+          }
+ else {
+            currentProperty.setResourceValue(propValue);
+          }
+        }
+ else         if (currentProperty.getStructureValue() != null) {
+          currentProperty.setStructureValue(propValue);
+        }
+ else {
+          currentProperty.setResourceValue(propValue);
+        }
+        getCms().writePropertyObject(getParamResource(),currentProperty);
       }
  catch (      CmsException e) {
         if (e.getType() == CmsException.C_NOT_FOUND) {
           defineProperty(propName);
-          getCms().writeProperty(getParamResource(),propName,propValue);
+          getCms().writePropertyObject(getParamResource(),currentProperty);
         }
  else {
           throw e;

@@ -5,36 +5,58 @@
     if (useTempfileProject) {
       switchToTempProject();
     }
-    Map activeProperties=getCms().readProperties(getParamResource());
+    Map activeProperties=getPropertyMap(getCms().readPropertyObjects(getParamResource(),false));
     boolean lockChecked=false;
+    int activeTab=getActiveTab();
     for (int i=0; i < propertyDef.size(); i++) {
-      CmsPropertydefinition curProperty=(CmsPropertydefinition)propertyDef.elementAt(i);
-      String propName=CmsEncoder.escapeXml(curProperty.getName());
-      String paramValue=request.getParameter(PREFIX_VALUE + propName);
-      boolean emptyParam=true;
-      if (paramValue != null) {
-        if (!"".equals(paramValue.trim())) {
-          emptyParam=false;
-        }
-      }
-      if (emptyParam) {
-        if (activeProperties.containsKey(curProperty.getName())) {
-          if (!lockChecked) {
-            checkLock(getParamResource());
-            lockChecked=true;
-          }
-          getCms().deleteProperty(getParamResource(),curProperty.getName());
+      CmsPropertydefinition curPropDef=(CmsPropertydefinition)propertyDef.elementAt(i);
+      String propName=CmsEncoder.escapeXml(curPropDef.getName());
+      String valueStructure="";
+      String valueResource="";
+      if (activeTab == 1) {
+        valueStructure=request.getParameter(PREFIX_VALUE + propName);
+        valueResource=request.getParameter(PREFIX_RESOURCE + propName);
+        if (valueStructure != null && !"".equals(valueStructure.trim()) && valueStructure.equals(valueResource)) {
+          valueStructure="";
         }
       }
  else {
-        String oldValue=request.getParameter(PREFIX_HIDDEN + propName);
-        if (!paramValue.equals(oldValue)) {
-          if (!lockChecked) {
-            checkLock(getParamResource());
-            lockChecked=true;
-          }
-          getCms().writeProperty(getParamResource(),curProperty.getName(),paramValue);
+        valueStructure=request.getParameter(PREFIX_STRUCTURE + propName);
+        valueResource=request.getParameter(PREFIX_VALUE + propName);
+      }
+      if (valueStructure != null) {
+        valueStructure=valueStructure.trim();
+      }
+ else {
+        valueStructure="";
+      }
+      if (valueResource != null) {
+        valueResource=valueResource.trim();
+      }
+ else {
+        valueResource="";
+      }
+      CmsProperty newProperty=new CmsProperty();
+      newProperty.setKey(curPropDef.getName());
+      newProperty.setStructureValue(valueStructure);
+      newProperty.setResourceValue(valueResource);
+      CmsProperty oldProperty=(CmsProperty)activeProperties.get(curPropDef.getName());
+      if (oldProperty == null) {
+        oldProperty=new CmsProperty();
+        oldProperty.setKey(curPropDef.getName());
+      }
+      if (oldProperty.getStructureValue() == null) {
+        oldProperty.setStructureValue("");
+      }
+      if (oldProperty.getResourceValue() == null) {
+        oldProperty.setResourceValue("");
+      }
+      if (!newProperty.equals(oldProperty)) {
+        if (!lockChecked) {
+          checkLock(getParamResource());
+          lockChecked=true;
         }
+        getCms().writePropertyObject(getParamResource(),newProperty);
       }
     }
   }
