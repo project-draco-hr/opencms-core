@@ -1,159 +1,114 @@
 {
-  CmsObject cms=null;
+  CmsObject cms;
   setConfiguration(conf);
   try {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] logging started");
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT)) {
+      log(C_OPENCMS_INIT,"[OpenCmsServlet] logging started");
       String jdkinfo=System.getProperty("java.vm.name") + " ";
       jdkinfo+=System.getProperty("java.vm.version") + " ";
       jdkinfo+=System.getProperty("java.vm.info") + " ";
       jdkinfo+=System.getProperty("java.vm.vendor") + " ";
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] JDK Info: " + jdkinfo);
+      log(C_OPENCMS_INIT,"[OpenCmsServlet] JDK Info: " + jdkinfo);
       String osinfo=System.getProperty("os.name") + " ";
       osinfo+=System.getProperty("os.version") + " ";
       osinfo+=System.getProperty("os.arch") + " ";
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] OS Info: " + osinfo);
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] file.encoding: " + System.getProperty("file.encoding"));
-    }
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] creating first cms-object");
+      log(C_OPENCMS_INIT,"[OpenCmsServlet] OS Info: " + osinfo);
+      log(C_OPENCMS_INIT,"[OpenCmsServlet] file.encoding: " + System.getProperty("file.encoding"));
+      log(C_OPENCMS_INIT,"[OpenCms] creating first cms-object...");
     }
     cms=new CmsObject();
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] initializing the main resource-broker");
-    }
     m_sessionFailover=conf.getBoolean("sessionfailover.enabled",false);
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] initializing the main resource-broker");
     c_rb=CmsRbManager.init(conf);
     printCopyrightInformation(cms);
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] read mime types");
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] read mime types");
     m_mt=c_rb.readMimeTypes(null,null);
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] found " + m_mt.size() + " mime-type entrys");
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] found " + m_mt.size() + " mime-type entrys");
     m_streaming=conf.getBoolean("httpstreaming.enabled",true);
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] HTTP streaming " + (m_streaming ? "en" : "dis") + "abled. ");
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] HTTP streaming " + (m_streaming ? "en" : "dis") + "abled. ");
     if (!new Boolean(System.getProperty("opencms.disableScheduler")).booleanValue()) {
       m_table=new CmsCronTable(c_rb.readCronTable(null,null));
       m_scheduler=new CmsCronScheduler(this,m_table);
-      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] initializing CmsCronScheduler... DONE");
-      }
+      if (C_LOGGING && isLogging(C_OPENCMS_INIT))       log(C_OPENCMS_INIT,"[OpenCmsServlet] initializing CmsCronScheduler... DONE");
     }
  else {
-      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] CmsCronScheduler is disabled!");
-      }
+      if (C_LOGGING && isLogging(C_OPENCMS_INIT))       log(C_OPENCMS_INIT,"[OpenCmsServlet] CmsCronScheduler is disabled!");
     }
   }
  catch (  Exception e) {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] " + e.getMessage());
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_CRITICAL))     log(C_OPENCMS_CRITICAL,"[OpenCms] " + e.getMessage());
     throw e;
   }
+  String flexExportUri=(String)conf.getString("flex.jsp.exporturl");
+  if ((null != flexExportUri) && (flexExportUri.endsWith(C_FOLDER_SEPERATOR))) {
+    flexExportUri=flexExportUri.substring(0,flexExportUri.length() - 1);
+  }
+  setRuntimeProperty("flex.jsp.exporturl",flexExportUri);
   try {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] initializing directory translations...");
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] initializing directory translations...");
     boolean translationEnabled=conf.getBoolean("directory.translation.enabled",false);
     if (translationEnabled) {
       String[] translations=conf.getStringArray("directory.translation.rules");
       m_directoryTranslator=new CmsResourceTranslator(translations,false);
     }
- else {
-      m_directoryTranslator=new CmsResourceTranslator(new String[0],false);
-    }
   }
  catch (  Exception e) {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] " + e.toString());
-    }
-    m_directoryTranslator=new CmsResourceTranslator(new String[0],false);
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] " + e.toString());
   }
+  if (m_directoryTranslator == null)   m_directoryTranslator=new CmsResourceTranslator(new String[0],false);
   try {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] initializing filename translations...");
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] initializing filename translations...");
     boolean translationEnabled=conf.getBoolean("filename.translation.enabled",false);
     if (translationEnabled) {
       String[] translations=conf.getStringArray("filename.translation.rules");
       m_fileTranslator=new CmsResourceTranslator(translations,true);
     }
- else {
-      m_fileTranslator=new CmsResourceTranslator(new String[0],false);
-    }
   }
  catch (  Exception e) {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] " + e.toString());
-    }
-    m_fileTranslator=new CmsResourceTranslator(new String[0],false);
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] " + e.toString());
   }
+  if (m_fileTranslator == null)   m_fileTranslator=new CmsResourceTranslator(new String[0],false);
   try {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] initializing directory default files...");
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] initializing directory default files...");
     m_defaultFilenames=conf.getStringArray("directory.default.files");
     for (int i=0; i < m_defaultFilenames.length; i++) {
       m_defaultFilenames[i]=m_defaultFilenames[i].trim();
-      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] directory default file " + i + " is: "+ m_defaultFilenames[i]);
-      }
+      if (C_LOGGING && isLogging(C_OPENCMS_INIT))       log(C_OPENCMS_INIT,"[OpenCms] directory default file " + i + " is: "+ m_defaultFilenames[i]);
     }
   }
  catch (  Exception e) {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] " + e.toString());
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] " + e.toString());
   }
   if (m_defaultFilenames == null)   m_defaultFilenames=new String[0];
   try {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] initializing flex cache...");
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] initializing flex cache...");
     com.opencms.flex.cache.CmsFlexCache flexCache=new com.opencms.flex.cache.CmsFlexCache(this);
   }
  catch (  Exception e) {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] " + e.toString());
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] " + e.toString());
   }
   try {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] initialize launchers...");
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] initialize launchers...");
     m_launcherManager=new CmsLauncherManager(this);
   }
  catch (  Exception e) {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] " + e.getMessage());
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] " + e.getMessage());
   }
   c_passwordValidatingClass=conf.getString("passwordvalidatingclass","com.opencms.util.PasswordValidtation");
   m_enableElementCache=conf.getBoolean("elementcache.enabled",false);
-  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] element cache " + (m_enableElementCache ? "en" : "dis") + "abled. ");
-  }
+  if (C_LOGGING && isLogging(C_OPENCMS_INIT))   log(C_OPENCMS_INIT,"[OpenCms] element cache " + (m_enableElementCache ? "en" : "dis") + "abled. ");
   if (m_enableElementCache) {
     try {
       c_elementCache=new CmsElementCache(conf.getInteger("elementcache.uri",10000),conf.getInteger("elementcache.elements",50000),conf.getInteger("elementcache.variants",100));
     }
  catch (    Exception e) {
-      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] " + e.getMessage());
-      }
+      if (C_LOGGING && isLogging(C_OPENCMS_INIT))       log(C_OPENCMS_INIT,"[OpenCms] " + e.getMessage());
     }
     c_variantDeps=new Hashtable();
     c_elementCache.getElementLocator().setExternDependencies(c_variantDeps);
   }
   try {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] initializing link replace rules.");
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] initializing link replace rules.");
     String[] staticUrlPrefix=new String[4];
     staticUrlPrefix[0]=Utils.replace(conf.getString(C_URL_PREFIX_EXPORT,""),C_WEB_APP_REPLACE_KEY,CmsBase.getWebAppName());
     staticUrlPrefix[1]=Utils.replace(conf.getString(C_URL_PREFIX_HTTP,""),C_WEB_APP_REPLACE_KEY,CmsBase.getWebAppName());
@@ -245,9 +200,7 @@
     }
   }
  catch (  Exception e) {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCms] Exception initializing link rules: " + e.toString());
-    }
+    if (C_LOGGING && isLogging(C_OPENCMS_INIT))     log(C_OPENCMS_INIT,"[OpenCms] Exception initializing link rules: " + e.toString());
   }
   String defaultEncoding=conf.getString("defaultContentEncoding","UTF-8");
   try {
@@ -258,4 +211,5 @@
  catch (  Throwable t) {
   }
   setDefaultEncoding(defaultEncoding);
+  if (C_LOGGING && isLogging(C_OPENCMS_INIT))   log(C_OPENCMS_INIT,"[OpenCms] Default encoding set to: " + defaultEncoding);
 }
