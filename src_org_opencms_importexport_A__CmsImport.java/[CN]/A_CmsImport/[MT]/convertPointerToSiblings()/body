@@ -4,41 +4,53 @@
   int linksSize=m_linkStorage.size();
   int i=0;
   CmsResource resource=null;
-  while (keys.hasNext()) {
-    String key=(String)keys.next();
-    String link=(String)m_linkStorage.get(key);
-    List properties=(List)m_linkPropertyStorage.get(key);
-    m_report.print(" ( " + (++i) + " / "+ linksSize+ " ) ",I_CmsReport.C_FORMAT_NOTE);
-    m_report.print(m_report.key("report.convert_link"),I_CmsReport.C_FORMAT_NOTE);
-    m_report.print(key + " ");
-    m_report.print(m_report.key("report.dots"));
-    if (link.startsWith("/")) {
+  String link=null;
+  String key=null;
+  try {
+    while (keys.hasNext()) {
       try {
-        CmsResource target=m_cms.readResource(link);
-        resource=new CmsResource(new CmsUUID(),target.getResourceId(),key,target.getTypeId(),target.isFolder(),0,m_cms.getRequestContext().currentProject().getId(),I_CmsConstants.C_STATE_NEW,target.getDateCreated(),target.getUserCreated(),target.getDateLastModified(),target.getUserLastModified(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,1,0);
-        m_cms.importResource(key,resource,null,properties);
-        m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+        key=(String)keys.next();
+        link=(String)m_linkStorage.get(key);
+        List properties=(List)m_linkPropertyStorage.get(key);
+        m_report.print(" ( " + (++i) + " / "+ linksSize+ " ) ",I_CmsReport.C_FORMAT_NOTE);
+        m_report.print(m_report.key("report.convert_link"),I_CmsReport.C_FORMAT_NOTE);
+        m_report.print(key + " ");
+        m_report.print(m_report.key("report.dots"));
+        if (link.startsWith("/")) {
+          CmsResource target=m_cms.readResource(link);
+          resource=new CmsResource(new CmsUUID(),target.getResourceId(),key,target.getTypeId(),target.isFolder(),0,m_cms.getRequestContext().currentProject().getId(),I_CmsConstants.C_STATE_NEW,target.getDateCreated(),target.getUserCreated(),target.getDateLastModified(),target.getUserLastModified(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,1,0);
+          m_cms.importResource(key,resource,null,properties);
+          m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+        }
+ else {
+          for (int j=0, n=properties.size(); j < n; j++) {
+            CmsProperty property=(CmsProperty)properties.get(j);
+            if (!checkedProperties.contains(property)) {
+              checkPropertyDefinition(property.getKey());
+              checkedProperties.add(property);
+            }
+          }
+          m_cms.createResource(key,CmsResourceTypePointer.C_RESOURCE_TYPE_ID,link.getBytes(),properties);
+          m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+        }
       }
- catch (      CmsException ex) {
+ catch (      CmsException e) {
         m_report.println();
         m_report.print(m_report.key("report.convert_link_notfound") + " " + link,I_CmsReport.C_FORMAT_WARNING);
         if (OpenCms.getLog(this).isErrorEnabled()) {
-          OpenCms.getLog(this).error("Link conversion of " + resource.getRootPath() + " failed: "+ key+ " -> "+ link,ex);
+          OpenCms.getLog(this).error("Link conversion of " + key + " -> "+ link+ " failed",e);
         }
       }
-    }
- else {
-      for (int j=0, n=properties.size(); j < n; j++) {
-        CmsProperty property=(CmsProperty)properties.get(j);
-        if (!checkedProperties.contains(property)) {
-          checkPropertyDefinition(property.getKey());
-          checkedProperties.add(property);
-        }
-      }
-      m_cms.createResource(key,CmsResourceTypePointer.C_RESOURCE_TYPE_ID,link.getBytes(),properties);
-      m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
     }
   }
-  m_linkStorage=null;
-  m_linkPropertyStorage=null;
+  finally {
+    if (m_linkStorage != null) {
+      m_linkStorage.clear();
+    }
+    m_linkStorage=null;
+    if (m_linkPropertyStorage != null) {
+      m_linkPropertyStorage.clear();
+    }
+    m_linkPropertyStorage=null;
+  }
 }
