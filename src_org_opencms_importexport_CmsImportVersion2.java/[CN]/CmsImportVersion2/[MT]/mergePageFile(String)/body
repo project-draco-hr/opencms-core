@@ -1,12 +1,23 @@
 {
   CmsFile pagefile=m_cms.readFile(resourcename,CmsResourceFilter.IGNORE_EXPIRATION);
   Document contentXml=CmsImport.getXmlDocument(pagefile.getContents());
-  List masterTemplateNode=contentXml.selectNodes("//masterTemplate");
+  String masterTemplateNodeName="//masterTemplate";
+  List masterTemplateNode=contentXml.selectNodes(masterTemplateNodeName);
+  if (masterTemplateNode == null || masterTemplateNode.size() == 0) {
+    masterTemplateNode=contentXml.selectNodes(masterTemplateNodeName.toLowerCase());
+  }
+  if (masterTemplateNode == null || masterTemplateNode.size() == 0) {
+    masterTemplateNode=contentXml.selectNodes(masterTemplateNodeName.toUpperCase());
+  }
   String mastertemplate=null;
   if (masterTemplateNode.size() == 1) {
     mastertemplate=((Element)masterTemplateNode.get(0)).getTextTrim();
   }
-  List bodyNode=contentXml.selectNodes("//ELEMENTDEF");
+  String elementDefNodeName="//ELEMENTDEF";
+  List bodyNode=contentXml.selectNodes(elementDefNodeName);
+  if (bodyNode == null || bodyNode.size() == 0) {
+    bodyNode=contentXml.selectNodes(elementDefNodeName.toLowerCase());
+  }
   if (bodyNode.size() == 1) {
     Element bodyElement=(Element)bodyNode.get(0);
     List nodes=bodyElement.elements();
@@ -15,7 +26,7 @@
     String bodyclass=null;
     for (i=0; i < nodes.size(); i++) {
       node=(Node)nodes.get(i);
-      if ("CLASS".equals(node.getName())) {
+      if ("CLASS".equalsIgnoreCase(node.getName())) {
         bodyclass=((Element)node).getTextTrim();
         break;
       }
@@ -23,7 +34,7 @@
     String bodyname=null;
     for (i=0; i < nodes.size(); i++) {
       node=(Node)nodes.get(i);
-      if ("TEMPLATE".equals(node.getName())) {
+      if ("TEMPLATE".equalsIgnoreCase(node.getName())) {
         bodyname=((Element)node).getTextTrim();
         if (!bodyname.startsWith("/")) {
           bodyname=CmsResource.getFolderPath(resourcename) + bodyname;
@@ -34,7 +45,7 @@
     Map bodyparams=null;
     for (i=0; i < nodes.size(); i++) {
       node=(Node)nodes.get(i);
-      if ("PARAMETER".equals(node.getName())) {
+      if ("PARAMETER".equalsIgnoreCase(node.getName())) {
         Element paramElement=(Element)node;
         if (bodyparams == null) {
           bodyparams=new HashMap();
@@ -80,7 +91,6 @@
       }
     }
     m_cms.importResource(resourcename,pagefile,pagefile.getContents(),properties);
-    m_cms.unlockResource(resourcename);
     m_cms.lockResource(bodyname);
     m_cms.deleteResource(bodyname,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
     m_report.println(" " + m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);

@@ -3,6 +3,7 @@
   byte[] content=null;
   String fullname=null;
   CmsResource res=null;
+  String targetName=null;
   try {
     if (m_importingChannelData) {
       String channelId=null;
@@ -36,11 +37,18 @@
     if (uuidresource != null) {
       newUuidresource=new CmsUUID(uuidresource);
     }
-    String targetName=destination;
+    targetName=destination;
     if (targetName.endsWith("/")) {
       targetName=targetName.substring(0,targetName.length() - 1);
     }
-    CmsResource resource=new CmsResource(newUuidstructure,newUuidresource,targetName,resourceTypeId,CmsFolder.isFolderType(resourceTypeId),0,m_cms.getRequestContext().currentProject().getId(),I_CmsConstants.C_STATE_NEW,lastmodified,curUser,lastmodified,curUser,CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,1,size);
+    boolean isFolder=false;
+    try {
+      isFolder=CmsFolder.isFolderType(resourceTypeId);
+    }
+ catch (    Throwable t) {
+      isFolder=((content.length == 0) && CmsResourceTypeFolder.C_RESOURCE_TYPE_NAME.equalsIgnoreCase(resourceTypeName));
+    }
+    CmsResource resource=new CmsResource(newUuidstructure,newUuidresource,targetName,resourceTypeId,isFolder,0,m_cms.getRequestContext().currentProject().getId(),I_CmsConstants.C_STATE_NEW,lastmodified,curUser,lastmodified,curUser,CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,1,size);
     if (C_RESOURCE_TYPE_LINK_ID == resourceTypeId) {
       m_report.print(m_report.key("report.storing_link"),I_CmsReport.C_FORMAT_NOTE);
       m_linkStorage.put(m_importPath + destination,new String(content));
@@ -58,6 +66,9 @@
     }
   }
  catch (  Exception exc) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error importing resource " + targetName,exc);
+    }
     success=false;
     m_report.println(exc);
     try {
