@@ -1,0 +1,90 @@
+{
+  Hashtable preferences=new Hashtable();
+  StringBuffer output=new StringBuffer();
+  String foldername;
+  String currentFolder;
+  CmsXmlWpTemplateFile template=(CmsXmlWpTemplateFile)doc;
+  Enumeration enum;
+  CmsFile file;
+  CmsFolder folder;
+  CmsResource res;
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  preferences=(Hashtable)session.getValue(C_ADDITIONAL_INFO_PREFERENCES);
+  if (preferences == null) {
+    preferences=getDefaultPreferences();
+  }
+  int filelist=((Integer)preferences.get(C_USERPREF_FILELIST)).intValue();
+  template=checkDisplayedColumns(filelist,template,"");
+  output.append(template.getProcessedXmlDataValue(C_LIST_HEAD,callingObject));
+  enum=list.elements();
+  while (enum.hasMoreElements()) {
+    res=(CmsResource)enum.nextElement();
+    if (res.isFolder()) {
+      folder=(CmsFolder)res;
+      template.setXmlData(C_CLASS_VALUE,getStyle(cms,folder));
+      template.setXmlData(C_LOCK_VALUE,template.getProcessedXmlDataValue(getLock(cms,folder,template,lang),this));
+      template.setXmlData(C_NAME_VALUE,folder.getName());
+      template.setXmlData(C_LINK_VALUE,"explorer_files.html?folder=" + folder.getAbsolutePath());
+      String title=cms.readMetainformation(folder.getAbsolutePath(),C_METAINFO_TITLE);
+      if (title == null) {
+        title="";
+      }
+      template.setXmlData(C_TITLE_VALUE,title);
+      A_CmsResourceType type=cms.getResourceType(folder.getType());
+      template.setXmlData(C_TYPE_VALUE,type.getResourceName());
+      long time=folder.getDateLastModified();
+      template.setXmlData(C_CHANGED_VALUE,getNiceDate(time));
+      template.setXmlData(C_SIZE_VALUE,"");
+      template.setXmlData(C_STATE_VALUE,getState(cms,folder,lang));
+      A_CmsUser owner=cms.readOwner(folder);
+      template.setXmlData(C_OWNER_VALUE,owner.getName());
+      A_CmsGroup group=cms.readGroup(folder);
+      template.setXmlData(C_GROUP_VALUE,group.getName());
+      int access=folder.getAccessFlags();
+      template.setXmlData(C_ACCESS_VALUE,getAccessFlags(access));
+      int lockedby=folder.isLockedBy();
+      if (lockedby == C_UNKNOWN_ID) {
+        template.setXmlData(C_LOCKED_VALUE,"");
+      }
+ else {
+        template.setXmlData(C_LOCKED_VALUE,cms.lockedBy(folder.getAbsolutePath()).getName());
+      }
+      template=checkDisplayedColumns(filelist,template,C_SUFFIX_VALUE);
+      output.append(template.getProcessedXmlDataValue(C_LIST_ENTRY,callingObject));
+    }
+ else {
+      file=(CmsFile)res;
+      template.setXmlData(C_CLASS_VALUE,getStyle(cms,file));
+      template.setXmlData(C_LOCK_VALUE,template.getProcessedXmlDataValue(getLock(cms,file,template,lang),this));
+      template.setXmlData(C_NAME_VALUE,file.getName());
+      template.setXmlData(C_LINK_VALUE,file.getName());
+      String title=cms.readMetainformation(file.getAbsolutePath(),C_METAINFO_TITLE);
+      if (title == null) {
+        title="";
+      }
+      template.setXmlData(C_TITLE_VALUE,title);
+      A_CmsResourceType type=cms.getResourceType(file.getType());
+      template.setXmlData(C_TYPE_VALUE,type.getResourceName());
+      long time=file.getDateLastModified();
+      template.setXmlData(C_CHANGED_VALUE,getNiceDate(time));
+      template.setXmlData(C_SIZE_VALUE,new Integer(file.getLength()).toString());
+      template.setXmlData(C_STATE_VALUE,getState(cms,file,lang));
+      A_CmsUser owner=cms.readOwner(file);
+      template.setXmlData(C_OWNER_VALUE,owner.getName());
+      A_CmsGroup group=cms.readGroup(file);
+      template.setXmlData(C_GROUP_VALUE,group.getName());
+      int access=file.getAccessFlags();
+      template.setXmlData(C_ACCESS_VALUE,getAccessFlags(access));
+      int lockedby=file.isLockedBy();
+      if (lockedby == C_UNKNOWN_ID) {
+        template.setXmlData(C_LOCKED_VALUE,"");
+      }
+ else {
+        template.setXmlData(C_LOCKED_VALUE,cms.lockedBy(file.getAbsolutePath()).getName());
+      }
+      template=checkDisplayedColumns(filelist,template,C_SUFFIX_VALUE);
+      output.append(template.getProcessedXmlDataValue(C_LIST_ENTRY,callingObject));
+    }
+  }
+  return output.toString();
+}
