@@ -1,8 +1,46 @@
 {
+  StringBuffer result=new StringBuffer();
+  String selectClass=n.getAttribute(C_SELECTBOX_CLASS);
+  String selectName=n.getAttribute(C_SELECTBOX_NAME);
+  String selectMethod=n.getAttribute(C_SELECTBOX_METHOD);
+  String selectWidth=n.getAttribute(C_SELECTBOX_WIDTH);
+  String selectOnchange=n.getAttribute(C_SELECTBOX_ONCHANGE);
   CmsXmlWpInputDefFile inputdef=getInputDefinitions(cms);
-  String result=inputdef.getSelectBoxHeader();
-  result=result + "<option>kuckuck ";
-  result=result + inputdef.getSelectBoxOption("test1","test1");
-  result=result + inputdef.getSelectBoxSelOption("test2","test2");
-  return result;
+  result.append(inputdef.getSelectBoxStart(selectClass,selectName,selectWidth,selectOnchange));
+  Method groupsMethod=null;
+  Vector values=new Vector();
+  Vector names=new Vector();
+  int selectedOption=0;
+  try {
+    groupsMethod=callingObject.getClass().getMethod(selectMethod,new Class[]{A_CmsObject.class,Vector.class,Vector.class});
+    selectedOption=((Integer)groupsMethod.invoke(callingObject,new Object[]{cms,values,names})).intValue();
+  }
+ catch (  NoSuchMethodException exc) {
+    throwException("Could not find method " + selectMethod + " in calling class "+ callingObject.getClass().getName()+ " for generating select box content.",CmsException.C_NOT_FOUND);
+  }
+catch (  InvocationTargetException targetEx) {
+    Throwable e=targetEx.getTargetException();
+    if (!(e instanceof CmsException)) {
+      e.printStackTrace();
+      throwException("User method " + selectMethod + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+    }
+ else {
+      throw (CmsException)e;
+    }
+  }
+catch (  Exception exc2) {
+    throwException("User method " + selectMethod + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+  }
+  int numValues=values.size();
+  int numNames=names.size();
+  for (int i=0; i < numValues; i++) {
+    if (i == selectedOption) {
+      result.append(inputdef.getSelectBoxSelOption((String)values.elementAt(i),(String)names.elementAt(i)));
+    }
+ else {
+      result.append(inputdef.getSelectBoxOption((String)values.elementAt(i),(String)names.elementAt(i)));
+    }
+  }
+  result.append(inputdef.getSelectBoxEnd());
+  return result.toString();
 }
