@@ -4,6 +4,7 @@
   int publishProjectId=context.currentProject().getId();
   boolean backupEnabled=isHistoryEnabled(cms);
   int tagId=0;
+  boolean directPublishFile=context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_DIRECT_PUBLISH && directPublishResource != null && directPublishResource.isFile();
   if ((isAdmin(context) || isManagerOfProject(context)) && (context.currentProject().getFlags() == I_CmsConstants.C_PROJECT_STATE_UNLOCKED) && (publishProjectId != I_CmsConstants.C_PROJECT_ONLINE_ID)) {
     try {
       if (backupEnabled) {
@@ -24,40 +25,42 @@
         }
       }
       m_projectDriver.publishProject(context,report,readProject(I_CmsConstants.C_PROJECT_ONLINE_ID),publishHistoryId,directPublishResource,isHistoryEnabled(cms),tagId,maxVersions);
-      Vector publishModules=new Vector();
-      cms.getRegistry().getModulePublishables(publishModules,null);
-      long publishDate=System.currentTimeMillis();
-      if (backupEnabled) {
-        try {
-          publishDate=m_backupDriver.readBackupProject(tagId).getPublishingDate();
-        }
- catch (        CmsException e) {
-        }
-        if (publishDate == 0) {
-          publishDate=System.currentTimeMillis();
-        }
-      }
-      for (int i=0; i < publishModules.size(); i++) {
-        try {
-          Class.forName((String)publishModules.elementAt(i)).getMethod("publishProject",new Class[]{CmsObject.class,Boolean.class,Integer.class,Integer.class,Long.class,Vector.class,Vector.class}).invoke(null,new Object[]{cms,new Boolean(isHistoryEnabled(cms)),new Integer(publishProjectId),new Integer(tagId),new Long(publishDate),changedResources,changedModuleMasters});
-        }
- catch (        ClassNotFoundException ec) {
-          report.println(report.key("report.publish_class_for_module_does_not_exist_1") + (String)publishModules.elementAt(i) + report.key("report.publish_class_for_module_does_not_exist_2"),I_CmsReport.C_FORMAT_WARNING);
-          if (OpenCms.getLog(this).isErrorEnabled()) {
-            OpenCms.getLog(this).error("Error calling publish class of module " + (String)publishModules.elementAt(i),ec);
+      if (!directPublishFile) {
+        Vector publishModules=new Vector();
+        cms.getRegistry().getModulePublishables(publishModules,null);
+        long publishDate=System.currentTimeMillis();
+        if (backupEnabled) {
+          try {
+            publishDate=m_backupDriver.readBackupProject(tagId).getPublishingDate();
+          }
+ catch (          CmsException e) {
+          }
+          if (publishDate == 0) {
+            publishDate=System.currentTimeMillis();
           }
         }
-catch (        Exception ex) {
-          report.println(ex);
-          if (OpenCms.getLog(this).isErrorEnabled()) {
-            OpenCms.getLog(this).error("Error while publishing data of module " + (String)publishModules.elementAt(i),ex);
+        for (int i=0; i < publishModules.size(); i++) {
+          try {
+            Class.forName((String)publishModules.elementAt(i)).getMethod("publishProject",new Class[]{CmsObject.class,Boolean.class,Integer.class,Integer.class,Long.class,Vector.class,Vector.class}).invoke(null,new Object[]{cms,new Boolean(isHistoryEnabled(cms)),new Integer(publishProjectId),new Integer(tagId),new Long(publishDate),changedResources,changedModuleMasters});
+          }
+ catch (          ClassNotFoundException ec) {
+            report.println(report.key("report.publish_class_for_module_does_not_exist_1") + (String)publishModules.elementAt(i) + report.key("report.publish_class_for_module_does_not_exist_2"),I_CmsReport.C_FORMAT_WARNING);
+            if (OpenCms.getLog(this).isErrorEnabled()) {
+              OpenCms.getLog(this).error("Error calling publish class of module " + (String)publishModules.elementAt(i),ec);
+            }
+          }
+catch (          Exception ex) {
+            report.println(ex);
+            if (OpenCms.getLog(this).isErrorEnabled()) {
+              OpenCms.getLog(this).error("Error while publishing data of module " + (String)publishModules.elementAt(i),ex);
+            }
           }
         }
-      }
-      Iterator i=changedModuleMasters.iterator();
-      while (i.hasNext()) {
-        CmsPublishedResource currentCosResource=(CmsPublishedResource)i.next();
-        m_projectDriver.writePublishHistory(context.currentProject(),publishHistoryId,tagId,currentCosResource.getContentDefinitionName(),currentCosResource.getMasterId(),currentCosResource.getType(),currentCosResource.getState());
+        Iterator i=changedModuleMasters.iterator();
+        while (i.hasNext()) {
+          CmsPublishedResource currentCosResource=(CmsPublishedResource)i.next();
+          m_projectDriver.writePublishHistory(context.currentProject(),publishHistoryId,tagId,currentCosResource.getContentDefinitionName(),currentCosResource.getMasterId(),currentCosResource.getType(),currentCosResource.getState());
+        }
       }
     }
  catch (    CmsException e) {
