@@ -6,6 +6,8 @@
   PreparedStatement statement2=null;
   PreparedStatement nextStatement=null;
   OraclePreparedStatement trimStatement=null;
+  ResultSet res=null;
+  Connection conn=null;
   try {
     ByteArrayOutputStream bout=new ByteArrayOutputStream();
     ObjectOutputStream oout=new ObjectOutputStream(bout);
@@ -28,9 +30,9 @@
     statement.executeUpdate();
     statement2=pool.getPreparedStatement(cq.C_PLSQL_USERSFORUPDATE_KEY);
     statement2.setInt(1,user.getId());
-    Connection conn=pool.getConnectionOfStatement(statement2);
+    conn=pool.getConnectionOfStatement(statement2);
     conn.setAutoCommit(false);
-    ResultSet res=statement2.executeQuery();
+    res=statement2.executeQuery();
     try {
       while (res.next()) {
         oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("USER_INFO");
@@ -48,7 +50,6 @@
         instream.close();
         outstream.close();
       }
-      res.close();
       nextStatement=pool.getNextPreparedStatement(statement2,cq.C_COMMIT_KEY);
       nextStatement.execute();
       conn.setAutoCommit(true);
@@ -68,7 +69,27 @@ catch (  IOException e) {
       m_pool.putPreparedStatement(m_cq.C_USERS_WRITE_KEY,statement);
     }
     if (statement2 != null) {
+      try {
+        nextStatement=pool.getNextPreparedStatement(statement2,cq.C_ROLLBACK_KEY);
+        nextStatement.execute();
+      }
+ catch (      SQLException se) {
+      }
       pool.putPreparedStatement(cq.C_PLSQL_USERSFORUPDATE_KEY,statement2);
+    }
+    if (conn != null) {
+      try {
+        conn.setAutoCommit(true);
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException se) {
+      }
     }
   }
 }

@@ -4,6 +4,8 @@
   PreparedStatement statement=null;
   PreparedStatement nextStatement=null;
   OraclePreparedStatement trimStatement=null;
+  ResultSet res=null;
+  Connection conn=null;
   byte[] value=null;
   try {
     ByteArrayOutputStream bout=new ByteArrayOutputStream();
@@ -13,9 +15,9 @@
     value=bout.toByteArray();
     statement=pool.getPreparedStatement(cq.C_PLSQL_SYSTEMPROPERTIES_NAMEFORUPDATE_KEY);
     statement.setString(1,name);
-    Connection conn=pool.getConnectionOfStatement(statement);
+    conn=pool.getConnectionOfStatement(statement);
     conn.setAutoCommit(false);
-    ResultSet res=statement.executeQuery();
+    res=statement.executeQuery();
     while (res.next()) {
       oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("SYSTEMPROPERTY_VALUE");
       trimStatement=(OraclePreparedStatement)pool.getNextPreparedStatement(statement,cq.C_TRIMBLOB_KEY);
@@ -32,7 +34,6 @@
       instream.close();
       outstream.close();
     }
-    res.close();
     nextStatement=pool.getNextPreparedStatement(statement,cq.C_COMMIT_KEY);
     nextStatement.execute();
     conn.setAutoCommit(true);
@@ -45,7 +46,27 @@ catch (  IOException e) {
   }
  finally {
     if (statement != null) {
+      try {
+        nextStatement=pool.getNextPreparedStatement(statement,cq.C_ROLLBACK_KEY);
+        nextStatement.execute();
+      }
+ catch (      SQLException se) {
+      }
       pool.putPreparedStatement(cq.C_PLSQL_SYSTEMPROPERTIES_NAMEFORUPDATE_KEY,statement);
+    }
+    if (conn != null) {
+      try {
+        conn.setAutoCommit(true);
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException se) {
+      }
     }
   }
   return readSystemProperty(name);

@@ -20,6 +20,8 @@
   PreparedStatement statementFileIns=null;
   PreparedStatement statementFileUpd=null;
   PreparedStatement nextStatement=null;
+  Connection conn=null;
+  ResultSet res=null;
   try {
     statement=m_pool.getPreparedStatement(m_cq.C_RESOURCES_WRITE_KEY);
     statement.setInt(1,resourceId);
@@ -46,9 +48,9 @@
     statementFileIns.executeUpdate();
     statementFileUpd=pool.getNextPreparedStatement(statement,cq.C_PLSQL_FILESFORUPDATE_KEY);
     statementFileUpd.setInt(1,fileId);
-    Connection conn=pool.getConnectionOfStatement(statement);
+    conn=pool.getConnectionOfStatement(statement);
     conn.setAutoCommit(false);
-    ResultSet res=statementFileUpd.executeQuery();
+    res=statementFileUpd.executeQuery();
     try {
       while (res.next()) {
         oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("FILE_CONTENT");
@@ -75,7 +77,27 @@
   }
  finally {
     if (statement != null) {
+      try {
+        nextStatement=pool.getNextPreparedStatement(statement,cq.C_ROLLBACK_KEY);
+        nextStatement.execute();
+      }
+ catch (      SQLException se) {
+      }
       m_pool.putPreparedStatement(m_cq.C_RESOURCES_WRITE_KEY,statement);
+    }
+    if (conn != null) {
+      try {
+        conn.setAutoCommit(true);
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException se) {
+      }
     }
   }
   return readFile(user.getId(),project.getId(),onlineProject.getId(),filename);

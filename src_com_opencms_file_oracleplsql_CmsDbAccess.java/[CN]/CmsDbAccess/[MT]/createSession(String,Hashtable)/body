@@ -5,6 +5,8 @@
   PreparedStatement statement=null;
   PreparedStatement statement2=null;
   PreparedStatement nextStatement=null;
+  Connection conn=null;
+  ResultSet res=null;
   try {
     ByteArrayOutputStream bout=new ByteArrayOutputStream();
     ObjectOutputStream oout=new ObjectOutputStream(bout);
@@ -17,9 +19,9 @@
     statement.executeUpdate();
     statement2=pool.getNextPreparedStatement(statement,cq.C_PLSQL_SESSION_FORUPDATE_KEY);
     statement2.setString(1,sessionId);
-    Connection conn=pool.getConnectionOfStatement(statement);
+    conn=pool.getConnectionOfStatement(statement);
     conn.setAutoCommit(false);
-    ResultSet res=statement2.executeQuery();
+    res=statement2.executeQuery();
     while (res.next()) {
       oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("SESSION_DATA");
       ByteArrayInputStream instream=new ByteArrayInputStream(value);
@@ -44,7 +46,27 @@ catch (  IOException e) {
   }
  finally {
     if (statement != null) {
+      try {
+        nextStatement=pool.getNextPreparedStatement(statement,cq.C_ROLLBACK_KEY);
+        nextStatement.execute();
+      }
+ catch (      SQLException se) {
+      }
       pool.putPreparedStatement(cq.C_PLSQL_SESSION_FORINSERT_KEY,statement);
+    }
+    if (conn != null) {
+      try {
+        conn.setAutoCommit(true);
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException se) {
+      }
     }
   }
 }

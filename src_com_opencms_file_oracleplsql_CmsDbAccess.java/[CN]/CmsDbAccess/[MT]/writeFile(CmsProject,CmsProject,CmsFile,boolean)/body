@@ -4,13 +4,15 @@
   PreparedStatement statement=null;
   PreparedStatement nextStatement=null;
   OraclePreparedStatement trimStatement=null;
+  Connection conn=null;
+  ResultSet res=null;
   try {
     writeFileHeader(project,file,changed);
     statement=pool.getPreparedStatement(cq.C_PLSQL_FILESFORUPDATE_KEY);
     statement.setInt(1,file.getFileId());
-    Connection conn=pool.getConnectionOfStatement(statement);
+    conn=pool.getConnectionOfStatement(statement);
     conn.setAutoCommit(false);
-    ResultSet res=statement.executeQuery();
+    res=statement.executeQuery();
     try {
       while (res.next()) {
         oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("FILE_CONTENT");
@@ -28,7 +30,6 @@
         instream.close();
         outstream.close();
       }
-      res.close();
       nextStatement=pool.getNextPreparedStatement(statement,cq.C_COMMIT_KEY);
       nextStatement.execute();
       conn.setAutoCommit(true);
@@ -42,7 +43,27 @@
   }
  finally {
     if (statement != null) {
+      try {
+        nextStatement=pool.getNextPreparedStatement(statement,cq.C_ROLLBACK_KEY);
+        nextStatement.execute();
+      }
+ catch (      SQLException se) {
+      }
       pool.putPreparedStatement(cq.C_PLSQL_FILESFORUPDATE_KEY,statement);
+    }
+    if (conn != null) {
+      try {
+        conn.setAutoCommit(true);
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException se) {
+      }
     }
   }
 }
