@@ -1,13 +1,16 @@
 {
+  Connection con=null;
   CmsFile file=null;
   int projectId;
   ResultSet res=null;
   try {
     if (project.equals(onlineProject)) {
-      PreparedStatement statementFileReadOnline=m_Con.prepareStatement(C_FILE_READ_ONLINE);
+      con=getConnection();
+      PreparedStatement statementFileReadOnline=con.prepareStatement(C_FILE_READ_ONLINE);
       statementFileReadOnline.setString(1,absoluteName(filename));
       statementFileReadOnline.setInt(2,onlineProject.getId());
       res=statementFileReadOnline.executeQuery();
+      putConnection(con);
       if (res.next()) {
         file=new CmsFile(filename,res.getInt(C_RESOURCE_TYPE),res.getInt(C_RESOURCE_FLAGS),res.getInt(C_USER_ID),res.getInt(C_GROUP_ID),onlineProject.getId(),res.getInt(C_ACCESS_FLAGS),res.getInt(C_STATE),res.getInt(C_LOCKED_BY),res.getInt(C_LAUNCHER_TYPE),res.getString(C_LAUNCHER_CLASSNAME),SqlHelper.getTimestamp(res,C_DATE_CREATED).getTime(),SqlHelper.getTimestamp(res,C_DATE_LASTMODIFIED).getTime(),res.getBytes(C_FILE_CONTENT),res.getInt(C_SIZE));
       }
@@ -26,10 +29,12 @@
  else {
         projectId=project.getId();
       }
-      PreparedStatement statementFileRead=m_Con.prepareStatement(C_FILE_READ);
+      con=getConnection();
+      PreparedStatement statementFileRead=con.prepareStatement(C_FILE_READ);
       statementFileRead.setString(1,absoluteName(filename));
       statementFileRead.setInt(2,projectId);
       res=statementFileRead.executeQuery();
+      putConnection(con);
       if (res.next()) {
         file.setContents(res.getBytes(C_FILE_CONTENT));
       }
@@ -39,9 +44,11 @@
     }
   }
  catch (  SQLException e) {
+    putConnection(con);
     throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
   }
 catch (  Exception exc) {
+    putConnection(con);
     throw new CmsException("readFile " + exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
   }
   return file;

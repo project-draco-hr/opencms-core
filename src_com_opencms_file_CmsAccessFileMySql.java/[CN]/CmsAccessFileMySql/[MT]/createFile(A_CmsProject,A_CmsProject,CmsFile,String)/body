@@ -1,4 +1,5 @@
 {
+  Connection con=null;
   int state=0;
   if (project.equals(onlineProject)) {
     state=file.getState();
@@ -16,7 +17,8 @@
     }
   }
   try {
-    PreparedStatement statementResourceWrite=m_Con.prepareStatement(C_RESOURCE_WRITE);
+    con=getConnection();
+    PreparedStatement statementResourceWrite=con.prepareStatement(C_RESOURCE_WRITE);
     statementResourceWrite.setString(1,absoluteName(filename));
     statementResourceWrite.setInt(2,file.getType());
     statementResourceWrite.setInt(3,file.getFlags());
@@ -32,13 +34,17 @@
     statementResourceWrite.setTimestamp(13,new Timestamp(System.currentTimeMillis()));
     statementResourceWrite.setInt(14,file.getContents().length);
     statementResourceWrite.executeUpdate();
-    PreparedStatement statementFileWrite=m_Con.prepareStatement(C_FILE_WRITE);
+    putConnection(con);
+    con=getConnection();
+    PreparedStatement statementFileWrite=con.prepareStatement(C_FILE_WRITE);
     statementFileWrite.setString(1,absoluteName(filename));
     statementFileWrite.setInt(2,project.getId());
     statementFileWrite.setBytes(3,file.getContents());
     statementFileWrite.executeUpdate();
+    putConnection(con);
   }
  catch (  SQLException e) {
+    putConnection(con);
     throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
   }
   return readFile(project,onlineProject,filename);

@@ -1,13 +1,16 @@
 {
+  Connection con=null;
   ResultSet res;
   ResultSet tmpres;
   byte[] content;
   try {
     if ((file.getState() == C_STATE_UNCHANGED) && (changed == true)) {
-      PreparedStatement statementFileRead=m_Con.prepareStatement(C_FILE_READ);
+      con=getConnection();
+      PreparedStatement statementFileRead=con.prepareStatement(C_FILE_READ);
       statementFileRead.setString(1,absoluteName(file.getAbsolutePath()));
       statementFileRead.setInt(2,onlineProject.getId());
       res=statementFileRead.executeQuery();
+      putConnection(con);
       if (res.next()) {
         content=res.getBytes(C_FILE_CONTENT);
       }
@@ -15,11 +18,13 @@
         throw new CmsException("[" + this.getClass().getName() + "]"+ file.getAbsolutePath(),CmsException.C_NOT_FOUND);
       }
       try {
-        PreparedStatement statementFileWrite=m_Con.prepareStatement(C_FILE_WRITE);
+        con=getConnection();
+        PreparedStatement statementFileWrite=con.prepareStatement(C_FILE_WRITE);
         statementFileWrite.setString(1,absoluteName(file.getAbsolutePath()));
         statementFileWrite.setInt(2,project.getId());
         statementFileWrite.setBytes(3,content);
         statementFileWrite.executeUpdate();
+        putConnection(con);
       }
  catch (      SQLException se) {
         if (A_OpenCms.isLogging()) {
@@ -28,7 +33,8 @@
         }
       }
     }
-    PreparedStatement statementResourceUpdate=m_Con.prepareStatement(C_RESOURCE_UPDATE);
+    con=getConnection();
+    PreparedStatement statementResourceUpdate=con.prepareStatement(C_RESOURCE_UPDATE);
     statementResourceUpdate.setInt(1,file.getType());
     statementResourceUpdate.setInt(2,file.getFlags());
     statementResourceUpdate.setInt(3,file.getOwnerId());
@@ -54,8 +60,10 @@
     statementResourceUpdate.setString(12,absoluteName(file.getAbsolutePath()));
     statementResourceUpdate.setInt(13,file.getProjectId());
     statementResourceUpdate.executeUpdate();
+    putConnection(con);
   }
  catch (  SQLException e) {
+    putConnection(con);
     throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
   }
 }
