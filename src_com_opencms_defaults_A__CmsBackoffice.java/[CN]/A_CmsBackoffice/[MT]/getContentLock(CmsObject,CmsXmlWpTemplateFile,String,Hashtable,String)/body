@@ -36,7 +36,7 @@
   }
   cms.getRequestContext().getSession(true);
   Class cdClass=getContentDefinitionClass();
-  int actUserId=cms.getRequestContext().currentUser().getId();
+  CmsUUID actUserId=cms.getRequestContext().currentUser().getId();
   String id=(String)parameters.get("id");
   if (id == null)   id="";
   parameters.put("idlock",id);
@@ -44,16 +44,16 @@
   if (action == null || action.equals("")) {
     templateSelector="lock";
     Integer idInteger=null;
-    int ls=-1;
+    CmsUUID lockedByUserId=CmsUUID.getNullUUID();
     try {
       idInteger=Integer.valueOf(id);
     }
  catch (    Exception e) {
-      ls=-1;
+      lockedByUserId=CmsUUID.getNullUUID();
       Object o=null;
       o=getContentDefinition(cms,cdClass,id);
       try {
-        ls=((A_CmsContentDefinition)o).getLockstate();
+        lockedByUserId=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception exc) {
         exc.printStackTrace();
@@ -63,7 +63,7 @@
     if (idInteger != null) {
       o=getContentDefinition(cms,cdClass,idInteger);
       try {
-        ls=((A_CmsContentDefinition)o).getLockstate();
+        lockedByUserId=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception e) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -74,7 +74,7 @@
  else {
       o=getContentDefinition(cms,cdClass,id);
       try {
-        ls=((A_CmsContentDefinition)o).getLockstate();
+        lockedByUserId=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception e) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -88,15 +88,15 @@
     moduleName=moduleName.trim();
     moduleName=moduleName.replace('.','_');
     CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
-    if (ls != C_NOT_LOCKED && ls != actUserId) {
+    if (!lockedByUserId.isNullUUID() && !lockedByUserId.equals(actUserId)) {
       template.setData("locktitle",lang.getLanguageValue("messagebox.title.lockchange"));
       template.setData("lockstate",lang.getLanguageValue("messagebox.message1.lockchange"));
     }
-    if (ls == C_NOT_LOCKED) {
+    if (lockedByUserId.isNullUUID()) {
       template.setData("locktitle",lang.getLanguageValue("messagebox.title.lock"));
       template.setData("lockstate",lang.getLanguageValue("messagebox.message1.lock"));
     }
-    if (ls == actUserId) {
+    if (lockedByUserId.equals(actUserId)) {
       template.setData("locktitle",lang.getLanguageValue("messagebox.title.unlock"));
       template.setData("lockstate",lang.getLanguageValue("messagebox.message1.unlock"));
     }
@@ -107,16 +107,16 @@
  else {
     templateSelector="done";
     Integer idInteger=null;
-    int ls=C_NOT_LOCKED;
+    CmsUUID lockedByUserId=CmsUUID.getNullUUID();
     try {
       idInteger=Integer.valueOf(id);
     }
  catch (    Exception e) {
-      ls=C_NOT_LOCKED;
+      lockedByUserId=CmsUUID.getNullUUID();
       Object o=null;
       o=getContentDefinition(cms,cdClass,id);
       try {
-        ls=((A_CmsContentDefinition)o).getLockstate();
+        lockedByUserId=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception ex) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -128,7 +128,7 @@
     if (idInteger != null) {
       o=getContentDefinition(cms,cdClass,idInteger);
       try {
-        ls=((A_CmsContentDefinition)o).getLockstate();
+        lockedByUserId=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception e) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -139,7 +139,7 @@
  else {
       o=getContentDefinition(cms,cdClass,id);
       try {
-        ls=((A_CmsContentDefinition)o).getLockstate();
+        lockedByUserId=((A_CmsContentDefinition)o).getLockstate();
       }
  catch (      Exception e) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -148,14 +148,14 @@
       }
     }
     try {
-      ls=((A_CmsContentDefinition)o).getLockstate();
+      lockedByUserId=((A_CmsContentDefinition)o).getLockstate();
     }
  catch (    Exception e) {
       if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
         A_OpenCms.log(C_OPENCMS_INFO,getClassName() + " Backoffice getContentLock: Method getLockstate throwed an exception!");
       }
     }
-    if (ls == actUserId) {
+    if (lockedByUserId == actUserId) {
       if (isExtendedList()) {
         int curProjectId=cms.getRequestContext().currentProject().getId();
         int lockedInProject=-1;
@@ -169,7 +169,7 @@
         }
         if (curProjectId == lockedInProject) {
           try {
-            ((A_CmsContentDefinition)o).setLockstate(C_NOT_LOCKED);
+            ((A_CmsContentDefinition)o).setLockstate(CmsUUID.getNullUUID());
           }
  catch (          Exception e) {
             if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -190,7 +190,7 @@
       }
  else {
         try {
-          ((A_CmsContentDefinition)o).setLockstate(C_NOT_LOCKED);
+          ((A_CmsContentDefinition)o).setLockstate(CmsUUID.getNullUUID());
         }
  catch (        Exception e) {
           if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -209,7 +209,7 @@
       templateSelector="done";
     }
  else {
-      if ((ls != C_NOT_LOCKED) && (ls != actUserId)) {
+      if ((!lockedByUserId.isNullUUID()) && (!lockedByUserId.equals(actUserId))) {
         try {
           ((A_CmsContentDefinition)o).setLockstate(actUserId);
         }

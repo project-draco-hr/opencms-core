@@ -7,8 +7,8 @@
   Vector offlineFolders;
   Vector offlineFiles;
   Vector deletedFolders=new Vector();
-  Hashtable folderIdIndex=new Hashtable();
   Vector changedResources=new Vector();
+  Map folderIdIndex=(Map)new HashMap();
   CmsProject currentProject=readProject(projectId);
   int versionId=1;
   long publishDate=System.currentTimeMillis();
@@ -33,14 +33,14 @@
       if (exportKey != null) {
         discAccess.createFolder(currentFolder.getAbsolutePath(),exportKey);
       }
-      Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFolder.getParentId()));
+      CmsUUID parentId=(CmsUUID)folderIdIndex.get(currentFolder.getParentId());
       if (parentId == null) {
         CmsFolder currentOnlineParent=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFolder.getRootName() + currentFolder.getParent());
-        parentId=new Integer(currentOnlineParent.getResourceId());
-        folderIdIndex.put(new Integer(currentFolder.getParentId()),parentId);
+        parentId=currentOnlineParent.getResourceId();
+        folderIdIndex.put(currentFolder.getParentId(),parentId);
       }
       try {
-        newFolder=m_ResourceBroker.getVfsAccess().createFolder(user,onlineProject,onlineProject,currentFolder,parentId.intValue(),currentFolder.getResourceName());
+        newFolder=m_ResourceBroker.getVfsAccess().createFolder(user,onlineProject,onlineProject,currentFolder,parentId,currentFolder.getResourceName());
         newFolder.setState(C_STATE_UNCHANGED);
         updateResourcestate(newFolder);
       }
@@ -60,19 +60,19 @@
             statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_UPDATE_ONLINE"));
             statement.setInt(1,currentFolder.getType());
             statement.setInt(2,currentFolder.getFlags());
-            statement.setInt(3,currentFolder.getOwnerId());
-            statement.setInt(4,currentFolder.getGroupId());
+            statement.setString(3,currentFolder.getOwnerId().toString());
+            statement.setString(4,currentFolder.getGroupId().toString());
             statement.setInt(5,onlineFolder.getProjectId());
             statement.setInt(6,currentFolder.getAccessFlags());
             statement.setInt(7,C_STATE_UNCHANGED);
-            statement.setInt(8,currentFolder.isLockedBy());
+            statement.setString(8,currentFolder.isLockedBy().toString());
             statement.setInt(9,currentFolder.getLauncherType());
             statement.setString(10,currentFolder.getLauncherClassname());
             statement.setTimestamp(11,new Timestamp(currentFolder.getDateLastModified()));
-            statement.setInt(12,currentFolder.getResourceLastModifiedBy());
+            statement.setString(12,currentFolder.getResourceLastModifiedBy().toString());
             statement.setInt(13,0);
-            statement.setInt(14,onlineFolder.getFileId());
-            statement.setInt(15,onlineFolder.getResourceId());
+            statement.setString(14,onlineFolder.getFileId().toString());
+            statement.setString(15,onlineFolder.getResourceId().toString());
             statement.executeUpdate();
             newFolder=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFolder.getResourceName());
           }
@@ -100,7 +100,7 @@
           throw e;
         }
       }
-      folderIdIndex.put(new Integer(currentFolder.getResourceId()),new Integer(newFolder.getResourceId()));
+      folderIdIndex.put(currentFolder.getResourceId(),newFolder.getResourceId());
       Map props=new HashMap();
       try {
         props=m_ResourceBroker.getVfsAccess().readProperties(projectId,currentFolder,currentFolder.getType());
@@ -129,13 +129,13 @@
       }
  catch (      CmsException exc) {
         if (exc.getType() == CmsException.C_NOT_FOUND) {
-          Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFolder.getParentId()));
+          CmsUUID parentId=(CmsUUID)folderIdIndex.get(currentFolder.getParentId());
           if (parentId == null) {
             CmsFolder currentOnlineParent=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFolder.getRootName() + currentFolder.getParent());
-            parentId=new Integer(currentOnlineParent.getResourceId());
-            folderIdIndex.put(new Integer(currentFolder.getParentId()),parentId);
+            parentId=currentOnlineParent.getResourceId();
+            folderIdIndex.put(currentFolder.getParentId(),parentId);
           }
-          onlineFolder=m_ResourceBroker.getVfsAccess().createFolder(user,onlineProject,onlineProject,currentFolder,parentId.intValue(),currentFolder.getResourceName());
+          onlineFolder=m_ResourceBroker.getVfsAccess().createFolder(user,onlineProject,onlineProject,currentFolder,parentId,currentFolder.getResourceName());
           onlineFolder.setState(C_STATE_UNCHANGED);
           updateResourcestate(onlineFolder);
         }
@@ -150,19 +150,19 @@
         statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_UPDATE_ONLINE"));
         statement.setInt(1,currentFolder.getType());
         statement.setInt(2,currentFolder.getFlags());
-        statement.setInt(3,currentFolder.getOwnerId());
-        statement.setInt(4,currentFolder.getGroupId());
+        statement.setString(3,currentFolder.getOwnerId().toString());
+        statement.setString(4,currentFolder.getGroupId().toString());
         statement.setInt(5,onlineFolder.getProjectId());
         statement.setInt(6,currentFolder.getAccessFlags());
         statement.setInt(7,C_STATE_UNCHANGED);
-        statement.setInt(8,currentFolder.isLockedBy());
+        statement.setString(8,currentFolder.isLockedBy().toString());
         statement.setInt(9,currentFolder.getLauncherType());
         statement.setString(10,currentFolder.getLauncherClassname());
         statement.setTimestamp(11,new Timestamp(currentFolder.getDateLastModified()));
-        statement.setInt(12,currentFolder.getResourceLastModifiedBy());
+        statement.setString(12,currentFolder.getResourceLastModifiedBy().toString());
         statement.setInt(13,0);
-        statement.setInt(14,onlineFolder.getFileId());
-        statement.setInt(15,onlineFolder.getResourceId());
+        statement.setString(14,onlineFolder.getFileId().toString());
+        statement.setString(15,onlineFolder.getResourceId().toString());
         statement.executeUpdate();
       }
  catch (      SQLException e) {
@@ -184,7 +184,7 @@
           }
         }
       }
-      folderIdIndex.put(new Integer(currentFolder.getResourceId()),new Integer(onlineFolder.getResourceId()));
+      folderIdIndex.put(currentFolder.getResourceId(),onlineFolder.getResourceId());
       Map props=new HashMap();
       try {
         deleteAllProperties(onlineProject.getId(),onlineFolder);
@@ -272,14 +272,14 @@
       }
  catch (      CmsException exc) {
         if (exc.getType() == CmsException.C_NOT_FOUND) {
-          Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFile.getParentId()));
+          CmsUUID parentId=(CmsUUID)folderIdIndex.get(currentFile.getParentId());
           if (parentId == null) {
             CmsFolder currentOnlineParent=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFile.getRootName() + currentFile.getParent());
-            parentId=new Integer(currentOnlineParent.getResourceId());
-            folderIdIndex.put(new Integer(currentFile.getParentId()),parentId);
+            parentId=currentOnlineParent.getResourceId();
+            folderIdIndex.put(currentFile.getParentId(),parentId);
           }
           currentFile.setState(C_STATE_UNCHANGED);
-          onlineFile=m_ResourceBroker.getVfsAccess().createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getResourceName());
+          onlineFile=m_ResourceBroker.getVfsAccess().createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId,currentFile.getResourceName());
         }
       }
       Connection con=null;
@@ -289,19 +289,19 @@
         statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_UPDATE_ONLINE"));
         statement.setInt(1,currentFile.getType());
         statement.setInt(2,currentFile.getFlags());
-        statement.setInt(3,currentFile.getOwnerId());
-        statement.setInt(4,currentFile.getGroupId());
+        statement.setString(3,currentFile.getOwnerId().toString());
+        statement.setString(4,currentFile.getGroupId().toString());
         statement.setInt(5,onlineFile.getProjectId());
         statement.setInt(6,currentFile.getAccessFlags());
         statement.setInt(7,C_STATE_UNCHANGED);
-        statement.setInt(8,currentFile.isLockedBy());
+        statement.setString(8,currentFile.isLockedBy().toString());
         statement.setInt(9,currentFile.getLauncherType());
         statement.setString(10,currentFile.getLauncherClassname());
         statement.setTimestamp(11,new Timestamp(currentFile.getDateLastModified()));
-        statement.setInt(12,currentFile.getResourceLastModifiedBy());
+        statement.setString(12,currentFile.getResourceLastModifiedBy().toString());
         statement.setInt(13,currentFile.getLength());
-        statement.setInt(14,onlineFile.getFileId());
-        statement.setInt(15,onlineFile.getResourceId());
+        statement.setString(14,onlineFile.getFileId().toString());
+        statement.setString(15,onlineFile.getResourceId().toString());
         statement.executeUpdate();
         statement.close();
         m_ResourceBroker.getVfsAccess().writeFileContent(onlineFile.getFileId(),currentFile.getContents(),m_poolNameOnline,"_ONLINE");
@@ -357,14 +357,14 @@
         }
         discAccess.writeFile(currentFile.getAbsolutePath(),exportKey,contents);
       }
-      Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFile.getParentId()));
+      CmsUUID parentId=(CmsUUID)folderIdIndex.get(currentFile.getParentId());
       if (parentId == null) {
         CmsFolder currentOnlineParent=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFile.getRootName() + currentFile.getParent());
-        parentId=new Integer(currentOnlineParent.getResourceId());
-        folderIdIndex.put(new Integer(currentFile.getParentId()),parentId);
+        parentId=currentOnlineParent.getResourceId();
+        folderIdIndex.put(currentFile.getParentId(),parentId);
       }
       try {
-        newFile=m_ResourceBroker.getVfsAccess().createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getResourceName());
+        newFile=m_ResourceBroker.getVfsAccess().createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId,currentFile.getResourceName());
         newFile.setState(C_STATE_UNCHANGED);
         updateResourcestate(newFile);
       }
@@ -384,19 +384,19 @@
             statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_UPDATE_ONLINE"));
             statement.setInt(1,currentFile.getType());
             statement.setInt(2,currentFile.getFlags());
-            statement.setInt(3,currentFile.getOwnerId());
-            statement.setInt(4,currentFile.getGroupId());
+            statement.setString(3,currentFile.getOwnerId().toString());
+            statement.setString(4,currentFile.getGroupId().toString());
             statement.setInt(5,onlineFile.getProjectId());
             statement.setInt(6,currentFile.getAccessFlags());
             statement.setInt(7,C_STATE_UNCHANGED);
-            statement.setInt(8,currentFile.isLockedBy());
+            statement.setString(8,currentFile.isLockedBy().toString());
             statement.setInt(9,currentFile.getLauncherType());
             statement.setString(10,currentFile.getLauncherClassname());
             statement.setTimestamp(11,new Timestamp(currentFile.getDateLastModified()));
-            statement.setInt(12,currentFile.getResourceLastModifiedBy());
+            statement.setString(12,currentFile.getResourceLastModifiedBy().toString());
             statement.setInt(13,currentFile.getLength());
-            statement.setInt(14,onlineFile.getFileId());
-            statement.setInt(15,onlineFile.getResourceId());
+            statement.setString(14,onlineFile.getFileId().toString());
+            statement.setString(15,onlineFile.getResourceId().toString());
             statement.executeUpdate();
             m_ResourceBroker.getVfsAccess().writeFileContent(onlineFile.getFileId(),currentFile.getContents(),m_poolNameOnline,"_ONLINE");
             newFile=m_ResourceBroker.getVfsAccess().readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getResourceName());

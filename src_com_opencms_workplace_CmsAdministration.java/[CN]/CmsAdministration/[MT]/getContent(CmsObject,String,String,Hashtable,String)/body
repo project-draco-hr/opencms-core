@@ -1,46 +1,49 @@
 {
-  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging() && C_DEBUG) {
-    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
-    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
-    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
-  }
   I_CmsSession session=cms.getRequestContext().getSession(true);
   CmsXmlWpTemplateFile templateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
   CmsXmlLanguageFile lang=templateDocument.getLanguageFile();
   String navPos=(String)session.getValue(C_SESSION_ADMIN_POS);
   templateDocument.setData("emptyPic",(String)resourcesUri(cms,"empty.gif",null,null));
   CmsXmlWpConfigFile confFile=new CmsXmlWpConfigFile(cms);
-  String sendBy=(String)parameters.get("sender");
-  if (sendBy == null) {
+  String sentBy=(String)parameters.get("sender");
+  if (sentBy == null) {
     if (navPos == null) {
-      sendBy=confFile.getWorkplaceAdministrationPath();
+      sentBy=confFile.getWorkplaceAdministrationPath();
     }
  else {
       if (!navPos.endsWith("/")) {
         navPos=navPos.substring(0,navPos.indexOf("/") + 1);
       }
-      sendBy=navPos;
+      sentBy=navPos;
     }
   }
+  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging() && C_DEBUG) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "sentBy: " + sentBy);
+  }
   Vector iconVector=new Vector();
-  if (sendBy.endsWith("/administration/")) {
-    sendBy=confFile.getWorkplaceAdministrationPath();
-    iconVector=cms.getSubFolders(sendBy);
+  if (sentBy.endsWith("/administration/")) {
+    sentBy=confFile.getWorkplaceAdministrationPath();
+    iconVector=cms.getSubFolders(sentBy);
     Vector modules=new Vector();
     modules=cms.getSubFolders(I_CmsWpConstants.C_VFS_PATH_MODULES);
     for (int i=0; i < modules.size(); i++) {
       Vector moduleAdminPoints=new Vector();
       moduleAdminPoints=cms.getSubFolders(((CmsFolder)modules.elementAt(i)).getAbsolutePath() + "administration/");
       for (int j=0; j < moduleAdminPoints.size(); j++) {
-        iconVector.addElement(moduleAdminPoints.elementAt(j));
+        CmsFolder currentModuleAdminFolder=(CmsFolder)moduleAdminPoints.elementAt(j);
+        iconVector.addElement(currentModuleAdminFolder);
+        System.err.println(currentModuleAdminFolder.getResourceName());
       }
     }
   }
  else {
-    iconVector=cms.getSubFolders(sendBy);
+    iconVector=cms.getSubFolders(sentBy);
   }
-  session.putValue(C_SESSION_ADMIN_POS,sendBy);
-  Vector iconVector2=cms.getFilesInFolder(sendBy);
+  session.putValue(C_SESSION_ADMIN_POS,sentBy);
+  Vector iconVector2=cms.getFilesInFolder(sentBy);
   int numFolders=iconVector.size();
   if (numFolders > 0) {
     String iconNames[]=new String[numFolders];
@@ -97,7 +100,7 @@ catch (      Exception exc) {
   }
  else {
     try {
-      cms.getRequestContext().getResponse().sendCmsRedirect(sendBy + "index.html?initial=true");
+      cms.getRequestContext().getResponse().sendCmsRedirect(sentBy + "index.html?initial=true");
     }
  catch (    Exception e) {
       throw new CmsException("Redirect fails :" + ((CmsFile)iconVector2.elementAt(0)).getAbsolutePath(),CmsException.C_UNKNOWN_EXCEPTION,e);
