@@ -4,14 +4,33 @@
   String resourcename="/folder1/test2/";
   storeResources(cms,resourcename);
   long timestamp=System.currentTimeMillis();
+  assertState(cms,resourcename,I_CmsConstants.C_STATE_UNCHANGED);
   cms.lockResource(resourcename);
+  try {
+    cms.createResource(resourcename,CmsResourceTypeFolder.C_RESOURCE_TYPE_ID,null,null);
+  }
+ catch (  CmsVfsException e) {
+    if (e.getType() != CmsVfsException.C_VFS_RESOURCE_ALREADY_EXISTS) {
+      fail("Existing resource '" + resourcename + "' was not detected!");
+    }
+  }
+  CmsResource original=cms.readResource(resourcename);
+  cms.deleteResource(resourcename,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
   cms.createResource(resourcename,CmsResourceTypeFolder.C_RESOURCE_TYPE_ID,null,null);
   assertIsFolder(cms,resourcename);
   assertProject(cms,resourcename,cms.getRequestContext().currentProject());
   assertState(cms,resourcename,I_CmsConstants.C_STATE_CHANGED);
   assertDateLastModifiedAfter(cms,resourcename,timestamp);
   assertUserLastModified(cms,resourcename,cms.getRequestContext().currentUser());
-  assertFilter(cms,resourcename,OpenCmsTestResourceFilter.FILTER_CREATE_RESOURCE);
+  assertDateCreated(cms,resourcename,original.getDateCreated());
+  assertUserCreated(cms,resourcename,cms.readUser(original.getUserCreated()));
+  CmsResource created=cms.readResource(resourcename);
+  if (!created.getResourceId().equals(original.getResourceId())) {
+    fail("A created folder that replaced a deleted folder must have the same resource id!");
+  }
+  if (!created.getContentId().equals(original.getContentId())) {
+    fail("A created folder that replaced a deleted folder must have the same content id!");
+  }
   cms.unlockProject(cms.getRequestContext().currentProject().getId());
   cms.publishProject();
   assertState(cms,resourcename,I_CmsConstants.C_STATE_UNCHANGED);

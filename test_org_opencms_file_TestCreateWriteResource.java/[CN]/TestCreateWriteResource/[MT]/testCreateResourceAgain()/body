@@ -6,14 +6,33 @@
   long timestamp=System.currentTimeMillis();
   String contentStr="Hello this is my NEW AND ALSO CHANGED other content";
   byte[] content=contentStr.getBytes();
+  assertState(cms,resourcename,I_CmsConstants.C_STATE_UNCHANGED);
   cms.lockResource(resourcename);
+  try {
+    cms.createResource(resourcename,CmsResourceTypePlain.C_RESOURCE_TYPE_ID,content,null);
+  }
+ catch (  CmsVfsException e) {
+    if (e.getType() != CmsVfsException.C_VFS_RESOURCE_ALREADY_EXISTS) {
+      fail("Existing resource '" + resourcename + "' was not detected!");
+    }
+  }
+  CmsResource original=cms.readResource(resourcename);
+  cms.deleteResource(resourcename,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
   cms.createResource(resourcename,CmsResourceTypePlain.C_RESOURCE_TYPE_ID,content,null);
   assertProject(cms,resourcename,cms.getRequestContext().currentProject());
   assertState(cms,resourcename,I_CmsConstants.C_STATE_CHANGED);
   assertDateLastModifiedAfter(cms,resourcename,timestamp);
   assertUserLastModified(cms,resourcename,cms.getRequestContext().currentUser());
+  assertDateCreatedAfter(cms,resourcename,timestamp);
+  assertUserCreated(cms,resourcename,cms.getRequestContext().currentUser());
   assertContent(cms,resourcename,content);
-  assertFilter(cms,resourcename,OpenCmsTestResourceFilter.FILTER_CREATE_RESOURCE);
+  CmsResource created=cms.readResource(resourcename);
+  if (created.getResourceId().equals(original.getResourceId())) {
+    fail("A created resource that replaced a deleted resource must not have the same resource id!");
+  }
+  if (created.getContentId().equals(original.getContentId())) {
+    fail("A created resource that replaced a deleted resource must not have the same content id!");
+  }
   cms.unlockProject(cms.getRequestContext().currentProject().getId());
   cms.publishProject();
   assertState(cms,resourcename,I_CmsConstants.C_STATE_UNCHANGED);

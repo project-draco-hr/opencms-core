@@ -1,0 +1,30 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing multiple move of a resource");
+  cms.getRequestContext().setSiteRoot("/");
+  String source="/sites/default/folder1/page1.html";
+  String destination1="/sites/default/folder1/page1_move.html";
+  String destination2="/page1_move.html";
+  storeResources(cms,source);
+  cms.lockResource(source);
+  cms.moveResource(source,destination1);
+  cms.moveResource(destination1,destination2);
+  assertProject(cms,source,cms.getRequestContext().currentProject());
+  assertState(cms,source,I_CmsConstants.C_STATE_DELETED);
+  assertLock(cms,source,CmsLock.C_TYPE_SHARED_EXCLUSIVE);
+  assertPropertyNew(cms,source,new CmsProperty(I_CmsConstants.C_PROPERTY_INTERNAL,String.valueOf(cms.getRequestContext().currentProject().getId()),null));
+  assertSiblingCountIncremented(cms,source,1);
+  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_MOVE_SOURCE);
+  assertProject(cms,destination2,cms.getRequestContext().currentProject());
+  assertState(cms,destination2,I_CmsConstants.C_STATE_NEW);
+  assertLock(cms,destination2,CmsLock.C_TYPE_EXCLUSIVE);
+  setMapping(destination2,source);
+  assertSiblingCountIncremented(cms,destination2,1);
+  assertFilter(cms,destination2,OpenCmsTestResourceFilter.FILTER_MOVE_DESTINATION);
+  resetMapping();
+  cms.changeLock(source);
+  assertLock(cms,source,CmsLock.C_TYPE_EXCLUSIVE);
+  assertLock(cms,destination2,CmsLock.C_TYPE_SHARED_EXCLUSIVE);
+  cms.undoChanges(source,false);
+  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_EXISTING_SIBLING);
+}
