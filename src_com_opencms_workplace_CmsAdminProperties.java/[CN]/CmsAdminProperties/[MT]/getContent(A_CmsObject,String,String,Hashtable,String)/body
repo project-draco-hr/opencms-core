@@ -1,0 +1,55 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  A_CmsRequestContext reqCont=cms.getRequestContext();
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  String action=(String)parameters.get("action");
+  String resTypeName=(String)parameters.get("restype");
+  String propDefName=(String)parameters.get("propdef");
+  xmlTemplateDocument.setData("RESTYPE",resTypeName);
+  if ("new".equals(action)) {
+    templateSelector="newtype";
+    String name=(String)parameters.get("NAME");
+    if (name == null || name.equals("")) {
+    }
+ else {
+      try {
+        cms.createPropertydefinition(name,resTypeName,0);
+        templateSelector="";
+      }
+ catch (      CmsException e) {
+        StringBuffer errmesg=new StringBuffer();
+        errmesg.append(lang.getLanguageValue("error.reason.newprop1") + " '" + name+ "' "+ lang.getLanguageValue("error.reason.newprop2")+ " '"+ resTypeName+ "' "+ lang.getLanguageValue("error.reason.newprop3")+ "\n\n");
+        errmesg.append(Utils.getStackTrace(e));
+        xmlTemplateDocument.setData("NEWDETAILS",errmesg.toString());
+        templateSelector="newerror";
+      }
+    }
+  }
+ else   if ("delete".equals(action)) {
+    if ("true".equals((String)parameters.get("sure"))) {
+      try {
+        cms.deletePropertydefinition(propDefName,resTypeName);
+        templateSelector="";
+      }
+ catch (      CmsException e) {
+        if (e.getType() == CmsException.C_MANDATORY_PROPERTY) {
+          templateSelector="errordeletemanda";
+        }
+ else {
+          throw e;
+        }
+      }
+    }
+ else {
+      templateSelector="RUsuredelete";
+    }
+    xmlTemplateDocument.setData("PROPERTY_NAME",propDefName);
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
