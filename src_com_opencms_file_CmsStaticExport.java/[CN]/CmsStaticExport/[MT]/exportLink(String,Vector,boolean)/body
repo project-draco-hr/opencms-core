@@ -3,7 +3,6 @@
   OutputStream outStream=null;
   CmsExportLink dbLink=new CmsExportLink(link,System.currentTimeMillis(),null);
   String remLink=link;
-  m_report.addString("exporting " + link + " ");
   try {
     CmsExportRequest dReq=new CmsExportRequest(m_webAppUrl,m_servletUrl);
     int paraStart=link.indexOf("?");
@@ -13,7 +12,8 @@
       writeFile=false;
     }
     if (C_EXPORT_FALSE.equals(externLink)) {
-      m_report.addSeperator(0);
+      m_report.print(m_report.key("report.skipping"),I_CmsReport.C_FORMAT_NOTE);
+      m_report.println(link);
       return;
     }
     if (paraStart >= 0) {
@@ -23,6 +23,8 @@
     }
     CmsExportResponse dRes=new CmsExportResponse();
     if (writeFile) {
+      m_report.print(m_report.key("report.exporting"),I_CmsReport.C_FORMAT_NOTE);
+      m_report.println(link);
       String folder="";
       int folderIndex=externLink.lastIndexOf('/');
       if (folderIndex != -1) {
@@ -39,7 +41,7 @@
           linkIsExtern=false;
         }
         if (linkIsExtern) {
-          throw new CmsException(" This is a extern link.");
+          throw new CmsException(" This is an external link.");
         }
       }
       File discFolder=new File(m_exportPath + correctur + folder);
@@ -55,10 +57,12 @@
         dRes.putOutputStream(outStream);
       }
  catch (      Exception e) {
-        throw new CmsException("[" + this.getClass().getName() + "] "+ "could't open file "+ m_exportPath+ correctur+ externLink+ ": "+ e.getMessage());
+        throw new CmsException("[" + this.getClass().getName() + "] "+ "couldn't open file "+ m_exportPath+ correctur+ externLink+ ": "+ e.getMessage());
       }
     }
  else {
+      m_report.print(m_report.key("report.following_links_on"),I_CmsReport.C_FORMAT_NOTE);
+      m_report.println(link);
       dRes.putOutputStream(new ByteArrayOutputStream());
     }
     CmsObject cmsForStaticExport=m_cms.getCmsObjectForStaticExport(dReq,dRes);
@@ -93,25 +97,26 @@
         m_cms.writeExportLink(dbLink);
       }
  catch (      CmsException e) {
+        m_report.println(e);
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
           A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] write ExportLink " + dbLink.getLink() + " failed: "+ e.toString());
         }
-        m_report.addString(" write ExportLink " + dbLink.getLink() + " failed: "+ e.toString());
       }
     }
     if (outStream != null) {
       outStream.close();
     }
-    m_report.addSeperator(0);
   }
  catch (  CmsException exc) {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] " + deleteFileOnError + " export "+ link+ " failed: "+ exc.toString());
+    if (exc.getType() == CmsException.C_NOT_FOUND) {
+      m_report.println(m_report.key("report.file_does_not_exist_skipping_export"),I_CmsReport.C_FORMAT_WARNING);
     }
-    m_report.addSeperator(0);
-    m_report.addSeperator(5);
-    m_report.addString("  " + deleteFileOnError + " export "+ link+ " failed: "+ exc.toString());
-    m_report.addSeperator(6);
+ else {
+      m_report.println(exc);
+      if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_STATICEXPORT)) {
+        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] " + deleteFileOnError + " export "+ link+ " failed: "+ exc.toString());
+      }
+    }
     if (deleteFileOnError != null) {
       try {
         File deleteMe=new File(deleteFileOnError);
@@ -128,11 +133,9 @@
     }
   }
 catch (  Exception e) {
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+    m_report.println(e);
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_STATICEXPORT)) {
       A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport]  export " + link + " failed : "+ Utils.getStackTrace(e));
     }
-    m_report.addSeperator(5);
-    m_report.addString("  export " + link + " failed : "+ Utils.getStackTrace(e));
-    m_report.addSeperator(6);
   }
 }
