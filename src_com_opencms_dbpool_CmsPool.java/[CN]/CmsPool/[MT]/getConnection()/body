@@ -20,5 +20,23 @@ synchronized (m_availableConnections) {
       }
     }
   }
-  return con;
+  if (testConnection(con)) {
+    return con;
+  }
+ else {
+synchronized (m_availableConnections) {
+      ((CmsConnection)con).closeOriginalConnection();
+      m_connectionAmount--;
+      try {
+        createConnections(1);
+        m_availableConnections.notify();
+      }
+ catch (      SQLException exc) {
+        if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_POOL,"[" + getClass().getName() + "] "+ m_poolname+ ": unable to create new connection for broken one");
+        }
+      }
+    }
+    return getConnection();
+  }
 }
