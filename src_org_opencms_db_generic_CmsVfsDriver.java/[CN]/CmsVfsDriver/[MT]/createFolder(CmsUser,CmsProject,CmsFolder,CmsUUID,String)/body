@@ -38,23 +38,6 @@
   PreparedStatement stmt=null;
   try {
     conn=m_sqlManager.getConnection(project);
-    stmt=m_sqlManager.getPreparedStatement(conn,project,"C_RESOURCES_WRITE");
-    stmt.setString(1,folder.getResourceId().toString());
-    stmt.setInt(2,folder.getType());
-    stmt.setInt(3,folder.getFlags());
-    stmt.setString(4,CmsUUID.getNullUUID().toString());
-    stmt.setInt(5,folder.getLoaderId());
-    stmt.setTimestamp(6,new Timestamp(dateCreated));
-    stmt.setString(7,user.getId().toString());
-    stmt.setTimestamp(8,new Timestamp(dateModified));
-    stmt.setString(9,modifiedByUserId.toString());
-    stmt.setInt(10,state);
-    stmt.setInt(11,folder.getLength());
-    stmt.setString(12,folder.isLockedBy().toString());
-    stmt.setInt(13,project.getId());
-    stmt.setInt(14,1);
-    stmt.executeUpdate();
-    m_sqlManager.closeAll(null,stmt,null);
     stmt=m_sqlManager.getPreparedStatement(conn,project,"C_STRUCTURE_WRITE");
     stmt.setString(1,folder.getId().toString());
     stmt.setString(2,parentId.toString());
@@ -62,6 +45,31 @@
     stmt.setString(4,foldername);
     stmt.setInt(5,state);
     stmt.executeUpdate();
+    m_sqlManager.closeAll(null,stmt,null);
+    if (!existsResource(project.getId(),folder)) {
+      stmt=m_sqlManager.getPreparedStatement(conn,project,"C_RESOURCES_WRITE");
+      stmt.setString(1,folder.getResourceId().toString());
+      stmt.setInt(2,folder.getType());
+      stmt.setInt(3,folder.getFlags());
+      stmt.setString(4,CmsUUID.getNullUUID().toString());
+      stmt.setInt(5,folder.getLoaderId());
+      stmt.setTimestamp(6,new Timestamp(dateCreated));
+      stmt.setString(7,user.getId().toString());
+      stmt.setTimestamp(8,new Timestamp(dateModified));
+      stmt.setString(9,modifiedByUserId.toString());
+      stmt.setInt(10,state);
+      stmt.setInt(11,folder.getLength());
+      stmt.setString(12,folder.isLockedBy().toString());
+      stmt.setInt(13,project.getId());
+      stmt.setInt(14,1);
+      stmt.executeUpdate();
+    }
+ else {
+      stmt=m_sqlManager.getPreparedStatement(conn,project,"C_RESOURCES_UPDATE_LINK_COUNT");
+      stmt.setInt(1,this.countVfsLinks(project.getId(),folder.getResourceId()));
+      stmt.setString(2,folder.getResourceId().toString());
+      stmt.executeUpdate();
+    }
   }
  catch (  SQLException e) {
     throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
