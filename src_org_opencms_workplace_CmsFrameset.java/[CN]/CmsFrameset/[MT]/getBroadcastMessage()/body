@@ -1,14 +1,25 @@
 {
   StringBuffer result=new StringBuffer(512);
-  String message=(String)getJsp().getRequest().getSession().getAttribute(I_CmsConstants.C_SESSION_BROADCASTMESSAGE);
-  if (message != null) {
-    getJsp().getRequest().getSession().removeAttribute(I_CmsConstants.C_SESSION_BROADCASTMESSAGE);
-    if (!"".equals(message.trim())) {
-      result.append("\n<script type=\"text/javascript\">\n<!--\n");
-      result.append("setTimeout(\"alert(unescape('" + key("label.messagetoall") + ": ");
-      result.append(CmsEncoder.escape(message,getCms().getRequestContext().getEncoding()) + "'));\", 2000);");
-      result.append("\n//-->\n</script>");
+  String sessionId=getSession().getId();
+  CmsObject cms=getCms();
+  CmsBroadcastMessageQueue messageQueue=OpenCms.getSessionInfoManager().getBroadcastMessageQueue(sessionId);
+  if (messageQueue.hasBroadcastMessagesPending()) {
+    result.append("\n<script type=\"text/javascript\">\n<!--\n");
+    result.append("setTimeout(\"alert(unescape('");
+    while (messageQueue.hasBroadcastMessagesPending()) {
+      CmsBroadcastMessage message=messageQueue.getNextBroadcastMessage();
+      StringBuffer msg=new StringBuffer(256);
+      msg.append('[');
+      msg.append(getSettings().getMessages().getDateTime(message.getSendTime()));
+      msg.append("] Message from ");
+      msg.append(message.getUser().getName());
+      msg.append(":\n");
+      msg.append(message.getMessage());
+      msg.append("\n\n");
+      result.append(CmsEncoder.escape(msg.toString(),cms.getRequestContext().getEncoding()));
     }
+    result.append("'));\", 2000);");
+    result.append("\n//-->\n</script>");
   }
   return result.toString();
 }
