@@ -1,7 +1,7 @@
 {
   CmsRequestContext reqCont=cms.getRequestContext();
-  HttpServletRequest orgReq=(HttpServletRequest)reqCont.getRequest().getOriginalRequest();
-  I_CmsSession session=cms.getRequestContext().getSession(true);
+  HttpServletRequest orgReq=CmsXmlTemplateLoader.getRequest(reqCont).getOriginalRequest();
+  I_CmsSession session=CmsXmlTemplateLoader.getSession(cms.getRequestContext(),true);
   int tempProject=0;
   try {
     tempProject=Integer.parseInt(cms.getRegistry().getSystemValue("tempfileproject"));
@@ -165,7 +165,7 @@
  else {
       tempPageFilename=(String)session.getValue("te_temppagefile");
     }
-    cms.getRequestContext().setCurrentProject(curProject);
+    cms.getRequestContext().setCurrentProject(cms.readProject(curProject));
     if (isSimplePage) {
       tempBodyFilename=tempPageFilename;
     }
@@ -217,9 +217,9 @@
  else {
       temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
       temporaryControlFile.setElementTemplate(C_BODY_ELEMENT,tempBodyFilename);
-      cms.getRequestContext().setCurrentProject(tempProject);
+      cms.getRequestContext().setCurrentProject(cms.readProject(tempProject));
       temporaryControlFile.write();
-      cms.getRequestContext().setCurrentProject(curProject);
+      cms.getRequestContext().setCurrentProject(cms.readProject(curProject));
       try {
         style=getStylesheet(cms,null,layoutTemplateFile,null);
       }
@@ -235,12 +235,12 @@
  else {
     if (titlechangeRequested) {
       try {
-        cms.getRequestContext().setCurrentProject(tempProject);
+        cms.getRequestContext().setCurrentProject(cms.readProject(tempProject));
         cms.writeProperty(tempPageFilename,C_PROPERTY_TITLE,title);
-        cms.getRequestContext().setCurrentProject(curProject);
+        cms.getRequestContext().setCurrentProject(cms.readProject(curProject));
       }
  catch (      CmsException e) {
-        cms.getRequestContext().setCurrentProject(curProject);
+        cms.getRequestContext().setCurrentProject(cms.readProject(curProject));
         if (OpenCms.getLog(this).isErrorEnabled()) {
           OpenCms.getLog(this).error("Could not write property " + C_PROPERTY_TITLE + " for file "+ file,e);
         }
@@ -248,9 +248,9 @@
     }
     if (templatechangeRequested) {
       if (isSimplePage) {
-        cms.getRequestContext().setCurrentProject(tempProject);
+        cms.getRequestContext().setCurrentProject(cms.readProject(tempProject));
         cms.writeProperty(tempPageFilename,C_PROPERTY_TEMPLATE,layoutTemplatFilenameRelative);
-        cms.getRequestContext().setCurrentProject(curProject);
+        cms.getRequestContext().setCurrentProject(cms.readProject(curProject));
         style=cms.readProperty(layoutTemplateFilename,C_PROPERTY_TEMPLATE);
         if (style != null) {
           style=hostName + OpenCms.getSystemInfo().getOpenCmsContext() + style;
@@ -329,10 +329,10 @@
     if ((!exitRequested) || saveRequested) {
       bodyTemplateFile.setEditedTemplateContent(cms,content,oldBody,oldEdit.equals(C_SELECTBOX_EDITORVIEWS[0]),file,relativeRoot);
     }
-    cms.getRequestContext().setCurrentProject(tempProject);
+    cms.getRequestContext().setCurrentProject(cms.readProject(tempProject));
     bodyTemplateFile.write();
     if (!isSimplePage)     temporaryControlFile.write();
-    cms.getRequestContext().setCurrentProject(curProject);
+    cms.getRequestContext().setCurrentProject(cms.readProject(curProject));
   }
   if (previewRequested) {
     preview(tempPageFilename,reqCont);
@@ -341,9 +341,9 @@
   if (saveRequested) {
     try {
       commitTemporaryFile(cms,bodyElementFilename,tempBodyFilename,tempProject,curProject);
-      cms.getRequestContext().setCurrentProject(tempProject);
+      cms.getRequestContext().setCurrentProject(cms.readProject(tempProject));
       title=cms.readProperty(tempPageFilename,C_PROPERTY_TITLE);
-      cms.getRequestContext().setCurrentProject(curProject);
+      cms.getRequestContext().setCurrentProject(cms.readProject(curProject));
       if (title != null && !"".equals(title)) {
         cms.writeProperty(file,C_PROPERTY_TITLE,title);
       }
@@ -390,11 +390,11 @@
   if (exitRequested && ((saveerror == null) || "".equals(saveerror))) {
     if (!isSimplePage)     temporaryControlFile.removeFromFileCache();
     bodyTemplateFile.removeFromFileCache();
-    cms.getRequestContext().setCurrentProject(tempProject);
+    cms.getRequestContext().setCurrentProject(cms.readProject(tempProject));
     cms.deleteResource(tempPageFilename,I_CmsConstants.C_DELETE_OPTION_IGNORE_VFS_LINKS);
-    cms.getRequestContext().setCurrentProject(curProject);
+    cms.getRequestContext().setCurrentProject(cms.readProject(curProject));
     try {
-      cms.getRequestContext().getResponse().sendCmsRedirect(CmsWorkplaceAction.getWorkplaceUri(cms.getRequestContext().getRequest().getOriginalRequest()));
+      CmsXmlTemplateLoader.getResponse(cms.getRequestContext()).sendCmsRedirect(CmsWorkplaceAction.getWorkplaceUri(CmsXmlTemplateLoader.getRequest(cms.getRequestContext()).getOriginalRequest()));
     }
  catch (    IOException e) {
       throwException("Could not send redirect to workplace main screen.",e);

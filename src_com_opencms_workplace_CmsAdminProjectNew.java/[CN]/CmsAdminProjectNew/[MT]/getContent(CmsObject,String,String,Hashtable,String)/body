@@ -4,7 +4,7 @@
     OpenCms.getLog(this).debug("Template file is: " + templateFile);
     OpenCms.getLog(this).debug("Selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
   }
-  I_CmsSession session=cms.getRequestContext().getSession(true);
+  I_CmsSession session=CmsXmlTemplateLoader.getSession(cms.getRequestContext(),true);
   CmsRequestContext reqCont=cms.getRequestContext();
   CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
   CmsRegistry registry=cms.getRegistry();
@@ -21,7 +21,7 @@
     session.removeValue(C_NEWTYPE);
     session.removeValue("lasturl");
     session.removeValue("newProjectCallingFrom");
-    reqCont.setCurrentProject(I_CmsConstants.C_PROJECT_ONLINE_ID);
+    reqCont.setCurrentProject(cms.readProject(I_CmsConstants.C_PROJECT_ONLINE_ID));
   }
   String newName, newGroup, newDescription, newManagerGroup;
   int projectType=0;
@@ -49,7 +49,7 @@
   }
   String errorTemplateAddOn="";
   if (fileToGo != null) {
-    if ((!cms.getRequestContext().isProjectManager()) && (!cms.isAdmin())) {
+    if ((!cms.isManagerOfProject()) && (!cms.isAdmin())) {
       return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"norigths");
     }
     errorTemplateAddOn="explorer";
@@ -165,7 +165,7 @@
       checkRedundancies(channels);
       numChan=channels.size();
       CmsProject project=cms.createProject(newName,newDescription,newGroup,newManagerGroup,projectType);
-      reqCont.setCurrentProject(project.getId());
+      reqCont.setCurrentProject(project);
       try {
         for (int i=0; i < folders.size(); i++) {
           cms.copyResourceToProject((String)folders.elementAt(i));
@@ -182,7 +182,7 @@
         Vector projectResources=cms.readAllProjectResources(project.getId());
         if ((projectResources == null) || (projectResources.size() == 0)) {
           cms.deleteProject(project.getId());
-          reqCont.setCurrentProject(C_PROJECT_ONLINE_ID);
+          reqCont.setCurrentProject(cms.readProject(C_PROJECT_ONLINE_ID));
         }
         if (OpenCms.getLog(this).isWarnEnabled()) {
           OpenCms.getLog(this).warn(e.getMessage(),e);
