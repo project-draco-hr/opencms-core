@@ -1,0 +1,42 @@
+{
+  try {
+    CmsObject cms=getCmsObject();
+    echo("Testing synchronization of files and folders");
+    String source="/";
+    storeResources(cms,source);
+    CmsSynchronizeSettings syncSettings=OpenCms.getSystemInfo().getSynchronizeSettings();
+    syncSettings.setDestinationPathInRfs(getTestDataPath() + "sync/");
+    syncSettings.setSourcePathInVfs(source);
+    echo("Synchronizing " + OpenCms.getSystemInfo().getSynchronizeSettings().getSourcePathInVfs() + " with "+ OpenCms.getSystemInfo().getSynchronizeSettings().getDestinationPathInRfs());
+    new CmsSynchronize(cms,new CmsShellReport());
+    List tree=getSubtree(cms,source);
+    for (int i=0, n=tree.size(); i < n; i++) {
+      CmsResource resource=(CmsResource)tree.get(i);
+      String name=resource.getName().toLowerCase();
+      if (name.endsWith(".txt") || name.endsWith(".jsp")) {
+        modifyResourceInRfs(cms,resource,null);
+      }
+ else       if (name.endsWith(".html")) {
+        modifyResourceInRfs(cms,resource,C_NO_CONTENT_XML_PAGE);
+      }
+    }
+    new CmsSynchronize(cms,new CmsShellReport());
+    for (int i=0, n=tree.size(); i < n; i++) {
+      CmsResource vfsResource=(CmsResource)tree.get(i);
+      String name=vfsResource.getName().toLowerCase();
+      if (name.endsWith(".txt") || name.endsWith(".jsp") || name.endsWith(".html")) {
+        assertState(cms,cms.getSitePath(vfsResource),I_CmsConstants.C_STATE_CHANGED);
+        String path=syncSettings.getDestinationPathInRfs() + CmsResource.getFolderPath(cms.getSitePath(vfsResource));
+        File rfsResource=new File(path,name);
+        assertDateLastModifiedAfter(cms,cms.getSitePath(vfsResource),rfsResource.lastModified());
+      }
+ else {
+        assertState(cms,cms.getSitePath(vfsResource),I_CmsConstants.C_STATE_UNCHANGED);
+      }
+    }
+  }
+  finally {
+    echo("Purging directory " + OpenCms.getSystemInfo().getSynchronizeSettings().getDestinationPathInRfs());
+    CmsStaticExportManager.purgeDirectory(new File(getTestDataPath() + "sync/"));
+  }
+}
