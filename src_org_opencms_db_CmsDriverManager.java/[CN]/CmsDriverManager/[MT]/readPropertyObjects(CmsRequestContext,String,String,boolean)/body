@@ -1,0 +1,34 @@
+{
+  CmsResource resource=readFileHeader(context,resourceName);
+  checkPermissions(context,resource,I_CmsConstants.C_READ_OR_VIEW_ACCESS);
+  search=search && (siteRoot != null);
+  String cacheKey=getCacheKey(C_CACHE_ALL_PROPERTIES + search,context.currentProject().getId(),resource.getRootPath());
+  List value=(List)m_propertyCache.get(cacheKey);
+  if (value == null) {
+    if (search) {
+      boolean cont;
+      siteRoot+="/";
+      value=(List)new ArrayList();
+      List parentValue;
+      do {
+        try {
+          parentValue=readPropertyObjects(context,resourceName,siteRoot,false);
+          parentValue.addAll(value);
+          value.clear();
+          value.addAll(parentValue);
+          resourceName=CmsResource.getParentFolder(resource.getRootPath());
+          cont=(!"/".equals(resourceName));
+        }
+ catch (        CmsSecurityException se) {
+          cont=false;
+        }
+      }
+ while (cont);
+    }
+ else {
+      value=m_vfsDriver.readPropertyObjects(context.currentProject(),resource);
+    }
+    m_propertyCache.put(cacheKey,value);
+  }
+  return (List)new ArrayList(value);
+}

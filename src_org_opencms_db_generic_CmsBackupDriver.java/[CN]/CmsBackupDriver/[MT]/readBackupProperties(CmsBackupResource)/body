@@ -1,19 +1,50 @@
 {
-  HashMap returnValue=new HashMap();
   ResultSet res=null;
   PreparedStatement stmt=null;
   Connection conn=null;
-  CmsUUID resourceId=resource.getResourceId();
+  String propertyKey=null;
+  String propertyValue=null;
+  int mappingType=-1;
+  Map propertyMap=(Map)new HashMap();
+  CmsProperty property=null;
   try {
     conn=m_sqlManager.getConnectionForBackup();
     stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_READALL_BACKUP");
-    stmt.setString(1,resourceId.toString());
-    stmt.setString(2,resource.getStructureId().toString());
-    stmt.setInt(3,resource.getType());
-    stmt.setInt(4,resource.getTagId());
+    stmt.setString(1,resource.getStructureId().toString());
+    stmt.setInt(2,resource.getType());
+    stmt.setInt(3,resource.getTagId());
     res=stmt.executeQuery();
     while (res.next()) {
-      returnValue.put(res.getString(m_sqlManager.readQuery("C_PROPERTYDEF_NAME")),res.getString(m_sqlManager.readQuery("C_PROPERTY_VALUE")));
+      propertyKey=res.getString(1);
+      propertyValue=res.getString(2);
+      mappingType=res.getInt(3);
+      if ((property=(CmsProperty)propertyMap.get(propertyKey)) != null) {
+        if (mappingType == CmsProperty.C_STRUCTURE_RECORD_MAPPING) {
+          property.setStructureValue(propertyValue);
+        }
+ else         if (mappingType == CmsProperty.C_RESOURCE_RECORD_MAPPING) {
+          property.setResourceValue(propertyValue);
+        }
+ else {
+          throw new CmsException("Unknown property value mapping type found: " + mappingType,CmsException.C_UNKNOWN_EXCEPTION);
+        }
+      }
+ else {
+        property=new CmsProperty();
+        property.setKey(propertyKey);
+        if (mappingType == CmsProperty.C_STRUCTURE_RECORD_MAPPING) {
+          property.setStructureValue(propertyValue);
+          property.setResourceValue(null);
+        }
+ else         if (mappingType == CmsProperty.C_RESOURCE_RECORD_MAPPING) {
+          property.setStructureValue(null);
+          property.setResourceValue(propertyValue);
+        }
+ else {
+          throw new CmsException("Unknown property value mapping type found: " + mappingType,CmsException.C_UNKNOWN_EXCEPTION);
+        }
+        propertyMap.put(propertyKey,property);
+      }
     }
   }
  catch (  SQLException exc) {
@@ -22,5 +53,5 @@
  finally {
     m_sqlManager.closeAll(conn,stmt,res);
   }
-  return (returnValue);
+  return (List)new ArrayList(propertyMap.values());
 }

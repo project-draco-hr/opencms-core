@@ -1,0 +1,112 @@
+{
+  CmsPropertydefinition propertyDefinition=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  String value=null;
+  int mappingType=-1;
+  CmsUUID id=null;
+  CmsProperty existingProperty=null;
+  boolean existsPropertyValue=false;
+  boolean deletePropertyValue=false;
+  try {
+    propertyDefinition=readPropertyDefinition(property.getKey(),project.getId(),resource.getType());
+  }
+ catch (  CmsException e) {
+    propertyDefinition=null;
+  }
+  if (propertyDefinition == null) {
+    if (property.createPropertyDefinition()) {
+      propertyDefinition=createPropertyDefinition(property.getKey(),project.getId(),resource.getType());
+      if (project.getId() >= 0) {
+        try {
+          m_driverManager.getBackupDriver().createBackupPropertyDefinition(property.getKey(),resource.getType());
+        }
+ catch (        Exception e) {
+          if (OpenCms.getLog(this).isErrorEnabled()) {
+            OpenCms.getLog(this).error("[" + this.getClass().getName() + "] "+ e.toString());
+          }
+        }
+      }
+    }
+ else {
+      throw new CmsException("[" + this.getClass().getName() + ".writePropertyObject/1] "+ property.getKey(),CmsException.C_NOT_FOUND);
+    }
+  }
+  String resourceName=resource.getRootPath();
+  if (resource.isFolder() && !resourceName.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+    resourceName+=I_CmsConstants.C_FOLDER_SEPARATOR;
+  }
+  try {
+    existingProperty=readPropertyObject(propertyDefinition.getName(),project,resource);
+    conn=m_sqlManager.getConnection(project.getId());
+    for (int i=0; i < 2; i++) {
+      mappingType=-1;
+      value=null;
+      id=null;
+      existsPropertyValue=false;
+      deletePropertyValue=false;
+      if (i == 0) {
+        if (existingProperty.getStructureValue() != null && property.deleteStructureValue()) {
+          deletePropertyValue=true;
+        }
+ else {
+          value=property.getStructureValue();
+          if (value == null) {
+            continue;
+          }
+        }
+        mappingType=CmsProperty.C_STRUCTURE_RECORD_MAPPING;
+        id=resource.getStructureId();
+        existsPropertyValue=existingProperty.getStructureValue() != null;
+      }
+ else       if (i == 1) {
+        if (existingProperty.getResourceValue() != null && property.deleteResourceValue()) {
+          deletePropertyValue=true;
+        }
+ else {
+          value=property.getResourceValue();
+          if (value == null) {
+            break;
+          }
+        }
+        mappingType=CmsProperty.C_RESOURCE_RECORD_MAPPING;
+        id=resource.getResourceId();
+        existsPropertyValue=existingProperty.getResourceValue() != null;
+      }
+      if (!deletePropertyValue) {
+        if (existsPropertyValue) {
+          stmt=m_sqlManager.getPreparedStatement(conn,project.getId(),"C_PROPERTIES_UPDATE");
+          stmt.setString(1,m_sqlManager.validateNull(value));
+          stmt.setString(2,id.toString());
+          stmt.setInt(3,mappingType);
+          stmt.setInt(4,propertyDefinition.getId());
+        }
+ else {
+          stmt=m_sqlManager.getPreparedStatement(conn,project.getId(),"C_PROPERTIES_CREATE");
+          stmt.setInt(1,m_sqlManager.nextId(project.getId(),m_sqlManager.readQuery(project.getId(),"C_TABLE_PROPERTIES")));
+          stmt.setInt(2,propertyDefinition.getId());
+          stmt.setString(3,id.toString());
+          stmt.setInt(4,mappingType);
+          stmt.setString(5,m_sqlManager.validateNull(value));
+        }
+      }
+ else {
+        stmt=m_sqlManager.getPreparedStatement(conn,project.getId(),"C_PROPERTIES_DELETE");
+        stmt.setInt(1,propertyDefinition.getId());
+        stmt.setString(2,id.toString());
+        stmt.setInt(3,mappingType);
+      }
+      stmt.executeUpdate();
+      m_sqlManager.closeAll(null,stmt,null);
+    }
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+catch (  Exception ex) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_UNKNOWN_EXCEPTION,ex,false);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,null);
+  }
+}
