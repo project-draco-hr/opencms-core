@@ -24,6 +24,10 @@
   cms.getRequestContext().setSiteRoot(siteRoot);
   String oldUri=null;
   boolean exportOnDemand=((req != null) && (res != null));
+  CmsStaticExportResponseWrapper wrapRes=null;
+  if (res != null) {
+    wrapRes=new CmsStaticExportResponseWrapper(res);
+  }
   if (OpenCms.getLog(this).isDebugEnabled()) {
     OpenCms.getLog(this).debug("Static export starting for resource " + data);
   }
@@ -31,7 +35,7 @@
     file=cms.readFile(vfsName);
   }
  else {
-    file=CmsFile.upgrade(OpenCms.initResource(cms,vfsName,req,res),cms);
+    file=CmsFile.upgrade(OpenCms.initResource(cms,vfsName,req,wrapRes),cms);
     try {
       cms.readResource(vfsName + file.getName());
       vfsName=vfsName + file.getName();
@@ -57,11 +61,11 @@
   }
   if (exportOnDemand) {
     String mimetype=OpenCms.getResourceManager().getMimeType(file.getName(),cms.getRequestContext().getEncoding());
-    res.setContentType(mimetype);
+    wrapRes.setContentType(mimetype);
     oldUri=cms.getRequestContext().getUri();
     cms.getRequestContext().setUri(vfsName);
   }
-  byte[] result=loader.export(cms,file,req,res);
+  byte[] result=loader.export(cms,file,req,wrapRes);
   file=null;
   if (result != null) {
     if (exportFile != null) {
@@ -69,7 +73,6 @@
         exportStream=new FileOutputStream(exportFile);
         exportStream.write(result);
         exportStream.close();
-        status=HttpServletResponse.SC_OK;
       }
  catch (      Throwable t) {
         throw new CmsException("Creation of static export output stream failed for RFS file " + exportFileName);
@@ -86,6 +89,10 @@
  else {
         exportFile.setLastModified((resource.getDateLastModified() / 1000) * 1000);
       }
+    }
+    status=wrapRes.getStatus();
+    if (status < 0) {
+      status=HttpServletResponse.SC_OK;
     }
   }
  else {
