@@ -1,14 +1,14 @@
 {
-  String firstTag="";
+  String firstTag=null;
   ZipFile importZip=null;
   Document docXml=null;
   BufferedReader xmlReader=null;
-  File importResource=new File(OpenCms.getSystemInfo().getAbsolutePathRelativeToWebInf(importFile));
+  SAXReader sax=null;
+  File importResource=null;
   try {
+    importResource=new File(OpenCms.getSystemInfo().getAbsolutePathRelativeToWebInf(importFile));
     if (importResource.isFile()) {
       importZip=new ZipFile(importResource);
-    }
-    if (importZip != null) {
       ZipEntry entry=importZip.getEntry(I_CmsConstants.C_EXPORT_XMLFILENAME);
       InputStream stream=importZip.getInputStream(entry);
       xmlReader=new BufferedReader(new InputStreamReader(stream));
@@ -17,19 +17,24 @@
       File xmlFile=new File(importResource,I_CmsConstants.C_EXPORT_XMLFILENAME);
       xmlReader=new BufferedReader(new FileReader(xmlFile));
     }
-    docXml=A_CmsXmlContent.getXmlParser().parse(xmlReader);
-    xmlReader.close();
-    firstTag=docXml.getDocumentElement().getNodeName();
+    sax=new SAXReader();
+    docXml=sax.read(xmlReader);
+    firstTag=docXml.getRootElement().getName();
   }
- catch (  Exception exc) {
-    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+ catch (  Exception e) {
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,e);
   }
-  if (importZip != null) {
+ finally {
     try {
-      importZip.close();
+      if (xmlReader != null) {
+        xmlReader.close();
+      }
+      if (importZip != null) {
+        importZip.close();
+      }
     }
- catch (    IOException exc) {
-      throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+ catch (    IOException e) {
+      throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,e);
     }
   }
   return firstTag;
