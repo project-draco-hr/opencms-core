@@ -9,20 +9,40 @@
   }
   filename=(String)session.getValue(C_PARA_FILE);
   CmsFile file=(CmsFile)cms.readFileHeader(filename);
+  boolean hlock=true;
+  System.err.println("1." + hlock);
   if (lock != null) {
     if (lock.equals("true")) {
       if ((cms.getResourceType(file.getType()).getResourceName()).equals(C_TYPE_PAGE_NAME)) {
-        int help=C_CONTENTBODYPATH.lastIndexOf("/");
-        cms.lockResource((C_CONTENTBODYPATH.substring(0,help)) + (file.getAbsolutePath()));
+        String bodyPath=getBodyPath(cms,file);
+        try {
+          CmsFile bodyFile=(CmsFile)cms.readFileHeader(bodyPath);
+          if (bodyFile.isLocked() && (bodyFile.isLockedBy() != cms.getRequestContext().currentUser().getId())) {
+            hlock=false;
+          }
+ else {
+            cms.lockResource(bodyPath);
+          }
+        }
+ catch (        CmsException e) {
+        }
       }
-      cms.lockResource(filename);
+      System.err.println("2." + hlock);
       session.removeValue(C_PARA_FILE);
-    }
-    try {
-      cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
-    }
- catch (    Exception e) {
-      throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+      if (hlock) {
+        System.err.println(hlock);
+        cms.lockResource(filename);
+        try {
+          cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+        }
+ catch (        Exception e) {
+          throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+        }
+      }
+ else {
+        System.err.println(hlock);
+        template="error";
+      }
     }
   }
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
