@@ -1,0 +1,30 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing restoring deleted resources");
+  String resourcename="/test-restore3.txt";
+  String contentStr="Hello this is the content";
+  cms.createResource(resourcename,CmsResourceTypePlain.C_RESOURCE_TYPE_ID,contentStr.getBytes(),null);
+  assertContent(cms,resourcename,contentStr.getBytes());
+  List allFiles=cms.readAllBackupFileHeaders(resourcename);
+  if (!allFiles.isEmpty()) {
+    fail("Unexpected backup files for new created resource found.");
+  }
+  cms.unlockProject(cms.getRequestContext().currentProject().getId());
+  cms.publishProject();
+  allFiles=cms.readAllBackupFileHeaders(resourcename);
+  if (allFiles.size() != 1) {
+    fail("Unexpected number of backup files for published resource found (one expected)");
+  }
+  cms.lockResource(resourcename);
+  cms.deleteResource(resourcename,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
+  cms.unlockProject(cms.getRequestContext().currentProject().getId());
+  cms.publishProject();
+  cms.createResource(resourcename,CmsResourceTypePlain.C_RESOURCE_TYPE_ID,null,null);
+  allFiles=cms.readAllBackupFileHeaders(resourcename);
+  if (allFiles.size() != 1) {
+    fail("Unexpected number of backup files for published resource found (one expected)");
+  }
+  CmsBackupResource backup=(CmsBackupResource)allFiles.get(0);
+  cms.restoreResourceBackup(resourcename,backup.getTagId());
+  assertContent(cms,resourcename,contentStr.getBytes());
+}
