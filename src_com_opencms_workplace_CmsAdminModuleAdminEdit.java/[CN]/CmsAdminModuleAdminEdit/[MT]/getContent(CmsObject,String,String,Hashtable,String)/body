@@ -1,0 +1,67 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  I_CmsRegistry reg=cms.getRegistry();
+  Hashtable sessionData=(Hashtable)session.getValue(C_SESSION_MODULE_ADMIN_DATA);
+  String module=(String)sessionData.get(C_MODULE_PACKETNAME);
+  xmlTemplateDocument.setData("packetname",module);
+  Vector paraNames=(Vector)sessionData.get(C_SESSION_MODULE_ADMIN_PROP_NAMES);
+  Vector paraDescr=(Vector)sessionData.get(C_SESSION_MODULE_ADMIN_PROP_DESCR);
+  Vector paraTyp=(Vector)sessionData.get(C_SESSION_MODULE_ADMIN_PROP_TYP);
+  Vector paraVal=(Vector)sessionData.get(C_SESSION_MODULE_ADMIN_PROP_VAL);
+  String prop=(String)parameters.get("prop");
+  String delete=(String)parameters.get("delete");
+  String ok=(String)parameters.get("ok");
+  if ((prop == null) || ("".equals(prop))) {
+    if ((ok != null) && (!"".equals(ok))) {
+      paraNames.addElement((String)parameters.get("NAME"));
+      paraDescr.addElement(getStringValue((String)parameters.get("BESCHREIBUNG")));
+      paraTyp.addElement(getStringValue((String)parameters.get("TYP")));
+      paraVal.addElement(getStringValue((String)parameters.get("WERT")));
+      templateSelector="done";
+    }
+ else {
+      xmlTemplateDocument.setData("paraname","");
+      xmlTemplateDocument.setData("value","");
+      xmlTemplateDocument.setData("description","");
+      xmlTemplateDocument.setData("delybutton"," ");
+    }
+  }
+ else {
+    if ((ok != null) && (!"".equals(ok))) {
+      int i=paraNames.indexOf(prop);
+      paraNames.removeElementAt(i);
+      paraDescr.removeElementAt(i);
+      paraTyp.removeElementAt(i);
+      paraVal.removeElementAt(i);
+      paraNames.addElement(prop);
+      paraDescr.addElement(getStringValue((String)parameters.get("BESCHREIBUNG")));
+      paraTyp.addElement(getStringValue((String)parameters.get("TYP")));
+      paraVal.addElement(getStringValue((String)parameters.get("WERT")));
+      templateSelector="done";
+    }
+ else     if ((delete != null) && (!"".equals(delete))) {
+      int i=paraNames.indexOf(prop);
+      paraNames.removeElementAt(i);
+      paraDescr.removeElementAt(i);
+      paraTyp.removeElementAt(i);
+      paraVal.removeElementAt(i);
+      templateSelector="done";
+    }
+ else {
+      int i=paraNames.indexOf(prop);
+      xmlTemplateDocument.setData("paraname",prop);
+      xmlTemplateDocument.setData("nameentry",prop);
+      xmlTemplateDocument.setData("value",(String)paraVal.elementAt(i));
+      xmlTemplateDocument.setData("description",(String)paraDescr.elementAt(i));
+      xmlTemplateDocument.setData((String)paraTyp.elementAt(i),"selected");
+      xmlTemplateDocument.setData("delybutton",xmlTemplateDocument.getProcessedDataValue("deletebutton"));
+    }
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}

@@ -1,0 +1,77 @@
+{
+  String name=(String)table.get(C_MODULE_PACKETNAME);
+  String modulePath="/system/modules/" + name + "/";
+  String version=(String)table.get(C_VERSION);
+  try {
+    int v=Integer.parseInt(version);
+    reg.setModuleVersion(name,v);
+  }
+ catch (  Exception e) {
+  }
+  try {
+    reg.setModuleNiceName(name,(String)table.get(C_MODULENAME));
+    reg.setModuleDescription(name,(String)table.get(C_DESCRIPTION));
+    if ("".equals((String)table.get(C_VIEW))) {
+      if (!"".equals(getStringValue(reg.getModuleViewName(name)))) {
+        try {
+          cms.deleteFolder(modulePath + "view/");
+        }
+ catch (        Exception e) {
+        }
+        reg.deleteModuleView(name);
+      }
+    }
+ else {
+      if ("".equals(getStringValue(reg.getModuleViewName(name)))) {
+        reg.setModuleView(name,name.replace('.','_'),modulePath + "view/index.html");
+        tryToCreateFolder(cms,modulePath,"view");
+      }
+    }
+    if ("".equals((String)table.get(C_ADMINPOINT))) {
+      try {
+        cms.deleteFolder(modulePath + "administration/");
+      }
+ catch (      Exception e) {
+      }
+    }
+ else {
+      tryToCreateFolder(cms,modulePath,"administration");
+    }
+    reg.setModuleMaintenanceEventClass(name,(String)table.get(C_MAINTENANCE));
+    reg.setModuleAuthor(name,(String)table.get(C_AUTHOR));
+    reg.setModuleAuthorEmail(name,(String)table.get(C_EMAIL));
+    reg.setModuleCreateDate(name,(String)table.get(C_DATE));
+    Vector depNames=new Vector();
+    Vector minVersion=new Vector();
+    Vector maxVersion=new Vector();
+    Vector stringDeps=(Vector)table.get(C_DEPENDENCY);
+    for (int i=0; i < stringDeps.size(); i++) {
+      String complString=(String)stringDeps.elementAt(i);
+      String max=complString.substring(complString.lastIndexOf("-") + 2);
+      complString=complString.substring(0,complString.lastIndexOf("-") - 1);
+      String min=complString.substring(complString.lastIndexOf(":") + 1);
+      depNames.addElement((complString.substring(0,complString.lastIndexOf("Version:") - 1)).trim());
+      int minInt=-1;
+      int maxInt=-1;
+      try {
+        minInt=Integer.parseInt(min);
+        if (!"*".equals(max)) {
+          maxInt=Integer.parseInt(max);
+        }
+      }
+ catch (      Exception e) {
+      }
+      minVersion.addElement(new Integer(minInt));
+      maxVersion.addElement(new Integer(maxInt));
+    }
+    reg.setModuleDependencies(name,depNames,minVersion,maxVersion);
+    Vector paraNames=(Vector)table.get(C_SESSION_MODULE_ADMIN_PROP_NAMES);
+    Vector paraDesc=(Vector)table.get(C_SESSION_MODULE_ADMIN_PROP_DESCR);
+    Vector paraTyp=(Vector)table.get(C_SESSION_MODULE_ADMIN_PROP_TYP);
+    Vector paraVal=(Vector)table.get(C_SESSION_MODULE_ADMIN_PROP_VAL);
+    reg.setModuleParameterdef(name,paraNames,paraDesc,paraTyp,paraVal);
+  }
+ catch (  CmsException e) {
+    System.err.println("mgm--Fehler beim Module administrieren: " + e.toString());
+  }
+}

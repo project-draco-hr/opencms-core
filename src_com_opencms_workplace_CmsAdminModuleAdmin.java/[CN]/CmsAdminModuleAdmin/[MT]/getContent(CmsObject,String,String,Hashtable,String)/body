@@ -1,0 +1,89 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsXmlTemplateFile templateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  CmsRequestContext reqCont=cms.getRequestContext();
+  I_CmsRegistry reg=cms.getRegistry();
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  String stepTo="";
+  String from=(String)parameters.get(C_FROM);
+  String packetName=(String)parameters.get(C_NAME_PARAMETER);
+  Hashtable sessionData=new Hashtable();
+  if ((from == null) || "".equals(from)) {
+    session.removeValue(C_SESSION_MODULE_ADMIN_DATA);
+    fillHashtable(cms,reg,sessionData,packetName);
+    session.putValue(C_SESSION_MODULE_ADMIN_DATA,sessionData);
+    stepTo="firstpage";
+  }
+ else {
+    sessionData=(Hashtable)session.getValue(C_SESSION_MODULE_ADMIN_DATA);
+    if ("first".equals(from)) {
+      sessionData.put(C_VERSION,getStringValue((String)parameters.get(C_VERSION)));
+      sessionData.put(C_MODULENAME,getStringValue((String)parameters.get(C_MODULENAME)));
+      sessionData.put(C_DESCRIPTION,getStringValue((String)parameters.get(C_DESCRIPTION)));
+      sessionData.put(C_VIEW,getStringValue((String)parameters.get(C_VIEW)));
+      sessionData.put(C_ADMINPOINT,getStringValue((String)parameters.get(C_ADMINPOINT)));
+      sessionData.put(C_MAINTENANCE,getStringValue((String)parameters.get(C_MAINTENANCE)));
+      sessionData.put(C_AUTHOR,getStringValue((String)parameters.get(C_AUTHOR)));
+      sessionData.put(C_EMAIL,getStringValue((String)parameters.get(C_EMAIL)));
+      sessionData.put(C_DATE,getStringValue((String)parameters.get(C_DATE)));
+      session.putValue(C_SESSION_MODULE_ADMIN_DATA,sessionData);
+      stepTo="deps";
+    }
+    if ("deps".equals(from)) {
+      String allData=(String)parameters.get(C_ALLDEPS);
+      Vector allDeps=new Vector();
+      allDeps=parseAllDeps(getStringValue(allData));
+      sessionData.put(C_DEPENDENCY,allDeps);
+      session.putValue(C_SESSION_MODULE_ADMIN_DATA,sessionData);
+      String back=(String)parameters.get("back");
+      if ((back == null) || ("".equals(back))) {
+        stepTo="props";
+      }
+ else {
+        stepTo="firstpage";
+      }
+    }
+    if ("props".equals(from)) {
+      stepTo="deps";
+    }
+    if ("edit".equals(from)) {
+      stepTo="props";
+    }
+    if ("propsready".equals(from)) {
+      updateTheModule(cms,reg,sessionData,packetName);
+      templateSelector="done";
+    }
+  }
+  if ("firstpage".equals(stepTo)) {
+    templateDocument.setData(C_MODULE_PACKETNAME,(String)sessionData.get(C_MODULE_PACKETNAME));
+    templateDocument.setData(C_VERSION,(String)sessionData.get(C_VERSION));
+    templateDocument.setData(C_MODULENAME,(String)sessionData.get(C_MODULENAME));
+    templateDocument.setData(C_DESCRIPTION,(String)sessionData.get(C_DESCRIPTION));
+    templateDocument.setData(C_VIEW,(String)sessionData.get(C_VIEW));
+    templateDocument.setData(C_ADMINPOINT,(String)sessionData.get(C_ADMINPOINT));
+    templateDocument.setData(C_MAINTENANCE,(String)sessionData.get(C_MAINTENANCE));
+    templateDocument.setData(C_AUTHOR,(String)sessionData.get(C_AUTHOR));
+    templateDocument.setData(C_EMAIL,(String)sessionData.get(C_EMAIL));
+    templateDocument.setData(C_DATE,(String)sessionData.get(C_DATE));
+    templateSelector="";
+  }
+  if ("deps".equals(stepTo)) {
+    templateDocument.setData(C_MODULE_PACKETNAME,(String)sessionData.get(C_MODULE_PACKETNAME));
+    Vector deps=(Vector)sessionData.get(C_DEPENDENCY);
+    String entrys="";
+    for (int i=0; i < deps.size(); i++) {
+      templateDocument.setData(C_ONEDEP,(String)deps.elementAt(i));
+      entrys+=templateDocument.getProcessedDataValue(C_OPTIONENTRY);
+    }
+    templateDocument.setData(C_ALLDEPS,entrys);
+    templateSelector="dependencies";
+  }
+  if ("props".equals(stepTo)) {
+    templateSelector="properties";
+  }
+  return startProcessing(cms,templateDocument,elementName,parameters,templateSelector);
+}
