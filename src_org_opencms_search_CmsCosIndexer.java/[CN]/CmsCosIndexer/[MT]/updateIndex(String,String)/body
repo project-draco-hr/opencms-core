@@ -1,0 +1,40 @@
+{
+  boolean channelReported=false;
+  try {
+    String channelId=getChannelId(channel).toString();
+    Vector subChannels=CmsMasterContent.getAllSubChannelsOf(m_cms,channel);
+    for (int i=0; i < subChannels.size(); i++) {
+      String subChannel=(String)subChannels.get(i);
+      updateIndex(subChannel,root);
+    }
+    Vector resources=readAllByChannel(m_cms,channelId,m_subId);
+    for (Iterator i=resources.iterator(); i.hasNext(); ) {
+      CmsMasterDataSet ds=(CmsMasterDataSet)i.next();
+      if (m_report != null && !channelReported) {
+        m_report.print(m_report.key("search.indexing_channel"),I_CmsReport.C_FORMAT_NOTE);
+        m_report.println(channel,I_CmsReport.C_FORMAT_DEFAULT);
+        channelReported=true;
+      }
+      if (m_report != null) {
+        m_report.print("( " + (m_threadManager.getCounter() + 1) + " )",I_CmsReport.C_FORMAT_NOTE);
+        m_report.print(m_report.key("search.indexing_file_begin"),I_CmsReport.C_FORMAT_NOTE);
+        if (ds.m_title != null) {
+          m_report.print(ds.m_title,I_CmsReport.C_FORMAT_DEFAULT);
+        }
+        m_report.print(m_report.key("search.dots"),I_CmsReport.C_FORMAT_DEFAULT);
+      }
+      String path=m_index.getChannelDisplayUri(root) + "?" + m_index.getChannelDisplayparam(root)+ "="+ ds.m_masterId;
+      CmsIndexResource ires=new CmsIndexResource(ds,path,channel,m_contentDefinition.getClass().getName());
+      m_threadManager.createIndexingThread(m_writer,ires,m_index);
+    }
+  }
+ catch (  Exception exc) {
+    if (m_report != null) {
+      m_report.println(m_report.key("search.indexing_folder_failed"),I_CmsReport.C_FORMAT_WARNING);
+    }
+    if (OpenCms.getLog(this).isWarnEnabled()) {
+      OpenCms.getLog(this).warn("Failed to index " + channel,exc);
+    }
+    throw new CmsIndexException("Indexing contents of " + channel + " failed.",exc);
+  }
+}

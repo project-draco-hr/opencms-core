@@ -12,19 +12,27 @@
   index=getIndex(indexName);
   CmsRequestContext context=m_cms.getRequestContext();
   int currentProject=context.currentProject().getId();
+  int indexProject=m_cms.readProject(index.getProject()).getId();
   String currentSiteRoot=context.getSiteRoot();
   context.setSiteRoot(index.getSite());
-  context.setCurrentProject(I_CmsConstants.C_PROJECT_ONLINE_ID);
+  context.setCurrentProject(indexProject);
   if (report != null) {
     report.println(report.key("search.indexing_context") + context.getSiteRoot() + ", "+ context.currentProject().getName(),I_CmsReport.C_FORMAT_NOTE);
   }
   try {
     CmsIndexingThreadManager threadManager=new CmsIndexingThreadManager(this,report,Long.parseLong(m_timeout));
-    List sources=index.getSources();
     writer=index.getIndexWriter();
-    for (Iterator i=sources.iterator(); i.hasNext(); ) {
+    List folders=index.getFolders();
+    for (Iterator i=folders.iterator(); i.hasNext(); ) {
       String vfsPath=(String)i.next();
-      createVfsSubtreeIndex(writer,vfsPath,index,report,threadManager);
+      new CmsVfsIndexer(m_cms,writer,index,report,threadManager).updateIndex(vfsPath);
+    }
+    List channels=index.getChannels();
+    for (Iterator i=channels.iterator(); i.hasNext(); ) {
+      String cosChannel=(String)i.next();
+      String documenttype=(String)(index.getDocumenttypes(cosChannel).toArray())[0];
+      String resourcetype=(String)((List)m_resourcetypes.get(documenttype)).get(0);
+      new CmsCosIndexer(m_cms,resourcetype,writer,index,report,threadManager).updateIndex(cosChannel);
     }
     threadManager.reportStatistics();
   }
