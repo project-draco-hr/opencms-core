@@ -14,23 +14,38 @@
     System.err.println(parameters.get(key));
   }
   System.err.println("?????");
+  String[] skeys=session.getValueNames();
+  System.err.println("++++++SESSIONVALUES");
+  for (int i=0; i < skeys.length; i++) {
+    key=(String)skeys[i];
+    System.err.print(key);
+    System.err.print(":");
+    System.err.println(session.getValue(key));
+  }
+  System.err.println("?????");
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  panel=(String)parameters.get("panel");
   if ((parameters.get("SUBMIT") != null) || (parameters.get("OK") != null)) {
-    int explorerSettings=getExplorerSettings(parameters);
-    session.putValue("EXPLORERSETTINGS",new Integer(explorerSettings).toString());
-    cms.getRequestContext().currentUser().setAdditionalInfo(C_ADDITIONAL_INFO_EXPLORERSETTINGS,new Integer(explorerSettings).toString());
+    if (panel != null) {
+      if (panel.equals("explorer")) {
+        int explorerSettings=getExplorerSettings(parameters);
+        session.putValue("EXPLORERSETTINGS",new Integer(explorerSettings).toString());
+      }
+      if (panel.equals("task")) {
+        Hashtable taskSettings=getTaskSettings(parameters,session);
+        session.putValue("TASKSETTINGS",taskSettings);
+      }
+    }
+    String explorerSettings=(String)session.getValue("EXPLORERSETTINGS");
+    if (explorerSettings != null) {
+      cms.getRequestContext().currentUser().setAdditionalInfo(C_ADDITIONAL_INFO_EXPLORERSETTINGS,explorerSettings);
+    }
+    Hashtable taskSettings=(Hashtable)session.getValue("TASKSETTINGS");
+    if (taskSettings != null) {
+      cms.getRequestContext().currentUser().setAdditionalInfo(C_ADDITIONAL_INFO_TASKSETTINGS,taskSettings);
+    }
     cms.writeUser(cms.getRequestContext().currentUser());
   }
-  if ((parameters.get("OK") != null) || (parameters.get("CANCEL") != null)) {
-    session.removeValue("EXPLORERSETTINGS");
-    try {
-      cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_RELOAD);
-    }
- catch (    Exception e) {
-      throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_RELOAD,CmsException.C_UNKNOWN_EXCEPTION,e);
-    }
-  }
-  panel=(String)parameters.get("panel");
   if (panel != null) {
     template=panel;
     if (panel.equals("explorer")) {
@@ -102,16 +117,73 @@
         xmlTemplateDocument.setXmlData("CHECKLOCKEDBY"," ");
       }
     }
+    if (panel.equals("task")) {
+      Hashtable taskSettings=null;
+      taskSettings=(Hashtable)session.getValue("TASKSETTINGS");
+      if (taskSettings == null) {
+        taskSettings=(Hashtable)cms.getRequestContext().currentUser().getAdditionalInfo(C_ADDITIONAL_INFO_TASKSETTINGS);
+      }
+      if (taskSettings == null) {
+        taskSettings=new Hashtable();
+        taskSettings.put(C_TASK_VIEW_ALL,new Boolean(false));
+        taskSettings.put(C_TASK_MESSAGES,new Integer(C_TASK_MESSAGES_ACCEPTED + C_TASK_MESSAGES_FORWARDED + C_TASK_MESSAGES_COMPLETED+ C_TASK_MESSAGES_MEMBERS));
+        taskSettings.put(C_TASK_FILTER,new String("a1"));
+      }
+      if (((Boolean)taskSettings.get(C_TASK_VIEW_ALL)).booleanValue()) {
+        xmlTemplateDocument.setXmlData("CHVIEWALL",C_CHECKED);
+      }
  else {
-      oldPanel=(String)session.getValue(C_PARA_OLDPANEL);
-      if (oldPanel != null) {
-        if (oldPanel.equals("explorer")) {
-          int explorerSettings=getExplorerSettings(parameters);
-          session.putValue("EXPLORERSETTINGS",new Integer(explorerSettings).toString());
-        }
+        xmlTemplateDocument.setXmlData("CHVIEWALL"," ");
+      }
+      int taskMessages=((Integer)taskSettings.get(C_TASK_MESSAGES)).intValue();
+      if ((taskMessages & C_TASK_MESSAGES_ACCEPTED) > 0) {
+        xmlTemplateDocument.setXmlData("CHMESSAGEACCEPTED",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHMESSAGEACCEPTED"," ");
+      }
+      if ((taskMessages & C_TASK_MESSAGES_FORWARDED) > 0) {
+        xmlTemplateDocument.setXmlData("CHMESSAGEFORWARDED",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHMESSAGEFORWARDED"," ");
+      }
+      if ((taskMessages & C_TASK_MESSAGES_COMPLETED) > 0) {
+        xmlTemplateDocument.setXmlData("CHMESSAGECOMPLETED",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHMESSAGECOMPLETED"," ");
+      }
+      if ((taskMessages & C_TASK_MESSAGES_MEMBERS) > 0) {
+        xmlTemplateDocument.setXmlData("CHMESSAGEMEMEBERS",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHMESSAGEMEMEBERS"," ");
+      }
+    }
+    oldPanel=(String)session.getValue(C_PARA_OLDPANEL);
+    if (oldPanel != null) {
+      if (oldPanel.equals("explorer")) {
+        int explorerSettings=getExplorerSettings(parameters);
+        session.putValue("EXPLORERSETTINGS",new Integer(explorerSettings).toString());
+      }
+      if (oldPanel.equals("task")) {
+        Hashtable taskSettings=getTaskSettings(parameters,session);
+        session.putValue("TASKSETTINGS",taskSettings);
       }
     }
     session.putValue(C_PARA_OLDPANEL,panel);
+  }
+  if ((parameters.get("OK") != null) || (parameters.get("CANCEL") != null)) {
+    session.removeValue("EXPLORERSETTINGS");
+    session.removeValue("TASKSETTINGS");
+    session.removeValue(C_PARA_OLDPANEL);
+    try {
+      cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_RELOAD);
+    }
+ catch (    Exception e) {
+      throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_RELOAD,CmsException.C_UNKNOWN_EXCEPTION,e);
+    }
   }
   return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
 }
