@@ -1,57 +1,65 @@
 {
-  CmsResource cmsfolder=null;
+  CmsResource importedResource=null;
   String path=importPath + destination.substring(0,destination.lastIndexOf("/") + 1);
   String name=destination.substring((destination.lastIndexOf("/") + 1),destination.length());
-  String fullname=null;
+  boolean changed=true;
+  CmsUser resowner=null;
+  CmsGroup resgroup=null;
   try {
-    cmsfolder=createResource(cms,path,name,properties,content);
-    if (cmsfolder != null) {
-      fullname=cmsfolder.getAbsolutePath();
-      lockResource(cms,fullname,true);
+    resowner=cms.readUser(user);
+  }
+ catch (  CmsException e) {
+    resowner=cms.getRequestContext().currentUser();
+  }
+  try {
+    resgroup=cms.readGroup(group);
+  }
+ catch (  CmsException e) {
+    resgroup=cms.getRequestContext().currentGroup();
+  }
+  try {
+    importedResource=cms.doCreateResource(path,name,C_TYPE_FOLDER,properties,C_UNKNOWN_LAUNCHER_ID,C_UNKNOWN_LAUNCHER,resowner.getName(),resgroup.getName(),Integer.parseInt(access),new byte[0]);
+    if (importedResource != null) {
+      changed=false;
     }
   }
  catch (  CmsException e) {
   }
-  if (fullname == null) {
-    cmsfolder=cms.readFolder(path,name + "/");
-    Hashtable oldProperties=cms.readAllProperties(cmsfolder.getAbsolutePath());
+  if (changed) {
+    changed=false;
+    importedResource=cms.readFolder(path,name + "/");
+    Hashtable oldProperties=cms.readAllProperties(importedResource.getAbsolutePath());
     if (oldProperties == null) {
       oldProperties=new Hashtable();
     }
     if (properties == null) {
       properties=new Hashtable();
     }
-    if (!oldProperties.equals(properties)) {
-      fullname=cmsfolder.getAbsolutePath();
-      lockResource(cms,fullname,true);
-      cms.writeProperties(fullname,properties);
+    if (oldProperties.size() != properties.size()) {
+      changed=true;
     }
-    if (fullname == null) {
-      if (cmsfolder.getAccessFlags() != Integer.parseInt(access) || cmsfolder.getOwnerId() != cms.readUser(user).getId() || cmsfolder.getGroupId() != cms.readGroup(group).getId()) {
-        fullname=cmsfolder.getAbsolutePath();
-        lockResource(cms,fullname,true);
+ else {
+      Enumeration keys=properties.keys();
+      while (keys.hasMoreElements()) {
+        String curKey=(String)keys.nextElement();
+        String value=(String)properties.get(curKey);
+        String oldValue=(String)oldProperties.get(curKey);
+        if ((oldValue == null) || !(value.trim().equals(oldValue.trim()))) {
+          changed=true;
+          break;
+        }
       }
     }
-  }
-  if (fullname != null) {
-    try {
-      cms.chmod(fullname,Integer.parseInt(access));
+    if (importedResource.getAccessFlags() != Integer.parseInt(access) || importedResource.getOwnerId() != resowner.getId() || importedResource.getGroupId() != resgroup.getId()) {
+      changed=true;
     }
- catch (    CmsException e) {
-      System.out.println("chmod(" + access + ") failed ");
+    if (importedResource.getType() != cms.getResourceType(type).getResourceType()) {
+      changed=true;
     }
-    try {
-      cms.chgrp(fullname,group);
-    }
- catch (    CmsException e) {
-      System.out.println("chgrp(" + group + ") failed ");
-    }
-    try {
-      cms.chown(fullname,user);
-    }
- catch (    CmsException e) {
-      System.out.println("chown((" + user + ") failed ");
+    if (changed) {
+      lockResource(cms,importedResource.getAbsolutePath(),true);
+      cms.doWriteResource(importedResource.getAbsolutePath(),properties,resowner.getName(),resgroup.getName(),Integer.parseInt(access),C_TYPE_FOLDER,new byte[0]);
     }
   }
-  return cmsfolder;
+  return importedResource;
 }

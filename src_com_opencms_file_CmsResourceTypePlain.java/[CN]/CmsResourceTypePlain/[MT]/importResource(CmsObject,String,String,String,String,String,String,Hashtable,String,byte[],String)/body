@@ -1,38 +1,39 @@
 {
-  CmsFile file=null;
+  CmsResource importedResource=null;
   String path=importPath + destination.substring(0,destination.lastIndexOf("/") + 1);
   String name=destination.substring((destination.lastIndexOf("/") + 1),destination.length());
+  boolean changed=true;
+  int resourceType=cms.getResourceType(type).getResourceType();
+  int launcherType=cms.getResourceType(type).getLauncherType();
+  if ((launcherStartClass == null) || ("".equals(launcherStartClass))) {
+    launcherStartClass=cms.getResourceType(type).getLauncherClass();
+  }
+  CmsUser resowner=null;
+  CmsGroup resgroup=null;
   try {
+    resowner=cms.readUser(user);
+  }
+ catch (  CmsException e) {
+    resowner=cms.getRequestContext().currentUser();
+  }
+  try {
+    resgroup=cms.readGroup(group);
+  }
+ catch (  CmsException e) {
+    resgroup=cms.getRequestContext().currentGroup();
+  }
+  try {
+    importedResource=cms.doCreateResource(path,name,resourceType,properties,launcherType,launcherStartClass,resowner.getName(),resgroup.getName(),Integer.parseInt(access),content);
+    if (importedResource != null) {
+      changed=false;
+    }
+  }
+ catch (  CmsException e) {
+  }
+  if (changed) {
     lockResource(cms,path + name,true);
-    deleteResource(cms,path + name);
+    cms.doWriteResource(path + name,properties,resowner.getName(),resgroup.getName(),Integer.parseInt(access),resourceType,content);
+    importedResource=cms.readFileHeader(path + name);
   }
- catch (  CmsException exc) {
-  }
-  file=(CmsFile)createResource(cms,path,name,properties,content);
-  String fullname=file.getAbsolutePath();
-  lockResource(cms,fullname,true);
-  try {
-    cms.chmod(fullname,Integer.parseInt(access));
-  }
- catch (  CmsException e) {
-    System.out.println("chmod(" + access + ") failed ");
-  }
-  try {
-    cms.chgrp(fullname,group);
-  }
- catch (  CmsException e) {
-    System.out.println("chgrp(" + group + ") failed ");
-  }
-  try {
-    cms.chown(fullname,user);
-  }
- catch (  CmsException e) {
-    System.out.println("chown((" + user + ") failed ");
-  }
-  if (launcherStartClass != null) {
-    file=cms.readFile(fullname);
-    file.setLauncherClassname(launcherStartClass);
-    cms.writeFile(file);
-  }
-  return file;
+  return importedResource;
 }

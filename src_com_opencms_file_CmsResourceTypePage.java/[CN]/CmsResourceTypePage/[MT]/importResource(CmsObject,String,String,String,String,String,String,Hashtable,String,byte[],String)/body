@@ -1,40 +1,39 @@
 {
-  CmsFile file=null;
+  CmsResource importedResource=null;
   String path=importPath + destination.substring(0,destination.lastIndexOf("/") + 1);
   String name=destination.substring((destination.lastIndexOf("/") + 1),destination.length());
-  int state=C_STATE_NEW;
-  try {
-    cms.doLockResource(path + name,true);
-    cms.doDeleteFile(path + name);
-    state=C_STATE_CHANGED;
+  boolean changed=true;
+  int resourceType=cms.getResourceType(type).getResourceType();
+  int launcherType=cms.getResourceType(type).getLauncherType();
+  if ((launcherStartClass == null) || ("".equals(launcherStartClass))) {
+    launcherStartClass=cms.getResourceType(type).getLauncherClass();
   }
- catch (  CmsException exc) {
-    state=C_STATE_NEW;
-  }
-  file=(CmsFile)cms.doCreateFile(path,name,content,type,properties);
-  String fullname=file.getAbsolutePath();
-  lockResource(cms,fullname,true);
+  CmsUser resowner=null;
+  CmsGroup resgroup=null;
   try {
-    cms.doChmod(fullname,Integer.parseInt(access));
+    resowner=cms.readUser(user);
   }
  catch (  CmsException e) {
-    System.out.println("chmod(" + access + ") failed ");
+    resowner=cms.getRequestContext().currentUser();
   }
   try {
-    cms.doChgrp(fullname,group);
+    resgroup=cms.readGroup(group);
   }
  catch (  CmsException e) {
-    System.out.println("chgrp(" + group + ") failed ");
+    resgroup=cms.getRequestContext().currentGroup();
   }
   try {
-    cms.doChown(fullname,user);
+    importedResource=cms.doCreateResource(path,name,resourceType,properties,launcherType,launcherStartClass,resowner.getName(),resgroup.getName(),Integer.parseInt(access),content);
+    if (importedResource != null) {
+      changed=false;
+    }
   }
  catch (  CmsException e) {
-    System.out.println("chown((" + user + ") failed ");
   }
-  if (launcherStartClass != null) {
-    file.setLauncherClassname(launcherStartClass);
-    cms.writeFile(file);
+  if (changed) {
+    lockResource(cms,path + name,true);
+    cms.doWriteResource(path + name,properties,resowner.getName(),resgroup.getName(),Integer.parseInt(access),resourceType,content);
+    importedResource=cms.readFileHeader(path + name);
   }
-  return file;
+  return importedResource;
 }
