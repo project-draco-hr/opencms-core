@@ -1,12 +1,12 @@
 {
-  Hashtable exportPoints=null;
-  CmsExportPointDriver discAccess=null;
+  Set exportPoints=null;
+  CmsExportPointDriver exportPointDriver=null;
   List publishedResources=null;
   CmsPublishedResource currentPublishedResource=null;
   String currentExportKey=null;
   boolean printReportHeaders=false;
   try {
-    exportPoints=m_registry.getExportpoints(true);
+    exportPoints=OpenCms.getExportPoints();
     if (exportPoints.size() == 0) {
       if (OpenCms.getLog(this).isWarnEnabled()) {
         OpenCms.getLog(this).warn("No export points configured at all.");
@@ -23,11 +23,11 @@
       }
       return;
     }
-    discAccess=new CmsExportPointDriver(exportPoints);
+    exportPointDriver=new CmsExportPointDriver(exportPoints);
     Iterator i=publishedResources.iterator();
     while (i.hasNext()) {
       currentPublishedResource=(CmsPublishedResource)i.next();
-      currentExportKey=checkExportPoint(currentPublishedResource.getRootPath(),exportPoints);
+      currentExportKey=exportPointDriver.getExportPoint(currentPublishedResource.getRootPath());
       if (currentExportKey != null) {
         if (!printReportHeaders) {
           report.println(report.key("report.export_points_write_begin"),I_CmsReport.C_FORMAT_HEADLINE);
@@ -35,20 +35,20 @@
         }
         if (currentPublishedResource.getType() == CmsResourceTypeFolder.C_RESOURCE_TYPE_ID) {
           if (currentPublishedResource.getState() == I_CmsConstants.C_STATE_DELETED) {
-            discAccess.removeResource(currentPublishedResource.getRootPath(),currentExportKey);
+            exportPointDriver.removeResource(currentPublishedResource.getRootPath(),currentExportKey);
           }
  else {
-            discAccess.createFolder(currentPublishedResource.getRootPath(),currentExportKey);
+            exportPointDriver.createFolder(currentPublishedResource.getRootPath(),currentExportKey);
           }
         }
  else {
           if (currentPublishedResource.getState() == I_CmsConstants.C_STATE_DELETED) {
-            discAccess.removeResource(currentPublishedResource.getRootPath(),currentExportKey);
+            exportPointDriver.removeResource(currentPublishedResource.getRootPath(),currentExportKey);
           }
  else {
             CmsFile file=getVfsDriver().readFile(I_CmsConstants.C_PROJECT_ONLINE_ID,false,currentPublishedResource.getStructureId());
             file.setFullResourceName(currentPublishedResource.getRootPath());
-            writeExportPoint(context,discAccess,currentExportKey,file);
+            writeExportPoint(context,exportPointDriver,currentExportKey,file);
           }
         }
         if (currentPublishedResource.getState() == I_CmsConstants.C_STATE_DELETED) {
