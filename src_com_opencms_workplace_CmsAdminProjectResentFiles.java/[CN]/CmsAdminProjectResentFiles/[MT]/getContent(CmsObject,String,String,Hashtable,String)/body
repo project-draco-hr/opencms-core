@@ -1,34 +1,30 @@
 {
   I_CmsSession session=cms.getRequestContext().getSession(true);
-  int currentProjectId=cms.getRequestContext().currentProject().getId();
   CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
   String filter=(String)parameters.get("filter");
+  String projectId=(String)parameters.get("projectid");
   String action=(String)parameters.get("action");
-  xmlTemplateDocument.setData("onload","");
-  if ("restoreproject".equals(action)) {
-    Integer oldId=(Integer)session.getValue("oldProjectId");
-    if (oldId != null) {
-      cms.getRequestContext().setCurrentProject(oldId.intValue());
+  if (filter == null || "".equalsIgnoreCase(filter)) {
+    filter=(String)session.getValue("filter");
+    if (filter == null || "".equalsIgnoreCase(filter)) {
+      filter="all";
     }
-    session.removeValue("oldProjectId");
-    try {
-      cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + "administration_head_5.html");
-    }
- catch (    IOException exc) {
-      throw new CmsException("Could not redirect to administration_head_5.html",exc);
-    }
-    return null;
+    xmlTemplateDocument.setData("loadheader",xmlTemplateDocument.getProcessedDataValue("LOADHEADER",this));
   }
-  if (filter == null) {
-    filter="all";
-    if (session.getValue("oldProjectId") == null) {
-      int projectId=Integer.parseInt((String)parameters.get("projectid"));
-      session.putValue("oldProjectId",new Integer(cms.getRequestContext().currentProject().getId()));
-      cms.getRequestContext().setCurrentProject(projectId);
-      xmlTemplateDocument.setData("onload","window.top.body.admin_head.location.href='administration_head_4.html';");
+ else {
+    xmlTemplateDocument.setData("loadheader",xmlTemplateDocument.getProcessedDataValue("NOTLOADHEADER",this));
+  }
+  if (projectId == null || "".equalsIgnoreCase(projectId)) {
+    projectId=(String)session.getValue("projectid");
+    if (projectId == null || "".equalsIgnoreCase(projectId)) {
+      projectId="" + cms.getRequestContext().currentProject().getId();
     }
   }
   session.putValue("filter",filter);
-  byte[] content=startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
-  return content;
+  session.putValue("projectid",projectId);
+  if (action != null && "restore".equalsIgnoreCase(action)) {
+    session.removeValue("projectid");
+    session.removeValue("filter");
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }
