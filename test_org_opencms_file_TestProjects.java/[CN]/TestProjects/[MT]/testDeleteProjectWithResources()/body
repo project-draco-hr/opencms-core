@@ -1,0 +1,26 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Creating a project for deletion test with resources");
+  String projectName="UnitTest3";
+  CmsProject project=cms.createProject(projectName,"Unit test project 3",OpenCms.getDefaultUsers().getGroupUsers(),OpenCms.getDefaultUsers().getGroupProjectmanagers(),I_CmsConstants.C_PROJECT_TYPE_NORMAL);
+  String resource="/";
+  storeResources(cms,resource);
+  cms.getRequestContext().setCurrentProject(project);
+  cms.copyResourceToProject("/");
+  assertEquals(projectName,project.getName());
+  assertFalse(project.isOnlineProject());
+  cms.lockResource(resource);
+  cms.touch("/folder1/",System.currentTimeMillis(),I_CmsConstants.C_DATE_UNCHANGED,I_CmsConstants.C_DATE_UNCHANGED,true);
+  cms.deleteResource("/folder2/",I_CmsConstants.C_DELETE_OPTION_DELETE_SIBLINGS);
+  cms.createResource("/folder3/",CmsResourceTypeFolder.C_RESOURCE_TYPE_ID,null,Collections.EMPTY_LIST);
+  cms.createResource("/folder3/test.txt",CmsResourceTypePlain.C_RESOURCE_TYPE_ID,"".getBytes(),Collections.EMPTY_LIST);
+  cms.unlockResource(resource);
+  cms.deleteProject(project.getId());
+  assertFilter(cms,resource,OpenCmsTestResourceFilter.FILTER_UNDOCHANGES);
+  Iterator j=cms.readResources(resource,CmsResourceFilter.ALL,true).iterator();
+  while (j.hasNext()) {
+    CmsResource res=(CmsResource)j.next();
+    String resName=cms.getSitePath(res);
+    assertFilter(cms,resName,OpenCmsTestResourceFilter.FILTER_UNDOCHANGES);
+  }
+}
