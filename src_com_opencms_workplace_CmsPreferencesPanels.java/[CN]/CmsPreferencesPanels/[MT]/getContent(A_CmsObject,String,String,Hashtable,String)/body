@@ -1,0 +1,117 @@
+{
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String template="";
+  String panel;
+  String oldPanel;
+  int explorerSettingsValue;
+  Enumeration keys=parameters.keys();
+  String key;
+  System.err.println("#####");
+  while (keys.hasMoreElements()) {
+    key=(String)keys.nextElement();
+    System.err.print(key);
+    System.err.print(":");
+    System.err.println(parameters.get(key));
+  }
+  System.err.println("?????");
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  if ((parameters.get("SUBMIT") != null) || (parameters.get("OK") != null)) {
+    int explorerSettings=getExplorerSettings(parameters);
+    session.putValue("EXPLORERSETTINGS",new Integer(explorerSettings).toString());
+    cms.getRequestContext().currentUser().setAdditionalInfo(C_ADDITIONAL_INFO_EXPLORERSETTINGS,new Integer(explorerSettings).toString());
+    cms.writeUser(cms.getRequestContext().currentUser());
+  }
+  if ((parameters.get("OK") != null) || (parameters.get("CANCEL") != null)) {
+    session.removeValue("EXPLORERSETTINGS");
+    try {
+      cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_RELOAD);
+    }
+ catch (    Exception e) {
+      throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_RELOAD,CmsException.C_UNKNOWN_EXCEPTION,e);
+    }
+  }
+  panel=(String)parameters.get("panel");
+  if (panel != null) {
+    template=panel;
+    if (panel.equals("explorer")) {
+      String explorerSettings=(String)session.getValue("EXPLORERSETTINGS");
+      if (explorerSettings == null) {
+        explorerSettings=(String)cms.getRequestContext().currentUser().getAdditionalInfo(C_ADDITIONAL_INFO_EXPLORERSETTINGS);
+      }
+      if (parameters.get("DEFAULT") != null) {
+        explorerSettings=null;
+      }
+      if (explorerSettings != null) {
+        explorerSettingsValue=new Integer(explorerSettings).intValue();
+      }
+ else {
+        explorerSettingsValue=C_FILELIST_TITLE + C_FILELIST_TYPE + C_FILELIST_CHANGED;
+      }
+      if ((explorerSettingsValue & C_FILELIST_TITLE) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKTITLE",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKTITLE"," ");
+      }
+      if ((explorerSettingsValue & C_FILELIST_TYPE) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKTYPE",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKTYPE"," ");
+      }
+      if ((explorerSettingsValue & C_FILELIST_CHANGED) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKCHANGED",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKCHANGED"," ");
+      }
+      if ((explorerSettingsValue & C_FILELIST_SIZE) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKSIZE",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKSIZE"," ");
+      }
+      if ((explorerSettingsValue & C_FILELIST_STATE) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKSTATE",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKSTATE"," ");
+      }
+      if ((explorerSettingsValue & C_FILELIST_OWNER) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKOWNER",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKOWNER"," ");
+      }
+      if ((explorerSettingsValue & C_FILELIST_GROUP) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKGROUP",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKGROUP"," ");
+      }
+      if ((explorerSettingsValue & C_FILELIST_ACCESS) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKACCESS",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKACCESS"," ");
+      }
+      if ((explorerSettingsValue & C_FILELIST_LOCKED) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKLOCKEDBY",C_CHECKED);
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKLOCKEDBY"," ");
+      }
+    }
+ else {
+      oldPanel=(String)session.getValue(C_PARA_OLDPANEL);
+      if (oldPanel != null) {
+        if (oldPanel.equals("explorer")) {
+          int explorerSettings=getExplorerSettings(parameters);
+          session.putValue("EXPLORERSETTINGS",new Integer(explorerSettings).toString());
+        }
+      }
+    }
+    session.putValue(C_PARA_OLDPANEL,panel);
+  }
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}
