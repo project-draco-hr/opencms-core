@@ -1,8 +1,8 @@
 {
-  Connection con=null;
-  Connection con2=null;
-  PreparedStatement stmnt=null;
-  PreparedStatement stmnt2=null;
+  Connection conn=null;
+  Connection conn2=null;
+  PreparedStatement stmt=null;
+  PreparedStatement stmt2=null;
   ResultSet res=null;
   CmsMasterDataSet backup=getVersionFromHistory(cms,dataset.m_masterId,content.getSubId(),versionId);
   dataset.m_accessFlags=backup.m_accessFlags;
@@ -54,27 +54,27 @@
     throw new CmsException(CmsException.C_SQL_ERROR,exc);
   }
   try {
-    con=DriverManager.getConnection(m_backupPoolName);
-    stmnt=sqlPrepare(con,"read_media_backup");
-    stmnt.setString(1,dataset.m_masterId.toString());
-    stmnt.setInt(2,versionId);
-    res=stmnt.executeQuery();
+    conn=m_SqlQueries.getConnection();
+    stmt=m_SqlQueries.getPreparedStatement(conn,"read_media_backup");
+    stmt.setString(1,dataset.m_masterId.toString());
+    stmt.setInt(2,versionId);
+    res=stmt.executeQuery();
     while (res.next()) {
       int i=1;
       CmsMasterMedia media=new CmsMasterMedia(res.getInt(i++),new CmsUUID(res.getString(i++)),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getString(i++),res.getInt(i++),res.getString(i++),res.getString(i++),res.getString(i++),res.getBytes(i++));
       try {
-        stmnt2=null;
-        con2=null;
-        con2=DriverManager.getConnection(m_poolName);
-        stmnt2=sqlPrepare(con2,"insert_media_offline");
-        sqlFillValues(stmnt2,media);
-        stmnt2.executeUpdate();
+        stmt2=null;
+        conn2=null;
+        conn2=m_SqlQueries.getConnection();
+        stmt2=m_SqlQueries.getPreparedStatement(conn2,"insert_media_offline");
+        sqlFillValues(stmt2,media);
+        stmt2.executeUpdate();
       }
  catch (      SQLException ex) {
         throw new CmsException(CmsException.C_SQL_ERROR,ex);
       }
  finally {
-        sqlClose(con2,stmnt2,null);
+        m_SqlQueries.closeAll(conn2,stmt2,null);
       }
     }
   }
@@ -82,6 +82,6 @@
     throw new CmsException(CmsException.C_SQL_ERROR,e);
   }
  finally {
-    sqlClose(con,stmnt,res);
+    m_SqlQueries.closeAll(conn,stmt,res);
   }
 }

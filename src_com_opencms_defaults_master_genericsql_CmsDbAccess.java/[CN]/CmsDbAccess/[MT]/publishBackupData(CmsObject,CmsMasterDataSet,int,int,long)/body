@@ -1,15 +1,15 @@
 {
-  PreparedStatement stmnt=null;
-  PreparedStatement stmnt2=null;
+  PreparedStatement stmt=null;
+  PreparedStatement stmt2=null;
   ResultSet res=null;
-  Connection con=null;
-  Connection con2=null;
+  Connection conn=null;
+  Connection conn2=null;
   CmsUUID masterId=dataset.m_masterId;
   try {
-    stmnt=null;
-    con=null;
-    con=DriverManager.getConnection(m_backupPoolName);
-    stmnt=sqlPrepare(con,"insert_backup");
+    stmt=null;
+    conn=null;
+    conn=m_SqlQueries.getConnection();
+    stmt=m_SqlQueries.getPreparedStatement(conn,"insert_backup");
     dataset.m_lockedBy=CmsUUID.getNullUUID();
     dataset.m_dateCreated=publishDate;
     String ownerName="";
@@ -36,44 +36,44 @@
  catch (    CmsException ex) {
       userName="";
     }
-    int lastId=sqlFillValues(stmnt,subId,dataset);
-    stmnt.setInt(lastId++,versionId);
-    stmnt.setString(lastId++,ownerName);
-    stmnt.setString(lastId++,groupName);
-    stmnt.setString(lastId++,userName);
-    stmnt.executeUpdate();
+    int lastId=sqlFillValues(stmt,subId,dataset);
+    stmt.setInt(lastId++,versionId);
+    stmt.setString(lastId++,ownerName);
+    stmt.setString(lastId++,groupName);
+    stmt.setString(lastId++,userName);
+    stmt.executeUpdate();
   }
  catch (  SQLException exc) {
     throw new CmsException(CmsException.C_SQL_ERROR,exc);
   }
  finally {
-    sqlClose(con,stmnt,null);
+    m_SqlQueries.closeAll(conn,stmt,null);
   }
   try {
-    stmnt=null;
+    stmt=null;
     res=null;
-    con=null;
-    con=DriverManager.getConnection(m_poolName);
-    stmnt=sqlPrepare(con,"read_media_offline");
-    stmnt.setString(1,masterId.toString());
-    res=stmnt.executeQuery();
+    conn=null;
+    conn=m_SqlQueries.getConnection();
+    stmt=m_SqlQueries.getPreparedStatement(conn,"read_media_offline");
+    stmt.setString(1,masterId.toString());
+    res=stmt.executeQuery();
     while (res.next()) {
       int i=1;
       CmsMasterMedia mediaset=new CmsMasterMedia(res.getInt(i++),new CmsUUID(res.getString(i++)),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getString(i++),res.getInt(i++),res.getString(i++),res.getString(i++),res.getString(i++),res.getBytes(i++));
       try {
-        con2=null;
-        stmnt2=null;
-        con2=DriverManager.getConnection(m_backupPoolName);
-        stmnt2=sqlPrepare(con2,"insert_media_backup");
-        int lastId=sqlFillValues(stmnt2,mediaset);
-        stmnt2.setInt(lastId,versionId);
-        stmnt2.executeUpdate();
+        conn2=null;
+        stmt2=null;
+        conn2=m_SqlQueries.getConnection();
+        stmt2=m_SqlQueries.getPreparedStatement(conn2,"insert_media_backup");
+        int lastId=sqlFillValues(stmt2,mediaset);
+        stmt2.setInt(lastId,versionId);
+        stmt2.executeUpdate();
       }
  catch (      SQLException ex) {
         throw ex;
       }
  finally {
-        sqlClose(con2,stmnt2,null);
+        m_SqlQueries.closeAll(conn2,stmt2,null);
       }
     }
   }
@@ -81,6 +81,6 @@
     throw new CmsException(CmsException.C_SQL_ERROR,exc);
   }
  finally {
-    sqlClose(con,stmnt,res);
+    m_SqlQueries.closeAll(conn,stmt,res);
   }
 }
