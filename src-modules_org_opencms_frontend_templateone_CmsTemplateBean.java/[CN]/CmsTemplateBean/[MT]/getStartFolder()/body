@@ -1,27 +1,36 @@
 {
   if (m_startFolder == null) {
-    String propValue=property(C_PROPERTY_STARTFOLDER,"search","na");
-    if ("true".equals(propValue)) {
-      String path=CmsResource.getFolderPath(getRequestContext().getUri());
-      boolean cont=true;
-      do {
-        String checkValue=property(C_PROPERTY_STARTFOLDER,path,null);
-        if (checkValue == null) {
+    String path=CmsResource.getFolderPath(getRequestContext().getUri());
+    int folderTypeId=-1;
+    try {
+      folderTypeId=OpenCms.getResourceManager().getResourceType(C_RESOURCE_TYPE_MICROSITE_NAME).getTypeId();
+    }
+ catch (    CmsLoaderException e) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Resource type id for microsite folder could not be determined in template one bean");
+      }
+    }
+    do {
+      try {
+        CmsResource folder=getCmsObject().readResource(path);
+        if (folder.getTypeId() != folderTypeId) {
           path=CmsResource.getParentFolder(path);
-          if (path == null || "/".equals(path)) {
-            cont=false;
+          if (CmsStringUtil.isEmpty(path) || "/".equals(path)) {
+            m_startFolder="/";
+            return m_startFolder;
           }
         }
- else         if ("true".equals(checkValue)) {
+ else {
           m_startFolder=path;
-          cont=false;
+          return m_startFolder;
         }
       }
- while (cont);
+ catch (      CmsException e) {
+        m_startFolder="/";
+        return m_startFolder;
+      }
     }
-    if (m_startFolder == null) {
-      m_startFolder="/";
-    }
+ while (true);
   }
   return m_startFolder;
 }
