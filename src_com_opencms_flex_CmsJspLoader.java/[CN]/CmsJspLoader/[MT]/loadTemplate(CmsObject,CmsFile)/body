@@ -5,29 +5,30 @@
     timer1=System.currentTimeMillis();
     System.err.println("========== JspLoader (Template) loading: " + file.getAbsolutePath());
   }
-  if (cms.getRequestContext().getRequest() instanceof com.opencms.core.CmsExportRequest) {
+  if (cms.getRequestContext().getRequest() instanceof CmsExportRequest) {
     if (DEBUG > 1)     System.err.println("FlexJspLoader.loadTemplate(): Export requested for " + file.getAbsolutePath());
     result=exportJsp(cms,file);
   }
  else {
     HttpServletRequest req=(HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest();
     HttpServletResponse res=(HttpServletResponse)cms.getRequestContext().getResponse().getOriginalResponse();
-    CmsFlexRequest w_req;
-    CmsFlexResponse w_res;
-    if (req instanceof CmsFlexRequest) {
-      w_req=(CmsFlexRequest)req;
+    CmsFlexController controller=(CmsFlexController)req.getAttribute(CmsFlexController.ATTRIBUTE_NAME);
+    CmsFlexRequest f_req;
+    CmsFlexResponse f_res;
+    if (controller != null) {
+      f_req=controller.getCurrentRequest();
+      f_res=controller.getCurrentResponse();
     }
  else {
-      w_req=new CmsFlexRequest(req,file,m_cache,cms);
-    }
-    if (res instanceof CmsFlexResponse) {
-      w_res=(CmsFlexResponse)res;
-    }
- else {
-      w_res=new CmsFlexResponse(res,false,false,cms.getRequestContext().getEncoding());
+      controller=new CmsFlexController(cms,file,m_cache,req,res);
+      req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,controller);
+      f_req=new CmsFlexRequest(req,controller);
+      f_res=new CmsFlexResponse(res,controller,false,false);
+      controller.pushRequest(f_req);
+      controller.pushResponse(f_res);
     }
     try {
-      w_req.getCmsRequestDispatcher(file.getAbsolutePath()).include(w_req,w_res);
+      f_req.getRequestDispatcher(file.getAbsolutePath()).include(f_req,f_res);
     }
  catch (    java.net.SocketException e) {
       if (DEBUG > 1)       System.err.println("JspLoader.loadTemplate() ignoring SocketException " + e);
@@ -37,10 +38,10 @@ catch (    Exception e) {
       if (DEBUG > 0)       System.err.println(com.opencms.util.Utils.getStackTrace(e));
       throw new CmsException("Error in CmsJspLoader.loadTemplate() while loading " + file.getAbsolutePath() + "\n"+ e,CmsException.C_LAUNCH_ERROR,e);
     }
-    if (!w_res.isSuspended()) {
+    if (!f_res.isSuspended()) {
       try {
         if ((res == null) || (!res.isCommitted())) {
-          result=w_res.getWriterBytes();
+          result=f_res.getWriterBytes();
           result=Encoder.changeEncoding(result,A_OpenCms.getDefaultEncoding(),cms.getRequestContext().getEncoding());
         }
       }

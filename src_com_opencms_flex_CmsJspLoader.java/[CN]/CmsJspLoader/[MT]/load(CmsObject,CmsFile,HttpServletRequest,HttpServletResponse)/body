@@ -23,43 +23,44 @@
     throw new ServletException("FlexJspLoader: Error while loading stream properties for " + file.getAbsolutePath() + "\n"+ e,e);
   }
   if (DEBUG > 1)   System.err.println("========== JspLoader stream=" + streaming + " bypass="+ bypass);
-  CmsFlexRequest w_req;
-  CmsFlexResponse w_res;
-  if (req instanceof CmsFlexRequest) {
-    w_req=(CmsFlexRequest)req;
+  CmsFlexController controller=(CmsFlexController)req.getAttribute(CmsFlexController.ATTRIBUTE_NAME);
+  CmsFlexRequest f_req;
+  CmsFlexResponse f_res;
+  if (controller != null) {
+    f_req=controller.getCurrentRequest();
+    f_res=controller.getCurrentResponse();
   }
  else {
-    w_req=new CmsFlexRequest(req,file,m_cache,cms);
-  }
-  if (res instanceof CmsFlexResponse) {
-    w_res=(CmsFlexResponse)res;
-  }
- else {
-    w_res=new CmsFlexResponse(res,streaming,true,cms.getRequestContext().getEncoding());
+    controller=new CmsFlexController(cms,file,m_cache,req,res);
+    req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,controller);
+    f_req=new CmsFlexRequest(req,controller);
+    f_res=new CmsFlexResponse(res,controller,streaming,true);
+    controller.pushRequest(f_req);
+    controller.pushResponse(f_res);
   }
   if (bypass) {
     if (DEBUG > 1)     System.err.println("JspLoader.load() bypassing cache for file " + file.getAbsolutePath());
-    String target=updateJsp(cms,file,w_req,new HashSet(11));
-    req.getRequestDispatcher(target).forward(w_req,res);
+    String target=updateJsp(cms,file,f_req,controller,new HashSet(11));
+    req.getRequestDispatcher(target).forward(f_req,res);
     if (DEBUG > 1)     System.err.println("JspLoader.load() cache was bypassed!");
   }
  else {
     try {
-      w_req.getCmsRequestDispatcher(file.getAbsolutePath()).include(w_req,w_res);
+      f_req.getRequestDispatcher(file.getAbsolutePath()).include(f_req,f_res);
     }
  catch (    java.net.SocketException e) {
       if (DEBUG > 1)       System.err.println("JspLoader.load() ignoring SocketException " + e);
     }
-    if (!streaming && !w_res.isSuspended()) {
+    if (!streaming && !f_res.isSuspended()) {
       try {
         if (!res.isCommitted() || m_errorPagesAreNotCommited) {
-          byte[] result=w_res.getWriterBytes();
+          byte[] result=f_res.getWriterBytes();
           result=Encoder.changeEncoding(result,A_OpenCms.getDefaultEncoding(),cms.getRequestContext().getEncoding());
           if (exportmode) {
-            exportSetLinkHeader(cms,w_res);
+            exportSetLinkHeader(cms,f_res);
           }
           res.setContentLength(result.length);
-          CmsFlexResponse.processHeaders(w_res.getHeaders(),res);
+          CmsFlexResponse.processHeaders(f_res.getHeaders(),res);
           res.getOutputStream().write(result);
           res.getOutputStream().flush();
         }
