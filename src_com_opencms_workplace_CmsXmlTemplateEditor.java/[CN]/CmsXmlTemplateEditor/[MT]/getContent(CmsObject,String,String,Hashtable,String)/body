@@ -97,29 +97,40 @@
   }
   parameters.put("root.pagetype",cms.getResourceType(cms.readFileHeader(file).getType()).getResourceTypeName());
   parameters.put("filename_for_relative_template",file);
+  String templateProp=cms.readProperty(file,CmsXmlLauncher.C_XML_CONTROL_TEMPLATE_PROPERTY);
+  boolean isSimplePage=(templateProp != null);
+  CmsResource pageFileResource=cms.readFileHeader(file);
+  if (!pageFileResource.isLocked()) {
+    cms.lockResource(file);
+  }
   if (!existsContentParam) {
-    CmsXmlControlFile originalControlFile=new CmsXmlControlFile(cms,file);
-    if (originalControlFile.isElementClassDefined(C_BODY_ELEMENT)) {
-      bodyElementClassName=originalControlFile.getElementClass(C_BODY_ELEMENT);
+    if (isSimplePage) {
+      bodyElementClassName="com.opencms.template.CmsXmlTemplate";
+      bodyElementFilename=file;
+      layoutTemplateClassName="com.opencms.template.CmsXmlTemplate";
+      layoutTemplateFilename=templateProp;
+      layoutTemplatFilenameRelative=templateProp;
     }
-    if (originalControlFile.isElementTemplateDefined(C_BODY_ELEMENT)) {
-      bodyElementFilename=originalControlFile.getElementTemplate(C_BODY_ELEMENT);
-      bodyElementFilename=originalControlFile.validateBodyPath(cms,bodyElementFilename,cms.readFileHeader(file));
+ else {
+      CmsXmlControlFile originalControlFile=new CmsXmlControlFile(cms,file);
+      if (originalControlFile.isElementClassDefined(C_BODY_ELEMENT)) {
+        bodyElementClassName=originalControlFile.getElementClass(C_BODY_ELEMENT);
+      }
+      if (originalControlFile.isElementTemplateDefined(C_BODY_ELEMENT)) {
+        bodyElementFilename=originalControlFile.getElementTemplate(C_BODY_ELEMENT);
+        bodyElementFilename=originalControlFile.validateBodyPath(cms,bodyElementFilename,cms.readFileHeader(file));
+      }
+      if ((bodyElementClassName == null) || (bodyElementFilename == null)) {
+      }
+      CmsResource contentFileResource=cms.readFileHeader(bodyElementFilename);
+      if (!contentFileResource.isLocked()) {
+        cms.lockResource(bodyElementFilename);
+      }
+      layoutTemplateFilename=originalControlFile.getMasterTemplate();
+      layoutTemplatFilenameRelative=layoutTemplateFilename;
+      layoutTemplateFilename=Utils.mergeAbsolutePath(originalControlFile.getAbsoluteFilename(),layoutTemplateFilename);
+      layoutTemplateClassName=originalControlFile.getTemplateClass();
     }
-    if ((bodyElementClassName == null) || (bodyElementFilename == null)) {
-    }
-    CmsResource pageFileResource=cms.readFileHeader(file);
-    if (!pageFileResource.isLocked()) {
-      cms.lockResource(file);
-    }
-    CmsResource contentFileResource=cms.readFileHeader(bodyElementFilename);
-    if (!contentFileResource.isLocked()) {
-      cms.lockResource(bodyElementFilename);
-    }
-    layoutTemplateFilename=originalControlFile.getMasterTemplate();
-    layoutTemplatFilenameRelative=layoutTemplateFilename;
-    layoutTemplateFilename=Utils.mergeAbsolutePath(originalControlFile.getAbsoluteFilename(),layoutTemplateFilename);
-    layoutTemplateClassName=originalControlFile.getTemplateClass();
     int browserId;
     if (browser.indexOf("MSIE") > -1) {
       browserId=0;
@@ -155,7 +166,12 @@
       tempPageFilename=(String)session.getValue("te_temppagefile");
     }
     cms.getRequestContext().setCurrentProject(curProject);
-    tempBodyFilename=C_VFS_PATH_BODIES.substring(0,C_VFS_PATH_BODIES.length() - 1) + tempPageFilename;
+    if (isSimplePage) {
+      tempBodyFilename=tempPageFilename;
+    }
+ else {
+      tempBodyFilename=C_VFS_PATH_BODIES.substring(0,C_VFS_PATH_BODIES.length() - 1) + tempPageFilename;
+    }
     session.putValue("te_temppagefile",tempPageFilename);
     session.putValue("te_tempbodyfile",tempBodyFilename);
   }
@@ -165,7 +181,8 @@
   tempObj=CmsTemplateClassManager.getClassInstance(cms,bodyElementClassName);
   CmsXmlTemplate bodyElementClassObject=(CmsXmlTemplate)tempObj;
   CmsXmlTemplateFile bodyTemplateFile=bodyElementClassObject.getOwnTemplateFile(cms,tempBodyFilename,C_BODY_ELEMENT,parameters,null);
-  CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
+  CmsXmlControlFile temporaryControlFile=null;
+  if (!isSimplePage)   temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
   if (!existsContentParam) {
     Vector allBodys=bodyTemplateFile.getAllSections();
     if (allBodys == null || allBodys.size() == 0) {
@@ -175,11 +192,13 @@
       body=(String)allBodys.elementAt(0);
     }
     bodytitle=body.equals("(default)") ? "" : body;
-    temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
-    temporaryControlFile.setElementTemplate(C_BODY_ELEMENT,tempBodyFilename);
-    cms.getRequestContext().setCurrentProject(tempProject);
-    temporaryControlFile.write();
-    cms.getRequestContext().setCurrentProject(curProject);
+    if (!isSimplePage) {
+      temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
+      temporaryControlFile.setElementTemplate(C_BODY_ELEMENT,tempBodyFilename);
+      cms.getRequestContext().setCurrentProject(tempProject);
+      temporaryControlFile.write();
+      cms.getRequestContext().setCurrentProject(curProject);
+    }
     try {
       style=getStylesheet(cms,null,layoutTemplateFile,null);
       if (style != null && !"".equals(style)) {
@@ -207,7 +226,14 @@
       }
     }
     if (templatechangeRequested) {
-      temporaryControlFile.setMasterTemplate(layoutTemplatFilenameRelative);
+      if (isSimplePage) {
+        cms.getRequestContext().setCurrentProject(tempProject);
+        cms.writeProperty(tempPageFilename,CmsXmlLauncher.C_XML_CONTROL_TEMPLATE_PROPERTY,layoutTemplatFilenameRelative);
+        cms.getRequestContext().setCurrentProject(curProject);
+      }
+ else {
+        temporaryControlFile.setMasterTemplate(layoutTemplatFilenameRelative);
+      }
       try {
         style=getStylesheet(cms,null,layoutTemplateFile,null);
         if (style != null && !"".equals(style)) {
@@ -245,7 +271,7 @@
       }
     }
     if (bodychangeRequested) {
-      temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
+      if (!isSimplePage)       temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
       bodytitle=body.equals("(default)") ? "" : body;
       if (body.equals("script")) {
         session.putValue("te_pageeditor",editor);
@@ -262,8 +288,10 @@
     if (newbodyRequested) {
       body=C_BODY_ELEMENT + bodyTemplateFile.createNewSection(C_BODY_ELEMENT);
       bodytitle=body;
-      temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
-      temporaryControlFile.setElementTemplate(C_BODY_ELEMENT,tempBodyFilename);
+      if (!isSimplePage) {
+        temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
+        temporaryControlFile.setElementTemplate(C_BODY_ELEMENT,tempBodyFilename);
+      }
     }
     String relativeRoot=cms.readProperty(file,C_PROPERTY_RELATIVEROOT,true);
     content=Encoder.unescape(content,Encoder.C_UTF8_ENCODING);
@@ -275,7 +303,7 @@
     }
     cms.getRequestContext().setCurrentProject(tempProject);
     bodyTemplateFile.write();
-    temporaryControlFile.write();
+    if (!isSimplePage)     temporaryControlFile.write();
     cms.getRequestContext().setCurrentProject(curProject);
   }
   if (previewRequested) {
@@ -291,9 +319,11 @@
       if (title != null && !"".equals(title)) {
         cms.writeProperty(file,C_PROPERTY_TITLE,title);
       }
-      CmsXmlControlFile originalControlFile=new CmsXmlControlFile(cms,file);
-      originalControlFile.setMasterTemplate(temporaryControlFile.getMasterTemplate());
-      originalControlFile.write();
+      if (!isSimplePage) {
+        CmsXmlControlFile originalControlFile=new CmsXmlControlFile(cms,file);
+        originalControlFile.setMasterTemplate(temporaryControlFile.getMasterTemplate());
+        originalControlFile.write();
+      }
       CmsPageLinks linkObject=cms.getPageLinks(file);
       cms.createLinkEntrys(linkObject.getResourceId(),linkObject.getLinkTargets());
     }
@@ -332,7 +362,7 @@
     }
   }
   if (exitRequested && ((saveerror == null) || "".equals(saveerror))) {
-    temporaryControlFile.removeFromFileCache();
+    if (!isSimplePage)     temporaryControlFile.removeFromFileCache();
     bodyTemplateFile.removeFromFileCache();
     cms.getRequestContext().setCurrentProject(tempProject);
     cms.deleteResource(tempPageFilename);
