@@ -1,0 +1,99 @@
+{
+  SimpleDateFormat dateFormat=new java.text.SimpleDateFormat("dd.MM.yyyy");
+  String name=(String)table.get(C_MODULE_PACKETNAME);
+  String modulePath=C_VFS_PATH_MODULES + name + "/";
+  String version=(String)table.get(C_VERSION);
+  try {
+    reg.setModuleVersion(name,version);
+  }
+ catch (  CmsException e) {
+  }
+  try {
+    reg.setModuleNiceName(name,(String)table.get(C_MODULENAME));
+    reg.setModuleDescription(name,(String)table.get(C_DESCRIPTION));
+    if ("".equals(table.get(C_VIEW))) {
+      if (!"".equals(getStringValue(reg.getModuleViewName(name)))) {
+        try {
+          cms.deleteResource(modulePath + "view/",I_CmsConstants.C_DELETE_OPTION_IGNORE_VFS_LINKS);
+        }
+ catch (        Exception e) {
+        }
+        reg.deleteModuleView(name);
+      }
+    }
+ else {
+      if ("".equals(getStringValue(reg.getModuleViewName(name)))) {
+        reg.setModuleView(name,name.replace('.','_'),modulePath + "view/index.html");
+        tryToCreateFolder(cms,modulePath,"view");
+      }
+    }
+    if ("".equals(table.get(C_ADMINPOINT))) {
+      try {
+        cms.deleteResource(modulePath + "administration/",I_CmsConstants.C_DELETE_OPTION_IGNORE_VFS_LINKS);
+      }
+ catch (      Exception e) {
+      }
+    }
+ else {
+      tryToCreateFolder(cms,modulePath,"administration");
+    }
+    reg.setModuleMaintenanceEventClass(name,(String)table.get(C_MAINTENANCE));
+    reg.setModulePublishClass(name,(String)table.get(C_PUBLISHCLASS));
+    reg.setModuleAuthor(name,(String)table.get(C_AUTHOR));
+    reg.setModuleAuthorEmail(name,(String)table.get(C_EMAIL));
+    String date=(String)table.get(C_DATE);
+    long dateLong=0;
+    try {
+      dateLong=dateFormat.parse(date).getTime();
+    }
+ catch (    Exception exc) {
+      dateLong=(new Date()).getTime();
+    }
+    reg.setModuleCreateDate(name,dateLong);
+    Vector depNames=new Vector();
+    Vector minVersion=new Vector();
+    Vector maxVersion=new Vector();
+    Vector stringDeps=(Vector)table.get(C_DEPENDENCY);
+    for (int i=0; i < stringDeps.size(); i++) {
+      String complString=(String)stringDeps.elementAt(i);
+      String max=complString.substring(complString.lastIndexOf("-") + 2);
+      complString=complString.substring(0,complString.lastIndexOf("-") - 1);
+      String min=complString.substring(complString.lastIndexOf(":") + 1);
+      depNames.addElement((complString.substring(0,complString.lastIndexOf("Version:") - 1)).trim());
+      float minInt=0;
+      float maxInt=-1;
+      try {
+        minInt=Float.parseFloat(min);
+      }
+ catch (      Exception e) {
+      }
+      try {
+        if (!"*".equals(max)) {
+          maxInt=Float.parseFloat(max);
+        }
+      }
+ catch (      Exception e) {
+      }
+      minVersion.addElement(new Float(minInt));
+      maxVersion.addElement(new Float(maxInt));
+    }
+    reg.setModuleDependencies(name,depNames,minVersion,maxVersion);
+    Vector paraNames=(Vector)table.get(C_SESSION_MODULE_ADMIN_PROP_NAMES);
+    Vector paraDesc=(Vector)table.get(C_SESSION_MODULE_ADMIN_PROP_DESCR);
+    Vector paraTyp=(Vector)table.get(C_SESSION_MODULE_ADMIN_PROP_TYP);
+    Vector paraVal=(Vector)table.get(C_SESSION_MODULE_ADMIN_PROP_VAL);
+    reg.setModuleParameterdef(name,paraNames,paraDesc,paraTyp,paraVal);
+    String moduleType=(String)table.get(C_MODULE_TYPE);
+    if (moduleType != null && moduleType.equals("checked")) {
+      reg.setModuleType(name,CmsRegistry.C_MODULE_TYPE_SIMPLE);
+    }
+ else {
+      reg.setModuleType(name,CmsRegistry.C_MODULE_TYPE_TRADITIONAL);
+    }
+  }
+ catch (  CmsException e) {
+    if (OpenCms.isLogging(I_CmsLogChannels.C_MODULE_DEBUG)) {
+      OpenCms.log(I_CmsLogChannels.C_MODULE_DEBUG,"Error while module administrating: " + e.toString());
+    }
+  }
+}
