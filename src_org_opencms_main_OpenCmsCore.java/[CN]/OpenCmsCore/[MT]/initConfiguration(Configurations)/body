@@ -17,7 +17,7 @@
   if (!m_defaultEncoding.equals(systemEncoding)) {
     String msg="OpenCms startup failure: System file.encoding '" + systemEncoding + "' not equal to OpenCms encoding '"+ m_defaultEncoding+ "'";
     if (getLog(this).isFatalEnabled()) {
-      getLog(this).fatal("Critical init error/1: " + msg);
+      getLog(this).fatal(OpenCmsCore.C_MSG_CRITICAL_ERROR + "1: " + msg);
     }
     throw new Exception(msg);
   }
@@ -50,7 +50,7 @@
     }
   }
  catch (  Exception e) {
-    if (getLog(this).isErrorEnabled())     getLog(this).error("Critical init error/2",e);
+    if (getLog(this).isErrorEnabled())     getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "2",e);
     throw e;
   }
   m_defaultUsers=CmsDefaultUsers.initialize(conf);
@@ -59,7 +59,7 @@
   }
  catch (  Exception e) {
     if (getLog(this).isErrorEnabled()) {
-      getLog(this).error("Critical init error/3",e);
+      getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "3",e);
     }
     throw new CmsException("Database init failed",CmsException.C_RB_INIT_ERROR,e);
   }
@@ -80,7 +80,25 @@
   }
  catch (  Exception e) {
     if (getLog(this).isErrorEnabled()) {
-      getLog(this).error("Critical init error/5",e);
+      getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "5",e);
+    }
+    throw e;
+  }
+  try {
+    List dialogHandlerClasses=OpenCms.getRegistry().getDialogHandler();
+    Iterator i=dialogHandlerClasses.iterator();
+    while (i.hasNext()) {
+      String currentClass=(String)i.next();
+      I_CmsDialogHandler handler=(I_CmsDialogHandler)Class.forName(currentClass).newInstance();
+      setRuntimeProperty(handler.getDialogHandler(),handler);
+      if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+        getLog(CmsLog.CHANNEL_INIT).info(". Dialog handler class : " + currentClass + " instanciated");
+      }
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(this).isErrorEnabled()) {
+      getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "7",e);
     }
     throw e;
   }
@@ -242,18 +260,6 @@
  catch (  Exception e2) {
     if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
       getLog(CmsLog.CHANNEL_INIT).warn(". Resource init class  : non-critical error " + e2.toString());
-    }
-  }
-  String propertyDialogHandler=OpenCms.getRegistry().getPropertyDialogHandler();
-  try {
-    setRuntimeProperty("propertydialoghandler",Class.forName(propertyDialogHandler).newInstance());
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". Property dialog class: " + propertyDialogHandler);
-    }
-  }
- catch (  Exception e) {
-    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).warn(". Property dialog class: non-critical error " + e.toString());
     }
   }
   Boolean supportOldLocales=conf.getBoolean("compatibility.support.oldlocales",new Boolean(false));
