@@ -1,16 +1,23 @@
 {
+  boolean alive=false;
+  try {
+    if (!con.isClosed()) {
+      con.clearWarnings();
+      alive=true;
+    }
+  }
+ catch (  SQLException exc) {
+  }
+  if ((con.getEstablishedTime() + (m_maxage)) < System.currentTimeMillis()) {
+    alive=false;
+    if (A_OpenCms.isLogging()) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_POOL,"[" + getClass().getName() + "] "+ m_poolname+ ": connection is to old, destroy it.");
+    }
+  }
 synchronized (m_availableConnections) {
-    boolean alive=false;
-    try {
-      if (!con.isClosed()) {
-        con.clearWarnings();
-        alive=true;
-      }
-    }
- catch (    SQLException exc) {
-    }
     if (alive) {
       m_availableConnections.push(con);
+      m_availableConnections.notify();
     }
  else {
       if (A_OpenCms.isLogging()) {
@@ -20,6 +27,7 @@ synchronized (m_availableConnections) {
       m_connectionAmount--;
       try {
         createConnections(1);
+        m_availableConnections.notify();
       }
  catch (      SQLException exc) {
         if (A_OpenCms.isLogging()) {
@@ -27,6 +35,5 @@ synchronized (m_availableConnections) {
         }
       }
     }
-    m_availableConnections.notifyAll();
   }
 }

@@ -1,21 +1,24 @@
 {
-  try {
-    return (Connection)m_availableConnections.pop();
-  }
- catch (  EmptyStackException exc) {
-    if (m_connectionAmount < m_maxConn) {
-      createConnections(m_increaseRate);
-    }
+  Connection con=null;
+  while (con == null) {
+synchronized (m_availableConnections) {
+      if ((m_availableConnections.size() <= 0) && (m_connectionAmount < m_maxConn)) {
+        createConnections(m_increaseRate);
+      }
+ else       if (m_availableConnections.size() > 0) {
+        con=(Connection)m_availableConnections.pop();
+      }
  else {
-      if (A_OpenCms.isLogging()) {
-        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_POOL,"[" + getClass().getName() + "] "+ m_poolname+ ": no connections available - have to wait");
-      }
-      try {
-        m_availableConnections.wait();
-      }
- catch (      InterruptedException iExc) {
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_POOL,"[" + getClass().getName() + "] "+ m_poolname+ ": no connections available - have to wait");
+        }
+        try {
+          m_availableConnections.wait();
+        }
+ catch (        InterruptedException iExc) {
+        }
       }
     }
   }
-  return getConnection();
+  return con;
 }
