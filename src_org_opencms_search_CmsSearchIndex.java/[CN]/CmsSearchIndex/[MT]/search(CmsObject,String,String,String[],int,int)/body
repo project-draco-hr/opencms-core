@@ -28,8 +28,22 @@
     }
     luceneSearchDuration=-System.currentTimeMillis();
     Analyzer languageAnalyzer=OpenCms.getSearchManager().getAnalyzer(m_locale);
+    BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
     BooleanQuery query=new BooleanQuery();
-    query.add(new PrefixQuery(new Term(I_CmsDocumentFactory.DOC_PATH,searchRoot)),true,false);
+    if (CmsStringUtil.isNotEmpty(searchRoot)) {
+      String[] path=CmsStringUtil.splitAsArray(searchRoot,'/');
+      if (path.length > 0) {
+        PhraseQuery pathQuery=new PhraseQuery();
+        pathQuery.add(new Term(I_CmsDocumentFactory.DOC_ROOT,C_ROOT_PATH_TOKEN));
+        for (int i=0; i < path.length; i++) {
+          if (CmsStringUtil.isEmpty(path[i])) {
+            continue;
+          }
+          pathQuery.add(new Term(I_CmsDocumentFactory.DOC_ROOT,path[i]));
+        }
+        query.add(pathQuery,true,false);
+      }
+    }
     if (!C_SEARCH_QUERY_RETURN_ALL.equals(searchQuery) && (fields != null) && (fields.length > 0)) {
       BooleanQuery fieldsQuery=new BooleanQuery();
       for (int i=0; i < fields.length; i++) {
