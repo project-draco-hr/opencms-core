@@ -3,14 +3,23 @@
   byte[] picture=new byte[0];
   CmsMasterContent cd=null;
   CmsMasterMedia media=null;
+  String mType=null;
+  String filename=null;
   String sId=(String)parameters.get("id");
   String sPos=(String)parameters.get("pos");
   String refCD=(String)parameters.get("cd");
+  String smId=(String)parameters.get("mid");
   int id=-1;
   int pos=-1;
+  int mid=-1;
   try {
     id=Integer.parseInt(sId);
-    pos=Integer.parseInt(sPos);
+    if (sPos != null) {
+      pos=Integer.parseInt(sPos);
+    }
+    if (smId != null) {
+      mid=Integer.parseInt(smId);
+    }
   }
  catch (  NumberFormatException e) {
   }
@@ -26,27 +35,27 @@
   registerVariantDeps(cms,templateFile,null,null,parameters,null,cosDeps,null);
   if (cd != null) {
     Vector vec=cd.getMedia();
-    if (pos == -1 && vec.size() > 0) {
+    if (mid != -1) {
+      for (int i=0; i < vec.size(); i++) {
+        media=(CmsMasterMedia)vec.get(i);
+        if (mid == media.getId()) {
+          picture=media.getMedia();
+          mType=media.getMimetype();
+          break;
+        }
+      }
+    }
+ else     if (pos == -1 && vec.size() > 0) {
       media=(CmsMasterMedia)vec.firstElement();
       picture=media.getMedia();
-      String mType=media.getMimetype();
-      if (mType == null || mType.equals("")) {
-        mType="application/octet-stream";
-      }
-      req.getResponse().setContentType(mType);
-      req.getResponse().setHeader("Content-disposition","filename=" + media.getName());
+      mType=media.getMimetype();
     }
  else {
       for (int i=0; i < vec.size(); i++) {
         if (((CmsMasterMedia)vec.elementAt(i)).getPosition() == pos) {
           media=(CmsMasterMedia)vec.elementAt(i);
           picture=media.getMedia();
-          String mType=media.getMimetype();
-          if (mType == null || mType.equals("")) {
-            mType="application/octet-stream";
-          }
-          req.getResponse().setContentType(mType);
-          req.getResponse().setHeader("Content-disposition","filename=" + media.getName());
+          mType=media.getMimetype();
           break;
         }
       }
@@ -54,6 +63,13 @@
     if (picture == null) {
       picture=emptyGIF;
       req.getResponse().setContentType("images/gif");
+    }
+ else {
+      if (mType == null || mType.equals("")) {
+        mType="application/octet-stream";
+      }
+      req.getResponse().setContentType(mType);
+      req.getResponse().setHeader("Content-disposition","filename=" + media.getName());
     }
   }
  else {
