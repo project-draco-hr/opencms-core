@@ -131,6 +131,7 @@
     if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))     log(I_CmsLogChannels.C_OPENCMS_INIT,". Filename translation : non-critical error " + e.toString());
   }
   if (m_fileTranslator == null)   m_fileTranslator=new CmsResourceTranslator(new String[0],false);
+  m_defaultFilenames=null;
   try {
     m_defaultFilenames=conf.getStringArray("directory.default.files");
     for (int i=0; i < m_defaultFilenames.length; i++) {
@@ -141,7 +142,10 @@
  catch (  Exception e) {
     if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))     log(I_CmsLogChannels.C_OPENCMS_INIT,". Default file         : non-critical error " + e.toString());
   }
-  if (m_defaultFilenames == null)   m_defaultFilenames=new String[0];
+  if (m_defaultFilenames == null) {
+    m_defaultFilenames=new String[0];
+  }
+  setDefaultFilenames(Arrays.asList(m_defaultFilenames));
   String[] immuResources=conf.getStringArray("import.immutable.resources");
   if (immuResources == null)   immuResources=new String[0];
   List immutableResourcesOri=java.util.Arrays.asList(immuResources);
@@ -220,83 +224,12 @@
   }
   if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))   log(I_CmsLogChannels.C_OPENCMS_INIT,". Old context support  : " + ((webAppNames.size() > 0) ? "enabled" : "disabled"));
   setRuntimeProperty("compatibility.support.webAppNames",webAppNames);
-  try {
-    if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))     log(I_CmsLogChannels.C_OPENCMS_INIT,". Link rules init      : starting");
-    CmsStaticExportProperties exportProperties=new CmsStaticExportProperties();
-    setStaticExportProperties(exportProperties);
-    String exportPrefix=CmsStringSubstitution.substitute(conf.getString(I_CmsConstants.C_URL_PREFIX_EXPORT,""),I_CmsConstants.C_WEB_APP_REPLACE_KEY,CmsBase.getWebAppName());
-    String internPrefix=internPrefix=CmsStringSubstitution.substitute(conf.getString(I_CmsConstants.C_URL_PREFIX_HTTP,""),I_CmsConstants.C_WEB_APP_REPLACE_KEY,CmsBase.getWebAppName());
-    exportProperties.setExportPrefix(exportPrefix);
-    exportProperties.setInternPrefix(internPrefix);
-    String exportDefault=conf.getString("staticexport.default.export","true");
-    exportProperties.setExportDefaultValue(exportDefault);
-    String export=conf.getString("linkrules." + exportDefault + ".export");
-    String[] linkRulesExport;
-    if (export != null && !"".equals(export)) {
-      linkRulesExport=conf.getStringArray("ruleset." + export);
-      for (int i=0; i < linkRulesExport.length; i++) {
-        linkRulesExport[i]=CmsStringSubstitution.substitute(linkRulesExport[i],I_CmsConstants.C_WEB_APP_REPLACE_KEY,CmsBase.getWebAppName());
-        linkRulesExport[i]=CmsStringSubstitution.substitute(linkRulesExport[i],"${" + I_CmsConstants.C_URL_PREFIX_EXPORT + "}",exportPrefix);
-        linkRulesExport[i]=CmsStringSubstitution.substitute(linkRulesExport[i],"${" + I_CmsConstants.C_URL_PREFIX_HTTP + "}",internPrefix);
-      }
-      exportProperties.setLinkRulesExport(linkRulesExport);
-    }
-    String online=conf.getString("linkrules." + exportDefault + ".online");
-    String[] linkRulesOnline;
-    if (online != null && !"".equals(online)) {
-      linkRulesOnline=conf.getStringArray("ruleset." + online);
-      for (int i=0; i < linkRulesOnline.length; i++) {
-        linkRulesOnline[i]=CmsStringSubstitution.substitute(linkRulesOnline[i],I_CmsConstants.C_WEB_APP_REPLACE_KEY,CmsBase.getWebAppName());
-        linkRulesOnline[i]=CmsStringSubstitution.substitute(linkRulesOnline[i],"${" + I_CmsConstants.C_URL_PREFIX_EXPORT + "}",exportPrefix);
-        linkRulesOnline[i]=CmsStringSubstitution.substitute(linkRulesOnline[i],"${" + I_CmsConstants.C_URL_PREFIX_HTTP + "}",internPrefix);
-      }
-      exportProperties.setLinkRulesOnline(linkRulesOnline);
-    }
-    String offline=conf.getString("linkrules." + exportDefault + ".offline");
-    String[] linkRulesOffline;
-    if (offline != null && !"".equals(offline)) {
-      linkRulesOffline=conf.getStringArray("ruleset." + offline);
-      for (int i=0; i < linkRulesOffline.length; i++) {
-        linkRulesOffline[i]=CmsStringSubstitution.substitute(linkRulesOffline[i],I_CmsConstants.C_WEB_APP_REPLACE_KEY,CmsBase.getWebAppName());
-        linkRulesOffline[i]=CmsStringSubstitution.substitute(linkRulesOffline[i],"${" + I_CmsConstants.C_URL_PREFIX_EXPORT + "}",exportPrefix);
-        linkRulesOffline[i]=CmsStringSubstitution.substitute(linkRulesOffline[i],"${" + I_CmsConstants.C_URL_PREFIX_HTTP + "}",internPrefix);
-      }
-      exportProperties.setLinkRulesOffline(linkRulesOffline);
-    }
-    String extern=conf.getString("linkrules." + exportDefault + ".extern");
-    String[] linkRulesExtern;
-    if (extern != null && !"".equals(extern)) {
-      linkRulesExtern=conf.getStringArray("ruleset." + extern);
-      for (int i=0; i < linkRulesExtern.length; i++) {
-        linkRulesExtern[i]=CmsStringSubstitution.substitute(linkRulesExtern[i],I_CmsConstants.C_WEB_APP_REPLACE_KEY,CmsBase.getWebAppName());
-        linkRulesExtern[i]=CmsStringSubstitution.substitute(linkRulesExtern[i],"${" + I_CmsConstants.C_URL_PREFIX_EXPORT + "}",exportPrefix);
-        linkRulesExtern[i]=CmsStringSubstitution.substitute(linkRulesExtern[i],"${" + I_CmsConstants.C_URL_PREFIX_HTTP + "}",internPrefix);
-      }
-      exportProperties.setLinkRulesExtern(linkRulesExtern);
-    }
-    exportProperties.setStartRule(null);
-    Vector staticExportStart=new Vector();
-    staticExportStart.add("/");
-    exportProperties.setStartPoints(staticExportStart);
-    exportProperties.setExportPath(com.opencms.boot.CmsBase.getAbsoluteWebPath(CmsBase.getAbsoluteWebPath(conf.getString(I_CmsConstants.C_STATICEXPORT_PATH))));
-    exportProperties.setExportRelativeLinks(conf.getBoolean("relativelinks_in_export",false));
-    String activCheck=conf.getString("staticexport.enabled","false");
-    if ("true".equalsIgnoreCase(activCheck)) {
-      exportProperties.setStaticExportEnabled(true);
-    }
- else {
-      exportProperties.setStaticExportEnabled(false);
-    }
-    if (exportProperties.isStaticExportEnabled()) {
-      createDynamicLinkRules();
-    }
- else {
-      exportProperties.setLinkRulesOffline(new String[]{"s#^#" + internPrefix + "#"});
-      exportProperties.setLinkRulesOnline(new String[]{"s#^#" + internPrefix + "#"});
-    }
-    if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))     log(I_CmsLogChannels.C_OPENCMS_INIT,". Link rules init      : finished");
-  }
- catch (  Exception e) {
-    if (I_CmsLogChannels.C_LOGGING && isLogging(I_CmsLogChannels.C_OPENCMS_INIT))     log(I_CmsLogChannels.C_OPENCMS_INIT,". Link rules init      : non-critical error " + e.toString());
-  }
+  CmsStaticExportProperties exportProperties=new CmsStaticExportProperties();
+  setStaticExportProperties(exportProperties);
+  exportProperties.setStaticExportEnabled("true".equalsIgnoreCase(conf.getString("staticexport.enabled","false")));
+  exportProperties.setExportPropertyDefault("true".equalsIgnoreCase(conf.getString("staticexport.export_default","false")));
+  exportProperties.setExportPath(com.opencms.boot.CmsBase.getAbsoluteWebPath(CmsBase.getAbsoluteWebPath(conf.getString("staticexport.export_path"))));
+  exportProperties.setRfsPrefix(CmsStringSubstitution.substitute(conf.getString("staticexport.prefix_rfs",""),I_CmsConstants.C_WEB_APP_REPLACE_KEY,CmsBase.getWebAppName()));
+  exportProperties.setVfsPrefix(CmsStringSubstitution.substitute(conf.getString("staticexport.prefix_vfs",""),I_CmsConstants.C_WEB_APP_REPLACE_KEY,CmsBase.getWebAppName()));
+  exportProperties.setExportRelativeLinks(conf.getBoolean("staticexport.relative_links",false));
 }
