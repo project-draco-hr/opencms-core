@@ -1,13 +1,7 @@
 {
-  if (DEBUG) {
-    System.err.println("includeTagAction/1: target=" + target);
-  }
   CmsFlexController controller=(CmsFlexController)req.getAttribute(CmsFlexController.ATTRIBUTE_NAME);
   if (target == null) {
     target=controller.getCmsObject().getRequestContext().getUri();
-    if (DEBUG) {
-      System.err.println("includeTagAction/2: target=" + target);
-    }
   }
   Map parameterMap=new HashMap();
   if (paramMap != null) {
@@ -55,30 +49,28 @@
       }
     }
   }
-  if (DEBUG) {
-    System.err.println("includeTagAction/3: target=" + target + ", editable="+ editable);
-  }
   Map oldParameterMap=req.getParameterMap();
-  String editMode=null;
-  String editArea=null;
+  String directEditMode=null;
+  String directEditIncludeFile=null;
   if (editable) {
-    I_CmsEditorActionHandler actionClass=OpenCms.getWorkplaceManager().getEditorActionHandler();
-    editMode=actionClass.getEditMode(controller.getCmsObject(),target,(CmsXmlPage)req.getAttribute(CmsXmlPage.C_ATTRIBUTE_XMLPAGE_OBJECT),element);
-    editArea=(String)context.getRequest().getAttribute(I_CmsEditorActionHandler.C_EDIT_AREA);
+    directEditIncludeFile=(String)context.getRequest().getAttribute(I_CmsEditorActionHandler.C_DIRECT_EDIT_INCLUDE_FILE_URI);
+    if (directEditIncludeFile != null) {
+      directEditMode=OpenCms.getWorkplaceManager().getEditorActionHandler().getEditMode(controller.getCmsObject(),target,(CmsXmlPage)req.getAttribute(CmsXmlPage.C_ATTRIBUTE_XMLPAGE_OBJECT),element);
+    }
   }
   try {
-    if (editMode != null && editArea != null) {
-      req.setAttribute(I_CmsEditorActionHandler.C_EDIT_BODY,element);
-      req.setAttribute(I_CmsEditorActionHandler.C_EDIT_LANGUAGE,controller.getCmsObject().getRequestContext().getLocale().toString());
-      req.setAttribute(I_CmsEditorActionHandler.C_EDIT_TARGET,target);
-      includeElement(context,editArea,I_CmsEditorActionHandler.C_EDIT_STARTAREA + "_" + editMode,req,res);
+    if (directEditMode != null) {
+      req.setAttribute(I_CmsEditorActionHandler.C_DIRECT_EDIT_PARAM_ELEMENT,element);
+      req.setAttribute(I_CmsEditorActionHandler.C_DIRECT_EDIT_PARAM_LOCALE,controller.getCmsObject().getRequestContext().getLocale().toString());
+      req.setAttribute(I_CmsEditorActionHandler.C_DIRECT_EDIT_PARAM_TARGET,target);
+      includeDirectEditElement(context,directEditIncludeFile,I_CmsEditorActionHandler.C_DIRECT_EDIT_AREA_START + "_" + directEditMode,req,res);
     }
     controller.getCurrentRequest().addParameterMap(parameterMap);
     context.getOut().print(CmsFlexResponse.C_FLEX_CACHE_DELIMITER);
     controller.getCurrentResponse().addToIncludeList(target,parameterMap);
     controller.getCurrentRequest().getRequestDispatcher(target).include(req,res);
-    if (editMode != null && editArea != null) {
-      includeElement(context,editArea,I_CmsEditorActionHandler.C_EDIT_ENDAREA + "_" + editMode,req,res);
+    if (directEditMode != null) {
+      includeDirectEditElement(context,directEditIncludeFile,I_CmsEditorActionHandler.C_DIRECT_EDIT_AREA_END + "_" + directEditMode,req,res);
     }
   }
  catch (  ServletException e) {
@@ -90,18 +82,10 @@
       t=e;
     }
     t=controller.setThrowable(t);
-    if (DEBUG) {
-      System.err.println("JspTagInclude: ServletException in Jsp 'include' tag processing: " + t);
-      e.printStackTrace(System.err);
-    }
     throw new JspException(imprintExceptionMessage(t,target),t);
   }
 catch (  IOException e) {
     Throwable t=controller.setThrowable(e);
-    if (DEBUG) {
-      System.err.println("JspTagInclude: IOException in Jsp 'include' tag processing: " + t);
-      e.printStackTrace(System.err);
-    }
     throw new JspException(imprintExceptionMessage(t,target),t);
   }
  finally {
