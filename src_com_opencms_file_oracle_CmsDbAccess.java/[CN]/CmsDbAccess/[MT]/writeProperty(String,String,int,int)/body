@@ -1,0 +1,42 @@
+{
+  CmsPropertydefinition propdef=readPropertydefinition(meta,resourceType);
+  if (propdef == null) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ meta,CmsException.C_NOT_FOUND);
+  }
+ else {
+    PreparedStatement statement=null;
+    boolean newprop=true;
+    try {
+      if (readProperty(propdef.getName(),resourceId,resourceType) != null) {
+        statement=m_pool.getPreparedStatement(C_PROPERTIES_UPDATE_KEY);
+        statement.setString(1,value);
+        statement.setInt(2,resourceId);
+        statement.setInt(3,propdef.getId());
+        statement.executeUpdate();
+        newprop=false;
+      }
+ else {
+        statement=m_pool.getPreparedStatement(C_PROPERTIES_CREATE_KEY);
+        statement.setInt(1,nextId(C_TABLE_PROPERTIES));
+        statement.setInt(2,propdef.getId());
+        statement.setInt(3,resourceId);
+        statement.setString(4,value);
+        statement.executeUpdate();
+        newprop=true;
+      }
+    }
+ catch (    SQLException exc) {
+      throw new CmsException("[" + this.getClass().getName() + "] "+ exc.getMessage(),CmsException.C_SQL_ERROR,exc);
+    }
+ finally {
+      if (statement != null) {
+        if (newprop) {
+          m_pool.putPreparedStatement(C_PROPERTIES_CREATE_KEY,statement);
+        }
+ else {
+          m_pool.putPreparedStatement(C_PROPERTIES_UPDATE_KEY,statement);
+        }
+      }
+    }
+  }
+}

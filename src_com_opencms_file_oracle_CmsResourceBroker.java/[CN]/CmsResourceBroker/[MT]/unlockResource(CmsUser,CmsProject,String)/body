@@ -1,0 +1,48 @@
+{
+  CmsResource cmsResource=null;
+  if (resourcename.endsWith("/")) {
+    cmsResource=readFolder(currentUser,currentProject,resourcename);
+  }
+ else {
+    cmsResource=(CmsFile)readFileHeader(currentUser,currentProject,resourcename);
+  }
+  if (accessUnlock(currentUser,currentProject,cmsResource)) {
+    if (cmsResource.isLocked()) {
+      if (cmsResource.isLockedBy() == currentUser.getId()) {
+        cmsResource.setLocked(C_UNKNOWN_ID);
+        if (resourcename.endsWith("/")) {
+          m_dbAccess.writeFolder(currentProject,(CmsFolder)cmsResource,false);
+          m_resourceCache.put(C_FOLDER + currentProject.getId() + resourcename,(CmsFolder)cmsResource);
+        }
+ else {
+          m_dbAccess.writeFileHeader(currentProject,onlineProject(currentUser,currentProject),(CmsFile)cmsResource,false);
+          m_resourceCache.put(C_FILE + currentProject.getId() + resourcename,(CmsFile)cmsResource);
+        }
+        m_subresCache.clear();
+      }
+ else {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ resourcename+ CmsException.C_NO_ACCESS);
+      }
+    }
+    if (cmsResource.isFolder()) {
+      Vector files=getFilesInFolder(currentUser,currentProject,cmsResource.getAbsolutePath());
+      Vector folders=getSubFolders(currentUser,currentProject,cmsResource.getAbsolutePath());
+      CmsResource currentResource;
+      for (int i=0; i < files.size(); i++) {
+        currentResource=(CmsResource)files.elementAt(i);
+        if (currentResource.getState() != C_STATE_DELETED) {
+          unlockResource(currentUser,currentProject,currentResource.getAbsolutePath());
+        }
+      }
+      for (int i=0; i < folders.size(); i++) {
+        currentResource=(CmsResource)folders.elementAt(i);
+        if (currentResource.getState() != C_STATE_DELETED) {
+          unlockResource(currentUser,currentProject,currentResource.getAbsolutePath());
+        }
+      }
+    }
+  }
+ else {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ resourcename,CmsException.C_NO_ACCESS);
+  }
+}

@@ -1,0 +1,46 @@
+{
+  CmsResource cmsResource=null;
+  if (resourcename.endsWith("/")) {
+    cmsResource=(CmsFolder)readFolder(currentUser,currentProject,resourcename);
+  }
+ else {
+    cmsResource=(CmsFile)readFileHeader(currentUser,currentProject,resourcename);
+  }
+  if (accessLock(currentUser,currentProject,cmsResource)) {
+    if (cmsResource.isLocked()) {
+      if (force == false) {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ resourcename,CmsException.C_LOCKED);
+      }
+    }
+    cmsResource.setLocked(currentUser.getId());
+    if (resourcename.endsWith("/")) {
+      m_dbAccess.writeFolder(currentProject,(CmsFolder)cmsResource,false);
+      m_resourceCache.put(C_FOLDER + currentProject.getId() + resourcename,(CmsFolder)cmsResource);
+    }
+ else {
+      m_dbAccess.writeFileHeader(currentProject,onlineProject(currentUser,currentProject),(CmsFile)cmsResource,false);
+      m_resourceCache.put(C_FILE + currentProject.getId() + resourcename,(CmsFile)cmsResource);
+    }
+    m_subresCache.clear();
+    if (cmsResource.isFolder()) {
+      Vector files=getFilesInFolder(currentUser,currentProject,cmsResource.getAbsolutePath());
+      Vector folders=getSubFolders(currentUser,currentProject,cmsResource.getAbsolutePath());
+      CmsResource currentResource;
+      for (int i=0; i < files.size(); i++) {
+        currentResource=(CmsResource)files.elementAt(i);
+        if (currentResource.getState() != C_STATE_DELETED) {
+          lockResource(currentUser,currentProject,currentResource.getAbsolutePath(),true);
+        }
+      }
+      for (int i=0; i < folders.size(); i++) {
+        currentResource=(CmsResource)folders.elementAt(i);
+        if (currentResource.getState() != C_STATE_DELETED) {
+          lockResource(currentUser,currentProject,currentResource.getAbsolutePath(),true);
+        }
+      }
+    }
+  }
+ else {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ resourcename,CmsException.C_NO_ACCESS);
+  }
+}
