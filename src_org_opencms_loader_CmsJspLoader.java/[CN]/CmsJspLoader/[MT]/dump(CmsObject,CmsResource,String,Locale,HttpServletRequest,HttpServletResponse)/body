@@ -1,29 +1,33 @@
 {
   CmsFlexController controller=(CmsFlexController)req.getAttribute(CmsFlexController.ATTRIBUTE_NAME);
-  CmsFlexRequest f_req;
-  CmsFlexResponse f_res;
+  CmsFlexController oldController=null;
   if (controller != null) {
-    f_req=controller.getCurrentRequest();
-    f_res=controller.getCurrentResponse();
-  }
- else {
-    controller=new CmsFlexController(cms,file,m_cache,req,res);
-    req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,controller);
-    f_req=new CmsFlexRequest(req,controller);
-    f_res=new CmsFlexResponse(res,controller,false,false);
-    controller.pushRequest(f_req);
-    controller.pushResponse(f_res);
+    oldController=controller;
   }
   byte[] result=null;
   try {
-    f_req.getRequestDispatcher(cms.readAbsolutePath(file)).include(f_req,f_res);
+    controller=new CmsFlexController(cms,file,m_cache,req,res);
+    req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,controller);
+    CmsFlexRequest f_req=new CmsFlexRequest(req,controller);
+    CmsFlexResponse f_res=new CmsFlexResponse(res,controller,false,false);
+    controller.pushRequest(f_req);
+    controller.pushResponse(f_res);
+    try {
+      f_req.getRequestDispatcher(cms.readAbsolutePath(file)).include(f_req,f_res);
+    }
+ catch (    java.net.SocketException e) {
+    }
+    if (!f_res.isSuspended()) {
+      if (!res.isCommitted() || m_errorPagesAreNotCommited) {
+        result=f_res.getWriterBytes();
+        result=CmsEncoder.changeEncoding(result,OpenCms.getSystemInfo().getDefaultEncoding(),cms.getRequestContext().getEncoding());
+      }
+    }
+    req.removeAttribute(CmsFlexController.ATTRIBUTE_NAME);
   }
- catch (  java.net.SocketException e) {
-  }
-  if (!f_res.isSuspended()) {
-    if (!res.isCommitted() || m_errorPagesAreNotCommited) {
-      result=f_res.getWriterBytes();
-      result=CmsEncoder.changeEncoding(result,OpenCms.getSystemInfo().getDefaultEncoding(),cms.getRequestContext().getEncoding());
+  finally {
+    if (oldController != null) {
+      req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,oldController);
     }
   }
   return result;

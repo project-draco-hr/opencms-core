@@ -9,68 +9,40 @@
   }
   if (element != null) {
     addParameter(parameterMap,CmsJspTagTemplate.C_TEMPLATE_ELEMENT,element,true);
-    if (!("body".equals(element) || "(default)".equals(element))) {
-      addParameter(parameterMap,CmsXmlTemplate.C_FRAME_SELECTOR,element,true);
-    }
   }
-  boolean isPageTarget=false;
+  target=CmsLinkManager.getAbsoluteUri(target,controller.getCurrentRequest().getElementUri());
   try {
-    target=CmsLinkManager.getAbsoluteUri(target,controller.getCurrentRequest().getElementUri());
-    CmsResource resource=controller.getCmsObject().readFileHeader(target);
-    isPageTarget=((CmsResourceTypePage.C_RESOURCE_TYPE_ID == resource.getType()));
+    target=OpenCms.getLoaderManager().resolveIncludeExtensions(target,element,editable,paramMap,req,res);
   }
  catch (  CmsException e) {
-    throw new JspException("File not found: " + target,e);
+    controller.setThrowable(e,target);
+    throw new JspException(e);
   }
-  String bodyAttribute=(String)controller.getCmsObject().getRequestContext().getAttribute(I_CmsConstants.C_XML_BODY_ELEMENT);
-  if (bodyAttribute == null) {
-    if (isPageTarget) {
-      if (!target.startsWith(I_CmsWpConstants.C_VFS_PATH_BODIES)) {
-        target=I_CmsWpConstants.C_VFS_PATH_BODIES + target.substring(1);
-      }
-    }
-    if (isPageTarget) {
-      addParameter(parameterMap,CmsXmlTemplateLoader.C_ELEMENT_REPLACE,"body:" + target,true);
-      target=C_BODYLOADER_URI;
-    }
-  }
- else {
-    if (target.equals(controller.getCmsObject().getRequestContext().getUri())) {
-      addParameter(parameterMap,CmsXmlTemplateLoader.C_ELEMENT_REPLACE,"body:" + bodyAttribute,true);
-      target=C_BODYLOADER_URI;
-    }
- else {
-      if (isPageTarget) {
-        if (isPageTarget && !target.startsWith(I_CmsWpConstants.C_VFS_PATH_BODIES)) {
-          target=I_CmsWpConstants.C_VFS_PATH_BODIES + target.substring(1);
-        }
-        addParameter(parameterMap,CmsXmlTemplateLoader.C_ELEMENT_REPLACE,"body:" + target,true);
-        target=C_BODYLOADER_URI;
-      }
-    }
-  }
-  Map oldParameterMap=req.getParameterMap();
-  String directEditMode=null;
+  String directEditPermissions=null;
   String directEditIncludeFile=null;
   if (editable) {
     directEditIncludeFile=(String)context.getRequest().getAttribute(I_CmsEditorActionHandler.C_DIRECT_EDIT_INCLUDE_FILE_URI);
     if (directEditIncludeFile != null) {
-      directEditMode=OpenCms.getWorkplaceManager().getEditorActionHandler().getEditMode(controller.getCmsObject(),target,(CmsXmlPage)req.getAttribute(CmsXmlPage.C_ATTRIBUTE_XMLPAGE_OBJECT),element);
+      directEditPermissions=OpenCms.getWorkplaceManager().getEditorActionHandler().getEditMode(controller.getCmsObject(),target,(CmsXmlPage)req.getAttribute(CmsXmlPage.C_ATTRIBUTE_XMLPAGE_OBJECT),element);
+    }
+    if (directEditPermissions == null) {
+      editable=false;
     }
   }
+  Map oldParameterMap=req.getParameterMap();
   try {
-    if (directEditMode != null) {
+    if (editable) {
       req.setAttribute(I_CmsEditorActionHandler.C_DIRECT_EDIT_PARAM_ELEMENT,element);
       req.setAttribute(I_CmsEditorActionHandler.C_DIRECT_EDIT_PARAM_LOCALE,controller.getCmsObject().getRequestContext().getLocale().toString());
       req.setAttribute(I_CmsEditorActionHandler.C_DIRECT_EDIT_PARAM_TARGET,target);
-      includeDirectEditElement(context,directEditIncludeFile,I_CmsEditorActionHandler.C_DIRECT_EDIT_AREA_START + "_" + directEditMode,req,res);
+      includeDirectEditElement(context,directEditIncludeFile,I_CmsEditorActionHandler.C_DIRECT_EDIT_AREA_START + "_" + directEditPermissions,req,res);
     }
     controller.getCurrentRequest().addParameterMap(parameterMap);
     context.getOut().print(CmsFlexResponse.C_FLEX_CACHE_DELIMITER);
     controller.getCurrentResponse().addToIncludeList(target,parameterMap);
     controller.getCurrentRequest().getRequestDispatcher(target).include(req,res);
-    if (directEditMode != null) {
-      includeDirectEditElement(context,directEditIncludeFile,I_CmsEditorActionHandler.C_DIRECT_EDIT_AREA_END + "_" + directEditMode,req,res);
+    if (editable) {
+      includeDirectEditElement(context,directEditIncludeFile,I_CmsEditorActionHandler.C_DIRECT_EDIT_AREA_END + "_" + directEditPermissions,req,res);
     }
   }
  catch (  ServletException e) {
@@ -81,12 +53,12 @@
  else {
       t=e;
     }
-    t=controller.setThrowable(t);
-    throw new JspException(imprintExceptionMessage(t,target),t);
+    t=controller.setThrowable(t,target);
+    throw new JspException(t);
   }
 catch (  IOException e) {
-    Throwable t=controller.setThrowable(e);
-    throw new JspException(imprintExceptionMessage(t,target),t);
+    Throwable t=controller.setThrowable(e,target);
+    throw new JspException(t);
   }
  finally {
     if (oldParameterMap != null) {
