@@ -1,0 +1,44 @@
+{
+  CmsExportLink linkObject=null;
+  try {
+    linkObject=m_cms.readExportLink(link);
+    if (linkObject == null) {
+      return true;
+    }
+ else {
+      Vector deps=linkObject.getDependencies();
+      try {
+        for (int i=0; i < deps.size(); i++) {
+          CmsResource res=m_cms.readFileHeader((String)deps.elementAt(i));
+          if (linkObject.getLastExportDate() < res.getDateLastModified()) {
+            m_cms.deleteExportLink(linkObject);
+            return true;
+          }
+        }
+      }
+ catch (      CmsException e) {
+        m_cms.deleteExportLink(linkObject);
+        return true;
+      }
+    }
+  }
+ catch (  CmsException e) {
+    try {
+      m_cms.deleteExportLink(link);
+    }
+ catch (    CmsException exc) {
+    }
+    return true;
+  }
+  if (linkObject != null) {
+    linkObject.setProcessedState(true);
+    try {
+      m_cms.writeExportLinkProcessedState(linkObject);
+    }
+ catch (    CmsException exp) {
+      linkObject.setProcessedState(false);
+      return true;
+    }
+  }
+  return false;
+}

@@ -4,6 +4,7 @@
   }
   String deleteFileOnError=null;
   OutputStream outStream=null;
+  CmsExportLink dbLink=new CmsExportLink(link,System.currentTimeMillis(),null);
   try {
     CmsExportRequest dReq=new CmsExportRequest();
     int paraStart=link.indexOf("?");
@@ -66,11 +67,27 @@
       throw new CmsException("Could not launch file " + link + ". Launcher for requested launcher ID "+ launcherId+ " could not be found.");
     }
     ((CmsExportRequest)cmsForStaticExport.getRequestContext().getRequest()).setRequestedResource(link);
+    cmsForStaticExport.getRequestContext().addDependency(file.getResourceName());
     launcher.initlaunch(cmsForStaticExport,file,startTemplateClass,null);
     Vector linksToAdd=cmsForStaticExport.getRequestContext().getLinkVector();
     for (int i=0; i < linksToAdd.size(); i++) {
       if (!allLinks.contains(linksToAdd.elementAt(i))) {
-        allLinks.add(linksToAdd.elementAt(i));
+        if (!m_afterPublish || (m_cms.readExportLink((String)linksToAdd.elementAt(i)) == null)) {
+          allLinks.add(linksToAdd.elementAt(i));
+        }
+      }
+    }
+    Vector depsToAdd=cmsForStaticExport.getRequestContext().getDependencies();
+    for (int i=0; i < depsToAdd.size(); i++) {
+      dbLink.addDependency((String)depsToAdd.elementAt(i));
+    }
+    try {
+      dbLink.setProcessedState(true);
+      m_cms.writeExportLink(dbLink);
+    }
+ catch (    CmsException e) {
+      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] write ExportLink " + dbLink.getLink() + " failed: "+ e.toString());
       }
     }
     if (outStream != null) {
@@ -84,11 +101,12 @@
     if (deleteFileOnError != null) {
       try {
         File deleteMe=new File(deleteFileOnError);
-        if (deleteMe.exists() && deleteMe.length() == 0) {
+        if (deleteMe.exists()) {
           if (outStream != null) {
             outStream.close();
           }
           deleteMe.delete();
+          m_cms.deleteExportLink(link);
         }
       }
  catch (      Exception e) {
@@ -97,7 +115,7 @@
   }
 catch (  Exception e) {
     if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport]  export " + link + " failed: "+ e.toString());
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport]  export " + link + " failed : "+ e.toString());
     }
   }
 }
