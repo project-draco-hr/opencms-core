@@ -1,0 +1,31 @@
+{
+  System.out.println("Testing the OpenCms tread pool.");
+  Scheduler scheduler=initOpenCmsScheduler();
+  JobDetail[] jobDetail=new JobDetail[THREADS_TO_RUN];
+  SimpleTrigger[] trigger=new SimpleTrigger[THREADS_TO_RUN];
+  for (int i=0; i < jobDetail.length; i++) {
+    jobDetail[i]=new JobDetail("myJob" + i,Scheduler.DEFAULT_GROUP,TestCmsJob.class);
+    trigger[i]=new SimpleTrigger("myTrigger" + i,Scheduler.DEFAULT_GROUP,new Date(),null,0,0L);
+  }
+  for (int i=0; i < THREADS_TO_RUN; i++) {
+    scheduler.scheduleJob(jobDetail[i],trigger[i]);
+  }
+  int seconds=0;
+  do {
+    try {
+      Thread.sleep(1000);
+    }
+ catch (    InterruptedException e) {
+      fail("Something caused the waiting test thread to interrupt!");
+    }
+    seconds++;
+  }
+ while ((seconds < SECONDS_TO_WAIT) && (TestCmsJob.m_running > 0));
+  if (TestCmsJob.m_running <= 0) {
+    System.out.println("Success: All threads are finished.");
+  }
+ else {
+    fail("Some threads in the pool are still running after " + SECONDS_TO_WAIT + " seconds.");
+  }
+  scheduler.shutdown();
+}

@@ -1,0 +1,29 @@
+{
+  if (runnable == null) {
+    return false;
+  }
+  if (m_isShutdown) {
+    OpenCms.getLog(this).error("Scheduler thread pool was already shut down, could not execute runnable.");
+    return false;
+  }
+  if ((m_currentThreadCount == 0) || (m_nextRunnable != null)) {
+    growThreadPool();
+  }
+synchronized (m_nextRunnableLock) {
+    while ((m_nextRunnable != null) && !m_isShutdown) {
+      try {
+        m_nextRunnableLock.wait(1000);
+      }
+ catch (      InterruptedException e) {
+      }
+    }
+    if (!m_isShutdown) {
+      m_nextRunnable=runnable;
+      m_nextRunnableLock.notifyAll();
+    }
+  }
+  if (m_isShutdown) {
+    new CmsSchedulerThread(this,m_threadGroup,m_threadNamePrefix + "(final)",m_threadPriority,false,runnable);
+  }
+  return true;
+}
