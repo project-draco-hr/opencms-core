@@ -1,56 +1,60 @@
 {
-  m_cms=cms;
-  m_exportFileName=exportFile;
-  m_cms=cms;
-  m_report=report;
-  m_exportingModuleData=true;
+  setCms(cms);
+  setReport(report);
+  setExportFileName(exportFile);
+  setExportingCosData(true);
+  setExportedChannelIds(new HashSet());
+  getCms().getRequestContext().saveSiteRoot();
+  Element exportNode;
   try {
-    openExportFile();
-  }
- catch (  Throwable t) {
-  }
-  m_report.println(m_report.key("report.export_channels_begin"),I_CmsReport.C_FORMAT_HEADLINE);
-  m_cms.getRequestContext().saveSiteRoot();
-  try {
-    m_cms.setContextToCos();
-    exportAllResources(null,resourcesToExport);
-  }
- catch (  Exception e) {
-    throw new CmsException("Error exporting COS channels",e);
-  }
- finally {
-    m_cms.getRequestContext().restoreSiteRoot();
-  }
-  m_report.println(m_report.key("report.export_channels_end"),I_CmsReport.C_FORMAT_HEADLINE);
-  Vector modules=new Vector();
-  Vector moduleNames=new Vector();
-  for (int i=0; i < modulesToExport.length; i++) {
-    String modName=modulesToExport[i];
-    if (modName != null && !"".equals(modName)) {
-      moduleNames.addElement(modulesToExport[i]);
-    }
-  }
-  Hashtable moduleExportables=new Hashtable();
-  OpenCms.getRegistry().getModuleExportables(moduleExportables);
-  if (moduleNames.size() == 0) {
-    if (resourcesToExport.length > 0) {
-      Enumeration modElements=moduleExportables.elements();
-      while (modElements.hasMoreElements()) {
-        modules.add(modElements.nextElement());
+    exportNode=openExportFile();
+    getReport().println(getReport().key("report.export_channels_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+    getCms().setContextToCos();
+    exportAllResources(exportNode,resourcesToExport);
+    getReport().println(getReport().key("report.export_channels_end"),I_CmsReport.C_FORMAT_HEADLINE);
+    Vector modules=new Vector();
+    Vector moduleNames=new Vector();
+    for (int i=0; i < modulesToExport.length; i++) {
+      String modName=modulesToExport[i];
+      if (modName != null && !"".equals(modName)) {
+        moduleNames.addElement(modulesToExport[i]);
       }
     }
-  }
+    Hashtable moduleExportables=new Hashtable();
+    OpenCms.getRegistry().getModuleExportables(moduleExportables);
+    if (moduleNames.size() == 0) {
+      if (resourcesToExport.length > 0) {
+        Enumeration modElements=moduleExportables.elements();
+        while (modElements.hasMoreElements()) {
+          modules.add(modElements.nextElement());
+        }
+      }
+    }
  else {
-    modules=moduleNames;
+      modules=moduleNames;
+    }
+    Enumeration enumModules=modules.elements();
+    while (enumModules.hasMoreElements()) {
+      String classname=(String)enumModules.nextElement();
+      exportCos(exportNode,classname,getExportedChannelIds());
+    }
+    closeExportFile(exportNode);
   }
-  Enumeration enumModules=modules.elements();
-  while (enumModules.hasMoreElements()) {
-    String classname=(String)enumModules.nextElement();
-    this.exportData(classname,m_exportedChannelIds);
+ catch (  SAXException se) {
+    getReport().println(se);
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error exporting to file " + getExportFileName(),se);
+    }
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,se);
   }
-  try {
-    closeExportFile(null);
+catch (  IOException ioe) {
+    getReport().println(ioe);
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error exporting to file " + getExportFileName(),ioe);
+    }
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,ioe);
   }
- catch (  Throwable t) {
+ finally {
+    getCms().getRequestContext().restoreSiteRoot();
   }
 }
