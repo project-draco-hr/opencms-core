@@ -1,30 +1,31 @@
 {
   CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
-  CmsTask task=cms.readTask(taskid);
-  cms.setName(taskid,taskName);
-  cms.reaktivateTask(taskid);
+  CmsTaskService taskService=cms.getTaskService();
+  CmsTask task=taskService.readTask(taskid);
+  taskService.setName(taskid,taskName);
+  taskService.reaktivateTask(taskid);
   int priority=Integer.parseInt(priorityString);
-  cms.setPriority(taskid,priority);
+  taskService.setPriority(taskid,priority);
   String splittetDate[]=CmsStringUtil.splitAsArray(timeoutString,'.');
   GregorianCalendar cal=new GregorianCalendar(Integer.parseInt(splittetDate[2]),Integer.parseInt(splittetDate[1]) - 1,Integer.parseInt(splittetDate[0]),0,0,0);
   long timeout=cal.getTime().getTime();
-  cms.setTimeout(taskid,timeout);
-  cms.setTaskPar(taskid,C_TASKPARA_ACCEPTATION,paraAcceptation);
-  cms.setTaskPar(taskid,C_TASKPARA_ALL,paraAll);
-  cms.setTaskPar(taskid,C_TASKPARA_COMPLETION,paraCompletion);
-  cms.setTaskPar(taskid,C_TASKPARA_DELIVERY,paraDelivery);
-  cms.forwardTask(taskid,roleName,agentName);
+  taskService.setTimeout(taskid,timeout);
+  taskService.setTaskPar(taskid,C_TASKPARA_ACCEPTATION,paraAcceptation);
+  taskService.setTaskPar(taskid,C_TASKPARA_ALL,paraAll);
+  taskService.setTaskPar(taskid,C_TASKPARA_COMPLETION,paraCompletion);
+  taskService.setTaskPar(taskid,C_TASKPARA_DELIVERY,paraDelivery);
+  taskService.forwardTask(taskid,roleName,agentName);
   String comment=lang.getLanguageValue("task.label.forrole") + ": " + roleName+ "\n";
   comment+=lang.getLanguageValue("task.label.editor") + ": " + CmsUser.getFullName(cms.readUser(agentName))+ "\n";
   comment+=taskcomment;
-  cms.writeTaskLog(task.getId(),comment,C_TASKLOGTYPE_REACTIVATED);
+  taskService.writeTaskLog(task.getId(),comment,C_TASKLOGTYPE_REACTIVATED);
   StringBuffer contentBuf=new StringBuffer(lang.getLanguageValue("task.email.reakt.content"));
   contentBuf.append("\n");
   contentBuf.append(lang.getLanguageValue("task.label.project"));
   contentBuf.append(": ");
   String projectname="?";
   try {
-    projectname=cms.readTask(task.getRoot()).getName();
+    projectname=taskService.readTask(task.getRoot()).getName();
   }
  catch (  Exception exc) {
   }
@@ -33,16 +34,16 @@
   contentBuf.append(lang.getLanguageValue("task.label.task"));
   contentBuf.append(": ");
   contentBuf.append(task.getName());
-  int projectid=cms.readProject(task).getId();
+  int projectid=taskService.readProject(task).getId();
   contentBuf.append("\n\n\n" + getTaskUrl(cms,task.getId(),projectid));
   String subject=lang.getLanguageValue("task.email.reakt.subject") + " " + CmsUser.getFullName(cms.readUser(task.getAgentUser()))+ " / "+ roleName;
-  CmsUser[] users={cms.readAgent(task)};
+  CmsUser[] users={taskService.readAgent(task)};
   CmsSimpleMail mail;
-  mail=createMail(cms.readOwner(task),users,subject,contentBuf.toString());
-  if (cms.getTaskPar(task.getId(),C_TASKPARA_ALL) != null) {
-    CmsGroup group=cms.readGroup(task);
+  mail=createMail(taskService.readOwner(task),users,subject,contentBuf.toString());
+  if (taskService.getTaskPar(task.getId(),C_TASKPARA_ALL) != null) {
+    CmsGroup group=taskService.readGroup(task);
     List groupUsers=cms.getUsersOfGroup(group.getName());
-    mail=createMail(cms.readOwner(task),groupUsers,subject,contentBuf.toString(),true);
+    mail=createMail(taskService.readOwner(task),groupUsers,subject,contentBuf.toString(),true);
   }
   try {
     new CmsMailTransport(mail).send();
