@@ -1,0 +1,297 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  A_CmsRequestContext reqCont=cms.getRequestContext();
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  boolean groupYetChanged=true;
+  boolean groupYetEstablished=true;
+  String perspective=(String)parameters.get("perspective");
+  if (perspective != null && perspective.equals("group")) {
+    session.removeValue("ERROR");
+    if (reqCont.getRequest().getParameter("CHANGE") != null) {
+      perspective="changegroup";
+      groupYetChanged=false;
+    }
+ else     if (reqCont.getRequest().getParameter("DELETE") != null) {
+      perspective="deletegroup";
+    }
+ else     if (reqCont.getRequest().getParameter("NEW") != null) {
+      perspective="newgroup";
+      groupYetEstablished=false;
+    }
+  }
+  if (perspective == null) {
+    perspective=new String("group");
+  }
+  if (perspective.equals("newgroup") || perspective.equals("changegroup")) {
+    String groupname, description, supergroup;
+    boolean projectManager, projectCoWorker, role;
+    if (session.getValue("ERROR") == null) {
+      groupname=(String)parameters.get("GROUPNAME");
+      description=(String)parameters.get("GROUPDESC");
+      supergroup=(String)parameters.get("SUPERGROUP");
+      projectManager=(parameters.get("PROJECTMANAGER") != null);
+      projectCoWorker=(parameters.get("PROJECTCOWORKER") != null);
+      role=(parameters.get("ROLE") != null);
+    }
+ else {
+      groupname=(String)session.getValue("GROUPNAME");
+      description=(String)session.getValue("GROUPDESC");
+      supergroup=(String)session.getValue("SUPERGROUP");
+      projectManager=(session.getValue("PROJECTMANAGER") != null);
+      projectCoWorker=(session.getValue("PROJECTCOWORKER") != null);
+      role=(session.getValue("ROLE") != null);
+      session.removeValue("ERROR");
+    }
+    if (groupname == null) {
+      groupname="";
+    }
+    if (description == null) {
+      description="";
+    }
+    if (supergroup == null) {
+      supergroup="";
+    }
+    session.putValue("SUPERGROUP",supergroup);
+    Vector selectedUsers=(Vector)session.getValue("selectedUsers");
+    Vector notSelectedUsers=(Vector)session.getValue("notSelectedUsers");
+    if (perspective.equals("newgroup")) {
+      templateSelector="newgroup";
+      if (!groupYetEstablished) {
+        groupname="";
+        selectedUsers=new Vector();
+        notSelectedUsers=new Vector();
+        Vector users=cms.getUsers();
+        for (int z=0; z < users.size(); z++) {
+          notSelectedUsers.addElement(((A_CmsUser)users.elementAt(z)).getName());
+        }
+        session.putValue("selectedUsers",selectedUsers);
+        session.putValue("notSelectedUsers",notSelectedUsers);
+      }
+      if (reqCont.getRequest().getParameter("ADD") != null) {
+        String username=(String)parameters.get("NOTSELECTEDUSERS");
+        if (username != null) {
+          selectedUsers.addElement(username);
+          notSelectedUsers.removeElement(username);
+        }
+        session.putValue("selectedUsers",selectedUsers);
+        session.putValue("notSelectedUsers",notSelectedUsers);
+      }
+ else       if (reqCont.getRequest().getParameter("REMOVE") != null) {
+        String username=(String)parameters.get("SELECTEDUSERS");
+        if (username != null) {
+          notSelectedUsers.addElement(username);
+          selectedUsers.removeElement(username);
+        }
+        session.putValue("selectedUsers",selectedUsers);
+        session.putValue("notSelectedUsers",notSelectedUsers);
+      }
+ else       if (reqCont.getRequest().getParameter("OK") != null) {
+        try {
+          if (groupname == null || groupname.equals("")) {
+            throw new CmsException("no groupname",CmsException.C_NO_GROUP);
+          }
+          if (C_NO_SUPERGROUP_SELECTED.equals(supergroup)) {
+            supergroup="";
+          }
+          A_CmsGroup newGroup=cms.addGroup(groupname,description,0,supergroup);
+          newGroup.setProjectManager(projectManager);
+          newGroup.setProjectCoWorker(projectCoWorker);
+          cms.writeGroup(newGroup);
+          for (int z=0; z < selectedUsers.size(); z++) {
+            cms.addUserToGroup((String)selectedUsers.elementAt(z),groupname);
+          }
+          session.removeValue("selectedUsers");
+          session.removeValue("notSelectedUsers");
+          session.removeValue("SUPERGROUP");
+          session.removeValue("PROJECTMANAGER");
+          session.removeValue("PROJECTCOWORKER");
+          session.removeValue("ROLE");
+          session.removeValue("ERROR");
+          templateSelector="";
+        }
+ catch (        CmsException e) {
+          session.putValue("ERROR",new String("yes"));
+          session.putValue("GROUPNAME",groupname);
+          session.putValue("GROUPDESC",description);
+          session.putValue("SUPERGROUP",supergroup);
+          if (projectManager) {
+            session.putValue("PROJECTMANAGER","yes");
+          }
+ else {
+            session.removeValue("PROJECTMANAGER");
+          }
+          if (projectCoWorker) {
+            session.putValue("PROJECTCOWORKER","yes");
+          }
+ else {
+            session.removeValue("PROJECTCOWORKER");
+          }
+          if (role) {
+            session.putValue("ROLE","yes");
+          }
+ else {
+            session.removeValue("ROLE");
+          }
+          if (e.getType() == CmsException.C_NO_GROUP && e.getMessage().equals("no groupname")) {
+            templateSelector="errordatamissing1";
+          }
+ else {
+            throw e;
+          }
+        }
+      }
+    }
+ else {
+      templateSelector="changegroup";
+      if (!groupYetChanged) {
+        CmsGroup theGroup=(CmsGroup)cms.readGroup(groupname);
+        if (theGroup == null) {
+          throw new CmsException("user does not exist");
+        }
+        projectManager=theGroup.getProjectmanager();
+        projectCoWorker=theGroup.getProjectCoWorker();
+        role=theGroup.getRole();
+        description=theGroup.getDescription();
+        CmsGroup parent=(CmsGroup)cms.getParent(groupname);
+        if (parent != null) {
+          supergroup=cms.getParent(groupname).getName();
+        }
+ else {
+          supergroup="";
+        }
+        Vector users=cms.getUsersOfGroup(groupname);
+        if (users != null) {
+          selectedUsers=new Vector();
+          for (int z=0; z < users.size(); z++) {
+            selectedUsers.addElement(((CmsUser)users.elementAt(z)).getName());
+          }
+        }
+        users=cms.getUsers();
+        if (users != null) {
+          notSelectedUsers=new Vector();
+          for (int z=0; z < users.size(); z++) {
+            String name=((A_CmsUser)users.elementAt(z)).getName();
+            if (!selectedUsers.contains(name)) {
+              notSelectedUsers.addElement(name);
+            }
+          }
+        }
+      }
+ else {
+        if (reqCont.getRequest().getParameter("ADD") != null) {
+          String username=(String)parameters.get("NOTSELECTEDUSERS");
+          if (username != null) {
+            selectedUsers.addElement(username);
+            notSelectedUsers.removeElement(username);
+          }
+        }
+ else         if (reqCont.getRequest().getParameter("REMOVE") != null) {
+          String username=(String)parameters.get("SELECTEDUSERS");
+          if (username != null) {
+            notSelectedUsers.addElement(username);
+            selectedUsers.removeElement(username);
+          }
+        }
+ else         if (reqCont.getRequest().getParameter("OK") != null) {
+          try {
+            CmsGroup theGroup=(CmsGroup)cms.readGroup(groupname);
+            if ("".equals(supergroup) || supergroup.equals(C_NO_SUPERGROUP_SELECTED)) {
+              cms.setParentGroup(groupname,null);
+            }
+ else {
+              cms.setParentGroup(groupname,supergroup);
+            }
+            theGroup=(CmsGroup)cms.readGroup(groupname);
+            theGroup.setDescription(description);
+            theGroup.setProjectManager(projectManager);
+            theGroup.setProjectCoWorker(projectCoWorker);
+            theGroup.setRole(role);
+            cms.writeGroup(theGroup);
+            theGroup=(CmsGroup)cms.readGroup(groupname);
+            Vector allUsers=cms.getUsersOfGroup(groupname);
+            boolean defaultProblem=false;
+            Vector falseUsers=new Vector();
+            for (int z=0; z < allUsers.size(); z++) {
+              String theUserName=((CmsUser)allUsers.elementAt(z)).getName();
+              String theDefaultGroupName=((CmsUser)allUsers.elementAt(z)).getDefaultGroup().getName();
+              if (!selectedUsers.contains(theUserName)) {
+                if (theDefaultGroupName.equals(groupname)) {
+                  defaultProblem=true;
+                  falseUsers.addElement(theUserName);
+                }
+ else {
+                  cms.removeUserFromGroup(theUserName,groupname);
+                }
+              }
+            }
+            for (int z=0; z < selectedUsers.size(); z++) {
+              cms.addUserToGroup((String)selectedUsers.elementAt(z),groupname);
+            }
+            cms.writeGroup(theGroup);
+            session.removeValue("selectedUsers");
+            session.removeValue("notSelectedUsers");
+            session.removeValue("PROJECTMANAGER");
+            session.removeValue("PROJECTCOWORKER");
+            session.removeValue("ROLE");
+            session.removeValue("ERROR");
+            if (defaultProblem) {
+              xmlTemplateDocument.setXmlData("RMDEFAULTDETAIL","The following users which were to be removed had " + groupname + " as default group: "+ falseUsers);
+              templateSelector="errorremovedefault";
+            }
+ else {
+              templateSelector="";
+            }
+          }
+ catch (          CmsException e) {
+            session.putValue("ERROR",new String("yes"));
+            session.putValue("GROUPDESC",description);
+            session.putValue("SUPERGROUP",supergroup);
+            if (e.getType() == CmsException.C_NO_GROUP) {
+              templateSelector="errornogroup2";
+            }
+ else             if (e.getType() == CmsException.C_NO_USER && e.getMessage().equals("user data missing")) {
+              templateSelector="errordatamissing2";
+            }
+ else {
+              throw e;
+            }
+          }
+        }
+      }
+      session.putValue("selectedUsers",selectedUsers);
+      session.putValue("notSelectedUsers",notSelectedUsers);
+      session.putValue("SUPERGROUP",supergroup);
+    }
+    if (groupname == null) {
+      groupname="";
+    }
+    if (description == null) {
+      description="";
+    }
+    if (supergroup == null) {
+      supergroup="";
+    }
+    xmlTemplateDocument.setXmlData("GROUPNAME",groupname);
+    xmlTemplateDocument.setXmlData("GROUPDESC",description);
+    xmlTemplateDocument.setXmlData("SUPERGROUP",supergroup);
+    xmlTemplateDocument.setXmlData("PCWCHECKED",projectCoWorker ? "checked" : "");
+    xmlTemplateDocument.setXmlData("PMCHECKED",projectManager ? "checked" : "");
+    xmlTemplateDocument.setXmlData("PRCHECKED",role ? "checked" : "");
+  }
+ else   if (perspective.equals("deletegroup")) {
+    try {
+      String groupname=(String)parameters.get("GROUPNAME");
+      cms.deleteGroup(groupname);
+      templateSelector="";
+    }
+ catch (    Exception e) {
+      templateSelector="deleteerror";
+    }
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
