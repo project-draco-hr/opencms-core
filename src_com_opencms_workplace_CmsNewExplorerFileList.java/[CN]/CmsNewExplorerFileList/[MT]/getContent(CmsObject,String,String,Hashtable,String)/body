@@ -1,0 +1,137 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  CmsXmlWpTemplateFile templateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  CmsXmlLanguageFile lang=templateDocument.getLanguageFile();
+  String currentFolder=(String)parameters.get("folder");
+  if ((currentFolder != null) && (!"".equals(currentFolder)) && folderExists(cms,currentFolder)) {
+    session.putValue(C_PARA_FILELIST,currentFolder);
+  }
+ else {
+    currentFolder=(String)session.getValue(C_PARA_FILELIST);
+    if (currentFolder == null) {
+      currentFolder=cms.rootFolder().getAbsolutePath();
+    }
+  }
+  String checksum=(String)parameters.get("check");
+  int check=-1;
+  try {
+    check=Integer.parseInt(checksum);
+  }
+ catch (  Exception e) {
+  }
+  int currentFolderId=(cms.readFolder(currentFolder)).getResourceId();
+  StringBuffer content=new StringBuffer();
+  content.append("<html> \n<head> \n<script language=JavaScript> \n<!-- \nfunction show_help() \n{ return '2_1_2_2.html'; } \n//--> \n</script>\n\n<script language=JavaScript>\n");
+  content.append("function initialize() {\n");
+  content.append(" top.setProject(" + cms.getRequestContext().currentProject().getId() + ");\n");
+  content.append(" top.setOnlineProject(" + cms.onlineProject().getId() + ");\n");
+  content.append(" top.setChecksum(\"" + check + "\");\n");
+  content.append(" top.setDirectory(" + currentFolderId + ",\""+ currentFolder+ "\");\n");
+  content.append(" top.rD();\n\n");
+  Vector resources=cms.getResourcesInFolder(currentFolder);
+  for (int i=0; i < resources.size(); i++) {
+    CmsResource res=(CmsResource)resources.elementAt(i);
+    content.append(" top.aF(");
+    content.append("\"" + res.getName() + "\", ");
+    content.append("\"" + res.getPath() + "\", ");
+    String title="";
+    try {
+      title=cms.readProperty(res.getAbsolutePath(),C_PROPERTY_TITLE);
+    }
+ catch (    CmsException e) {
+    }
+    if (title == null) {
+      title="";
+    }
+    content.append("\"" + title + "\", ");
+    content.append("\"" + res.getType() + "\", ");
+    content.append("\"" + Utils.getNiceDate(res.getDateLastModified()) + "\", ");
+    content.append("\"" + "TODO" + "\", ");
+    content.append("\"" + Utils.getNiceDate(res.getDateCreated()) + "\", ");
+    if (res.isFolder()) {
+      content.append("\"" + "" + "\", ");
+    }
+ else {
+      content.append("\"" + res.getLength() + "\", ");
+    }
+    content.append("" + res.getState() + ", ");
+    content.append("\"" + res.getProjectId() + "\", ");
+    content.append("\"" + cms.readUser(res.getOwnerId()).getName() + "\", ");
+    content.append("\"" + cms.readGroup(res).getName() + "\", ");
+    content.append("\"" + res.getAccessFlags() + "\", ");
+    if (res.isLockedBy() == C_UNKNOWN_ID) {
+      content.append("\"" + "" + "\");\n");
+    }
+ else {
+      content.append("\"" + cms.lockedBy(res).getName() + "\");\n");
+    }
+  }
+  if (true) {
+    content.append("\n top.rT();\n");
+    Vector tree=cms.getFolderTree();
+    int startAt=1;
+    int parentId;
+    boolean grey=false;
+    int onlineProjectId=cms.onlineProject().getId();
+    if (onlineProjectId == cms.getRequestContext().currentProject().getId()) {
+      CmsFolder rootFolder=(CmsFolder)tree.elementAt(0);
+      content.append("top.aC(");
+      content.append(rootFolder.getResourceId() + ", ");
+      content.append("\"" + lang.getDataValue("title.rootfolder") + "\", ");
+      content.append(rootFolder.getParentId() + ", false);\n");
+      for (int i=startAt; i < tree.size(); i++) {
+        CmsFolder folder=(CmsFolder)tree.elementAt(i);
+        content.append("top.aC(");
+        content.append(folder.getResourceId() + ", ");
+        content.append("\"" + folder.getName() + "\", ");
+        content.append(folder.getParentId() + ", false);\n");
+      }
+    }
+ else {
+      Hashtable idMixer=new Hashtable();
+      CmsFolder rootFolder=(CmsFolder)tree.elementAt(0);
+      if (rootFolder.getProjectId() != onlineProjectId) {
+        startAt=2;
+        grey=false;
+        idMixer.put(new Integer(((CmsFolder)tree.elementAt(1)).getResourceId()),new Integer(rootFolder.getResourceId()));
+      }
+ else {
+        grey=true;
+      }
+      content.append("top.aC(");
+      content.append(rootFolder.getResourceId() + ", ");
+      content.append("\"" + lang.getDataValue("title.rootfolder") + "\", ");
+      content.append(rootFolder.getParentId() + ", " + grey+ ");\n");
+      for (int i=startAt; i < tree.size(); i++) {
+        CmsFolder folder=(CmsFolder)tree.elementAt(i);
+        if (folder.getProjectId() != onlineProjectId) {
+          i++;
+          grey=false;
+          parentId=folder.getParentId();
+          idMixer.put(new Integer(((CmsFolder)tree.elementAt(i)).getResourceId()),new Integer(folder.getResourceId()));
+        }
+ else {
+          grey=true;
+          parentId=folder.getParentId();
+          if (idMixer.containsKey(new Integer(parentId))) {
+            parentId=((Integer)idMixer.get(new Integer(parentId))).intValue();
+          }
+        }
+        content.append("top.aC(");
+        content.append(folder.getResourceId() + ", ");
+        content.append("\"" + folder.getName() + "\", ");
+        content.append(parentId + ", " + grey+ ");\n");
+      }
+    }
+  }
+  content.append(" top.dU(document); \n");
+  content.append("}\n");
+  content.append("</script>\n</head> \n<BODY onLoad=\"initialize()\"></BODY> \n</html>\n");
+  templateDocument.setData("content",content.toString());
+  return startProcessing(cms,templateDocument,elementName,parameters,templateSelector);
+}

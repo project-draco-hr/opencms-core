@@ -1,0 +1,52 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsXmlWpTemplateFile templateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  CmsXmlLanguageFile lang=templateDocument.getLanguageFile();
+  String servletPath=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getServletPath();
+  StringBuffer jsOutput=new StringBuffer();
+  jsOutput.append("function vars_resources() { \n this.stati = new Array(\"");
+  jsOutput.append(lang.getLanguageValue("explorer.state0") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("explorer.state1") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("explorer.state2") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("explorer.state3") + "\");\n");
+  jsOutput.append(" this.descr = new Array(\"");
+  jsOutput.append(lang.getLanguageValue("title.name") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("title.title") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("title.type") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("title.changed") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("title.size") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("title.state") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("title.owner") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("title.group") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("title.access") + "\",\"");
+  jsOutput.append(lang.getLanguageValue("title.locked") + "\");\n");
+  jsOutput.append(" this.actProject; \n this.onlineProject;\n this.lockedBy=\"" + lang.getLanguageValue("title.locked"));
+  jsOutput.append("\";\n this.titleString=\"" + lang.getLanguageValue("label.wptitle") + "\" \n this.actDirectory;");
+  jsOutput.append("\n this.userName = \"" + cms.getRequestContext().currentUser().getName() + "\";\n");
+  jsOutput.append(" this.langback=\"" + lang.getLanguageValue("button.back") + "\";\n");
+  jsOutput.append(" this.langup=\"" + lang.getLanguageValue("button.parent") + "\";\n");
+  jsOutput.append(" this.langnew=\"" + lang.getLanguageValue("button.new") + "\";\n");
+  jsOutput.append(" this.langadress=\"" + lang.getLanguageValue("input.adress") + ":\";\n");
+  jsOutput.append(" this.servpath=\"" + servletPath + "\";\n");
+  int filelist=getDefaultPreferences(cms);
+  jsOutput.append(" this.viewcfg = " + filelist + ";\n");
+  jsOutput.append(" this.actDirId;\n} \n");
+  jsOutput.append("function initialize_resources() {\n vi.iconPath=\"" + (String)picsUrl(cms,"",null,null) + "\";\n");
+  Vector resTypes=cms.getFilesInFolder(C_RESTYPES_FOLDER);
+  for (int i=0; i < resTypes.size(); i++) {
+    CmsFile resourceTyp=(CmsFile)resTypes.elementAt(i);
+    try {
+      int resId=(cms.getResourceType(resourceTyp.getName())).getResourceType();
+      jsOutput.append(getResourceEntry(lang,new String(cms.readFile(resourceTyp.getAbsolutePath()).getContents()),resId));
+    }
+ catch (    CmsException e) {
+    }
+  }
+  jsOutput.append("}");
+  templateDocument.setData("js",jsOutput.toString());
+  return startProcessing(cms,templateDocument,elementName,parameters,templateSelector);
+}
