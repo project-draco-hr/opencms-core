@@ -1,0 +1,83 @@
+{
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  String error="";
+  String reload="";
+  I_CmsRegistry registry=cms.getRegistry();
+  boolean luceneEnabled="on".equals(registry.getSystemValue("searchbylucene"));
+  CmsXmlWpTemplateFile template=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  String action=(String)parameters.get("action") != null ? (String)parameters.get("action") : "";
+  String propRestype=(String)parameters.get("proprestype");
+  String propKey=(String)parameters.get("propkey");
+  String propValue=(String)parameters.get("propvalue");
+  String content=(String)parameters.get("content");
+  String filename=(String)parameters.get("filename");
+  Hashtable filters=(Hashtable)session.getValue("ocms_search.allfilter");
+  CmsSearchFormObject propFilter=null;
+  CmsSearchFormObject filenameFilter=null;
+  CmsSearchFormObject contentFilter=null;
+  if (filters != null) {
+    propFilter=(CmsSearchFormObject)filters.get("property");
+    filenameFilter=(CmsSearchFormObject)filters.get("filename");
+    contentFilter=(CmsSearchFormObject)filters.get("content");
+  }
+  if (propFilter != null) {
+    if (propRestype == null) {
+      propRestype=propFilter.getValue01() != null ? propFilter.getValue01() : "";
+    }
+    if (propKey == null) {
+      propKey=propFilter.getValue02() != null ? propFilter.getValue02() : "";
+    }
+    if (propValue == null) {
+      propValue=propFilter.getValue03() != null ? propFilter.getValue03() : "";
+    }
+  }
+  if (filenameFilter != null) {
+    if (filename == null) {
+      filename=filenameFilter.getValue01() != null ? filenameFilter.getValue01() : "";
+    }
+  }
+  if (contentFilter != null) {
+    if (content == null) {
+      content=contentFilter.getValue01() != null ? contentFilter.getValue01() : "";
+    }
+  }
+  propRestype=propRestype != null ? propRestype : "";
+  propKey=propKey != null ? propKey : "";
+  propValue=propValue != null ? propValue : "";
+  content=content != null ? content : "";
+  filename=filename != null ? filename : "";
+  this.getResourceTypes(cms,template,propRestype);
+  this.getPropertyDefs(cms,template,propRestype,propKey);
+  filters=new Hashtable();
+  propFilter=new CmsSearchFormObject("property",propRestype,propKey,propValue);
+  filters.put("property",propFilter);
+  filenameFilter=new CmsSearchFormObject("filename",filename,"","");
+  filters.put("filename",filenameFilter);
+  if (luceneEnabled) {
+    contentFilter=new CmsSearchFormObject("content",content,"","");
+    filters.put("content",contentFilter);
+  }
+  session.putValue("ocms_search.allfilter",filters);
+  if (!"".equals(action.trim())) {
+    if (checkFilter(action,filters)) {
+      reload="true";
+      session.putValue("ocms_search.currentfilter",action);
+    }
+ else {
+      error=template.getProcessedDataValue("errormessage");
+    }
+  }
+  template.setData("reload",reload);
+  template.setData("error",error);
+  template.setData("propvalue",propValue);
+  template.setData("filename",filename);
+  if (luceneEnabled) {
+    template.setData("content",content);
+    template.setData("searchform",template.getProcessedDataValue("luceneon"));
+  }
+ else {
+    template.setData("searchform",template.getProcessedDataValue("luceneoff"));
+  }
+  byte[] retValue=startProcessing(cms,template,elementName,parameters,templateSelector);
+  return retValue;
+}
