@@ -1,40 +1,38 @@
 {
-  String resourceName;
   CmsFile file;
   if (m_resource.isFile()) {
-    file=m_cms.readFile(m_exportUri);
-    resourceName=m_exportUri;
+    file=m_cms.readFile(m_vfsName);
   }
  else {
-    file=initResource(m_cms,m_exportUri);
-    resourceName=m_exportUri + file.getResourceName();
-    m_exportUri+=C_EXPORT_DEFAULT_FILE;
+    file=initResource(m_cms,m_vfsName);
+    m_vfsName=m_vfsName + file.getResourceName();
+    m_rfsName+=C_EXPORT_DEFAULT_FILE;
   }
   int loaderId=file.getLoaderId();
   I_CmsResourceLoader loader=A_OpenCms.getLoaderManager().getLoader(loaderId);
   if ((loader == null) || ((loaderId != CmsDumpLoader.C_RESOURCE_LOADER_ID) && (loaderId != CmsJspLoader.C_RESOURCE_LOADER_ID) && (loaderId != CmsPageLoader.C_RESOURCE_LOADER_ID))) {
-    throw new CmsException("Unable to export file " + m_exportUri + ", invalid loader id "+ loaderId);
+    throw new CmsException("Unable to export VFS file " + m_vfsName + ", invalid loader id "+ loaderId);
   }
-  String exportFolderName=A_OpenCms.getStaticExportProperties().getExportPath() + CmsResource.getPath(m_exportUri).substring(1);
+  String exportFolderName=A_OpenCms.getStaticExportProperties().getExportPath() + CmsResource.getPath(m_rfsName).substring(1);
   File exportFolder=new File(exportFolderName);
   if (!exportFolder.exists()) {
     if (!exportFolder.mkdirs()) {
-      throw new CmsException("Creation of export folder failed for file " + m_exportUri);
+      throw new CmsException("Creation of export folder failed for RFS file " + m_rfsName);
     }
   }
-  String exportFileName=A_OpenCms.getStaticExportProperties().getExportPath() + m_exportUri.substring(1);
+  String exportFileName=A_OpenCms.getStaticExportProperties().getExportPath() + m_rfsName.substring(1);
   File exportFile=new File(exportFileName);
   FileOutputStream exportStream;
   try {
     exportStream=new FileOutputStream(exportFile);
   }
  catch (  Throwable t) {
-    throw new CmsException("Creation of export output stream failed for file " + m_exportUri);
+    throw new CmsException("Creation of export output stream failed for RFS file " + m_rfsName);
   }
   String mimetype=A_OpenCms.getMimeType(file.getResourceName(),m_cms.getRequestContext().getEncoding());
   res.setContentType(mimetype);
   String oldUri=m_cms.getRequestContext().getUri();
-  m_cms.getRequestContext().setUri(resourceName);
+  m_cms.getRequestContext().setUri(m_vfsName);
   byte[] content=loader.export(m_cms,file,req,res);
   m_cms.getRequestContext().setUri(oldUri);
   exportStream.write(content);

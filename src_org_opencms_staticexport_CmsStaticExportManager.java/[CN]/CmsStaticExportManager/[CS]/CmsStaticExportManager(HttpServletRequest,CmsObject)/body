@@ -2,20 +2,46 @@
   if (!A_OpenCms.getStaticExportProperties().isStaticExportEnabled()) {
     return;
   }
-  m_exportUri=request.getParameter(C_EXPORT_MARKER);
-  if ((m_exportUri == null) || !m_exportUri.startsWith(A_OpenCms.getStaticExportProperties().getRfsPrefix())) {
+  m_rfsName=request.getParameter(C_EXPORT_MARKER);
+  if ((m_rfsName == null) || !m_rfsName.startsWith(A_OpenCms.getStaticExportProperties().getRfsPrefix())) {
     return;
   }
-  m_exportUri=m_exportUri.substring(A_OpenCms.getStaticExportProperties().getRfsPrefix().length());
+  m_rfsName=m_rfsName.substring(A_OpenCms.getStaticExportProperties().getRfsPrefix().length());
   try {
-    m_resource=cms.readFileHeader(m_exportUri);
-    if (m_resource.isFolder() && !m_exportUri.endsWith("/")) {
-      m_exportUri+="/";
+    m_resource=cms.readFileHeader(m_rfsName);
+    if (m_resource.isFolder() && !m_rfsName.endsWith("/")) {
+      m_rfsName+="/";
     }
+    m_vfsName=m_rfsName;
   }
  catch (  Throwable t) {
-    m_exportUri=null;
-    return;
+    m_resource=null;
+  }
+  boolean match=false;
+  if (m_resource == null) {
+    Map exportnameFolders=A_OpenCms.getStaticExportProperties().getExportnames();
+    Iterator i=exportnameFolders.keySet().iterator();
+    while (i.hasNext()) {
+      String exportName=(String)i.next();
+      if (m_rfsName.startsWith(exportName)) {
+        match=true;
+        m_vfsName=exportnameFolders.get(exportName) + m_rfsName.substring(exportName.length());
+        try {
+          m_resource=cms.readFileHeader(m_vfsName);
+          if (m_resource.isFolder()) {
+            if (!m_rfsName.endsWith("/"))             m_rfsName+="/";
+            if (!m_vfsName.endsWith("/"))             m_vfsName+="/";
+          }
+        }
+ catch (        CmsException e) {
+          m_rfsName=null;
+        }
+        break;
+      }
+    }
+    if (!match) {
+      m_rfsName=null;
+    }
   }
   m_cms=cms;
 }
