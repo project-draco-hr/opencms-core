@@ -11,20 +11,26 @@
     }
   }
   base=CmsBase.setBasePath(base);
+  String logFile;
+  ExtendedProperties extendedProperties;
   try {
-    ExtendedProperties p=new ExtendedProperties(CmsBase.getPropertiesPath(true));
-    String logFile=(String)p.get("log.file");
-    if (logFile != null) {
-      p.put("log.file",CmsBase.getAbsolutePath(logFile));
-    }
-    m_configurations=new Configurations(p);
+    extendedProperties=new ExtendedProperties(CmsBase.getPropertiesPath(true));
   }
  catch (  Exception e) {
-    throw new ServletException(e.getMessage() + ".  Properties file is: " + CmsBase.getBasePath()+ "opencms.properties");
+    throw new ServletException(e.getMessage() + ". Property file is: " + CmsBase.getPropertiesPath(true));
   }
+  logFile=(String)extendedProperties.get("log.file");
+  if (logFile != null) {
+    extendedProperties.put("log.file",CmsBase.getAbsolutePath(logFile));
+  }
+  m_configurations=new Configurations(extendedProperties);
   A_OpenCms.initializeServletLogging(m_configurations);
-  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] Server Info: " + config.getServletContext().getServerInfo());
+  if (C_LOGGING && A_OpenCms.isLogging(C_OPENCMS_INIT)) {
+    A_OpenCms.log(C_OPENCMS_INIT,"[OpenCmsServlet] Startup time: " + (new Date(System.currentTimeMillis())));
+    A_OpenCms.log(C_OPENCMS_INIT,"[OpenCmsServlet] Server info: " + config.getServletContext().getServerInfo());
+    A_OpenCms.log(C_OPENCMS_INIT,"[OpenCmsServlet] Base path: " + CmsBase.getBasePath());
+    A_OpenCms.log(C_OPENCMS_INIT,"[OpenCmsServlet] Property file: " + CmsBase.getPropertiesPath(true));
+    A_OpenCms.log(C_OPENCMS_INIT,"[OpenCmsServlet] Logfile: " + CmsBase.getAbsolutePath(logFile));
   }
   int count=0;
   String redirect;
@@ -35,28 +41,19 @@
     m_redirect.addElement(redirect);
     m_redirectlocation.addElement(redirectlocation);
     count++;
-    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] redirect-rule: " + redirect + " -> "+ redirectlocation);
-    }
+    if (C_LOGGING && A_OpenCms.isLogging(C_OPENCMS_INIT))     A_OpenCms.log(C_OPENCMS_INIT,"[OpenCmsServlet] redirect-rule: " + redirect + " -> "+ redirectlocation);
   }
   m_clusterurl=(String)m_configurations.getString(C_CLUSTERURL,"");
-  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] Clusterurl: " + m_clusterurl);
-  }
+  if (C_LOGGING && A_OpenCms.isLogging(C_OPENCMS_INIT))   A_OpenCms.log(C_OPENCMS_INIT,"[OpenCmsServlet] Clusterurl: " + m_clusterurl);
   try {
     m_opencms=new OpenCms(m_configurations);
   }
  catch (  Exception exc) {
     throw new ServletException(Utils.getStackTrace(exc));
   }
-  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] initializing session storage");
-  }
+  if (C_LOGGING && A_OpenCms.isLogging(C_OPENCMS_INIT))   A_OpenCms.log(C_OPENCMS_INIT,"[OpenCmsServlet] initializing session storage");
   m_sessionStorage=new CmsCoreSession();
-  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] initializing... DONE");
-  }
-  source.org.apache.java.util.Configurations openCmsConfig=m_opencms.getConfiguration();
-  this.m_UseBasicAuthentication=openCmsConfig.getBoolean("auth.basic",true);
-  this.m_AuthenticationFormURI=openCmsConfig.getString("auth.form_uri","/system/workplace/action/authenticate.html");
+  if (C_LOGGING && A_OpenCms.isLogging(C_OPENCMS_INIT))   A_OpenCms.log(C_OPENCMS_INIT,"[OpenCmsServlet] initializing... DONE");
+  this.m_UseBasicAuthentication=m_configurations.getBoolean("auth.basic",true);
+  this.m_AuthenticationFormURI=m_configurations.getString("auth.form_uri","/system/workplace/action/authenticate.html");
 }
