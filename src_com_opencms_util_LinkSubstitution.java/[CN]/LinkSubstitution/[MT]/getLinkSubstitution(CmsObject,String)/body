@@ -8,7 +8,7 @@
   int modus=cms.getMode();
   if (modus == cms.C_MODUS_EXPORT) {
     cms.getRequestContext().addLink(link);
-    String startRule=OpenCms.getLinkRuleStart();
+    String startRule=OpenCms.getStaticExportProperties().getStartRule();
     if (startRule != null && !"".equals(startRule)) {
       try {
         link=c_perlUtil.substitute(startRule,link);
@@ -31,13 +31,14 @@
   if (httpsMode) {
     needsScheme=CmsStaticExport.needsScheme(link);
   }
-  String[] rules=cms.getLinkRules(modus);
+  String[] rules=cms.getStaticExportProperties().getLinkRules(modus);
   if (rules == null || rules.length == 0) {
     return link;
   }
   String retValue=link;
   for (int i=0; i < rules.length; i++) {
     try {
+      boolean nextRule=true;
       if ("*dynamicRules*".equals(rules[i])) {
         Vector booleanReplace=new Vector();
         retValue=CmsStaticExport.handleDynamicRules(cms,link,modus,booleanReplace);
@@ -45,19 +46,27 @@
         if (goOn.booleanValue()) {
           link=retValue;
         }
+ else {
+          nextRule=false;
+        }
       }
  else {
-        retValue=c_perlUtil.substitute(rules[i],link);
+        StringBuffer result=new StringBuffer();
+        int matches=c_perlUtil.substitute(result,rules[i],link);
+        if (matches != 0) {
+          retValue=result.toString();
+          nextRule=false;
+        }
       }
-      if (!link.equals(retValue)) {
+      if (!nextRule) {
         if (httpsMode && !retValue.startsWith("http")) {
           if (needsScheme) {
-            retValue=cms.getUrlPrefixArray()[3] + retValue;
+            retValue=cms.getStaticExportProperties().getUrlPrefixArray()[3] + retValue;
           }
         }
  else {
-          if (cms.relativLinksInExport() && modus == cms.C_MODUS_EXPORT && (retValue != null) && retValue.startsWith(cms.getUrlPrefixArray()[0])) {
-            retValue=getRelativePath(cms.getRequestContext().getRequest().getRequestedResource(),retValue.substring((cms.getUrlPrefixArray()[0]).length()));
+          if (cms.getStaticExportProperties().relativLinksInExport() && modus == cms.C_MODUS_EXPORT && (retValue != null) && retValue.startsWith(cms.getStaticExportProperties().getUrlPrefixArray()[0])) {
+            retValue=getRelativePath(cms.getRequestContext().getRequest().getRequestedResource(),retValue.substring((cms.getStaticExportProperties().getUrlPrefixArray()[0]).length()));
           }
         }
         return retValue;
@@ -71,12 +80,12 @@
   }
   if (httpsMode && !retValue.startsWith("http")) {
     if (needsScheme) {
-      retValue=cms.getUrlPrefixArray()[3] + retValue;
+      retValue=cms.getStaticExportProperties().getUrlPrefixArray()[3] + retValue;
     }
   }
  else {
-    if (cms.relativLinksInExport() && modus == cms.C_MODUS_EXPORT && (retValue != null) && retValue.startsWith(cms.getUrlPrefixArray()[0])) {
-      retValue=getRelativePath(cms.getRequestContext().getRequest().getRequestedResource(),retValue.substring((cms.getUrlPrefixArray()[0]).length()));
+    if (cms.getStaticExportProperties().relativLinksInExport() && modus == cms.C_MODUS_EXPORT && (retValue != null) && retValue.startsWith(cms.getStaticExportProperties().getUrlPrefixArray()[0])) {
+      retValue=getRelativePath(cms.getRequestContext().getRequest().getRequestedResource(),retValue.substring((cms.getStaticExportProperties().getUrlPrefixArray()[0]).length()));
     }
   }
   return retValue;
