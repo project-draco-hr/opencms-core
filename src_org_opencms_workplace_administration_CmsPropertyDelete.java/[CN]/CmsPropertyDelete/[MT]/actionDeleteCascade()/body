@@ -1,0 +1,45 @@
+{
+  getJsp().getRequest().setAttribute(C_SESSION_WORKPLACE_CLASS,this);
+  try {
+    List resourcesWithProperty=getCms().readResourcesWithProperty(getParamPropertyName());
+    List resourcesLockedByOtherUser=getResourcesLockedByOtherUser(resourcesWithProperty);
+    if (resourcesLockedByOtherUser.isEmpty()) {
+      getCms().getRequestContext().saveSiteRoot();
+      getCms().getRequestContext().setSiteRoot("/");
+      try {
+        Iterator i=resourcesWithProperty.iterator();
+        while (i.hasNext()) {
+          CmsResource resource=(CmsResource)i.next();
+          CmsProperty property=getCms().readPropertyObject(resource.getRootPath(),getParamPropertyName(),false);
+          CmsLock lock=getCms().getLock(resource);
+          if (lock.getType() == CmsLock.C_TYPE_UNLOCKED) {
+            getCms().lockResource(resource.getRootPath());
+          }
+          property.setStructureValue(CmsProperty.C_DELETE_VALUE);
+          property.setResourceValue(CmsProperty.C_DELETE_VALUE);
+          getCms().writePropertyObject(resource.getRootPath(),property);
+          getCms().unlockResource(resource.getRootPath());
+        }
+        getCms().deletePropertydefinition(getParamPropertyName());
+      }
+  finally {
+        getCms().getRequestContext().restoreSiteRoot();
+        actionCloseDialog();
+      }
+    }
+ else {
+      setParamMessage(key("error.message.deleteproperty"));
+      StringBuffer reason=new StringBuffer();
+      reason.append(key("error.reason.deleteproperty"));
+      reason.append(buildResourceList(resourcesLockedByOtherUser,true));
+      setParamReasonSuggestion(reason.toString());
+      getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
+    }
+  }
+ catch (  CmsException e) {
+    setParamErrorstack(e.getStackTraceAsString());
+    setParamMessage(key("error.message." + getParamDialogtype()));
+    setParamReasonSuggestion(getErrorSuggestionDefault());
+    getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
+  }
+}
