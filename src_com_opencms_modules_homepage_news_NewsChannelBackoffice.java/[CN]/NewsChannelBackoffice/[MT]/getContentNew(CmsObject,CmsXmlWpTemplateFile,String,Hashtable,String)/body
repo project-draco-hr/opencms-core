@@ -1,0 +1,51 @@
+{
+  I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  String action=(String)parameters.get("action");
+  String id=(String)parameters.get("id");
+  if (id == null)   id="";
+  String idsave="";
+  if ((id == null) || (id == "")) {
+    idsave=(String)session.getValue("idsave");
+    if (idsave == null)     idsave="";
+  }
+  if (action == null || action.equals("")) {
+    templateSelector="default";
+    template.setData("setaction","default");
+    if (idsave == "")     session.putValue("idsave","new");
+  }
+ else {
+    templateSelector="done";
+    session.removeValue("idsave");
+    String name=(String)parameters.get("name");
+    String descript=(String)parameters.get("descript");
+    System.err.println("NewsEditBackoffice: name: " + name + " descr: "+ descript);
+    name.trim();
+    if ((name.equals("") || name == null) || (descript.equals("") || descript == null)) {
+      templateSelector="default";
+      template.setData("name","");
+      template.setData("descript",descript);
+      template.setData("error",template.getData("missing"));
+      template.setData("nameHighlightStart",template.getData("redStart"));
+      template.setData("nameHighlightEnd",template.getData("redEnd"));
+      session.putValue("idsave","new");
+      template.setData("setaction","default");
+      return startProcessing(cms,template,elementName,parameters,templateSelector);
+    }
+    NewsChannelContentDefinition newCD=new NewsChannelContentDefinition(name,descript);
+    newCD.setLockstate("lock");
+    try {
+      newCD.write(cms);
+    }
+ catch (    Exception e) {
+      System.err.println("NewsEditBackoffice: couldn?t write!");
+      System.err.println("[" + this.getClass().getName() + "] "+ e.getMessage());
+      template.setData("error",e.toString());
+      template.setData("name","");
+      template.setData("descript",descript);
+      session.putValue("idsave","new");
+      template.setData("setaction","default");
+      templateSelector="default";
+    }
+  }
+  return startProcessing(cms,template,elementName,parameters,templateSelector);
+}

@@ -1,0 +1,109 @@
+{
+  I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  String action=(String)parameters.get("action");
+  GregorianCalendar actDate=new GregorianCalendar();
+  boolean dateError=false;
+  boolean channelError=false;
+  int channelId=0;
+  String error="";
+  String id=(String)parameters.get("id");
+  if (id == null)   id="";
+  String idsave="";
+  if ((id == null) || (id == "")) {
+    idsave=(String)session.getValue("idsave");
+    if (idsave == null)     idsave="";
+  }
+  if (action == null || action.equals("")) {
+    templateSelector="default";
+    template.setData("setaction","default");
+    template.setData("date",NewsContentDefinition.date2string(actDate));
+    template.setData("link","http://");
+    if (idsave == "")     session.putValue("idsave","new");
+  }
+ else {
+    templateSelector="done";
+    session.removeValue("idsave");
+    String headline=(String)parameters.get("headline");
+    String description=(String)parameters.get("description");
+    String text=(String)parameters.get("text");
+    String author=(String)parameters.get("author");
+    String link=(String)parameters.get("link");
+    String linkText=(String)parameters.get("linkText");
+    String sDate=(String)parameters.get("date");
+    String channelName=(String)parameters.get("channel");
+    String a_info1=(String)parameters.get("a_info1");
+    String a_info2=(String)parameters.get("a_info2");
+    String a_info3=(String)parameters.get("a_info3");
+    if (channelName == null || channelName.equals(" ") || channelName.equals("")) {
+      channelError=true;
+    }
+ else {
+      NewsChannelContentDefinition temp=new NewsChannelContentDefinition(channelName);
+      channelId=temp.getIntId();
+    }
+    GregorianCalendar date=null;
+    headline.trim();
+    try {
+      date=NewsContentDefinition.string2date(sDate);
+    }
+ catch (    ParseException e) {
+      System.err.println("getContentNew: ParseException");
+      System.err.println("[" + this.getClass().getName() + "] "+ e.getMessage());
+      dateError=true;
+    }
+    if (headline.equals("") || headline == null || dateError == true || channelError == true) {
+      templateSelector="default";
+      template.setData("headline",headline);
+      template.setData("descript",description);
+      template.setData("text",text);
+      template.setData("link",link);
+      template.setData("linkText",linkText);
+      template.setData("author",author);
+      template.setData("date",NewsContentDefinition.date2string(actDate));
+      template.setData("a_info1",a_info1);
+      template.setData("a_info2",a_info2);
+      template.setData("a_info3",a_info3);
+      session.putValue("checkSelectChannel","" + channelId);
+      if (headline.equals("") || headline == null) {
+        error+=template.getProcessedDataValue("missing",this,parameters) + "<br>";
+        template.setData("error",error);
+        template.setData("headlineHighlightStart",template.getData("redStart"));
+        template.setData("headlineHighlightEnd",template.getData("redEnd"));
+      }
+      if (dateError == true) {
+        error+=template.getProcessedDataValue("dateError",this,parameters) + "<br>";
+        template.setData("dateHighlightStart",template.getData("redStart"));
+        template.setData("dateHighlightEnd",template.getData("redEnd"));
+        template.setData("error",error);
+      }
+      if (channelError == true) {
+        error+=template.getProcessedDataValue("channelError",this,parameters) + "<br>";
+        template.setData("channelHighlightStart",template.getData("redStart"));
+        template.setData("channelHighlightEnd",template.getData("redEnd"));
+        template.setData("error",error);
+      }
+      session.putValue("idsave","new");
+      template.setData("setaction","default");
+      return startProcessing(cms,template,elementName,parameters,templateSelector);
+    }
+    NewsContentDefinition newCD=new NewsContentDefinition(headline,description,text,author,link,linkText,date,channelId,a_info1,a_info2,a_info3);
+    newCD.setLockstate("lock");
+    try {
+      newCD.write(cms);
+    }
+ catch (    Exception e) {
+      System.err.println("NewsEditBackoffice: couldn?t write!");
+      System.err.println("[" + this.getClass().getName() + "] "+ e.getMessage());
+      template.setData("error",e.toString());
+      template.setData("headline","headline");
+      template.setData("descript",description);
+      template.setData("a_info1",a_info1);
+      template.setData("a_info2",a_info2);
+      template.setData("a_info3",a_info3);
+      session.putValue("idsave","new");
+      template.setData("setaction","default");
+      templateSelector="default";
+    }
+  }
+  return startProcessing(cms,template,elementName,parameters,templateSelector);
+}

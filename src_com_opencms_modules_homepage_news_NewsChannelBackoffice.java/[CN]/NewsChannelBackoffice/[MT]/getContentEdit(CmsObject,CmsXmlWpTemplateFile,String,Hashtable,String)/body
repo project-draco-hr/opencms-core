@@ -1,0 +1,59 @@
+{
+  I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  String action=(String)parameters.get("action");
+  String id=(String)parameters.get("id");
+  if (id == null)   id="";
+  String idsave="";
+  if ((id == null) || (id == "")) {
+    idsave=(String)session.getValue("idsave");
+    if (idsave == null)     idsave="";
+  }
+  if ((idsave != "") && (id == "") && (idsave.compareTo("new") != 0)&& (id.compareTo("new") != 0)) {
+    templateSelector="done";
+    int idIntValue2=Integer.valueOf(idsave).intValue();
+    String name=(String)parameters.get("name");
+    String descript=(String)parameters.get("descript");
+    if ((name.equals(new String("")) || name == null) || (descript.equals(new String("")) || descript == null)) {
+      templateSelector="default";
+      template.setData("name","");
+      template.setData("descript",descript);
+      template.setData("error",template.getData("missing"));
+      template.setData("nameHighlightStart",template.getData("redStart"));
+      template.setData("nameHighlightEnd",template.getData("redEnd"));
+      session.putValue("idsave","" + idsave);
+      template.setData("setaction","default");
+      return startProcessing(cms,template,elementName,parameters,templateSelector);
+    }
+    NewsChannelContentDefinition editCD=new NewsChannelContentDefinition(cms,new Integer(idIntValue2));
+    editCD.setName(name);
+    editCD.setDescription(descript);
+    try {
+      editCD.write(cms);
+    }
+ catch (    Exception e) {
+      System.err.println("NewsEditBackoffice: couldn?t update!");
+      System.err.println("[" + this.getClass().getName() + "] "+ e.getMessage());
+      template.setData("error",e.toString());
+      template.setData("name","");
+      template.setData("descript",descript);
+      session.putValue("idsave","" + idsave);
+      template.setData("setaction","default");
+      templateSelector="default";
+      return startProcessing(cms,template,elementName,parameters,templateSelector);
+    }
+    session.removeValue("idsave");
+  }
+  if (idsave == "") {
+    if (id != "") {
+      int idIntValue=Integer.valueOf(id).intValue();
+      NewsChannelContentDefinition newsCD=new NewsChannelContentDefinition(cms,new Integer(idIntValue));
+      String name=newsCD.getName();
+      String descript=newsCD.getDescription();
+      template.setData("name",name);
+      template.setData("descript",descript);
+      session.putValue("idsave",id);
+      return startProcessing(cms,template,elementName,parameters,templateSelector);
+    }
+  }
+  return startProcessing(cms,template,elementName,parameters,templateSelector);
+}
