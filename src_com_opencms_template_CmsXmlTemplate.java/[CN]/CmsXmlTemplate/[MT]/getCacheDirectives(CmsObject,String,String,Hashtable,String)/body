@@ -11,33 +11,28 @@
     doc=this.getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
     doc.init(cms,templateFile);
     subtemplates=doc.getAllSubElements();
-  }
- catch (  Exception e) {
-    System.err.println(e);
-    return new CmsCacheDirectives(false);
-  }
-  int numSubtemplates=subtemplates.size();
-  for (int i=0; i < numSubtemplates; i++) {
-    String elName=(String)subtemplates.elementAt(i);
-    String className=null;
-    String templateName=null;
-    try {
+    int numSubtemplates=subtemplates.size();
+    for (int i=0; i < numSubtemplates; i++) {
+      String elName=(String)subtemplates.elementAt(i);
+      String className=null;
+      String templateName=null;
       className=getTemplateClassName(elName,doc,parameters);
       templateName=getTemplateFileName(elName,doc,parameters);
-    }
- catch (    CmsException e) {
-      if (A_OpenCms.isLogging()) {
-        A_OpenCms.log(C_OPENCMS_INFO,getClassName() + "Could not determine cacheability of subelement " + elName+ " in template file "+ doc.getFilename()+ ". There were missing datablocks.");
+      if (className != null) {
+        I_CmsTemplate templClass=(I_CmsTemplate)CmsTemplateClassManager.getClassInstance(cms,className);
+        CmsCacheDirectives cd2=templClass.getCacheDirectives(cms,templateName,elName,parameters,null);
+        result.merge(cd2);
       }
+ else {
+        return new CmsCacheDirectives(false);
+      }
+    }
+  }
+ catch (  CmsException e) {
+    if (A_OpenCms.isLogging()) {
+      A_OpenCms.log(C_OPENCMS_INFO,getClassName() + "Cannot determine cache directives for my template file " + templateFile+ " ("+ e+ "). ");
+      A_OpenCms.log(C_OPENCMS_INFO,getClassName() + "Resuming normal operation, setting cacheability to false.");
       return new CmsCacheDirectives(false);
-    }
-    try {
-      I_CmsTemplate templClass=(I_CmsTemplate)CmsTemplateClassManager.getClassInstance(cms,className);
-      CmsCacheDirectives cd2=templClass.getCacheDirectives(cms,templateName,elName,parameters,null);
-      result.merge(cd2);
-    }
- catch (    Exception e) {
-      System.err.println("E: " + e);
     }
   }
   return result;
