@@ -1,0 +1,52 @@
+{
+  try {
+    m_cms.readPropertydefinition(C_XML_CONTROL_TEMPLATE_PROPERTY,CmsResourceTypeNewPage.C_RESOURCE_TYPE_ID);
+  }
+ catch (  CmsException e) {
+    m_cms.createPropertydefinition(C_XML_CONTROL_TEMPLATE_PROPERTY,CmsResourceTypeNewPage.C_RESOURCE_TYPE_ID);
+  }
+  int size=m_pageStorage.size();
+  m_report.println(m_report.key("report.merge_start"),I_CmsReport.C_FORMAT_HEADLINE);
+  Iterator i=m_pageStorage.iterator();
+  int counter=1;
+  while (i.hasNext()) {
+    String resname=(String)i.next();
+    if (!resname.startsWith("/")) {
+      resname="/" + resname;
+    }
+    m_report.print("( " + counter + " / "+ size+ " ) ",I_CmsReport.C_FORMAT_DEFAULT);
+    m_report.print(m_report.key("report.merge") + " " + resname,I_CmsReport.C_FORMAT_NOTE);
+    CmsFile pagefile=m_cms.readFile(resname);
+    InputStream in=new ByteArrayInputStream(pagefile.getContents());
+    try {
+      String mastertemplate="";
+      String bodyname="";
+      Document contentXml=A_CmsXmlContent.getXmlParser().parse(in);
+      NodeList masterTemplateNode=contentXml.getElementsByTagName("masterTemplate");
+      if (masterTemplateNode.getLength() == 1) {
+        mastertemplate=masterTemplateNode.item(0).getFirstChild().getNodeValue();
+      }
+      NodeList bodyNode=contentXml.getElementsByTagName("TEMPLATE");
+      if (bodyNode.getLength() == 1) {
+        bodyname=bodyNode.item(0).getFirstChild().getNodeValue();
+        m_cms.lockResource(resname);
+        Map properties=m_cms.readProperties(resname);
+        CmsFile bodyfile=m_cms.readFile(bodyname);
+        pagefile.setContents(bodyfile.getContents());
+        pagefile.setType(CmsResourceTypeNewPage.C_RESOURCE_TYPE_ID);
+        m_cms.writeFile(pagefile);
+        m_cms.writeProperty(resname,C_XML_CONTROL_TEMPLATE_PROPERTY,mastertemplate);
+        m_cms.writeProperties(resname,properties);
+        m_cms.unlockResource(resname,false);
+        m_cms.lockResource(bodyname);
+        m_cms.deleteResource(bodyname);
+        m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+      }
+    }
+ catch (    Exception e) {
+      throw new CmsException(e.toString());
+    }
+    counter++;
+  }
+  m_pageStorage=null;
+}
