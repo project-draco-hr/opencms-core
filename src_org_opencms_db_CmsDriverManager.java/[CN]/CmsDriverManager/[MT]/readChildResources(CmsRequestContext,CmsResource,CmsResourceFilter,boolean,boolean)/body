@@ -1,9 +1,5 @@
 {
-  checkPermissions(context,resource,I_CmsConstants.C_READ_ACCESS,true,filter);
-  if ((!filter.isValid(context,resource))) {
-    return Collections.EMPTY_LIST;
-  }
-  String folderName=resource.getRootPath();
+  checkPermissions(context,resource,CmsPermissionSet.ACCESS_READ,true,CmsResourceFilter.ALL);
   String cacheKey;
   if (getFolders && getFiles) {
     cacheKey=CmsCacheKey.C_CACHE_KEY_SUBALL;
@@ -14,19 +10,19 @@
  else {
     cacheKey=CmsCacheKey.C_CACHE_KEY_SUBFILES;
   }
-  cacheKey=getCacheKey(context.currentUser().getName() + cacheKey + filter.getCacheId(),context.currentProject(),folderName);
+  cacheKey=getCacheKey(context.currentUser().getName() + cacheKey + filter.getCacheId(),context.currentProject(),resource.getRootPath());
   List subResources=(List)m_resourceListCache.get(cacheKey);
   if (subResources != null && subResources.size() > 0) {
-    return setFullResourceNames(context,subResources,filter);
+    return updateContextDates(context,subResources,filter);
   }
   subResources=m_vfsDriver.readChildResources(context.currentProject(),resource,getFolders,getFiles);
   for (int i=0; i < subResources.size(); i++) {
     CmsResource currentResource=(CmsResource)subResources.get(i);
-    int perms=hasPermissions(context,currentResource,I_CmsConstants.C_READ_OR_VIEW_ACCESS,true,filter);
+    int perms=hasPermissions(context,currentResource,CmsPermissionSet.ACCESS_READ,true,filter);
     if (PERM_DENIED == perms) {
       subResources.remove(i--);
     }
   }
   m_resourceListCache.put(cacheKey,subResources);
-  return setFullResourceNames(context,subResources,filter);
+  return updateContextDates(context,subResources,filter);
 }

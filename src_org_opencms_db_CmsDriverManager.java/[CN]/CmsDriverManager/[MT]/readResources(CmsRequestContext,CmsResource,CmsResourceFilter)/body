@@ -1,0 +1,18 @@
+{
+  checkPermissions(context,parent,CmsPermissionSet.ACCESS_READ,true,CmsResourceFilter.ALL);
+  String cacheKey=getCacheKey(context.currentUser().getName() + filter.getCacheId(),context.currentProject(),parent.getRootPath());
+  List subResources=(List)m_resourceListCache.get(cacheKey);
+  if (subResources != null && subResources.size() > 0) {
+    return updateContextDates(context,subResources,filter);
+  }
+  subResources=m_vfsDriver.readResources(context.currentProject().getId(),parent.getRootPath(),filter.getType(),filter.getState(),filter.getModifiedAfter(),filter.getModifiedBefore(),I_CmsConstants.C_READMODE_INCLUDE_TREE);
+  for (int i=0; i < subResources.size(); i++) {
+    CmsResource currentResource=(CmsResource)subResources.get(i);
+    int perms=hasPermissions(context,currentResource,CmsPermissionSet.ACCESS_READ,true,filter);
+    if (perms != PERM_ALLOWED) {
+      subResources.remove(i--);
+    }
+  }
+  m_resourceListCache.put(cacheKey,subResources);
+  return updateContextDates(context,subResources,filter);
+}
