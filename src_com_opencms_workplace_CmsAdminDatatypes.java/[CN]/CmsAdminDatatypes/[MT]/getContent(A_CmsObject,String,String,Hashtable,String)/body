@@ -1,0 +1,72 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  A_CmsRequestContext reqCont=cms.getRequestContext();
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  String action=(String)parameters.get("action");
+  String resTypeName=(String)parameters.get("restype");
+  String extensionName=(String)parameters.get("extension");
+  xmlTemplateDocument.setData("RESTYPE",resTypeName);
+  if ("new".equals(action)) {
+    templateSelector="newextension";
+    String name=(String)parameters.get("NAME");
+    if (name == null || name.equals("")) {
+    }
+ else {
+      try {
+        String formattedName;
+        formattedName=format(name);
+        Hashtable h=cms.readFileExtensions();
+        if (h == null) {
+          h=new Hashtable();
+        }
+        if (h.containsKey(formattedName)) {
+          throw new CmsException(CmsException.C_NOT_EMPTY);
+        }
+        h.put(formattedName,resTypeName);
+        cms.writeFileExtensions(h);
+        templateSelector="";
+      }
+ catch (      CmsException e) {
+        if (e.getType() == CmsException.C_NOT_EMPTY) {
+          templateSelector="errorinuse";
+        }
+ else         if (e.getType() == CmsException.C_BAD_NAME) {
+          templateSelector="errorformat";
+        }
+ else {
+          StringBuffer errmesg=new StringBuffer();
+          errmesg.append(lang.getLanguageValue("error.reason.newextension1") + " '" + name+ "' "+ lang.getLanguageValue("error.reason.newextension2")+ " '"+ resTypeName+ "' "+ lang.getLanguageValue("error.reason.newextension3")+ "\n\n");
+          errmesg.append(Utils.getStackTrace(e));
+          xmlTemplateDocument.setData("NEWDETAILS",errmesg.toString());
+          templateSelector="newerror";
+        }
+      }
+    }
+  }
+ else   if ("delete".equals(action)) {
+    if ("true".equals((String)parameters.get("sure"))) {
+      try {
+        Hashtable h=cms.readFileExtensions();
+        if (h != null) {
+          h.remove(extensionName);
+        }
+        cms.writeFileExtensions(h);
+        templateSelector="";
+      }
+ catch (      CmsException e) {
+        templateSelector="errordelete";
+      }
+    }
+ else {
+      templateSelector="RUsuredelete";
+    }
+    xmlTemplateDocument.setData("EXTENSION_NAME",extensionName);
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
