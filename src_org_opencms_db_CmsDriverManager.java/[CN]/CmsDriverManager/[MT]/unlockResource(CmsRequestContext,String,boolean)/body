@@ -1,0 +1,28 @@
+{
+  String currentResourceName=null;
+  CmsResource currentResource=null;
+  List resources=null;
+  if (forceUnlock) {
+    resources=m_lockDispatcher.getDirectLockedSubResources(resourcename);
+  }
+ else {
+    resources=(List)new ArrayList();
+  }
+  resources.add(resourcename);
+  Iterator i=resources.iterator();
+  while (i.hasNext()) {
+    currentResourceName=(String)i.next();
+    currentResource=readFileHeader(context,currentResourceName);
+    CmsLock lock=m_lockDispatcher.getLock(context,currentResource.getFullResourceName());
+    CmsUUID lockUserId=lock.getUserId();
+    if (forceUnlock || lockUserId.equals(context.currentUser().getId())) {
+      if (!forceUnlock) {
+        checkPermissions(context,currentResource,I_CmsConstants.C_WRITE_ACCESS);
+      }
+      currentResource.setLocked(CmsUUID.getNullUUID());
+      m_vfsDriver.updateLockstate(currentResource,context.currentProject().getId());
+      m_lockDispatcher.removeResource(lock.getResourceName());
+    }
+  }
+  clearResourceCache();
+}
