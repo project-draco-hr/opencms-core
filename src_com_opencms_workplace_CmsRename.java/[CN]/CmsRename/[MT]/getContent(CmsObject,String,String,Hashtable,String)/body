@@ -1,0 +1,131 @@
+{
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  String template=null;
+  String initial=(String)parameters.get(C_PARA_INITIAL);
+  if (initial != null) {
+    session.removeValue(C_PARA_FILE);
+    session.removeValue(C_PARA_NAME);
+    session.removeValue("lasturl");
+  }
+  String lasturl=getLastUrl(cms,parameters);
+  String filename=(String)parameters.get(C_PARA_FILE);
+  if (filename != null) {
+    session.putValue(C_PARA_FILE,filename);
+  }
+  filename=(String)session.getValue(C_PARA_FILE);
+  String newFile=(String)parameters.get(C_PARA_NAME);
+  if (newFile != null) {
+    session.putValue(C_PARA_NAME,newFile);
+  }
+  newFile=(String)session.getValue(C_PARA_NAME);
+  String action=(String)parameters.get("action");
+  CmsResource file=(CmsResource)cms.readFileHeader(filename);
+  if (file.isFile()) {
+    template="file";
+  }
+ else {
+    template="folder";
+  }
+  if (newFile == null) {
+    session.putValue(C_PARA_NAME,file.getName());
+  }
+ else {
+    if (action == null) {
+      template="wait";
+    }
+ else {
+      if (file.isFile()) {
+        try {
+          renameFile(cms,file,newFile);
+        }
+ catch (        CmsException ex) {
+          session.removeValue(C_PARA_FILE);
+          session.removeValue(C_PARA_NAME);
+          throw ex;
+        }
+        session.removeValue(C_PARA_FILE);
+        session.removeValue(C_PARA_NAME);
+        try {
+          if (lasturl == null || "".equals(lasturl)) {
+            cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+          }
+ else {
+            ((HttpServletResponse)(cms.getRequestContext().getResponse().getOriginalResponse())).sendRedirect(lasturl);
+          }
+        }
+ catch (        Exception e) {
+          throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+        }
+        return null;
+      }
+ else {
+        Vector allFolders=new Vector();
+        Vector allFiles=new Vector();
+        getAllResources(cms,filename,allFiles,allFolders);
+        String parent=file.getParent();
+        try {
+          cms.copyFolder(filename,parent + newFile + "/");
+          for (int i=0; i < allFolders.size(); i++) {
+            CmsFolder folder=(CmsFolder)allFolders.elementAt(i);
+            if (folder.getState() != C_STATE_DELETED) {
+              String newname=parent + newFile + "/"+ folder.getAbsolutePath().substring(file.getAbsolutePath().length());
+              cms.copyFolder(folder.getAbsolutePath(),newname);
+            }
+          }
+          for (int i=0; i < allFiles.size(); i++) {
+            CmsFile newfile=(CmsFile)allFiles.elementAt(i);
+            if (newfile.getState() != C_STATE_DELETED) {
+              String newname=parent + newFile + "/"+ newfile.getAbsolutePath().substring(file.getAbsolutePath().length());
+              moveFile(cms,newfile,newname,"true");
+            }
+          }
+          for (int i=0; i < allFolders.size(); i++) {
+            CmsFolder folder=(CmsFolder)allFolders.elementAt(allFolders.size() - i - 1);
+            if (folder.getState() != C_STATE_DELETED) {
+              cms.deleteFolder(folder.getAbsolutePath());
+              try {
+                cms.deleteFolder(C_CONTENTBODYPATH + folder.getAbsolutePath().substring(1));
+              }
+ catch (              CmsException e) {
+              }
+            }
+          }
+          cms.deleteFolder(filename);
+          try {
+            cms.deleteFolder(C_CONTENTBODYPATH + filename.substring(1));
+          }
+ catch (          CmsException e) {
+          }
+          try {
+            cms.unlockResource(C_CONTENTBODYPATH + filename.substring(1));
+          }
+ catch (          CmsException e) {
+          }
+        }
+ catch (        CmsException ex) {
+          session.removeValue(C_PARA_FILE);
+          session.removeValue(C_PARA_NAME);
+          throw ex;
+        }
+        session.removeValue(C_PARA_FILE);
+        session.removeValue(C_PARA_NAME);
+        xmlTemplateDocument.setData("lasturl",lasturl);
+        template="update";
+      }
+    }
+  }
+  if (action == null) {
+    String title=cms.readProperty(file.getAbsolutePath(),C_PROPERTY_TITLE);
+    if (title == null) {
+      title="";
+    }
+    CmsUser owner=cms.readOwner(file);
+    xmlTemplateDocument.setData("TITLE",title);
+    xmlTemplateDocument.setData("STATE",getState(cms,file,new CmsXmlLanguageFile(cms)));
+    xmlTemplateDocument.setData("OWNER",Utils.getFullName(owner));
+    xmlTemplateDocument.setData("GROUP",cms.readGroup(file).getName());
+    xmlTemplateDocument.setData("FILENAME",file.getName());
+  }
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}

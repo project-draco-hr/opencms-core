@@ -1,0 +1,82 @@
+{
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  CmsUser newEditor=cms.readUser(newEditorName);
+  if (newRoleName.equals(C_ALL_ROLES)) {
+    newRoleName=cms.readUser(newEditorName).getDefaultGroup().getName();
+  }
+  CmsGroup oldRole=cms.readGroup(newRoleName);
+  cms.forwardTask(taskid,oldRole.getName(),newEditor.getName());
+  String comment=lang.getLanguageValue("task.dialog.forward.logmessage");
+  comment+=" " + Utils.getFullName(newEditor);
+  cms.writeTaskLog(taskid,comment,C_TASKLOGTYPE_FORWARDED);
+  CmsTask task=cms.readTask(taskid);
+  if (cms.getTaskPar(task.getId(),C_TASKPARA_DELIVERY) != null) {
+    StringBuffer contentBuf=new StringBuffer(lang.getLanguageValue("task.email.forward.content"));
+    contentBuf.append("\n");
+    contentBuf.append(lang.getLanguageValue("task.label.project"));
+    contentBuf.append(": ");
+    String projectname="?";
+    try {
+      projectname=cms.readTask(task.getRoot()).getName();
+    }
+ catch (    Exception exc) {
+    }
+    contentBuf.append(projectname);
+    contentBuf.append("\n");
+    contentBuf.append(lang.getLanguageValue("task.label.task"));
+    contentBuf.append(": ");
+    contentBuf.append(task.getName());
+    contentBuf.append("\n");
+    contentBuf.append(lang.getLanguageValue("task.label.actuator"));
+    contentBuf.append(": ");
+    contentBuf.append(Utils.getFullName(cms.readOwner(task)));
+    contentBuf.append("\n");
+    contentBuf.append(lang.getLanguageValue("task.label.taskfor"));
+    contentBuf.append(": ");
+    contentBuf.append(Utils.getFullName(cms.readOriginalAgent(task)));
+    contentBuf.append("\n");
+    contentBuf.append(lang.getLanguageValue("task.label.editor"));
+    contentBuf.append(": ");
+    contentBuf.append(Utils.getFullName(cms.readAgent(task)));
+    int projectid=cms.readProject(task).getId();
+    String servletPath=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getServletPath();
+    String serverName=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getServerName();
+    CmsXmlWpConfigFile conf=new CmsXmlWpConfigFile(cms);
+    String actionPath=conf.getWorkplaceActionPath();
+    contentBuf.append("\n\n\nhttp://" + serverName + servletPath+ actionPath+ "login.html?startTaskId="+ taskid+ "&startProjectId="+ projectid);
+    String subject=lang.getLanguageValue("task.email.forward.subject");
+    if (cms.getTaskPar(task.getId(),C_TASKPARA_ALL) != null) {
+      try {
+        CmsMail mail=new CmsMail(cms,cms.getRequestContext().currentUser(),cms.readGroup(task),subject,contentBuf.toString(),"text/plain");
+        mail.start();
+      }
+ catch (      Exception exc) {
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsTaskAction] error while sending mail " + exc.getMessage());
+        }
+      }
+    }
+ else {
+      CmsUser[] user={cms.readAgent(task)};
+      try {
+        CmsMail mail1=new CmsMail(cms,cms.getRequestContext().currentUser(),user,subject,contentBuf.toString(),"text/plain");
+        mail1.start();
+      }
+ catch (      Exception exc) {
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsTaskAction] error while sending mail " + exc.getMessage());
+        }
+      }
+      CmsUser[] owner={cms.readOwner(task)};
+      try {
+        CmsMail mail2=new CmsMail(cms,cms.getRequestContext().currentUser(),owner,subject,contentBuf.toString(),"text/plain");
+        mail2.start();
+      }
+ catch (      Exception exc) {
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsTaskAction] error while sending mail " + exc.getMessage());
+        }
+      }
+    }
+  }
+}

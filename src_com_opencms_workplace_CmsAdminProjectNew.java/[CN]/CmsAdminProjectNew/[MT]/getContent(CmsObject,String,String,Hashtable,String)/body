@@ -1,0 +1,130 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  CmsRequestContext reqCont=cms.getRequestContext();
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  String initial=(String)parameters.get(C_PARA_INITIAL);
+  if (initial != null) {
+    session.removeValue(C_NEWNAME);
+    session.removeValue(C_NEWGROUP);
+    session.removeValue(C_NEWDESCRIPTION);
+    session.removeValue(C_NEWMANAGERGROUP);
+    session.removeValue(C_NEWFOLDER);
+    session.removeValue(C_NEWRESOURCES);
+    session.removeValue("lasturl");
+  }
+  String newName, newGroup, newDescription, newManagerGroup, newFolder;
+  String action=new String();
+  action=(String)parameters.get("action");
+  newName=(String)parameters.get(C_PROJECTNEW_NAME);
+  newGroup=(String)parameters.get(C_PROJECTNEW_GROUP);
+  newDescription=(String)parameters.get(C_PROJECTNEW_DESCRIPTION);
+  newManagerGroup=(String)parameters.get(C_PROJECTNEW_MANAGERGROUP);
+  String allResources=(String)parameters.get(C_NEWRESOURCES);
+  if (newName == null) {
+    newName=(String)session.getValue(C_NEWNAME);
+  }
+  if (newGroup == null) {
+    newGroup=(String)session.getValue(C_NEWGROUP);
+  }
+  if (newDescription == null) {
+    newDescription=(String)session.getValue(C_NEWDESCRIPTION);
+  }
+  if (newManagerGroup == null) {
+    newManagerGroup=(String)session.getValue(C_NEWMANAGERGROUP);
+  }
+  if (allResources == null) {
+    allResources=(String)session.getValue(C_NEWRESOURCES);
+  }
+  if (newName == null) {
+    newName="";
+  }
+  if (newGroup == null) {
+    newGroup="";
+  }
+  if (newDescription == null) {
+    newDescription="";
+  }
+  if (newManagerGroup == null) {
+    newManagerGroup="";
+  }
+  if (allResources == null) {
+    allResources="";
+  }
+  reqCont.setCurrentProject(cms.onlineProject().getId());
+  CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  if (parameters.get("submitform") != null) {
+    session.putValue(C_NEWNAME,newName);
+    session.putValue(C_NEWGROUP,newGroup);
+    session.putValue(C_NEWDESCRIPTION,newDescription);
+    session.putValue(C_NEWMANAGERGROUP,newManagerGroup);
+    if (newName.equals("") || newGroup.equals("") || newManagerGroup.equals("")|| allResources.equals("")) {
+      templateSelector="datamissing";
+    }
+ else {
+      session.putValue(C_NEWRESOURCES,allResources);
+      templateSelector="wait";
+    }
+  }
+  if ("start".equals(action)) {
+    newName=(String)session.getValue(C_NEWNAME);
+    newGroup=(String)session.getValue(C_NEWGROUP);
+    newDescription=(String)session.getValue(C_NEWDESCRIPTION);
+    newManagerGroup=(String)session.getValue(C_NEWMANAGERGROUP);
+    allResources=(String)session.getValue(C_NEWRESOURCES);
+    try {
+      String picspath=getConfigFile(cms).getPicGalleryPath();
+      String downloadpath=getConfigFile(cms).getDownGalleryPath();
+      allResources=allResources + C_CONTENTPATH + ";"+ picspath+ ";"+ downloadpath;
+      Vector folders=parseResources(allResources);
+      int numRes=folders.size();
+      for (int i=0; i < numRes; i++) {
+        if (lang.getLanguageValue("title.rootfolder").equals(folders.elementAt(i))) {
+          folders.setElementAt("/",i);
+        }
+      }
+      checkRedundancies(folders);
+      numRes=folders.size();
+      Vector notWriteable=new Vector();
+      for (int i=numRes - 1; i >= 0; i--) {
+        String theFolder=(String)folders.elementAt(i);
+        if (!checkWriteable(cms,theFolder)) {
+          notWriteable.addElement(theFolder);
+          if (!(picspath.equals(theFolder) || downloadpath.equals(theFolder) || C_CONTENTPATH.equals(theFolder))) {
+            templateSelector="errornewproject";
+          }
+ else {
+            folders.removeElementAt(i);
+          }
+        }
+      }
+      if (!"errornewproject".equals(templateSelector)) {
+        CmsProject project=cms.createProject(newName,newDescription,newGroup,newManagerGroup);
+        reqCont.setCurrentProject(project.getId());
+        for (int i=0; i < folders.size(); i++) {
+          cms.copyResourceToProject((String)folders.elementAt(i));
+        }
+        templateSelector=C_PROJECTNEW_DONE;
+        session.removeValue(C_NEWNAME);
+        session.removeValue(C_NEWGROUP);
+        session.removeValue(C_NEWDESCRIPTION);
+        session.removeValue(C_NEWMANAGERGROUP);
+        session.removeValue(C_NEWFOLDER);
+      }
+ else {
+        xmlTemplateDocument.setData("details","The following folders were not writeable:" + notWriteable.toString());
+      }
+    }
+ catch (    CmsException exc) {
+      xmlTemplateDocument.setData("details",Utils.getStackTrace(exc));
+      templateSelector="errornewproject";
+    }
+  }
+  xmlTemplateDocument.setData(C_NEWNAME,newName);
+  xmlTemplateDocument.setData(C_NEWDESCRIPTION,newDescription);
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}

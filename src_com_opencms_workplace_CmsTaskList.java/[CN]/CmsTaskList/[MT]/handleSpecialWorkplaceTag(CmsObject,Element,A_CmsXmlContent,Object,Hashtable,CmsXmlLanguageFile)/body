@@ -1,0 +1,200 @@
+{
+  CmsXmlWpTemplateFile listdef=getTaskListDefinitions(cms);
+  CmsRequestContext context=cms.getRequestContext();
+  String listMethod=n.getAttribute("method");
+  Method callingMethod=null;
+  Vector list=new Vector();
+  try {
+    callingMethod=callingObject.getClass().getMethod(listMethod,new Class[]{CmsObject.class,CmsXmlLanguageFile.class});
+    list=(Vector)callingMethod.invoke(callingObject,new Object[]{cms,lang});
+  }
+ catch (  NoSuchMethodException exc) {
+    throwException("Could not find method " + listMethod + " in calling class "+ callingObject.getClass().getName()+ " for generating lasklist content.",CmsException.C_NOT_FOUND);
+  }
+catch (  InvocationTargetException targetEx) {
+    Throwable e=targetEx.getTargetException();
+    if (!(e instanceof CmsException)) {
+      throwException("User method " + listMethod + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+    }
+ else {
+      throw (CmsException)e;
+    }
+  }
+catch (  Exception exc2) {
+    throwException("User method " + listMethod + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+  }
+  StringBuffer result=new StringBuffer();
+  String priority;
+  String projectname;
+  String stateIcon;
+  String style;
+  String contextmenu;
+  long startTime;
+  long timeout;
+  GregorianCalendar cal=new GregorianCalendar();
+  cal.setTime(new Date(System.currentTimeMillis()));
+  cal.set(Calendar.HOUR,0);
+  cal.set(Calendar.MINUTE,0);
+  cal.set(Calendar.SECOND,0);
+  cal.set(Calendar.MILLISECOND,0);
+  GregorianCalendar newcal=new GregorianCalendar(cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH),0,0,0);
+  long now=newcal.getTime().getTime();
+  for (int i=0; i < list.size(); i++) {
+    CmsTask task=(CmsTask)list.elementAt(i);
+    CmsProject project=null;
+    projectname="?";
+    try {
+      project=cms.readProject(task);
+    }
+ catch (    Exception exc) {
+      continue;
+    }
+    if ((project == null) || (project.getFlags() == C_PROJECT_STATE_ARCHIVE)) {
+      continue;
+    }
+    projectname=project.getName();
+    priority=listdef.getProcessedDataValue("priority" + task.getPriority(),callingObject);
+    startTime=task.getStartTime().getTime();
+    timeout=task.getTimeOut().getTime();
+    listdef.setData("taskid",task.getId() + "");
+    listdef.setData("count",i + "");
+    CmsUser owner=null;
+    String ownerName="";
+    try {
+      owner=cms.readOwner(task);
+      ownerName=owner.getName();
+    }
+ catch (    Exception exc) {
+    }
+    CmsUser editor=null;
+    String editorName="";
+    try {
+      editor=cms.readAgent(task);
+      editorName=editor.getName();
+    }
+ catch (    Exception exc) {
+    }
+    CmsGroup role=null;
+    String roleName="";
+    try {
+      role=cms.readGroup(task);
+      roleName=role.getName();
+    }
+ catch (    Exception exc) {
+    }
+    boolean isOwner=context.currentUser().equals(owner);
+    boolean isEditor=context.currentUser().equals(editor);
+    boolean isInRole=false;
+    try {
+      isInRole=cms.userInGroup(context.currentUser().getName(),roleName);
+    }
+ catch (    Exception exc) {
+    }
+    if (task.getState() == C_TASK_STATE_ENDED) {
+      if (isOwner) {
+        contextmenu="task1";
+      }
+ else       if (isEditor) {
+        contextmenu="task2";
+      }
+ else       if (isInRole) {
+        contextmenu="task3";
+      }
+ else {
+        contextmenu="task3";
+      }
+      listdef.setData("contextmenu",contextmenu);
+      stateIcon=listdef.getProcessedDataValue("ok",callingObject);
+      style=listdef.getProcessedDataValue("style_ok",callingObject);
+    }
+ else     if (task.getPercentage() == 0) {
+      if (isOwner && isEditor) {
+        contextmenu="task4";
+      }
+ else       if (isOwner) {
+        contextmenu="task5";
+      }
+ else       if (isEditor) {
+        contextmenu="task6";
+      }
+ else       if (isInRole) {
+        contextmenu="task7";
+      }
+ else {
+        contextmenu="task8";
+      }
+      listdef.setData("contextmenu",contextmenu);
+      if (timeout < now) {
+        stateIcon=listdef.getProcessedDataValue("alert",callingObject);
+        style=listdef.getProcessedDataValue("style_alert",callingObject);
+      }
+ else {
+        stateIcon=listdef.getProcessedDataValue("new",callingObject);
+        style=listdef.getProcessedDataValue("style_new",callingObject);
+      }
+    }
+ else {
+      if (isOwner && isEditor) {
+        contextmenu="task9";
+      }
+ else       if (isOwner) {
+        contextmenu="task10";
+      }
+ else       if (isEditor) {
+        contextmenu="task11";
+      }
+ else       if (isInRole) {
+        contextmenu="task12";
+      }
+ else {
+        contextmenu="task13";
+      }
+      listdef.setData("contextmenu",contextmenu);
+      if (timeout < now) {
+        stateIcon=listdef.getProcessedDataValue("alert",callingObject);
+        style=listdef.getProcessedDataValue("style_alert",callingObject);
+      }
+ else {
+        stateIcon=listdef.getProcessedDataValue("activ",callingObject);
+        style=listdef.getProcessedDataValue("style_activ",callingObject);
+      }
+    }
+    String agent="";
+    String group="";
+    String due="";
+    String from="";
+    try {
+      agent=cms.readAgent(task).getName();
+    }
+ catch (    Exception exc) {
+    }
+    try {
+      group=cms.readGroup(task).getName();
+    }
+ catch (    Exception exc) {
+    }
+    try {
+      due=Utils.getNiceShortDate(timeout);
+    }
+ catch (    Exception exc) {
+    }
+    try {
+      from=Utils.getNiceShortDate(startTime);
+    }
+ catch (    Exception exc) {
+    }
+    listdef.setData("stateicon",stateIcon);
+    listdef.setData("style",style);
+    listdef.setData("priority",priority);
+    listdef.setData("taskid",task.getId() + "");
+    listdef.setData("task",task.getName());
+    listdef.setData("foruser",agent);
+    listdef.setData("forrole",group);
+    listdef.setData("actuator",ownerName);
+    listdef.setData("due",due);
+    listdef.setData("from",from);
+    listdef.setData("project",projectname);
+    result.append(listdef.getProcessedDataValue("defaulttasklist",callingObject,parameters));
+  }
+  return result.toString();
+}

@@ -1,0 +1,57 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  try {
+    cms.readFileHeader(getConfigFile(cms).getPicGalleryPath());
+  }
+ catch (  CmsException e) {
+    xmlTemplateDocument.setData("ERRORDETAILS",Utils.getStackTrace(e));
+    templateSelector="error";
+  }
+  if (!"error".equals(templateSelector)) {
+    if (parameters.get(C_PARA_INITIAL) != null) {
+      session.removeValue(C_PARA_FOLDER);
+    }
+    String folder=(String)parameters.get(C_PARA_FOLDER);
+    if (folder != null) {
+      session.putValue(C_PARA_FOLDER,folder);
+    }
+    folder=(String)session.getValue(C_PARA_FOLDER);
+    if (folder == null || "".equals(folder)) {
+      folder=getConfigFile(cms).getPicGalleryPath();
+      Vector galleries=cms.getSubFolders(folder);
+      if (galleries.size() > 0) {
+        folder=((CmsResource)galleries.elementAt(0)).getAbsolutePath();
+        session.putValue(C_PARA_FOLDER,folder);
+      }
+ else {
+        templateSelector="error_no_gallery";
+      }
+    }
+    if (!"error_no_gallery".equals(templateSelector)) {
+      String pageText=(String)parameters.get(C_PARA_PAGE);
+      String filter=(String)parameters.get(C_PARA_FILTER);
+      if (pageText == null || "".equals(pageText)) {
+        pageText="1";
+        parameters.put(C_PARA_PAGE,pageText);
+      }
+      if (filter == null) {
+        filter="";
+        parameters.put(C_PARA_FILTER,filter);
+      }
+      Vector filteredPics=getFilteredPicList(cms,folder,filter);
+      int maxpage=((filteredPics.size() - 1) / C_PICBROWSER_MAXIMAGES) + 1;
+      xmlTemplateDocument.setData(C_PARA_FOLDER,Encoder.escape(folder));
+      xmlTemplateDocument.setData(C_PARA_PAGE,pageText);
+      xmlTemplateDocument.setData(C_PARA_FILTER,filter);
+      xmlTemplateDocument.setData(C_PARA_MAXPAGE,"" + maxpage);
+      parameters.put("_PICLIST_",filteredPics);
+    }
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}

@@ -1,0 +1,77 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  String taskName="";
+  String taskDescription="";
+  String due="";
+  String paraAcceptation="";
+  String paraAll="";
+  String paraCompletion="";
+  String paraDelivery="";
+  String userIdxString="";
+  String groupIdxString="";
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  if (C_ROLE == null) {
+    initConstants((CmsXmlWpTemplateFile)xmlTemplateDocument);
+  }
+  try {
+    String taskidstr=(String)parameters.get("taskid");
+    int taskid;
+    if (taskidstr == null || taskidstr == "") {
+      Integer sessionTaskid=(Integer)session.getValue("taskid");
+      taskid=sessionTaskid.intValue();
+    }
+ else {
+      Integer taskidInt=new Integer(taskidstr);
+      taskid=taskidInt.intValue();
+      session.putValue("taskid",taskidInt);
+    }
+    CmsTask task=cms.readTask(taskid);
+    taskName=task.getName();
+    taskDescription=CmsTaskAction.getDescription(cms,task.getId());
+    paraAcceptation=cms.getTaskPar(task.getId(),C_TASKPARA_ACCEPTATION);
+    paraAll=cms.getTaskPar(task.getId(),C_TASKPARA_ALL);
+    paraCompletion=cms.getTaskPar(task.getId(),C_TASKPARA_COMPLETION);
+    paraDelivery=cms.getTaskPar(task.getId(),C_TASKPARA_DELIVERY);
+    due=Utils.getNiceShortDate(task.getTimeOut().getTime());
+    String username=cms.readAgent(task).getName();
+    String groupname=cms.readGroup(task).getName();
+    int userindex=0;
+    int groupindex=0;
+    Vector groups=cms.getGroups();
+    Vector users=cms.getUsersOfGroup(groupname);
+    int n=0;
+    for (int z=0; z < groups.size(); z++) {
+      CmsGroup group=(CmsGroup)groups.elementAt(z);
+      if (group.getRole()) {
+        n++;
+        if (group.getName().equals(groupname)) {
+          groupindex=n;
+        }
+      }
+    }
+    for (int z=0; z < users.size(); z++) {
+      if (((CmsUser)users.elementAt(z)).getName().equals(username)) {
+        userindex=z + 1;
+      }
+    }
+    userIdxString=(new Integer(userindex)).toString();
+    groupIdxString=(new Integer(groupindex)).toString();
+  }
+ catch (  Exception exc) {
+  }
+  xmlTemplateDocument.setData("task",Encoder.escape(taskName));
+  xmlTemplateDocument.setData("description",Encoder.escape(taskDescription));
+  xmlTemplateDocument.setData("due",due);
+  xmlTemplateDocument.setData(C_TASKPARA_ACCEPTATION,paraAcceptation);
+  xmlTemplateDocument.setData(C_TASKPARA_ALL,paraAll);
+  xmlTemplateDocument.setData(C_TASKPARA_COMPLETION,paraCompletion);
+  xmlTemplateDocument.setData(C_TASKPARA_DELIVERY,paraDelivery);
+  xmlTemplateDocument.setData("groupindex",groupIdxString);
+  xmlTemplateDocument.setData("userindex",userIdxString);
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}

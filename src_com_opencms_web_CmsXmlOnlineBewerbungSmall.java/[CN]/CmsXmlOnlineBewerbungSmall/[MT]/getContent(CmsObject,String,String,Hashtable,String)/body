@@ -1,0 +1,106 @@
+{
+  String errorMessage="";
+  String certificates="";
+  String text=destroyCmsXmlTag((String)parameters.get(C_TEXT));
+  String surname=destroyCmsXmlTag((String)parameters.get(C_SURNAME));
+  String co=destroyCmsXmlTag((String)parameters.get(C_CO));
+  String email=destroyCmsXmlTag((String)parameters.get(C_EMAIL));
+  String errorNumber=destroyCmsXmlTag((String)parameters.get(C_ERRORNUMBER));
+  String action=destroyCmsXmlTag((String)parameters.get(C_ACTION));
+  text=(text == null ? "" : text);
+  surname=(surname == null ? "" : surname);
+  co=(co == null ? "" : co);
+  email=(email == null ? "" : email);
+  errorNumber=(errorNumber == null ? "" : errorNumber);
+  action=(action == null ? "" : action);
+  CmsXmlOnlineBewerbungContentDefinition datablock=(CmsXmlOnlineBewerbungContentDefinition)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  datablock.setText(text);
+  datablock.setSurname(surname);
+  datablock.setCo(co);
+  datablock.setEmail(email);
+  datablock.setAction(action);
+  datablock.setErrorNumber(errorNumber);
+  datablock.setErrorMessage(errorMessage);
+  if (action.equals("sendMail")) {
+    errorMessage=formIsCorrect(parameters);
+    if (!errorMessage.equals("")) {
+      errorNumber=new Integer((new Integer(errorNumber).intValue()) - 1).toString();
+      datablock.setErrorNumber(errorNumber);
+      datablock.setErrorMessage(datablock.getError(errorMessage));
+      return startProcessing(cms,datablock,elementName,parameters,null);
+    }
+ else {
+      HttpServletRequest req=(HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest();
+      Hashtable mailInfo=new Hashtable();
+      mailInfo.put(C_HASH_TEXT,(text.equals("") ? "nicht angegeben" : text));
+      mailInfo.put(C_HASH_CERTIFICATES,"nicht angegeben");
+      mailInfo.put(C_HASH_OLDPOSITION,"nicht angegeben");
+      mailInfo.put(C_HASH_NEWPOSITION,"nicht angegeben");
+      mailInfo.put(C_HASH_BASE,"nicht angegeben");
+      mailInfo.put(C_HASH_ENTRY,"nicht angegeben");
+      mailInfo.put(C_HASH_SALARY,"nicht angegeben");
+      mailInfo.put(C_HASH_HOW,"nicht angegeben");
+      mailInfo.put(C_HASH_ANREDE,"nicht angegeben");
+      mailInfo.put(C_HASH_TITEL,"nicht angegeben");
+      mailInfo.put(C_HASH_FIRSTNAME,"nicht angegeben");
+      mailInfo.put(C_HASH_SURNAME,(surname.equals("") ? "nicht angegeben" : surname));
+      mailInfo.put(C_HASH_BIRTHDATE,"nicht angegeben");
+      mailInfo.put(C_HASH_CITIZEN,"nicht angegeben");
+      mailInfo.put(C_HASH_FAMILY,"nicht angegeben");
+      mailInfo.put(C_HASH_CO,(co.equals("") ? "nicht angegeben" : co));
+      mailInfo.put(C_HASH_STREET,"nicht angegeben");
+      mailInfo.put(C_HASH_PLZ,"nicht angegeben");
+      mailInfo.put(C_HASH_CITY,"nicht angegeben");
+      mailInfo.put(C_HASH_COMPANYFON,"nicht angegeben");
+      mailInfo.put(C_HASH_PRIVATEFON,"nicht angegeben");
+      mailInfo.put(C_HASH_MOBILEFON,"nicht angegeben");
+      mailInfo.put(C_HASH_FAX,"nicht angegeben");
+      mailInfo.put(C_HASH_EMAIL,(email.equals("") ? "nicht angegeben" : email));
+      mailInfo.put(C_HASH_URL,"nicht angegeben");
+      mailInfo.put(C_HASH_IP,req.getRemoteAddr());
+      String link="";
+      mailInfo.put(C_HASH_LINK,link);
+      datablock.setText((String)mailInfo.get(C_HASH_TEXT));
+      datablock.setSurname((String)mailInfo.get(C_HASH_SURNAME));
+      datablock.setCo((String)mailInfo.get(C_HASH_CO));
+      datablock.setEmail((String)mailInfo.get(C_HASH_EMAIL));
+      Hashtable mailTable=new Hashtable();
+      String from=(String)datablock.getFrom();
+      String an=(String)datablock.getTo();
+      String cc=(String)datablock.getCc();
+      String bcc=(String)datablock.getBcc();
+      String host=(String)datablock.getMailserver();
+      String subject=(String)datablock.getSubject(surname,"");
+      String content=(String)datablock.getSmallBewerbungsText(mailInfo);
+      mailTable.put(C_HASH_CERTIFICATES,certificates);
+      mailTable.put(C_HASH_FROM,from);
+      mailTable.put(C_HASH_AN,an);
+      mailTable.put(C_HASH_CC,cc);
+      mailTable.put(C_HASH_BCC,bcc);
+      mailTable.put(C_HASH_HOST,host);
+      mailTable.put(C_HASH_SUBJECT,subject);
+      mailTable.put(C_HASH_CONTENT,content);
+      CmsXmlMailThread mailToCompany=new CmsXmlMailThread(mailTable);
+      mailToCompany.start();
+      if (!email.equals("")) {
+        mailTable.put(C_HASH_AN,email);
+        CmsXmlMailThread mailToApplicant=new CmsXmlMailThread(mailTable);
+        mailToApplicant.start();
+      }
+      String recname=(String)mailInfo.get(C_HASH_SURNAME);
+      String recemail=(String)mailInfo.get(C_HASH_EMAIL);
+      long timeout=System.currentTimeMillis() + 241920000;
+      String taskname="Messekontakt von " + recname;
+      String taskcomment="Emailadresse: " + recemail + "<BR>\n";
+      taskcomment+="Firma: " + co + "<BR>\n";
+      taskcomment+="Text: " + text + "<BR>\n";
+      CmsTask newtask=cms.createTask("a.kandzior","Users",taskname,taskcomment,timeout,1);
+      cms.writeTaskLog(newtask.getId(),taskcomment,100);
+      return startProcessing(cms,datablock,elementName,parameters,"Answer");
+    }
+  }
+  datablock.setErrorNumber("-2");
+  datablock.setAction("sendMail");
+  datablock.setErrorMessage("");
+  return startProcessing(cms,datablock,elementName,parameters,null);
+}

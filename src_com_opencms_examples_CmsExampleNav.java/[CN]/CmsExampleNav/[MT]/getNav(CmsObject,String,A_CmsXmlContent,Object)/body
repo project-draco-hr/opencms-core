@@ -1,0 +1,39 @@
+{
+  CmsExampleNavFile xmlTemplateDocument=(CmsExampleNavFile)doc;
+  String requestedUri=cms.getRequestContext().getUri();
+  String servletPath=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getServletPath();
+  StringBuffer result=new StringBuffer();
+  Vector allFolders=cms.getSubFolders("/");
+  int numFolders=allFolders.size();
+  int maxfolder=0;
+  String folderNames[]=new String[numFolders];
+  String folderTitles[]=new String[numFolders];
+  String folderPos[]=new String[numFolders];
+  for (int i=0; i < numFolders; i++) {
+    CmsResource currFolder=(CmsResource)allFolders.elementAt(i);
+    String filename=currFolder.getAbsolutePath();
+    String navpos=cms.readProperty(filename,C_PROPERTY_NAVPOS);
+    String navtext=cms.readProperty(filename,C_PROPERTY_NAVTEXT);
+    if (currFolder.getState() != C_STATE_DELETED) {
+      if (navpos != null && navtext != null && (!"".equals(navpos)) && (!"".equals(navtext)) && ((!currFolder.getName().startsWith(C_TEMP_PREFIX)) || filename.equals(requestedUri))) {
+        folderNames[maxfolder]=filename;
+        folderTitles[maxfolder]=navtext;
+        folderPos[maxfolder]=navpos;
+        maxfolder++;
+      }
+    }
+  }
+  sort(cms,folderNames,folderTitles,folderPos,maxfolder);
+  for (int i=0; i < maxfolder; i++) {
+    String currFolder=folderNames[i];
+    String navtext=folderTitles[i];
+    if (!requestedUri.startsWith(currFolder)) {
+      result.append(xmlTemplateDocument.getOtherSectionNavEntry(servletPath + currFolder + "index.html",navtext));
+    }
+ else {
+      result.append(xmlTemplateDocument.getCurrentSectionNavEntry(servletPath + currFolder + "index.html",navtext));
+      result.append(filesNav(cms,currFolder,xmlTemplateDocument));
+    }
+  }
+  return result.toString().getBytes();
+}

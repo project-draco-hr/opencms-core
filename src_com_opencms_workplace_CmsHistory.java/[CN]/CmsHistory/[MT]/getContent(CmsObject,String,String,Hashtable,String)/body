@@ -1,0 +1,45 @@
+{
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String template=null;
+  String initial=(String)parameters.get(C_PARA_INITIAL);
+  if (initial != null) {
+    session.removeValue(C_PARA_FILE);
+    session.removeValue(C_PARA_PROJECT);
+    session.removeValue("lasturl");
+  }
+  String filename=(String)parameters.get(C_PARA_FILE);
+  if (filename != null) {
+    session.putValue(C_PARA_FILE,filename);
+  }
+  filename=(String)session.getValue(C_PARA_FILE);
+  String projectId=(String)parameters.get(C_PARA_PROJECT);
+  Integer id=null;
+  if (projectId != null) {
+    id=new Integer(Integer.parseInt(projectId));
+    session.putValue(C_PARA_PROJECT,id);
+  }
+  CmsFile file=(CmsFile)cms.readFileHeader(filename);
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  if (id != null) {
+    template="detail";
+    CmsProject project=cms.readProject(id.intValue());
+    xmlTemplateDocument.setData("PROJECT",project.getName());
+    String title=cms.readProperty(filename,C_PROPERTY_TITLE);
+    if (title == null) {
+      title="";
+    }
+    xmlTemplateDocument.setData("TITLE",title);
+    xmlTemplateDocument.setData("SIZE",new Integer(file.getLength()).toString());
+    xmlTemplateDocument.setData("EDITEDBY","Not yet available");
+    xmlTemplateDocument.setData("EDITEDAT",Utils.getNiceDate(file.getDateLastModified()));
+    xmlTemplateDocument.setData("PUBLISHEDBY","Not yet available");
+    String published="---";
+    if (project.getFlags() == this.C_PROJECT_STATE_ARCHIVE) {
+      published=Utils.getNiceDate(project.getPublishingDate());
+    }
+    xmlTemplateDocument.setData("PUBLISHEDAT",published);
+    xmlTemplateDocument.setData("PROJECTDESCRIPTION",project.getDescription());
+  }
+  xmlTemplateDocument.setData("FILENAME",file.getName());
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}

@@ -1,0 +1,55 @@
+{
+  Vector values=new Vector();
+  Vector names=new Vector();
+  StringBuffer result=new StringBuffer();
+  String selectClass=n.getAttribute(C_SELECTBOX_CLASS);
+  String selectName=n.getAttribute(C_SELECTBOX_NAME);
+  String selectMethod=n.getAttribute(C_SELECTBOX_METHOD);
+  String selectWidth=n.getAttribute(C_SELECTBOX_WIDTH);
+  String selectOnchange=n.getAttribute(C_SELECTBOX_ONCHANGE);
+  String selectSize=n.getAttribute(C_SELECTBOX_SIZE);
+  String selectDiv=n.getAttribute(C_SELECTBOX_DIV);
+  if ((selectSize == null) || (selectSize.length() == 0)) {
+    selectSize="1";
+  }
+  CmsXmlWpInputDefFile inputdef=getInputDefinitions(cms);
+  if ((selectDiv == null) || (selectDiv.length() == 0)) {
+    result.append(inputdef.getSelectBoxStart(selectClass,selectName,selectWidth,selectOnchange,selectSize));
+  }
+ else {
+    result.append(inputdef.getSelectBoxStartDiv(selectClass,selectName,selectWidth,selectOnchange,selectSize));
+  }
+  Method groupsMethod=null;
+  int selectedOption=0;
+  try {
+    groupsMethod=callingObject.getClass().getMethod(selectMethod,new Class[]{CmsObject.class,CmsXmlLanguageFile.class,Vector.class,Vector.class,Hashtable.class});
+    selectedOption=((Integer)groupsMethod.invoke(callingObject,new Object[]{cms,lang,values,names,parameters})).intValue();
+  }
+ catch (  NoSuchMethodException exc) {
+    throwException("Could not find method " + selectMethod + " in calling class "+ callingObject.getClass().getName()+ " for generating select box content.",CmsException.C_NOT_FOUND);
+  }
+catch (  InvocationTargetException targetEx) {
+    Throwable e=targetEx.getTargetException();
+    if (!(e instanceof CmsException)) {
+      e.printStackTrace();
+      throwException("User method " + selectMethod + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+    }
+ else {
+      throw (CmsException)e;
+    }
+  }
+catch (  Exception exc2) {
+    throwException("User method " + selectMethod + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+  }
+  int numValues=values.size();
+  for (int i=0; i < numValues; i++) {
+    if (i == selectedOption) {
+      result.append(inputdef.getSelectBoxSelOption((String)values.elementAt(i),(String)names.elementAt(i)));
+    }
+ else {
+      result.append(inputdef.getSelectBoxOption((String)values.elementAt(i),(String)names.elementAt(i)));
+    }
+  }
+  result.append(inputdef.getSelectBoxEnd());
+  return result.toString();
+}

@@ -1,0 +1,323 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsRequestContext context=cms.getRequestContext();
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  CmsTask task;
+  int taskid=-1;
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String lastUrl;
+  String lastRelUrl=(String)parameters.get("lastrelurl");
+  if (lastRelUrl != null) {
+    lastUrl=getConfigFile(cms).getWorkplaceActionPath() + lastRelUrl;
+    session.putValue("lasturl",lastUrl);
+  }
+ else {
+    lastUrl=this.getLastUrl(cms,parameters);
+  }
+  try {
+    Integer sessionTaskid=(Integer)session.getValue("taskid");
+    if (sessionTaskid != null) {
+      taskid=sessionTaskid.intValue();
+    }
+    try {
+      taskid=Integer.parseInt((String)parameters.get("taskid"));
+    }
+ catch (    Exception exc) {
+    }
+    session.putValue("taskid",new Integer(taskid));
+    parameters.put("taskid",taskid + "");
+    task=cms.readTask(taskid);
+    if ("acceptok".equals((String)parameters.get("action"))) {
+      CmsTaskAction.accept(cms,taskid);
+    }
+ else     if ("accept".equals((String)parameters.get("action"))) {
+      templateSelector="accept";
+    }
+ else     if ("take".equals((String)parameters.get("action"))) {
+      templateSelector="take";
+    }
+ else     if ("takeok".equals((String)parameters.get("action"))) {
+      CmsTaskAction.take(cms,taskid);
+    }
+ else     if ("forwardok".equals((String)parameters.get("action"))) {
+      CmsTaskAction.forward(cms,taskid,(String)parameters.get("USER"),(String)parameters.get("TEAM"));
+    }
+ else     if ("due".equals((String)parameters.get("action"))) {
+      templateSelector="due";
+    }
+ else     if ("dueok".equals((String)parameters.get("action"))) {
+      CmsTaskAction.due(cms,taskid,(String)parameters.get("DATE"));
+    }
+ else     if ("priorityok".equals((String)parameters.get("action"))) {
+      CmsTaskAction.priority(cms,taskid,(String)parameters.get("PRIORITY"));
+    }
+ else     if ("reaktok".equals((String)parameters.get("action"))) {
+      CmsTaskAction.reakt(cms,taskid,(String)parameters.get("USER"),(String)parameters.get("TEAM"),(String)parameters.get("TASK"),(String)parameters.get("DESCRIPTION"),(String)parameters.get("DATE"),(String)parameters.get("PRIORITY"),(String)parameters.get("MSG_ACCEPTATION"),(String)parameters.get("MSG_ALL"),(String)parameters.get("MSG_COMPLETION"),(String)parameters.get("MSG_DELIVERY"));
+    }
+ else     if ("okok".equals((String)parameters.get("action"))) {
+      CmsTaskAction.end(cms,taskid);
+    }
+ else     if ("ok".equals((String)parameters.get("action"))) {
+      templateSelector="ok";
+    }
+ else     if ("comment".equals((String)parameters.get("action"))) {
+      String comment=(String)parameters.get("DESCRIPTION");
+      if ((comment != null) && (comment.length() != 0)) {
+        cms.writeTaskLog(taskid,comment,C_TASKLOGTYPE_COMMENT);
+      }
+    }
+ else     if ("messageok".equals((String)parameters.get("action"))) {
+      CmsTaskAction.message(cms,taskid,(String)parameters.get("DESCRIPTION"));
+    }
+ else     if ("queryok".equals((String)parameters.get("action"))) {
+      CmsTaskAction.query(cms,taskid,(String)parameters.get("DESCRIPTION"));
+    }
+    task=cms.readTask(taskid);
+  }
+ catch (  Exception exc) {
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+  CmsUser owner=null;
+  String ownerName="";
+  try {
+    owner=cms.readOwner(task);
+    ownerName=owner.getName();
+  }
+ catch (  Exception exc) {
+  }
+  CmsUser editor=null;
+  String editorName="";
+  try {
+    editor=cms.readAgent(task);
+    editorName=editor.getName();
+  }
+ catch (  Exception exc) {
+  }
+  CmsGroup role=null;
+  String roleName="";
+  try {
+    role=cms.readGroup(task);
+    roleName=role.getName();
+  }
+ catch (  Exception exc) {
+  }
+  String priority;
+  String projectname="?";
+  String style;
+  String button1;
+  String button2;
+  String button3;
+  String button4;
+  String button5;
+  String button6;
+  long startTime;
+  long timeout;
+  GregorianCalendar cal=new GregorianCalendar();
+  cal.setTime(new Date(System.currentTimeMillis()));
+  cal.set(Calendar.HOUR,0);
+  cal.set(Calendar.MINUTE,0);
+  cal.set(Calendar.SECOND,0);
+  cal.set(Calendar.MILLISECOND,0);
+  GregorianCalendar newcal=new GregorianCalendar(cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH),0,0,0);
+  long now=newcal.getTime().getTime();
+  try {
+    projectname=cms.readTask(task.getRoot()).getName();
+  }
+ catch (  Exception exc) {
+  }
+  priority=xmlTemplateDocument.getProcessedDataValue("priority" + task.getPriority(),this);
+  startTime=task.getStartTime().getTime();
+  timeout=task.getTimeOut().getTime();
+  String due="";
+  try {
+    due=Utils.getNiceShortDate(timeout);
+  }
+ catch (  Exception exc) {
+  }
+  String from="";
+  try {
+    from=Utils.getNiceShortDate(startTime);
+  }
+ catch (  Exception exc) {
+  }
+  xmlTemplateDocument.setData("taskid",task.getId() + "");
+  boolean isOwner=context.currentUser().equals(owner);
+  boolean isEditor=context.currentUser().equals(editor);
+  boolean isInRole=false;
+  try {
+    isInRole=cms.userInGroup(context.currentUser().getName(),roleName);
+  }
+ catch (  Exception exc) {
+  }
+  if (task.getState() == C_TASK_STATE_ENDED) {
+    if (isOwner) {
+      button1=getButton(xmlTemplateDocument,"button_message",false);
+      button2=getButton(xmlTemplateDocument,"button_accept",false);
+      button3=getButton(xmlTemplateDocument,"button_due",false);
+      button4=getButton(xmlTemplateDocument,"button_priority",false);
+      button5=getButton(xmlTemplateDocument,"button_comment",false);
+      button6=getButton(xmlTemplateDocument,"button_reakt",true);
+    }
+ else     if (isEditor) {
+      button1=getButton(xmlTemplateDocument,"button_query",false);
+      button2=getButton(xmlTemplateDocument,"button_forward",false);
+      button3=getButton(xmlTemplateDocument,"button_due",false);
+      button4=getButton(xmlTemplateDocument,"button_priority",false);
+      button5=getButton(xmlTemplateDocument,"button_comment",false);
+      button6=getButton(xmlTemplateDocument,"button_reakt",false);
+    }
+ else     if (isInRole) {
+      button1=getButton(xmlTemplateDocument,"button_query",false);
+      button2=getButton(xmlTemplateDocument,"button_take",false);
+      button3=getButton(xmlTemplateDocument,"button_due",false);
+      button4=getButton(xmlTemplateDocument,"button_priority",false);
+      button5=getButton(xmlTemplateDocument,"button_comment",false);
+      button6=getButton(xmlTemplateDocument,"button_reakt",false);
+    }
+ else {
+      button1=getButton(xmlTemplateDocument,"button_query",false);
+      button2=getButton(xmlTemplateDocument,"button_take",false);
+      button3=getButton(xmlTemplateDocument,"button_due",false);
+      button4=getButton(xmlTemplateDocument,"button_priority",false);
+      button5=getButton(xmlTemplateDocument,"button_comment",false);
+      button6=getButton(xmlTemplateDocument,"button_reakt",false);
+    }
+    if (timeout < now) {
+      style=xmlTemplateDocument.getProcessedDataValue("style_ok",this);
+    }
+ else {
+      style=xmlTemplateDocument.getProcessedDataValue("style_ok",this);
+    }
+  }
+ else   if (task.getPercentage() == 0) {
+    if (isOwner && isEditor) {
+      button1=getButton(xmlTemplateDocument,"button_query",true);
+      button2=getButton(xmlTemplateDocument,"button_accept",true);
+      button3=getButton(xmlTemplateDocument,"button_due",true);
+      button4=getButton(xmlTemplateDocument,"button_priority",true);
+      button5=getButton(xmlTemplateDocument,"button_comment",true);
+      button6=getButton(xmlTemplateDocument,"button_ok",false);
+    }
+ else     if (isOwner) {
+      button1=getButton(xmlTemplateDocument,"button_message",true);
+      button2=getButton(xmlTemplateDocument,"button_forward",true);
+      button3=getButton(xmlTemplateDocument,"button_due",true);
+      button4=getButton(xmlTemplateDocument,"button_priority",true);
+      button5=getButton(xmlTemplateDocument,"button_comment",true);
+      button6=getButton(xmlTemplateDocument,"button_ok",false);
+    }
+ else     if (isEditor) {
+      button1=getButton(xmlTemplateDocument,"button_query",true);
+      button2=getButton(xmlTemplateDocument,"button_accept",true);
+      button3=getButton(xmlTemplateDocument,"button_due",false);
+      button4=getButton(xmlTemplateDocument,"button_priority",false);
+      button5=getButton(xmlTemplateDocument,"button_comment",true);
+      button6=getButton(xmlTemplateDocument,"button_ok",false);
+    }
+ else     if (isInRole) {
+      button1=getButton(xmlTemplateDocument,"button_query",false);
+      button2=getButton(xmlTemplateDocument,"button_take",true);
+      button3=getButton(xmlTemplateDocument,"button_due",false);
+      button4=getButton(xmlTemplateDocument,"button_priority",false);
+      button5=getButton(xmlTemplateDocument,"button_comment",false);
+      button6=getButton(xmlTemplateDocument,"button_ok",false);
+    }
+ else {
+      button1=getButton(xmlTemplateDocument,"button_query",false);
+      button2=getButton(xmlTemplateDocument,"button_take",false);
+      button3=getButton(xmlTemplateDocument,"button_due",false);
+      button4=getButton(xmlTemplateDocument,"button_priority",false);
+      button5=getButton(xmlTemplateDocument,"button_comment",false);
+      button6=getButton(xmlTemplateDocument,"button_ok",false);
+    }
+    if (timeout < now) {
+      style=xmlTemplateDocument.getProcessedDataValue("style_alert",this);
+    }
+ else {
+      style=xmlTemplateDocument.getProcessedDataValue("style_new",this);
+    }
+  }
+ else {
+    if (isOwner && isEditor) {
+      button1=getButton(xmlTemplateDocument,"button_query",true);
+      button2=getButton(xmlTemplateDocument,"button_forward",true);
+      button3=getButton(xmlTemplateDocument,"button_due",true);
+      button4=getButton(xmlTemplateDocument,"button_priority",true);
+      button5=getButton(xmlTemplateDocument,"button_comment",true);
+      button6=getButton(xmlTemplateDocument,"button_ok",true);
+    }
+ else     if (isOwner) {
+      button1=getButton(xmlTemplateDocument,"button_message",true);
+      button2=getButton(xmlTemplateDocument,"button_forward",true);
+      button3=getButton(xmlTemplateDocument,"button_due",true);
+      button4=getButton(xmlTemplateDocument,"button_priority",true);
+      button5=getButton(xmlTemplateDocument,"button_comment",true);
+      button6=getButton(xmlTemplateDocument,"button_ok",false);
+    }
+ else     if (isEditor) {
+      button1=getButton(xmlTemplateDocument,"button_query",true);
+      button2=getButton(xmlTemplateDocument,"button_forward",true);
+      button3=getButton(xmlTemplateDocument,"button_due",false);
+      button4=getButton(xmlTemplateDocument,"button_priority",false);
+      button5=getButton(xmlTemplateDocument,"button_comment",true);
+      button6=getButton(xmlTemplateDocument,"button_ok",true);
+    }
+ else     if (isInRole) {
+      button1=getButton(xmlTemplateDocument,"button_query",false);
+      button2=getButton(xmlTemplateDocument,"button_take",true);
+      button3=getButton(xmlTemplateDocument,"button_due",false);
+      button4=getButton(xmlTemplateDocument,"button_priority",false);
+      button5=getButton(xmlTemplateDocument,"button_comment",false);
+      button6=getButton(xmlTemplateDocument,"button_ok",false);
+    }
+ else {
+      button1=getButton(xmlTemplateDocument,"button_query",false);
+      button2=getButton(xmlTemplateDocument,"button_take",false);
+      button3=getButton(xmlTemplateDocument,"button_due",false);
+      button4=getButton(xmlTemplateDocument,"button_priority",false);
+      button5=getButton(xmlTemplateDocument,"button_comment",false);
+      button6=getButton(xmlTemplateDocument,"button_ok",false);
+    }
+    if (timeout < now) {
+      style=xmlTemplateDocument.getProcessedDataValue("style_alert",this);
+    }
+ else {
+      style=xmlTemplateDocument.getProcessedDataValue("style_activ",this);
+    }
+  }
+  xmlTemplateDocument.setData("style",style);
+  xmlTemplateDocument.setData("priority",priority);
+  xmlTemplateDocument.setData("task",task.getName());
+  xmlTemplateDocument.setData("foruser",Utils.getFullName(editor));
+  xmlTemplateDocument.setData("forrole",roleName);
+  xmlTemplateDocument.setData("actuator",Utils.getFullName(owner));
+  xmlTemplateDocument.setData("due",due);
+  xmlTemplateDocument.setData("from",from);
+  xmlTemplateDocument.setData("project",projectname);
+  xmlTemplateDocument.setData("button1",button1);
+  xmlTemplateDocument.setData("button2",button2);
+  xmlTemplateDocument.setData("button3",button3);
+  xmlTemplateDocument.setData("button4",button4);
+  xmlTemplateDocument.setData("button5",button5);
+  xmlTemplateDocument.setData("button6",button6);
+  if ((templateSelector == null || templateSelector == "") && lastUrl != null) {
+    try {
+      if (lastUrl.startsWith("http:")) {
+        ((HttpServletResponse)context.getResponse().getOriginalResponse()).sendRedirect(lastUrl);
+      }
+ else {
+        context.getResponse().sendCmsRedirect(lastUrl);
+      }
+      session.removeValue("lasturl");
+    }
+ catch (    IOException exc) {
+      throw new CmsException("Could not redirect to " + lastUrl,exc);
+    }
+    return null;
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
