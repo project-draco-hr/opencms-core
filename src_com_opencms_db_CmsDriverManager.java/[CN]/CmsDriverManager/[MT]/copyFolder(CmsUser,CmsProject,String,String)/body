@@ -3,27 +3,18 @@
   validFilename(destination.replace('/','a'));
   foldername=destination.substring(0,destination.substring(0,destination.length() - 1).lastIndexOf("/") + 1);
   CmsFolder cmsFolder=readFolder(currentUser,currentProject,foldername);
-  if (accessCreate(currentUser,currentProject,(CmsResource)cmsFolder)) {
-    CmsFolder folder=readFolder(currentUser,currentProject,source);
-    if (checkPermissions(currentUser,currentProject,currentUser,(CmsResource)cmsFolder,C_PERMISSION_WRITE)) {
-      m_vfsDriver.createFolder(currentUser,currentProject,folder,cmsFolder.getResourceId(),destination);
-      this.clearResourceCache(destination,currentProject,currentUser);
-      CmsResource newResource=lockResource(currentUser,currentProject,destination,true);
-      writeProperties(currentUser,currentProject,destination,readProperties(currentUser,currentProject,folder.getResourceName(),null,false));
-      ListIterator aceList=getAccessControlEntries(currentUser,currentProject,folder,false).listIterator();
-      while (aceList.hasNext()) {
-        CmsAccessControlEntry ace=(CmsAccessControlEntry)aceList.next();
-        createAccessControlEntry(currentUser,currentProject,newResource,ace.getPrincipal(),ace.getAllowedPermissions(),ace.getDeniedPermissions(),ace.getFlags());
-      }
-      m_resourceListCache.clear();
-      m_accessCache.clear();
-      fileSystemChanged(true);
-    }
- else {
-      throw new CmsException("[" + this.getClass().getName() + "] "+ source,CmsException.C_ACCESS_DENIED);
-    }
+  CmsFolder folder=readFolder(currentUser,currentProject,source);
+  getVfsAccessGuard(currentUser,currentProject).check(cmsFolder,C_WRITE_ACCESS);
+  m_vfsDriver.createFolder(currentUser,currentProject,folder,cmsFolder.getResourceId(),destination);
+  this.clearResourceCache(destination,currentProject,currentUser);
+  CmsResource newResource=lockResource(currentUser,currentProject,destination,true);
+  writeProperties(currentUser,currentProject,destination,readProperties(currentUser,currentProject,folder.getResourceName(),null,false));
+  ListIterator aceList=getAccessControlEntries(currentUser,currentProject,folder,false).listIterator();
+  while (aceList.hasNext()) {
+    CmsAccessControlEntry ace=(CmsAccessControlEntry)aceList.next();
+    createAccessControlEntry(currentUser,currentProject,newResource,ace.getPrincipal(),ace.getPermissions(),ace.getFlags());
   }
- else {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ destination,CmsException.C_ACCESS_DENIED);
-  }
+  m_resourceListCache.clear();
+  m_accessCache.clear();
+  fileSystemChanged(true);
 }

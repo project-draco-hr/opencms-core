@@ -3,29 +3,12 @@
   String resourceName=newFileName.substring(folderName.length(),newFileName.length());
   validFilename(resourceName);
   CmsFolder cmsFolder=readFolder(currentUser,currentProject,folderName);
-  if (accessCreate(currentUser,currentProject,(CmsResource)cmsFolder)) {
-    CmsFile file=m_vfsDriver.createFile(currentUser,currentProject,newFileName,0,cmsFolder.getResourceId(),contents,getResourceType(currentUser,currentProject,type));
-    Hashtable startSettings=null;
-    Integer accessFlags=null;
-    startSettings=(Hashtable)currentUser.getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
-    if (startSettings != null) {
-      accessFlags=(Integer)startSettings.get(C_START_ACCESSFLAGS);
-      if (accessFlags != null) {
-        file.setAccessFlags(accessFlags.intValue());
-        createAccessControlEntry(currentUser,currentProject,file,currentUser.getId(),accessFlags.intValue() & C_ACCESS_OWNER,0,0);
-      }
-    }
-    if (currentGroup != null) {
-      file.setGroupId(currentGroup.getId());
-      createAccessControlEntry(currentUser,currentProject,file,currentGroup.getId(),accessFlags.intValue() & C_ACCESS_GROUP,0,0);
-    }
-    m_vfsDriver.writeFileHeader(currentProject,file,false);
-    this.clearResourceCache(newFileName,currentProject,currentUser);
-    m_vfsDriver.writeProperties(propertyinfos,currentProject.getId(),file,file.getType());
-    fileSystemChanged(false);
-    return file;
-  }
- else {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ newFileName,CmsException.C_NO_ACCESS);
-  }
+  getVfsAccessGuard(currentUser,currentProject).check(cmsFolder,C_WRITE_ACCESS);
+  CmsFile file=m_vfsDriver.createFile(currentUser,currentProject,newFileName,0,cmsFolder.getResourceId(),contents,getResourceType(currentUser,currentProject,type));
+  file.setState(C_STATE_NEW);
+  m_vfsDriver.writeFileHeader(currentProject,file,false);
+  this.clearResourceCache(newFileName,currentProject,currentUser);
+  m_vfsDriver.writeProperties(propertyinfos,currentProject.getId(),file,file.getType());
+  fileSystemChanged(false);
+  return file;
 }

@@ -4,30 +4,12 @@
   String resourceName=newFolderName.substring(folderName.length(),newFolderName.length() - 1);
   validFilename(resourceName);
   CmsFolder cmsFolder=readFolder(currentUser,currentProject,folderName);
-  if (accessCreate(currentUser,currentProject,(CmsResource)cmsFolder)) {
-    CmsFolder newFolder=m_vfsDriver.createFolder(currentUser,currentProject,cmsFolder.getResourceId(),CmsUUID.getNullUUID(),newFolderName,0);
-    Hashtable startSettings=null;
-    Integer accessFlags=null;
-    startSettings=(Hashtable)currentUser.getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
-    if (startSettings != null) {
-      accessFlags=(Integer)startSettings.get(C_START_ACCESSFLAGS);
-      if (accessFlags != null) {
-        newFolder.setAccessFlags(accessFlags.intValue());
-        createAccessControlEntry(currentUser,currentProject,newFolder,currentUser.getId(),accessFlags.intValue() & C_ACCESS_OWNER,0,0);
-      }
-    }
-    if (currentGroup != null) {
-      newFolder.setGroupId(currentGroup.getId());
-      createAccessControlEntry(currentUser,currentProject,newFolder,currentGroup.getId(),accessFlags.intValue() & C_ACCESS_GROUP,0,0);
-    }
-    newFolder.setState(C_STATE_NEW);
-    m_vfsDriver.writeFolder(currentProject,newFolder,false);
-    this.clearResourceCache(newFolderName,currentProject,currentUser);
-    m_vfsDriver.writeProperties(propertyinfos,currentProject.getId(),newFolder,newFolder.getType());
-    fileSystemChanged(true);
-    return newFolder;
-  }
- else {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ newFolderName,CmsException.C_NO_ACCESS);
-  }
+  getVfsAccessGuard(currentUser,currentProject).check(cmsFolder,C_WRITE_ACCESS);
+  CmsFolder newFolder=m_vfsDriver.createFolder(currentUser,currentProject,cmsFolder.getResourceId(),CmsUUID.getNullUUID(),newFolderName,0);
+  newFolder.setState(C_STATE_NEW);
+  m_vfsDriver.writeFolder(currentProject,newFolder,false);
+  this.clearResourceCache(newFolderName,currentProject,currentUser);
+  m_vfsDriver.writeProperties(propertyinfos,currentProject.getId(),newFolder,newFolder.getType());
+  fileSystemChanged(true);
+  return newFolder;
 }
