@@ -1,25 +1,33 @@
 {
-  CmsXmlWpConfigFile configFile=getConfigFile(cms);
-  String templatePath=configFile.getCommonTemplatePath();
-  Vector allTemplateFiles=cms.getFilesInFolder(templatePath);
-  String currentTemplate=(String)parameters.get("template");
-  int currentTemplateIndex=0;
-  int currentIndex=0;
-  int numTemplates=allTemplateFiles.size();
-  for (int i=0; i < numTemplates; i++) {
-    CmsResource file=(CmsResource)allTemplateFiles.elementAt(i);
-    if (file.getState() != C_STATE_DELETED) {
-      String title=cms.readProperty(file.getAbsolutePath(),C_PROPERTY_TITLE);
-      if (title == null || "".equals(title)) {
-        title=file.getName();
-      }
-      values.addElement(file.getAbsolutePath());
-      names.addElement(title);
-      if (currentTemplate.equals(file.getAbsolutePath()) || currentTemplate.equals(file.getName())) {
-        currentTemplateIndex=currentIndex;
-      }
-      currentIndex++;
+  Vector files=cms.getFilesInFolder(C_CONTENTTEMPLATEPATH);
+  Vector modules=new Vector();
+  modules=cms.getSubFolders(C_MODULES_PATH);
+  for (int i=0; i < modules.size(); i++) {
+    Vector moduleTemplateFiles=new Vector();
+    moduleTemplateFiles=cms.getFilesInFolder(((CmsFolder)modules.elementAt(i)).getAbsolutePath() + "templates/");
+    for (int j=0; j < moduleTemplateFiles.size(); j++) {
+      files.addElement(moduleTemplateFiles.elementAt(j));
     }
   }
-  return new Integer(currentTemplateIndex);
+  Enumeration enum=files.elements();
+  while (enum.hasMoreElements()) {
+    CmsFile file=(CmsFile)enum.nextElement();
+    if (file.getState() != C_STATE_DELETED) {
+      String nicename=cms.readProperty(file.getAbsolutePath(),C_PROPERTY_TITLE);
+      if (nicename == null) {
+        nicename=file.getName();
+      }
+      names.addElement(nicename);
+      values.addElement(file.getAbsolutePath());
+    }
+  }
+  bubblesort(names,values);
+  String currentTemplate=(String)parameters.get("template");
+  for (int i=0; i < values.size(); i++) {
+    String template=(String)values.get(i);
+    if (currentTemplate.equals(template)) {
+      return new Integer(i);
+    }
+  }
+  return new Integer(0);
 }
