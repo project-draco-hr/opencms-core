@@ -6,18 +6,24 @@
   Vector res=new Vector();
   Hashtable oneHit=null;
   buildQueryString();
+  Query query=null;
   Searcher searcher=new IndexSearcher(indexPath);
-  BooleanQuery query=(BooleanQuery)QueryParser.parse(m_queryString,"body",new GermanAnalyzer());
+  query=(BooleanQuery)QueryParser.parse(m_queryString,"body",new StandardAnalyzer());
   Hits hits=searcher.search(query);
   int countHits=hits.length();
+  String excerpt="";
   for (int i=0; i < countHits; i++) {
+    excerpt=LuceneTools.highlightTerms(hits.doc(i).get("content"),new TermHighlighter(),query,new StandardAnalyzer());
+    excerpt=cutExcerpt(excerpt);
     oneHit=new Hashtable();
+    oneHit.put("excerpt",excerpt);
     oneHit.put("description",hits.doc(i).get("description"));
     oneHit.put("title",hits.doc(i).get("title"));
     oneHit.put("keywords",hits.doc(i).get("keywords"));
     oneHit.put("url",hits.doc(i).get("path"));
     oneHit.put("score",Math.round(hits.score(i) * 100) + " %");
     oneHit.put("modified",hits.doc(i).get("modified"));
+    oneHit.put("length",hits.doc(i).get("length"));
     res.add(oneHit);
   }
   return res;
