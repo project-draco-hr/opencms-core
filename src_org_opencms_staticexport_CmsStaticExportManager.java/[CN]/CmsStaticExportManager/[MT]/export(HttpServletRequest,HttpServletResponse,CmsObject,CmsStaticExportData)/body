@@ -1,0 +1,46 @@
+{
+  CmsFile file;
+  String vfsName=cms.getRequestContext().removeSiteRoot(data.getVfsName());
+  String rfsName=data.getRfsName();
+  CmsResource resource=data.getResource();
+  if (resource.isFile()) {
+    file=cms.readFile(vfsName);
+  }
+ else {
+    file=OpenCmsCore.getInstance().initResource(cms,vfsName);
+    vfsName=vfsName + file.getResourceName();
+    rfsName+=C_EXPORT_DEFAULT_FILE;
+  }
+  int loaderId=file.getLoaderId();
+  I_CmsResourceLoader loader=OpenCms.getLoaderManager().getLoader(loaderId);
+  if ((loader == null) || ((loaderId != CmsDumpLoader.C_RESOURCE_LOADER_ID) && (loaderId != CmsJspLoader.C_RESOURCE_LOADER_ID) && (loaderId != CmsPageLoader.C_RESOURCE_LOADER_ID))) {
+    throw new CmsException("Unable to export VFS file " + vfsName + ", invalid loader id "+ loaderId);
+  }
+  String exportFolderName=getExportPath() + CmsResource.getPath(rfsName).substring(1);
+  File exportFolder=new File(exportFolderName);
+  if (!exportFolder.exists()) {
+    if (!exportFolder.mkdirs()) {
+      throw new CmsException("Creation of export folder failed for RFS file " + rfsName);
+    }
+  }
+  String exportFileName=getExportPath() + rfsName.substring(1);
+  File exportFile=new File(exportFileName);
+  FileOutputStream exportStream;
+  try {
+    exportStream=new FileOutputStream(exportFile);
+  }
+ catch (  Throwable t) {
+    throw new CmsException("Creation of export output stream failed for RFS file " + rfsName);
+  }
+  String mimetype=OpenCms.getMimeType(file.getResourceName(),cms.getRequestContext().getEncoding());
+  res.setContentType(mimetype);
+  String oldUri=cms.getRequestContext().getUri();
+  cms.getRequestContext().setUri(vfsName);
+  byte[] content=loader.export(cms,file,req,res);
+  cms.getRequestContext().setUri(oldUri);
+  exportStream.write(content);
+  exportStream.close();
+  if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_STATICEXPORT)) {
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"Exported vfs file '" + vfsName + "' to rfs file '"+ rfsName+ "'");
+  }
+}

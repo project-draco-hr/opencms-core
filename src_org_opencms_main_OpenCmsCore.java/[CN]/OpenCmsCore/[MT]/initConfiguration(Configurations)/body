@@ -1,9 +1,9 @@
 {
-  setConfiguration(conf);
-  String defaultEncoding=getDefaultEncoding();
-  defaultEncoding=conf.getString("defaultContentEncoding",defaultEncoding);
+  m_conf=conf;
+  m_defaultEncoding=getDefaultEncoding();
+  m_defaultEncoding=conf.getString("defaultContentEncoding",m_defaultEncoding);
   if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
-    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms encoding     : " + defaultEncoding);
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms encoding     : " + m_defaultEncoding);
   }
   String systemEncoding=null;
   try {
@@ -14,21 +14,20 @@
   if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
     OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". System file.encoding : " + systemEncoding);
   }
-  if (!defaultEncoding.equals(systemEncoding)) {
-    String msg="OpenCms startup failure: System file.encoding '" + systemEncoding + "' not equal to OpenCms encoding '"+ defaultEncoding+ "'";
+  if (!m_defaultEncoding.equals(systemEncoding)) {
+    String msg="OpenCms startup failure: System file.encoding '" + systemEncoding + "' not equal to OpenCms encoding '"+ m_defaultEncoding+ "'";
     if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL))     OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,". Critical init error/1: " + msg);
     throw new Exception(msg);
   }
   try {
-    if (!java.nio.charset.Charset.isSupported(defaultEncoding)) {
-      defaultEncoding=OpenCms.getDefaultEncoding();
+    if (!java.nio.charset.Charset.isSupported(m_defaultEncoding)) {
+      m_defaultEncoding=OpenCms.getDefaultEncoding();
     }
   }
  catch (  Throwable t) {
   }
-  setDefaultEncoding(defaultEncoding);
   if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
-    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Encoding set to      : " + defaultEncoding);
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Encoding set to      : " + m_defaultEncoding);
   }
   String ethernetAddress=conf.getString("server.ethernet.address",CmsUUID.getDummyEthernetAddress());
   if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
@@ -52,7 +51,7 @@
     if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL))     OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,". Critical init error/2: " + e.getMessage());
     throw e;
   }
-  setDefaultUsers(CmsDefaultUsers.initialize(conf));
+  m_defaultUsers=CmsDefaultUsers.initialize(conf);
   try {
     m_driverManager=CmsDriverManager.newInstance(conf);
   }
@@ -83,7 +82,7 @@
     }
     throw e;
   }
-  setLinkManager(new CmsLinkManager());
+  m_linkManager=new CmsLinkManager();
   String flexExportUrl=conf.getString(CmsJspLoader.C_LOADER_JSPEXPORTURL,null);
   if (null != flexExportUrl) {
     if (flexExportUrl.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
@@ -117,7 +116,7 @@
     if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
       OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". ResourceLoader init  : starting");
     }
-    setLoaderManager(new CmsLoaderManager(conf));
+    m_loaderManager=new CmsLoaderManager(conf);
     if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
       OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". ResourceLoader init  : finished");
     }
@@ -195,10 +194,9 @@
   }
   setRuntimeProperty("import.immutable.resources",immutableResources);
   try {
-    String userDefaultLanguage=conf.getString("workplace.user.default.language",I_CmsWpConstants.C_DEFAULT_LANGUAGE);
-    setUserDefaultLanguage(userDefaultLanguage);
+    m_userDefaultLanguage=conf.getString("workplace.user.default.language",I_CmsWpConstants.C_DEFAULT_LANGUAGE);
     if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
-      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". User data init       : Default language is '" + userDefaultLanguage + "'");
+      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". User data init       : Default language is '" + m_userDefaultLanguage + "'");
     }
   }
  catch (  Exception e) {
@@ -206,9 +204,9 @@
       OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". User data init       : non-critical error " + e.toString());
     }
   }
-  c_passwordValidatingClass=conf.getString("passwordvalidatingclass","com.opencms.util.PasswordValidtation");
+  m_passwordValidatingClass=conf.getString("passwordvalidatingclass","com.opencms.util.PasswordValidtation");
   if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
-    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Password validation  : " + c_passwordValidatingClass);
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Password validation  : " + m_passwordValidatingClass);
   }
   Integer fileMaxUploadSize=new Integer(conf.getInteger("workplace.file.maxuploadsize",-1));
   setRuntimeProperty("workplace.file.maxuploadsize",fileMaxUploadSize);
@@ -238,7 +236,7 @@
       OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Resource init class  : non-critical error " + e2.toString());
     }
   }
-  setSiteManager(CmsSiteManager.initialize(conf));
+  m_siteManager=CmsSiteManager.initialize(conf);
   Boolean supportOldLocales=conf.getBoolean("compatibility.support.oldlocales",new Boolean(false));
   setRuntimeProperty("compatibility.support.oldlocales",supportOldLocales);
   if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
@@ -269,7 +267,9 @@
   }
   setRuntimeProperty("compatibility.support.import.remove.propertytags",propertyNames);
   String[] appNames=conf.getStringArray("compatibility.support.webAppNames");
-  if (appNames == null)   appNames=new String[0];
+  if (appNames == null) {
+    appNames=new String[0];
+  }
   List webAppNamesOri=java.util.Arrays.asList(appNames);
   ArrayList webAppNames=new ArrayList();
   for (int i=0; i < webAppNamesOri.size(); i++) {
@@ -285,11 +285,15 @@
     OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Old context support  : " + ((webAppNames.size() > 0) ? "enabled" : "disabled"));
   }
   setRuntimeProperty("compatibility.support.webAppNames",webAppNames);
-  CmsStaticExportProperties exportProperties=new CmsStaticExportProperties();
-  setStaticExportProperties(exportProperties);
-  exportProperties.setStaticExportEnabled("true".equalsIgnoreCase(conf.getString("staticexport.enabled","false")));
-  exportProperties.setExportPropertyDefault("true".equalsIgnoreCase(conf.getString("staticexport.export_default","false")));
-  exportProperties.setExportPath(com.opencms.boot.CmsBase.getAbsoluteWebPath(CmsBase.getAbsoluteWebPath(conf.getString("staticexport.export_path"))));
+  m_exportProperties=new CmsStaticExportManager();
+  m_exportProperties.setStaticExportEnabled("true".equalsIgnoreCase(conf.getString("staticexport.enabled","false")));
+  m_exportProperties.setExportPropertyDefault("true".equalsIgnoreCase(conf.getString("staticexport.export_default","false")));
+  String[] exportSuffixes=conf.getStringArray("staticexport.export_suffixes");
+  if (exportSuffixes == null) {
+    exportSuffixes=new String[0];
+  }
+  m_exportProperties.setExportSuffixes(exportSuffixes);
+  m_exportProperties.setExportPath(com.opencms.boot.CmsBase.getAbsoluteWebPath(CmsBase.getAbsoluteWebPath(conf.getString("staticexport.export_path"))));
   String rfsPrefix=conf.getString("staticexport.prefix_rfs","${CONTEXT_NAME}/export");
   String vfsPrefix=conf.getString("staticexport.prefix_vfs","${CONTEXT_NAME}${SERVLET_NAME}");
   String contextName="/" + CmsBase.getWebAppName();
@@ -299,18 +303,18 @@
   rfsPrefix=CmsStringSubstitution.substitute(rfsPrefix,"${SERVLET_NAME}",servletName);
   vfsPrefix=CmsStringSubstitution.substitute(vfsPrefix,"${CONTEXT_NAME}",contextName);
   vfsPrefix=CmsStringSubstitution.substitute(vfsPrefix,"${SERVLET_NAME}",servletName);
-  exportProperties.setRfsPrefix(rfsPrefix);
-  exportProperties.setVfsPrefix(vfsPrefix);
-  exportProperties.setExportRelativeLinks(conf.getBoolean("staticexport.relative_links",false));
-  exportProperties.setExportnames();
+  m_exportProperties.setRfsPrefix(rfsPrefix);
+  m_exportProperties.setVfsPrefix(vfsPrefix);
+  m_exportProperties.setExportRelativeLinks(conf.getBoolean("staticexport.relative_links",false));
+  m_exportProperties.setExportnames();
   if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
-    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Static export        : " + (exportProperties.isStaticExportEnabled() ? "enabled" : "disabled"));
-    if (exportProperties.isStaticExportEnabled()) {
-      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Export default       : " + exportProperties.getExportPropertyDefault());
-      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Export path          : " + exportProperties.getExportPath());
-      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Export rfs prefix    : " + exportProperties.getRfsPrefix());
-      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Export vfs prefix    : " + exportProperties.getVfsPrefix());
-      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Export link style    : " + (exportProperties.relativLinksInExport() ? "relative" : "absolute"));
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Static export        : " + (m_exportProperties.isStaticExportEnabled() ? "enabled" : "disabled"));
+    if (m_exportProperties.isStaticExportEnabled()) {
+      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Export default       : " + m_exportProperties.getExportPropertyDefault());
+      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Export path          : " + m_exportProperties.getExportPath());
+      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Export rfs prefix    : " + m_exportProperties.getRfsPrefix());
+      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Export vfs prefix    : " + m_exportProperties.getVfsPrefix());
+      OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Export link style    : " + (m_exportProperties.relativLinksInExport() ? "relative" : "absolute"));
     }
   }
 }
