@@ -1,9 +1,20 @@
 {
   CmsResource resource=readFileHeader(context,resourcename);
-  if (forceLock) {
-    unlockResource(context,resourcename,true);
+  CmsLock oldLock=null;
+  CmsLock exclusiveLock=null;
+  if (stealLock) {
+    exclusiveLock=m_lockDispatcher.getExclusiveLockedSibling(this,context,resourcename);
+    oldLock=unlockResource(context,resourcename,true);
   }
-  checkPermissions(context,resource,I_CmsConstants.C_WRITE_ACCESS);
+  try {
+    checkPermissions(context,resource,I_CmsConstants.C_WRITE_ACCESS);
+  }
+ catch (  CmsException e) {
+    if (stealLock && e.getType() == CmsException.C_NO_ACCESS && oldLock.getType() != CmsLock.C_TYPE_INHERITED && oldLock.getType() != CmsLock.C_TYPE_SHARED_INHERITED && !exclusiveLock.isNullLock()) {
+      m_lockDispatcher.addResource(this,context,exclusiveLock.getResourceName(),exclusiveLock.getUserId(),exclusiveLock.getProjectId());
+    }
+    throw e;
+  }
   if (resource.getState() != I_CmsConstants.C_STATE_UNCHANGED && resource.getProjectId() != context.currentProject().getId()) {
     m_vfsDriver.updateProjectId(context.currentProject(),resource);
   }
