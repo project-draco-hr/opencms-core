@@ -99,6 +99,7 @@
  else {
       Hashtable idMixer=new Hashtable();
       CmsFolder rootFolder=(CmsFolder)tree.elementAt(0);
+      String folderToIgnore=null;
       if (rootFolder.getProjectId() != onlineProjectId) {
         startAt=2;
         grey=false;
@@ -113,25 +114,34 @@
       content.append(rootFolder.getParentId() + ", " + grey+ ");\n");
       for (int i=startAt; i < tree.size(); i++) {
         CmsFolder folder=(CmsFolder)tree.elementAt(i);
-        if (folder.getProjectId() != onlineProjectId) {
-          grey=false;
-          parentId=folder.getParentId();
-          if (!(folder.getState() == 2)) {
-            i++;
-            idMixer.put(new Integer(((CmsFolder)tree.elementAt(i)).getResourceId()),new Integer(folder.getResourceId()));
-          }
+        if ((folder.getState() == C_STATE_DELETED) || (folder.getAbsolutePath().equals(folderToIgnore))) {
+          folderToIgnore=folder.getAbsolutePath();
         }
  else {
-          grey=true;
-          parentId=folder.getParentId();
-          if (idMixer.containsKey(new Integer(parentId))) {
-            parentId=((Integer)idMixer.get(new Integer(parentId))).intValue();
+          if (folder.getProjectId() != onlineProjectId) {
+            grey=false;
+            parentId=folder.getParentId();
+            try {
+              if (folder.getAbsolutePath().equals(((CmsFolder)tree.elementAt(i + 1)).getAbsolutePath())) {
+                i++;
+                idMixer.put(new Integer(((CmsFolder)tree.elementAt(i)).getResourceId()),new Integer(folder.getResourceId()));
+              }
+            }
+ catch (            IndexOutOfBoundsException exc) {
+            }
           }
+ else {
+            grey=true;
+            parentId=folder.getParentId();
+            if (idMixer.containsKey(new Integer(parentId))) {
+              parentId=((Integer)idMixer.get(new Integer(parentId))).intValue();
+            }
+          }
+          content.append("top.aC(");
+          content.append(folder.getResourceId() + ", ");
+          content.append("\"" + folder.getName() + "\", ");
+          content.append(parentId + ", " + grey+ ");\n");
         }
-        content.append("top.aC(");
-        content.append(folder.getResourceId() + ", ");
-        content.append("\"" + folder.getName() + "\", ");
-        content.append(parentId + ", " + grey+ ");\n");
       }
     }
   }
