@@ -6,7 +6,8 @@
   System.out.print(user + ", ");
   System.out.print(group + ", ");
   System.out.print(access + "... ");
-  boolean successfull=false;
+  boolean success=false;
+  byte[] content=null;
   try {
     String path=m_importPath + destination.substring(0,destination.lastIndexOf("/") + 1);
     String name=destination.substring((destination.lastIndexOf("/") + 1),destination.length());
@@ -16,7 +17,7 @@
       try {
         CmsFolder cmsfolder=m_cms.createFolder(path,name,properties);
         fullname=cmsfolder.getAbsolutePath();
-        successfull=true;
+        success=true;
         state=C_STATE_NEW;
       }
  catch (      CmsException e) {
@@ -31,8 +32,9 @@
  catch (      CmsException exc) {
         state=C_STATE_NEW;
       }
-      fullname=m_cms.createFile(path,name,getFileBytes(source),type,properties).getAbsolutePath();
-      successfull=true;
+      content=getFileBytes(source);
+      fullname=m_cms.createFile(path,name,content,type,properties).getAbsolutePath();
+      success=true;
     }
     if (fullname != null) {
       m_cms.chmod(fullname,Integer.parseInt(access));
@@ -46,9 +48,20 @@
     System.out.println("OK");
   }
  catch (  Exception exc) {
-    successfull=false;
+    success=false;
     System.out.println("Error");
     exc.printStackTrace();
   }
-  return successfull;
+  byte[] digestContent={0};
+  if (content != null) {
+    digestContent=m_digest.digest(content);
+  }
+  if (success) {
+    if (writtenFilenames != null) {
+      writtenFilenames.addElement(m_importPath + destination);
+    }
+    if (fileCodes != null) {
+      fileCodes.addElement(digestContent);
+    }
+  }
 }
