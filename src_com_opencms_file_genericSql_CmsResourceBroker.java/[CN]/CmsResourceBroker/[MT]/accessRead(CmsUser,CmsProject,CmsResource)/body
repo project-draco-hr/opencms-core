@@ -1,13 +1,26 @@
 {
-  if ((resource == null) || !accessProject(currentUser,currentProject,resource.getProjectId()) || (!accessOther(currentUser,currentProject,resource,C_ACCESS_PUBLIC_READ) && !accessOwner(currentUser,currentProject,resource,C_ACCESS_OWNER_READ) && !accessGroup(currentUser,currentProject,resource,C_ACCESS_GROUP_READ)))   return false;
-  CmsResource res=resource;
-  while (res.getParent() != null) {
-    res=m_dbAccess.readFolder(res.getProjectId(),res.getParent());
-    if (res == null) {
-      A_OpenCms.log(A_OpenCms.C_OPENCMS_DEBUG,"Resource has no parent: " + resource.getAbsolutePath());
-      throw new CmsException(this.getClass().getName() + ".accessRead(): Cannot find \'" + resource.getName(),CmsException.C_NOT_FOUND);
-    }
-    if (!accessOther(currentUser,currentProject,res,C_ACCESS_PUBLIC_READ) && !accessOwner(currentUser,currentProject,res,C_ACCESS_OWNER_READ) && !accessGroup(currentUser,currentProject,res,C_ACCESS_GROUP_READ))     return false;
+  Boolean access=(Boolean)m_accessCache.get(currentUser.getId() + ":" + currentProject.getId()+ ":"+ resource.getName());
+  if (access != null) {
+    return access.booleanValue();
   }
-  return true;
+ else {
+    if ((resource == null) || !accessProject(currentUser,currentProject,resource.getProjectId()) || (!accessOther(currentUser,currentProject,resource,C_ACCESS_PUBLIC_READ) && !accessOwner(currentUser,currentProject,resource,C_ACCESS_OWNER_READ) && !accessGroup(currentUser,currentProject,resource,C_ACCESS_GROUP_READ))) {
+      m_accessCache.put(currentUser.getId() + ":" + currentProject.getId()+ ":"+ resource.getName(),new Boolean(false));
+      return false;
+    }
+    CmsResource res=resource;
+    while (res.getParent() != null) {
+      res=readFolder(currentUser,currentProject,res.getParent());
+      if (res == null) {
+        A_OpenCms.log(A_OpenCms.C_OPENCMS_DEBUG,"Resource has no parent: " + resource.getAbsolutePath());
+        throw new CmsException(this.getClass().getName() + ".accessRead(): Cannot find \'" + resource.getName(),CmsException.C_NOT_FOUND);
+      }
+      if (!accessOther(currentUser,currentProject,res,C_ACCESS_PUBLIC_READ) && !accessOwner(currentUser,currentProject,res,C_ACCESS_OWNER_READ) && !accessGroup(currentUser,currentProject,res,C_ACCESS_GROUP_READ)) {
+        m_accessCache.put(currentUser.getId() + ":" + currentProject.getId()+ ":"+ resource.getName(),new Boolean(false));
+        return false;
+      }
+    }
+    m_accessCache.put(currentUser.getId() + ":" + currentProject.getId()+ ":"+ resource.getName(),new Boolean(true));
+    return true;
+  }
 }
