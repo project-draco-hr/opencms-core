@@ -1,18 +1,28 @@
 {
   byte[] result=null;
-  I_CmsTemplate templateClass=this.getTemplateClass(cms,m_className);
-  CmsCacheDirectives cd=collectCacheDirectives();
+  I_CmsTemplate templateClass=null;
+  try {
+    templateClass=getTemplateClass(cms,m_className);
+  }
+ catch (  Throwable e) {
+    if (CmsBase.isLogging()) {
+      CmsBase.log(C_OPENCMS_CRITICAL,toString() + " Could not load my template class \"" + m_className+ "\". ");
+      CmsBase.log(C_OPENCMS_CRITICAL,e.toString());
+      return e.getMessage().getBytes();
+    }
+  }
+  CmsCacheDirectives cd=getCacheDirectives();
   boolean streamable=false;
   CmsElementVariant variant=null;
-  Object cacheKey=templateClass.getKey(cms,m_templateName,parameters,null);
-  boolean cacheable=cd.isInternalCacheable();
-  if (cacheable && !templateClass.shouldReload(cms,m_templateName,m_elementName,parameters,null)) {
-    variant=getVariant(cacheKey);
-    result=resolveVariant(cms,variant,staging,parameters);
+  if (cd.isInternalCacheable()) {
+    variant=getVariant(cd.getCacheKey(cms,parameters));
+    if (variant != null) {
+      result=resolveVariant(cms,variant,staging,parameters);
+    }
   }
   if (variant == null) {
     try {
-      if (cacheable) {
+      if (cd.isInternalCacheable()) {
         System.err.println(toString() + " ### Variant not in cache. Must be generated.");
       }
  else {
@@ -25,8 +35,6 @@
     }
  catch (    CmsException e) {
       throw e;
-    }
-    if (cacheable) {
     }
     if (streamable) {
       result=null;
