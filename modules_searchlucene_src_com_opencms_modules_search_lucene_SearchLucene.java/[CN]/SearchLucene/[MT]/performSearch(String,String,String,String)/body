@@ -1,0 +1,51 @@
+{
+  if (debug) {
+    System.err.println("indexPath=" + indexPath + " queryString="+ queryString+ " method="+ method);
+  }
+  Hits hits;
+  Query query;
+  m_queryString=queryString;
+  Vector res=new Vector();
+  Hashtable oneHit;
+  buildQueryString(method);
+  Searcher searcher=new IndexSearcher(indexPath);
+  if (m_queryString.length() == 0)   return null;
+  query=QueryParser.parse(m_queryString,"body",new StopAnalyzer());
+  if (m_from != 0) {
+    if (m_to != 0) {
+      dateFilter=new DateFilter("modified",m_from,m_to);
+    }
+ else {
+      dateFilter=DateFilter.After("modified",m_from);
+    }
+  }
+ else   if (m_to != 0) {
+    dateFilter=DateFilter.Before("modified",m_to);
+  }
+  if (dateFilter == null) {
+    hits=searcher.search(query);
+  }
+ else {
+    hits=searcher.search(query,dateFilter);
+  }
+  int countHits=hits.length();
+  String excerpt="";
+  String title="";
+  for (int i=0; i < countHits; i++) {
+    excerpt=LuceneTools.highlightTerms(hits.doc(i).get("content"),new TermHighlighter(),query,new StopAnalyzer());
+    excerpt=cutExcerpt(excerpt);
+    title=hits.doc(i).get("title");
+    title=replaceAll(title,"\\n","&nbsp;");
+    oneHit=new Hashtable();
+    oneHit.put("excerpt",excerpt);
+    oneHit.put("description",hits.doc(i).get("description"));
+    oneHit.put("title",title);
+    oneHit.put("keywords",hits.doc(i).get("keywords"));
+    oneHit.put("url",hits.doc(i).get("path"));
+    oneHit.put("score",new Integer(Math.round(hits.score(i) * 100)));
+    oneHit.put("modified",new Long(DateField.stringToTime((String)hits.doc(i).get("modified"))));
+    oneHit.put("length",hits.doc(i).get("length"));
+    res.add(oneHit);
+  }
+  return res;
+}

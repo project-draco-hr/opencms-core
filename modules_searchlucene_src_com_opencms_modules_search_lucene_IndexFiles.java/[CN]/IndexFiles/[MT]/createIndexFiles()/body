@@ -5,7 +5,12 @@
   InputStream con=null;
   try {
     StandardAnalyzer ga=new StandardAnalyzer();
-    writer=new IndexWriter(m_indexPath,ga,m_newIndex);
+    if (m_analyzer.equalsIgnoreCase("stopanalyzer")) {
+      writer=new IndexWriter(m_indexPath,new StopAnalyzer(),m_newIndex);
+    }
+ else     if (m_analyzer.equalsIgnoreCase("german")) {
+      writer=new IndexWriter(m_indexPath,new GermanAnalyzer(),m_newIndex);
+    }
     String completeContent="";
     String keywords="";
     String description="";
@@ -16,27 +21,22 @@
     I_ContentParser parser=null;
     for (int i=0; i < m_files.size(); i++) {
       if (debug) {
-        System.out.println("Indexing file " + m_files.elementAt(i));
+        System.err.println("Indexing file " + m_files.elementAt(i));
       }
       doc=new Document();
       con=connectUrl((String)m_files.elementAt(i));
-      if (m_contentType.equals("text/html")) {
-        parser=convHtml;
+      if (con == null)       continue;
+      if (m_contentType != null && m_contentType.equals("text/html")) {
+        parser=m_convHtml;
       }
- else       if (m_contentType.equals("application/pdf")) {
-        parser=convPdf;
+ else       if (m_contentType != null && m_contentType.equals("application/pdf")) {
+        parser=m_convPdf;
       }
  else {
         continue;
       }
       parser.parse(con);
       completeContent=parser.getContents();
-      if (completeContent.indexOf("Not Found (404)") != -1 || completeContent.indexOf("HTTP Status 404") != -1 || completeContent.indexOf("Error 404") != -1) {
-        if (debug) {
-          System.out.println("Servermessage: Not Found (404)");
-        }
-        continue;
-      }
       if (parser.getKeywords() != null) {
         keywords=parser.getKeywords();
       }
@@ -49,36 +49,26 @@
       if (parser.getContents() != null) {
         parsedContent=parser.getContents();
       }
-      if (parser.getPublished() != null) {
-        published=parser.getPublished();
-      }
+      published=DateField.timeToString(m_publishDate);
       doc.add(Field.Keyword("path",(String)m_files.elementAt(i)));
-      doc.add(Field.Keyword("length",m_contentLenth + ""));
+      doc.add(Field.Keyword("length",m_contentLength + ""));
       doc.add(Field.Keyword("keywords",keywords));
       doc.add(Field.Keyword("description",description));
       doc.add(Field.Keyword("modified",published));
       doc.add(Field.Keyword("title",title));
       doc.add(Field.Keyword("content",parsedContent));
       is=new ByteArrayInputStream(parsedContent.getBytes());
-      if (debug) {
-        File output=new File("D:/Programme/Apache Group/Apache/htdocs/lucineTest/" + ((String)m_files.elementAt(i)).substring(((String)m_files.elementAt(i)).lastIndexOf("/"),((String)m_files.elementAt(i)).lastIndexOf(".")) + ".txt");
-        FileOutputStream os=new FileOutputStream(output);
-        os.write(completeContent.getBytes());
-        os.close();
-      }
       doc.add(Field.Text("body",(Reader)new InputStreamReader(is)));
       writer.addDocument(doc);
       is.close();
     }
     writer.optimize();
     if (debug) {
-      System.out.println("Docs in Index " + writer.docCount());
+      System.err.println("Docs in Index " + writer.docCount());
     }
+    writer.close();
   }
  catch (  Exception e) {
     e.printStackTrace();
-  }
- finally {
-    writer.close();
   }
 }

@@ -1,16 +1,18 @@
 {
   if (debug) {
-    System.out.println("word=" + word + " method="+ method+ " sort="+ sort+ " page="+ page+ " conf="+ conf+ " restrict="+ restrict+ " matchPage="+ matchPage+ " cms="+ cms);
+    System.err.println("word=" + word + " method="+ method+ " sort="+ sort+ " page="+ page+ " conf="+ conf+ " restrict="+ restrict+ " matchPage="+ matchPage+ " cms="+ cms);
   }
   if (conf.equals("default")) {
     conf="Lucene";
   }
+  if (sort == null)   sort="nolimit";
+  if (method == null)   method=C_PARAM_METHOD_BOOLEAN;
   int x=0;
   int i=0;
   int size;
   int score;
   int last;
-  int matches;
+  int matches=0;
   int first;
   int setMatch;
   int pageNr;
@@ -18,16 +20,31 @@
   String title;
   String description;
   String modified;
+  long lmodified;
   String excerpt="";
   m_searchword=word;
-  SearchLucene s=new SearchLucene();
-  Vector results=s.performSearch(m_url,m_searchword);
-  matches=results.size();
+  int from=0;
+  SearchLucene search=new SearchLucene();
+  if (!sort.equalsIgnoreCase("nolimit")) {
+    Calendar cal=Calendar.getInstance();
+    cal.setTimeZone(TimeZone.getTimeZone("ECT"));
+    if (sort.equalsIgnoreCase("hour"))     cal.roll(Calendar.HOUR,-1);
+ else     if (sort.equalsIgnoreCase("day"))     cal.roll(Calendar.DAY_OF_YEAR,-1);
+ else     if (sort.equalsIgnoreCase("week"))     cal.roll(Calendar.DAY_OF_YEAR,-7);
+ else     if (sort.equalsIgnoreCase("month"))     cal.roll(Calendar.MONTH,-1);
+ else     if (sort.equalsIgnoreCase("year"))     cal.roll(Calendar.YEAR,-1);
+    search.setFrom(cal.getTime().getTime());
+    if (debug) {
+      System.err.println("cal=" + m_format.format(new Date(cal.getTime().getTime())));
+    }
+  }
+  Vector results=search.performSearch(m_url,m_searchword,m_analyzer,method);
+  if (results != null)   matches=results.size();
   Vector result=new Vector();
   ControlLucene cdh;
   setMatch=Integer.valueOf(matchPage).intValue();
   if (debug) {
-    System.out.println("setMatch=" + setMatch);
+    System.err.println("setMatch=" + setMatch);
   }
   if (matches < 1) {
     String nomatch="nomatch";
@@ -57,10 +74,12 @@
       title=(String)oneHit.get("title");
       description=(String)oneHit.get("description");
       excerpt=(String)oneHit.get("excerpt");
-      modified=(String)oneHit.get("modified");
+      lmodified=((Long)oneHit.get("modified")).longValue();
+      modified=m_format.format(new Date(lmodified));
       size=Integer.valueOf((String)oneHit.get("length")).intValue();
-      size=size / 1024;
-      score=Integer.valueOf((((String)oneHit.get("score")).substring(0,((String)oneHit.get("score")).length() - 2)).trim()).intValue();
+      if (size != 0)       size=size / 1024;
+      if (size == 0)       size=1;
+      score=((Integer)oneHit.get("score")).intValue();
       cdh=new ControlLucene(url,title,excerpt,size,score,modified);
       result.addElement(cdh);
     }

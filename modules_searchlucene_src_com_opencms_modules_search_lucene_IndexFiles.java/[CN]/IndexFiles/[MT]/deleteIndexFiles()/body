@@ -1,46 +1,50 @@
 {
   IndexReader reader=null;
+  createPath();
   try {
     reader=IndexReader.open(m_indexPath);
     for (int i=0; i < m_files.size(); i++) {
       Term urlTerm=new Term("path",(String)m_files.elementAt(i));
       if (reader.docFreq(urlTerm) > 0) {
         if (debug) {
-          System.out.println("Number of docs " + reader.docFreq(new Term("path",(String)m_files.elementAt(i))));
+          System.err.println("Number of docs " + reader.docFreq(new Term("path",(String)m_files.elementAt(i))));
         }
         if (reader.delete(urlTerm) == 1) {
           if (debug) {
-            System.out.println("deleted from index " + (String)m_files.elementAt(i));
+            System.err.println("deleted from index " + (String)m_files.elementAt(i));
           }
         }
  else {
           if (debug) {
-            System.out.println("not deleted from index " + (String)m_files.elementAt(i));
+            System.err.println("not deleted from index " + (String)m_files.elementAt(i));
           }
         }
       }
     }
+    reader.close();
   }
  catch (  Exception ex) {
     if (debug) {
       ex.printStackTrace();
     }
-    createPath();
     if (!m_newIndex) {
       m_newIndex=true;
     }
     IndexDirectory.createIndexDirectory(m_indexPath);
     createIndexFiles();
-  }
- finally {
-    reader.close();
+    System.out.println("created new search-index for Lucene");
   }
   if (m_optimize) {
     IndexWriter writer=null;
-    writer=new IndexWriter(m_indexPath,new GermanAnalyzer(),m_newIndex);
+    if (m_analyzer.equalsIgnoreCase("stopanalyzer")) {
+      writer=new IndexWriter(m_indexPath,new StopAnalyzer(),m_newIndex);
+    }
+ else     if (m_analyzer.equalsIgnoreCase("german")) {
+      writer=new IndexWriter(m_indexPath,new GermanAnalyzer(),m_newIndex);
+    }
     writer.optimize();
     if (debug) {
-      System.out.println("Docs in Index " + writer.docCount());
+      System.err.println("Docs in Index " + writer.docCount());
     }
     writer.close();
   }
