@@ -1,0 +1,44 @@
+{
+  int errorCode;
+  try {
+    errorCode=Integer.valueOf(name).intValue();
+  }
+ catch (  NumberFormatException nf) {
+    res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    return;
+  }
+switch (errorCode) {
+case 404:
+    String path=req.getPathInfo();
+  CmsObject cms=null;
+CmsStaticExportData exportData=null;
+try {
+cms=OpenCmsCore.getInstance().initCmsObject(req,res,OpenCms.getDefaultUsers().getUserExport(),null);
+exportData=OpenCms.getStaticExportManager().getExportData(req,cms);
+}
+ catch (CmsException e) {
+if (OpenCms.getLog(this).isWarnEnabled()) {
+  OpenCms.getLog(this).warn("Error initializing CmsObject in " + name + " handler for '"+ path+ "'",e);
+}
+}
+if (exportData != null) {
+synchronized (this) {
+try {
+  OpenCms.getStaticExportManager().export(req,res,cms,exportData);
+}
+ catch (Throwable t) {
+  if (OpenCms.getLog(this).isWarnEnabled()) {
+    OpenCms.getLog(this).warn("Error exporting " + exportData,t);
+  }
+  openErrorHandler(req,res,errorCode);
+}
+}
+}
+ else {
+openErrorHandler(req,res,errorCode);
+}
+break;
+default :
+openErrorHandler(req,res,errorCode);
+}
+}
