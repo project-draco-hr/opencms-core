@@ -1,0 +1,73 @@
+{
+  Class classClazz;
+  try {
+    classClazz=Class.forName(className);
+  }
+ catch (  ClassNotFoundException e) {
+    OpenCms.getLog(this).error("Configured XML content filter class not found: " + className,e);
+    return null;
+  }
+  I_CmsXmlContentFilter filter;
+  try {
+    filter=(I_CmsXmlContentFilter)classClazz.newInstance();
+  }
+ catch (  InstantiationException e) {
+    throw new CmsConfigurationException("Invalid XML content filter name '" + className + "' configured");
+  }
+catch (  IllegalAccessException e) {
+    throw new CmsConfigurationException("Invalid XML content filter name '" + className + "' configured");
+  }
+catch (  ClassCastException e) {
+    throw new CmsConfigurationException("Invalid XML content filter name '" + className + "' configured");
+  }
+  int ord=0;
+  try {
+    ord=Integer.valueOf(order).intValue();
+  }
+ catch (  NumberFormatException e) {
+    OpenCms.getLog(this).error("Bad order number for filter '" + className + "'",e);
+  }
+  filter.setOrder(ord);
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". XML content config   : added filter class '" + className + "' with order "+ order);
+  }
+  if (m_filters != null) {
+    m_filters=new ArrayList(m_filters);
+    m_filterNameMappings=new HashMap(m_filterNameMappings);
+  }
+ else {
+    m_filters=new ArrayList();
+    m_filterNameMappings=new HashMap();
+  }
+  if (!m_filters.contains(filter)) {
+    m_filters.add(filter);
+    Iterator i=filter.getFilterNames().iterator();
+    while (i.hasNext()) {
+      String name=(String)i.next();
+      if (m_filterNameMappings.containsKey(name)) {
+        I_CmsXmlContentFilter otherFilter=(I_CmsXmlContentFilter)m_filterNameMappings.get(name);
+        if (filter.getOrder() > otherFilter.getOrder()) {
+          m_filterNameMappings.put(name,filter);
+          if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+            OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". XML content config   : replaced filter name '" + name + "'");
+          }
+        }
+ else {
+          if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+            OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". XML content config   : skipped duplicate filter name '" + name + "'");
+          }
+        }
+      }
+ else {
+        m_filterNameMappings.put(name,filter);
+        if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+          OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". XML content config   : added new filter name '" + name + "'");
+        }
+      }
+    }
+  }
+  Collections.sort(m_filters);
+  m_filters=Collections.unmodifiableList(m_filters);
+  m_filterNameMappings=Collections.unmodifiableMap(m_filterNameMappings);
+  return filter;
+}
