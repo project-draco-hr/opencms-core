@@ -10,7 +10,8 @@
         newFolder=(CmsFolder)offlineFolder.clone();
         newFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
         newFolder.setFullResourceName(offlineFolder.getRootPath());
-        m_driverManager.getVfsDriver().createFolder(onlineProject,newFolder,newFolder.getParentStructureId());
+        onlineFolder=m_driverManager.getVfsDriver().createFolder(onlineProject,newFolder,newFolder.getParentStructureId());
+        onlineFolder.setFullResourceName(offlineFolder.getRootPath());
       }
  catch (      CmsException e) {
         if (e.getType() == CmsException.C_FILE_EXISTS) {
@@ -32,25 +33,6 @@
           }
           throw e;
         }
-      }
-      try {
-        m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,offlineFolder.getResourceId(),newFolder.getResourceId());
-      }
- catch (      CmsException e) {
-        if (OpenCms.getLog(this).isErrorEnabled()) {
-          OpenCms.getLog(this).error("Error writing ACLs of " + offlineFolder.toString(),e);
-        }
-        throw e;
-      }
-      try {
-        offlineProperties=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),offlineFolder,offlineFolder.getType());
-        m_driverManager.getVfsDriver().writeProperties(offlineProperties,onlineProject.getId(),newFolder,newFolder.getType(),true);
-      }
- catch (      CmsException e) {
-        if (OpenCms.getLog(this).isErrorEnabled()) {
-          OpenCms.getLog(this).error("Error writing properties of " + offlineFolder.toString(),e);
-        }
-        throw e;
       }
     }
  else     if (offlineFolder.getState() == I_CmsConstants.C_STATE_CHANGED) {
@@ -89,26 +71,26 @@
         }
         throw e;
       }
-      try {
-        m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,offlineFolder.getResourceId(),onlineFolder.getResourceId());
+    }
+    try {
+      m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,offlineFolder.getResourceId(),onlineFolder.getResourceId());
+    }
+ catch (    CmsException e) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Error writing ACLs of " + offlineFolder.toString(),e);
       }
- catch (      CmsException e) {
-        if (OpenCms.getLog(this).isErrorEnabled()) {
-          OpenCms.getLog(this).error("Error writing ACLs of " + offlineFolder.toString(),e);
-        }
-        throw e;
+      throw e;
+    }
+    try {
+      m_driverManager.getVfsDriver().deleteProperties(onlineProject.getId(),onlineFolder);
+      offlineProperties=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),offlineFolder,offlineFolder.getType());
+      m_driverManager.getVfsDriver().writeProperties(offlineProperties,onlineProject.getId(),onlineFolder,offlineFolder.getType(),true);
+    }
+ catch (    CmsException e) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Error writing properties of " + offlineFolder.toString(),e);
       }
-      try {
-        m_driverManager.getVfsDriver().deleteProperties(onlineProject.getId(),onlineFolder);
-        offlineProperties=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),offlineFolder,offlineFolder.getType());
-        m_driverManager.getVfsDriver().writeProperties(offlineProperties,onlineProject.getId(),onlineFolder,offlineFolder.getType(),true);
-      }
- catch (      CmsException e) {
-        if (OpenCms.getLog(this).isErrorEnabled()) {
-          OpenCms.getLog(this).error("Error writing properties of " + offlineFolder.toString(),e);
-        }
-        throw e;
-      }
+      throw e;
     }
     try {
       if (backupEnabled) {
@@ -117,7 +99,7 @@
         }
         m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),offlineFolder,offlineProperties,backupTagId,publishDate,maxVersions);
       }
-      m_driverManager.getProjectDriver().writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,offlineFolder.getRootPath(),offlineFolder);
+      m_driverManager.getProjectDriver().writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,offlineFolder);
     }
  catch (    CmsException e) {
       if (OpenCms.getLog(this).isErrorEnabled()) {
