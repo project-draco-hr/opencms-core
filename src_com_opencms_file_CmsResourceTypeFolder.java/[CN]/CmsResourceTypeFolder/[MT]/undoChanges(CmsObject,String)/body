@@ -1,50 +1,17 @@
 {
-  Vector allSubFolders=new Vector();
-  Vector allSubFiles=new Vector();
-  getAllResources(cms,resource,allSubFiles,allSubFolders);
   if (!cms.accessWrite(resource)) {
     throw new CmsException("[" + this.getClass().getName() + "]"+ resource,CmsException.C_NO_ACCESS);
   }
   cms.doUndoChanges(resource);
-  cms.doUndoChanges(C_VFS_PATH_BODIES + resource.substring(1));
-  for (int i=0; i < allSubFolders.size(); i++) {
-    CmsFolder curFolder=(CmsFolder)allSubFolders.elementAt(i);
-    if (curFolder.getState() != C_STATE_NEW) {
-      if (curFolder.getState() == C_STATE_DELETED) {
-        undeleteResource(cms,curFolder.getAbsolutePath());
-        lockResource(cms,curFolder.getAbsolutePath(),true);
-      }
-      undoChanges(cms,curFolder.getAbsolutePath());
-    }
- else {
-      try {
-        deleteResource(cms,curFolder.getAbsolutePath());
-      }
- catch (      CmsException ex) {
-        if (ex.getType() != CmsException.C_NOT_FOUND) {
-          throw ex;
-        }
-      }
-    }
+  String bodyPath=C_VFS_PATH_BODIES + resource.substring(1);
+  boolean hasBodyFolder=false;
+  try {
+    cms.readFileHeader(bodyPath);
+    hasBodyFolder=true;
   }
-  for (int i=0; i < allSubFiles.size(); i++) {
-    CmsFile curFile=(CmsFile)allSubFiles.elementAt(i);
-    if (curFile.getState() != C_STATE_NEW) {
-      if (curFile.getState() == C_STATE_DELETED) {
-        cms.undeleteResource(curFile.getAbsolutePath());
-        cms.lockResource(curFile.getAbsolutePath(),true);
-      }
-      cms.undoChanges(curFile.getAbsolutePath());
-    }
- else {
-      try {
-        cms.deleteResource(curFile.getAbsolutePath());
-      }
- catch (      CmsException ex) {
-        if (ex.getType() != CmsException.C_NOT_FOUND) {
-          throw ex;
-        }
-      }
-    }
+ catch (  CmsException e) {
+  }
+  if (hasBodyFolder) {
+    cms.doUndoChanges(bodyPath);
   }
 }
