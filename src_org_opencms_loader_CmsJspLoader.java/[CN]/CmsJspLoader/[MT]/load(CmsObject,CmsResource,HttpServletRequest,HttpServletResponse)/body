@@ -60,9 +60,22 @@
     if (!streaming && !f_res.isSuspended()) {
       try {
         if (!res.isCommitted() || m_errorPagesAreNotCommited) {
+          long lastModifiedHeader=req.getDateHeader(C_HEADER_IF_MODIFIED_SINCE);
+          if (lastModifiedHeader > -1) {
+            if (controller.getDateLastModified() == lastModifiedHeader) {
+              res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+              return;
+            }
+          }
           byte[] result=f_res.getWriterBytes();
           result=CmsEncoder.changeEncoding(result,OpenCms.getSystemInfo().getDefaultEncoding(),cms.getRequestContext().getEncoding());
           res.setContentLength(result.length);
+          if (controller.getDateLastModified() > -1) {
+            res.setDateHeader(C_HEADER_LAST_MODIFIED,controller.getDateLastModified());
+          }
+ else {
+            res.setDateHeader(C_HEADER_LAST_MODIFIED,System.currentTimeMillis());
+          }
           CmsFlexResponse.processHeaders(f_res.getHeaders(),res);
           res.getOutputStream().write(result);
           res.getOutputStream().flush();
