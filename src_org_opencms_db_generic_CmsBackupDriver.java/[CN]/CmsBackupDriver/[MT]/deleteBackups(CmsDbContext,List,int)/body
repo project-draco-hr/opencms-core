@@ -1,18 +1,25 @@
 {
-  PreparedStatement stmt1=null;
+  PreparedStatement stmt1a=null;
+  PreparedStatement stmt1b=null;
+  PreparedStatement stmt1c=null;
   PreparedStatement stmt2=null;
   Connection conn=null;
   CmsBackupResource currentResource=null;
   int count=existingBackups.size() - maxVersions;
   try {
     conn=m_sqlManager.getConnection(dbc);
-    stmt1=m_sqlManager.getPreparedStatement(conn,"C_BACKUP_DELETE_RESOURCE");
+    stmt1a=m_sqlManager.getPreparedStatement(conn,"C_BACKUP_DELETE_CONTENTS_BYBACKUPID");
+    stmt1b=m_sqlManager.getPreparedStatement(conn,"C_BACKUP_DELETE_STRUCTURE_BYBACKUPID");
+    stmt1c=m_sqlManager.getPreparedStatement(conn,"C_BACKUP_DELETE_RESOURCES_BYBACKUPID");
     stmt2=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_DELETEALL_BACKUP");
     for (int i=0; i < count; i++) {
       currentResource=(CmsBackupResource)existingBackups.get(i);
-      stmt1.setString(1,currentResource.getStructureId().toString());
-      stmt1.setInt(2,currentResource.getTagId());
-      stmt1.addBatch();
+      stmt1a.setString(1,currentResource.getBackupId().toString());
+      stmt1a.addBatch();
+      stmt1b.setString(1,currentResource.getBackupId().toString());
+      stmt1b.addBatch();
+      stmt1c.setString(1,currentResource.getBackupId().toString());
+      stmt1c.addBatch();
       stmt2.setString(1,currentResource.getBackupId().toString());
       stmt2.setInt(2,currentResource.getTagId());
       stmt2.setString(3,currentResource.getStructureId().toString());
@@ -22,7 +29,9 @@
       stmt2.addBatch();
     }
     if (count > 0) {
-      stmt1.executeBatch();
+      stmt1a.executeBatch();
+      stmt1b.executeBatch();
+      stmt1c.executeBatch();
       stmt2.executeBatch();
     }
   }
@@ -33,7 +42,9 @@ catch (  Exception ex) {
     throw new CmsDataAccessException(ex);
   }
  finally {
-    m_sqlManager.closeAll(dbc,conn,stmt1,null);
+    m_sqlManager.closeAll(dbc,conn,stmt1a,null);
+    m_sqlManager.closeAll(dbc,null,stmt1b,null);
+    m_sqlManager.closeAll(dbc,null,stmt1c,null);
     m_sqlManager.closeAll(dbc,null,stmt2,null);
   }
 }
