@@ -1,0 +1,84 @@
+{
+  StringTokenizer tokens=null;
+  int folderCount=0;
+  boolean lastResourceIsFile=false;
+  List pathList=null;
+  String currentResourceName=null;
+  String currentPath=null;
+  CmsResource currentResource=null;
+  int i=0, count=0;
+  String cacheKey=null;
+  CmsResource lastParent=null;
+  boolean visitedLockedFolder=false;
+  int lockedInProject=context.currentProject().getId();
+  CmsUUID lockedByUserId=CmsUUID.getNullUUID();
+  tokens=new StringTokenizer(path,I_CmsConstants.C_FOLDER_SEPARATOR);
+  count=tokens.countTokens() + 1;
+  pathList=(List)new ArrayList(count);
+  folderCount=count;
+  if (!path.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+    folderCount--;
+    lastResourceIsFile=true;
+  }
+  currentResourceName=currentPath=I_CmsConstants.C_ROOT;
+  cacheKey=getCacheKey(null,context.currentUser(),context.currentProject(),currentPath);
+  if ((currentResource=(CmsResource)m_resourceCache.get(cacheKey)) == null) {
+    currentResource=(CmsResource)m_vfsDriver.readFolder(context.currentProject().getId(),CmsUUID.getNullUUID(),currentResourceName);
+    currentResource.setFullResourceName(currentPath);
+    m_resourceCache.put(cacheKey,currentResource);
+  }
+  pathList.add(0,currentResource);
+  lastParent=currentResource;
+  if (count == 1) {
+    return pathList;
+  }
+  if (currentResource.isLocked()) {
+    visitedLockedFolder=true;
+    lockedInProject=currentResource.getLockedInProject();
+    lockedByUserId=currentResource.isLockedBy();
+  }
+  currentResourceName=tokens.nextToken();
+  for (i=1; i < folderCount; i++) {
+    currentPath+=currentResourceName + I_CmsConstants.C_FOLDER_SEPARATOR;
+    cacheKey=getCacheKey(null,context.currentUser(),context.currentProject(),currentPath);
+    if ((currentResource=(CmsResource)m_resourceCache.get(cacheKey)) == null) {
+      currentResource=(CmsResource)m_vfsDriver.readFolder(context.currentProject().getId(),lastParent.getId(),currentResourceName);
+      currentResource.setFullResourceName(currentPath);
+      m_resourceCache.put(cacheKey,currentResource);
+    }
+    if (visitedLockedFolder) {
+      currentResource.setLocked(lockedByUserId);
+      currentResource.setLockedInProject(lockedInProject);
+      currentResource.setProjectId(lockedInProject);
+      m_resourceCache.put(cacheKey,currentResource);
+    }
+ else     if (currentResource.isLocked()) {
+      visitedLockedFolder=true;
+      lockedInProject=currentResource.getLockedInProject();
+      lockedByUserId=currentResource.isLockedBy();
+    }
+    pathList.add(i,currentResource);
+    lastParent=currentResource;
+    if (i < folderCount - 1) {
+      currentResourceName=tokens.nextToken();
+    }
+  }
+  if (lastResourceIsFile) {
+    currentResourceName=tokens.nextToken();
+    currentPath+=currentResourceName;
+    cacheKey=getCacheKey(null,context.currentUser(),context.currentProject(),currentPath);
+    if ((currentResource=(CmsResource)m_resourceCache.get(cacheKey)) == null) {
+      currentResource=(CmsResource)m_vfsDriver.readFileHeader(context.currentProject().getId(),lastParent.getId(),currentResourceName,includeDeleted);
+      currentResource.setFullResourceName(currentPath);
+      m_resourceCache.put(cacheKey,currentResource);
+    }
+    if (visitedLockedFolder && !currentResource.isLocked()) {
+      currentResource.setLocked(lockedByUserId);
+      currentResource.setLockedInProject(lockedInProject);
+      currentResource.setProjectId(lockedInProject);
+      m_resourceCache.put(cacheKey,currentResource);
+    }
+    pathList.add(i,currentResource);
+  }
+  return pathList;
+}

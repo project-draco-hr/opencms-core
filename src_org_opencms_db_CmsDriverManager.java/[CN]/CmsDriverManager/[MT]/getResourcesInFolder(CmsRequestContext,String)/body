@@ -1,0 +1,37 @@
+{
+  CmsFolder offlineFolder=null;
+  Vector resources=new Vector();
+  Vector retValue=new Vector();
+  try {
+    offlineFolder=readFolder(context,folder);
+    if (offlineFolder.getState() == I_CmsConstants.C_STATE_DELETED) {
+      offlineFolder=null;
+    }
+  }
+ catch (  CmsException exc) {
+  }
+  if (offlineFolder == null) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ folder,CmsException.C_NOT_FOUND);
+  }
+ else {
+    String cacheKey=getCacheKey(context.currentUser().getName() + "_resources",context.currentUser(),context.currentProject(),offlineFolder.getFullResourceName());
+    retValue=(Vector)m_resourceListCache.get(cacheKey);
+    if (retValue == null || retValue.size() == 0) {
+      resources=m_vfsDriver.getResourcesInFolder(context.currentProject().getId(),offlineFolder);
+      retValue=new Vector(resources.size());
+      for (Enumeration e=resources.elements(); e.hasMoreElements(); ) {
+        CmsResource res=(CmsResource)e.nextElement();
+        if (hasPermissions(context,res,I_CmsConstants.C_VIEW_ACCESS,false)) {
+          retValue.addElement(res);
+        }
+        if (offlineFolder.isLocked()) {
+          res.setLocked(offlineFolder.isLockedBy());
+          res.setLockedInProject(offlineFolder.getLockedInProject());
+          res.setProjectId(offlineFolder.getLockedInProject());
+        }
+      }
+      m_resourceListCache.put(cacheKey,retValue);
+    }
+  }
+  return (retValue == null) ? null : (Vector)retValue.clone();
+}

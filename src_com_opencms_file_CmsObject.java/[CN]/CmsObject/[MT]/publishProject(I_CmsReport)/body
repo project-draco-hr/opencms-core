@@ -1,0 +1,107 @@
+{
+  Vector newResources=null;
+  Vector deletedResources=null;
+  Vector changedResources=null;
+  Vector changedModuleMasters=null;
+  boolean success=false;
+  CmsPublishedResources publishedResources=null;
+  clearcache();
+  publishedResources=new CmsPublishedResources();
+  try {
+    newResources=readProjectView(m_context.currentProject().getId(),"new");
+    deletedResources=readProjectView(m_context.currentProject().getId(),"deleted");
+    changedResources=readProjectView(m_context.currentProject().getId(),"changed");
+    updateOnlineProjectLinks(deletedResources,changedResources,null,this.getResourceType(C_TYPE_PAGE_NAME).getResourceType());
+    publishedResources=m_driverManager.publishProject(this,m_context,report);
+    updateOnlineProjectLinks(null,null,newResources,this.getResourceType(C_TYPE_PAGE_NAME).getResourceType());
+    changedResources.clear();
+    changedResources=null;
+    newResources=null;
+    changedResources=publishedResources.getChangedResources();
+    changedModuleMasters=publishedResources.getChangedModuleMasters();
+    if (getOnlineElementCache() != null) {
+      getOnlineElementCache().cleanupCache(changedResources,changedModuleMasters);
+    }
+    clearcache();
+    if (getStaticExportProperties().isStaticExportEnabled()) {
+      try {
+        int oldId=m_context.currentProject().getId();
+        m_context.setCurrentProject(C_PROJECT_ONLINE_ID);
+        Vector linkChanges=new Vector();
+        Vector allExportedLinks=new Vector();
+        this.exportStaticResources(getStaticExportProperties().getStartPoints(),linkChanges,allExportedLinks,publishedResources,report);
+        m_context.setCurrentProject(oldId);
+        Utils.getModulPublishMethods(this,linkChanges);
+        this.fireEvent(com.opencms.flex.I_CmsEventListener.EVENT_STATIC_EXPORT,allExportedLinks);
+      }
+ catch (      Exception ex) {
+        if (DEBUG > 0) {
+          System.err.println("Error while exporting static resources:");
+          ex.printStackTrace();
+        }
+        if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishProject()/0] Error while exporting static resources.");
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishProject()/0] Exception was: "+ ex);
+        }
+      }
+    }
+ else {
+      if ("false_ssl".equalsIgnoreCase(getStaticExportProperties().getStaticExportEnabledValue())) {
+        int oldId=m_context.currentProject().getId();
+        m_context.setCurrentProject(C_PROJECT_ONLINE_ID);
+        new CmsStaticExport(this,null,false,null,null,null,null);
+        m_context.setCurrentProject(oldId);
+      }
+    }
+    success=true;
+  }
+ catch (  Exception e) {
+    String stamp1="[" + this.getClass().getName() + ".publishProject()/1] Project:"+ m_context.currentProject().getId()+ " Time:"+ new Date();
+    String stamp2="[" + this.getClass().getName() + ".publishProject()/1] User: "+ m_context.currentUser().toString();
+    if (DEBUG > 0) {
+      System.err.println("###################################");
+      System.err.println(stamp1);
+      System.err.println(stamp2);
+      e.printStackTrace();
+      System.err.println("Vector of changed resources:");
+      if (changedResources != null) {
+        for (int i=0; i < changedResources.size(); i++) {
+          System.err.println("    -- " + i + " -->"+ (String)changedResources.elementAt(i)+ "<--");
+        }
+      }
+    }
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,stamp1);
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,stamp2);
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishProject()/1] Exception: "+ e);
+    }
+  }
+ finally {
+    if (changedResources == null || changedResources.size() < 1) {
+      String stamp1="[" + this.getClass().getName() + ".publishProject()/2] Project:"+ m_context.currentProject().getId()+ " Time:"+ new Date();
+      String stamp2="[" + this.getClass().getName() + ".publishProject()/2] User: "+ m_context.currentUser().toString();
+      String stamp3="[" + this.getClass().getName() + ".publishProject()/2] Vector was null or empty";
+      if (DEBUG > 0) {
+        System.err.println("###################################");
+        System.err.println(stamp1);
+        System.err.println(stamp2);
+        System.err.println(stamp3);
+      }
+      if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_DEBUG)) {
+        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_DEBUG,stamp1);
+        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_DEBUG,stamp2);
+        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_DEBUG,stamp3);
+      }
+      success=false;
+    }
+    if (!success) {
+      if (getOnlineElementCache() != null)       getOnlineElementCache().clearCache();
+    }
+    if (m_context.currentProject().getId() == m_context.currentProject().getId() && (m_context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_TEMPORARY)) {
+      m_context.setCurrentProject(C_PROJECT_ONLINE_ID);
+    }
+  }
+  CmsProject onlineProject=this.readProject(I_CmsConstants.C_PROJECT_ONLINE_ID);
+  this.joinLinksToTargets(onlineProject,report);
+  this.fireEvent(com.opencms.flex.I_CmsEventListener.EVENT_PUBLISH_PROJECT,m_context.currentProject());
+}

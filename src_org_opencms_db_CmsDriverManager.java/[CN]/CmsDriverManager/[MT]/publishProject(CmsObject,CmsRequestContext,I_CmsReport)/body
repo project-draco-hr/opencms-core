@@ -1,0 +1,85 @@
+{
+  CmsPublishedResources allChanged=new CmsPublishedResources();
+  Vector changedResources=new Vector();
+  Vector changedModuleMasters=new Vector();
+  int publishProjectId=context.currentProject().getId();
+  if ((isAdmin(context) || isManagerOfProject(context)) && (context.currentProject().getFlags() == I_CmsConstants.C_PROJECT_STATE_UNLOCKED) && (publishProjectId != I_CmsConstants.C_PROJECT_ONLINE_ID)) {
+    try {
+      changedResources=m_projectDriver.publishProject(context,readProject(I_CmsConstants.C_PROJECT_ONLINE_ID),isHistoryEnabled(cms),report,m_registry.getExportpoints());
+      Vector publishModules=new Vector();
+      cms.getRegistry().getModulePublishables(publishModules,null);
+      int versionId=0;
+      long publishDate=System.currentTimeMillis();
+      if (isHistoryEnabled(cms)) {
+        versionId=m_backupDriver.nextBackupVersionId();
+        if (versionId > 1) {
+          versionId--;
+        }
+        try {
+          publishDate=m_backupDriver.readBackupProject(versionId).getPublishingDate();
+        }
+ catch (        CmsException e) {
+        }
+        if (publishDate == 0) {
+          publishDate=System.currentTimeMillis();
+        }
+      }
+      for (int i=0; i < publishModules.size(); i++) {
+        try {
+          Class.forName((String)publishModules.elementAt(i)).getMethod("publishProject",new Class[]{CmsObject.class,Boolean.class,Integer.class,Integer.class,Long.class,Vector.class,Vector.class}).invoke(null,new Object[]{cms,new Boolean(isHistoryEnabled(cms)),new Integer(publishProjectId),new Integer(versionId),new Long(publishDate),changedResources,changedModuleMasters});
+        }
+ catch (        ClassNotFoundException ec) {
+          report.println(report.key("report.publish_class_for_module_does_not_exist_1") + (String)publishModules.elementAt(i) + report.key("report.publish_class_for_module_does_not_exist_2"),I_CmsReport.C_FORMAT_WARNING);
+          if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INFO)) {
+            A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"Error calling publish class of module " + (String)publishModules.elementAt(i) + "!: "+ ec.getMessage());
+          }
+        }
+catch (        Exception ex) {
+          report.println(ex);
+          if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INFO)) {
+            A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"Error when publish data of module " + (String)publishModules.elementAt(i) + "!: "+ ex.getMessage());
+          }
+        }
+      }
+    }
+ catch (    CmsException e) {
+      throw e;
+    }
+ finally {
+      this.clearResourceCache();
+      fileSystemChanged(true);
+      if (context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_TEMPORARY) {
+        m_projectDriver.deleteProject(context.currentProject());
+        try {
+          m_projectCache.remove(new Integer(publishProjectId));
+        }
+ catch (        Exception e) {
+          if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+            A_OpenCms.log(A_OpenCms.C_OPENCMS_CACHE,"Could not remove project " + publishProjectId + " from cache");
+          }
+        }
+        if (publishProjectId == context.currentProject().getId()) {
+          cms.getRequestContext().setCurrentProject(I_CmsConstants.C_PROJECT_ONLINE_ID);
+        }
+      }
+      if (m_refresh.length() > 0) {
+        try {
+          URL url=new URL(m_refresh);
+          URLConnection con=url.openConnection();
+          con.connect();
+          InputStream in=con.getInputStream();
+          in.close();
+        }
+ catch (        Exception ex) {
+          throw new CmsException(0,ex);
+        }
+      }
+    }
+  }
+ else {
+    throw new CmsException("[" + getClass().getName() + "] could not publish project "+ publishProjectId,CmsException.C_NO_ACCESS);
+  }
+  allChanged.setChangedResources(changedResources);
+  allChanged.setChangedModuleMasters(changedModuleMasters);
+  return allChanged;
+}

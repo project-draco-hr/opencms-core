@@ -1,0 +1,22 @@
+{
+  CmsResource res=resource;
+  CmsAccessControlList acList=(CmsAccessControlList)m_accessControlListCache.get(getCacheKey(inheritedOnly + "_",null,context.currentProject(),resource.getId().toString()));
+  ListIterator acEntries=null;
+  CmsUUID resourceId=null;
+  if (acList != null)   return acList;
+  if (!(resourceId=res.getParentId()).isNullUUID()) {
+    res=m_vfsDriver.readFolder(context.currentProject().getId(),resourceId);
+    acList=(CmsAccessControlList)getAccessControlList(context,res,true).clone();
+  }
+ else {
+    acList=new CmsAccessControlList();
+  }
+  acEntries=m_userDriver.getAccessControlEntries(context.currentProject(),resource.getResourceAceId(),inheritedOnly).listIterator();
+  while (acEntries.hasNext()) {
+    CmsAccessControlEntry acEntry=(CmsAccessControlEntry)acEntries.next();
+    if ((acEntry.getFlags() & I_CmsConstants.C_ACCESSFLAGS_OVERWRITE) > 0)     acList.setAllowedPermissions(acEntry);
+ else     acList.add(acEntry);
+  }
+  m_accessControlListCache.put(getCacheKey(inheritedOnly + "_",null,context.currentProject(),resource.getId().toString()),acList);
+  return acList;
+}

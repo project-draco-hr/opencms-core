@@ -1,0 +1,38 @@
+{
+  List subResources=null;
+  CmsFolder parentFolder=null;
+  CmsResource currentResource=null;
+  String cacheKey=null;
+  if (getSubFolders) {
+    cacheKey=getCacheKey(context.currentUser().getName() + "_folders",context.currentUser(),context.currentProject(),parentFolderName);
+  }
+ else {
+    cacheKey=getCacheKey(context.currentUser().getName() + "_files_" + includeDeleted,context.currentUser(),context.currentProject(),parentFolderName);
+  }
+  subResources=(List)m_resourceListCache.get(cacheKey);
+  try {
+    if (!parentFolderName.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+      parentFolderName+=I_CmsConstants.C_FOLDER_SEPARATOR;
+    }
+    parentFolder=readFolder(context,parentFolderName,includeDeleted);
+    checkPermissions(context,parentFolder,I_CmsConstants.C_READ_ACCESS);
+  }
+ catch (  CmsException e) {
+    return (List)new ArrayList(0);
+  }
+  if ((parentFolder.getState() == I_CmsConstants.C_STATE_DELETED) && (!includeDeleted)) {
+    return (List)new ArrayList(0);
+  }
+  if (subResources != null && subResources.size() > 0) {
+    return subResources;
+  }
+  subResources=m_vfsDriver.getSubResources(context.currentProject(),parentFolder,getSubFolders);
+  for (int i=0; i < subResources.size(); i++) {
+    currentResource=(CmsResource)subResources.get(i);
+    if (!hasPermissions(context,currentResource,I_CmsConstants.C_READ_ACCESS,false)) {
+      subResources.remove(i--);
+    }
+  }
+  m_resourceListCache.put(cacheKey,subResources);
+  return subResources;
+}

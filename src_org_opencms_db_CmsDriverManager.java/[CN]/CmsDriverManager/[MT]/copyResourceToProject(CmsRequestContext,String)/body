@@ -1,0 +1,31 @@
+{
+  if ((!context.currentProject().isOnlineProject()) && (isManagerOfProject(context)) && (context.currentProject().getFlags() == I_CmsConstants.C_PROJECT_STATE_UNLOCKED)) {
+    CmsResource offlineRes=null;
+    try {
+      clearResourceCache();
+      m_accessCache.clear();
+      offlineRes=readFileHeaderInProject(context,context.currentProject().getId(),resource);
+    }
+ catch (    CmsException exc) {
+    }
+    if ((offlineRes == null) || (offlineRes.getProjectId() != context.currentProject().getId())) {
+      if (resource.endsWith("/")) {
+        Vector projectResources=m_projectDriver.readAllProjectResources(context.currentProject().getId());
+        for (int i=0; i < projectResources.size(); i++) {
+          String resname=(String)projectResources.elementAt(i);
+          if (resname.startsWith(resource)) {
+            m_vfsDriver.deleteProjectResource(context.currentProject().getId(),resname);
+          }
+        }
+      }
+      try {
+        m_vfsDriver.createProjectResource(context.currentProject().getId(),resource);
+      }
+ catch (      CmsException exc) {
+      }
+    }
+  }
+ else {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ context.currentProject().getName(),CmsException.C_NO_ACCESS);
+  }
+}
