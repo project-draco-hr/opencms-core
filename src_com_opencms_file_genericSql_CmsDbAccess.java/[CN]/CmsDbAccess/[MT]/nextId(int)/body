@@ -1,11 +1,12 @@
 {
   int newId=C_UNKNOWN_INT;
+  PreparedStatement firstStatement=null;
   PreparedStatement statement=null;
   ResultSet res=null;
   try {
-    statement=m_pool.getIdStatement(C_SYSTEMID_LOCK_KEY);
-    statement.executeUpdate();
-    statement=m_pool.getIdStatement(C_SYSTEMID_READ_KEY);
+    firstStatement=m_pool.getPreparedStatement(C_SYSTEMID_LOCK_KEY);
+    firstStatement.executeUpdate();
+    statement=m_pool.getNextPreparedStatement(firstStatement,C_SYSTEMID_READ_KEY);
     statement.setInt(1,key);
     res=statement.executeQuery();
     if (res.next()) {
@@ -13,14 +14,16 @@
       res.close();
     }
  else {
+      res.close();
       throw new CmsException("[" + this.getClass().getName() + "] "+ " cant read Id! ",CmsException.C_NO_GROUP);
     }
-    statement=m_pool.getIdStatement(C_SYSTEMID_WRITE_KEY);
+    statement=m_pool.getNextPreparedStatement(firstStatement,C_SYSTEMID_WRITE_KEY);
     statement.setInt(1,newId + 1);
     statement.setInt(2,key);
     statement.executeUpdate();
-    statement=m_pool.getIdStatement(C_SYSTEMID_UNLOCK_KEY);
+    statement=m_pool.getNextPreparedStatement(firstStatement,C_SYSTEMID_UNLOCK_KEY);
     statement.executeUpdate();
+    m_pool.putPreparedStatement(C_SYSTEMID_LOCK_KEY,firstStatement);
   }
  catch (  SQLException e) {
     throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
