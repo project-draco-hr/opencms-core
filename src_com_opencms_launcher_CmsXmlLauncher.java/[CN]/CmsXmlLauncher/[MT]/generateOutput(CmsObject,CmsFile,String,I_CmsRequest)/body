@@ -1,9 +1,16 @@
 {
   byte[] output=null;
   Hashtable newParameters=new Hashtable();
+  String uri=cms.getRequestContext().getUri();
+  String absolutePath=cms.readAbsolutePath(file);
+  String templateProp=cms.readProperty(absolutePath,"template");
+  String xmlTemplateContent=null;
+  if (templateProp != null) {
+    xmlTemplateContent="<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n" + "<PAGE>\n<class>com.opencms.template.CmsXmlTemplate</class>\n" + "<masterTemplate>" + templateProp + "</masterTemplate>\n<ELEMENTDEF name=\"body\">\n"+ "<CLASS>com.opencms.template.CmsXmlTemplate</CLASS>\n<TEMPLATE>"+ uri+ "</TEMPLATE>\n</ELEMENTDEF>\n</PAGE>\n";
+    uri+=C_XML_CONTROL_FILE;
+  }
   boolean elementCacheEnabled=cms.getRequestContext().isElementCacheEnabled();
   CmsElementCache elementCache=null;
-  String uri=cms.getRequestContext().getUri();
   CmsUriDescriptor uriDesc=null;
   CmsUriLocator uriLoc=null;
   CmsUri cmsUri=null;
@@ -29,7 +36,12 @@
   }
   if (cmsUri == null || !elementCacheEnabled) {
     try {
-      doc=new CmsXmlControlFile(cms,file);
+      if (xmlTemplateContent == null) {
+        doc=new CmsXmlControlFile(cms,file);
+      }
+ else {
+        doc=new CmsXmlControlFile(cms,uri,xmlTemplateContent);
+      }
     }
  catch (    Exception e) {
       handleException(cms,e,"There was an error while parsing XML page file " + cms.readAbsolutePath(file));
@@ -64,7 +76,9 @@
       }
       if (doc.isElementTemplateDefined(elementName)) {
         String template=doc.getElementTemplate(elementName);
-        template=doc.validateBodyPath(cms,template,file);
+        if (xmlTemplateContent == null) {
+          template=doc.validateBodyPath(cms,template,file);
+        }
         if (I_CmsConstants.C_XML_BODY_ELEMENT.equalsIgnoreCase(elementName)) {
           if (template != null) {
             cms.getRequestContext().setAttribute(I_CmsConstants.C_XML_BODY_ELEMENT,template);
@@ -143,7 +157,7 @@
       output=cmsUri.callCanonicalRoot(elementCache,cms,newParameters);
     }
  else {
-      output=elementCache.callCanonicalRoot(cms,newParameters);
+      output=elementCache.callCanonicalRoot(cms,newParameters,uri);
     }
   }
  else {
