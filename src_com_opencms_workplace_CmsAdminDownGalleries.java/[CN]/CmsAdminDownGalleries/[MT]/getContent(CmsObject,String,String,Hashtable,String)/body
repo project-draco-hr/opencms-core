@@ -6,6 +6,13 @@
     session.removeValue(C_PARA_FOLDER);
   }
   String lasturl=getLastUrl(cms,parameters);
+  String unzip=(String)parameters.get("unzip");
+  String nofolder=(String)parameters.get("NOFOLDER");
+  String newtype=(String)parameters.get(C_PARA_NEWTYPE);
+  if (newtype != null) {
+    session.putValue(C_PARA_NEWTYPE,newtype);
+  }
+  newtype=(String)session.getValue(C_PARA_NEWTYPE);
   String foldername=(String)parameters.get(C_PARA_FOLDER);
   if (foldername != null) {
     try {
@@ -33,6 +40,7 @@
   String newname=(String)parameters.get(C_PARA_NAME);
   String title=(String)parameters.get("TITLE");
   String step=(String)parameters.get("step");
+  String filename=null;
   if (foldername == null) {
     foldername="";
   }
@@ -84,7 +92,6 @@
   }
  else {
     if ("upload".equals(action)) {
-      String filename=null;
       byte[] filecontent=new byte[0];
       Enumeration files=cms.getRequestContext().getRequest().getFileNames();
       while (files.hasMoreElements()) {
@@ -112,29 +119,95 @@
               xmlTemplateDocument.setData("details",filename);
             }
  else {
-              xmlTemplateDocument.setData("MIME",filename);
-              xmlTemplateDocument.setData("SIZE","Not yet available");
-              xmlTemplateDocument.setData("FILESIZE",new Integer(filecontent.length).toString() + " Bytes");
-              xmlTemplateDocument.setData("FILENAME",filename);
+              if (unzip != null) {
+                boolean noSubFolder=(nofolder != null ? true : false);
+                CmsImportFolder zip=new CmsImportFolder(filecontent,foldername,cms,noSubFolder);
+                if (zip.isValidZipFile()) {
+                  session.removeValue(C_PARA_FILE);
+                  session.removeValue(C_PARA_FILECONTENT);
+                  session.removeValue(C_PARA_NEWTYPE);
+                  try {
+                    if ((lasturl != null) && (lasturl != "")) {
+                      cms.getRequestContext().getResponse().sendRedirect(lasturl);
+                    }
+ else {
+                      cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+                    }
+                  }
+ catch (                  Exception ex) {
+                    throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,ex);
+                  }
+                  return null;
+                }
+              }
               templateSelector="step1";
             }
           }
         }
  else {
           if ("2".equals(step)) {
-            if (newname != null) {
-              filename=newname;
+            I_CmsResourceType type=cms.getResourceType(newtype);
+            if (newtype.equals(C_TYPE_IMAGE_NAME)) {
+              templateSelector="image";
+              xmlTemplateDocument.setData("MIME",filename);
+              xmlTemplateDocument.setData("SIZE","Not yet available");
+              xmlTemplateDocument.setData("FILESIZE",new Integer(filecontent.length).toString() + " Bytes");
             }
-            CmsFile file=cms.createFile(foldername,filename,filecontent,C_TYPE_PLAIN_NAME);
-            if (title != null) {
-              String filepath=file.getAbsolutePath();
-              cms.writeProperty(filepath,C_PROPERTY_TITLE,title);
+ else {
+              try {
+                cms.createResource(foldername,filename,type.getResourceTypeName(),new Hashtable(),filecontent);
+              }
+ catch (              CmsException e) {
+                session.removeValue(C_PARA_FILE);
+                session.removeValue(C_PARA_FILECONTENT);
+                session.removeValue(C_PARA_NEWTYPE);
+                xmlTemplateDocument.setData("details",Utils.getStackTrace(e));
+                return startProcessing(cms,xmlTemplateDocument,"",parameters,"error2");
+              }
+              session.removeValue(C_PARA_FILE);
+              session.removeValue(C_PARA_FILECONTENT);
+              session.removeValue(C_PARA_NEWTYPE);
+              try {
+                if ((lasturl != null) && (lasturl != "")) {
+                  cms.getRequestContext().getResponse().sendRedirect(lasturl);
+                }
+ else {
+                  cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+                }
+              }
+ catch (              Exception ex) {
+                throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,ex);
+              }
+              return null;
             }
-            try {
-              cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + lasturl);
-            }
- catch (            Exception ex) {
-              throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + lasturl,CmsException.C_UNKNOWN_EXCEPTION,ex);
+          }
+ else {
+            if ("3".equals(step)) {
+              if (newname != null) {
+                filename=newname;
+              }
+              I_CmsResourceType type=cms.getResourceType(newtype);
+              Hashtable prop=new Hashtable();
+              if (title != null) {
+                prop.put(C_PROPERTY_TITLE,title);
+              }
+              CmsResource file=cms.createResource(foldername,filename,type.getResourceTypeName(),prop,filecontent);
+              session.removeValue(C_PARA_FILE);
+              session.removeValue(C_PARA_FILECONTENT);
+              session.removeValue(C_PARA_NEWTYPE);
+              session.removeValue("lasturl");
+              try {
+                if ((lasturl != null) && (lasturl != "")) {
+                  cms.getRequestContext().getResponse().sendRedirect(lasturl);
+                }
+ else {
+                  cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+                }
+              }
+ catch (              Exception ex) {
+                throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,ex);
+              }
+              return null;
             }
           }
         }
@@ -143,5 +216,8 @@
   }
   xmlTemplateDocument.setData("link_value",foldername);
   xmlTemplateDocument.setData("lasturl",lasturl);
+  if (filename != null) {
+    xmlTemplateDocument.setData("FILENAME",filename);
+  }
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }
