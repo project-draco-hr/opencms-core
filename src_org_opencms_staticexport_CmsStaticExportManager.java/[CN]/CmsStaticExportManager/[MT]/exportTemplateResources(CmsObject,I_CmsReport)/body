@@ -6,9 +6,6 @@
   int count=1;
   report.println(report.key("report.staticexport.templateresources_begin"),I_CmsReport.C_FORMAT_HEADLINE);
   Iterator i=publishedTemplateResources.iterator();
-  HttpClient client=new HttpClient();
-  Header exportHeader=new Header(I_CmsConstants.C_HEADER_OPENCMS_EXPORT,"true");
-  Header lastModified;
   try {
     cms.getRequestContext().saveSiteRoot();
     cms.getRequestContext().setSiteRoot("/");
@@ -20,18 +17,34 @@
       report.print(report.key("report.dots"));
       url=getExportUrl() + getRfsPrefix() + rfsName;
       if (url != null) {
-        HttpMethod method=new GetMethod(url);
-        method.addRequestHeader(exportHeader);
-        String exportFileName=CmsLinkManager.normalizeRfsPath(getExportPath() + rfsName.substring(1));
-        File exportFile=new File(exportFileName);
-        if (exportFile != null) {
-          long timestamp=exportFile.lastModified();
-          lastModified=new Header(I_CmsConstants.C_HEADER_IF_MODIFIED_SINCE,new Long(timestamp).toString());
-          method.addRequestHeader(lastModified);
+        try {
+          URL export=new URL(url);
+          HttpURLConnection.setFollowRedirects(false);
+          HttpURLConnection urlcon=(HttpURLConnection)export.openConnection();
+          urlcon.setRequestMethod("GET");
+          urlcon.setRequestProperty(I_CmsConstants.C_HEADER_OPENCMS_EXPORT,"true");
+          String exportFileName=CmsLinkManager.normalizeRfsPath(getExportPath() + rfsName.substring(1));
+          File exportFile=new File(exportFileName);
+          if (exportFile != null) {
+            long dateLastModified=exportFile.lastModified();
+            urlcon.setIfModifiedSince(dateLastModified);
+          }
+          urlcon.connect();
+          int result=urlcon.getResponseCode();
+          urlcon.disconnect();
+          if (result == HttpServletResponse.SC_OK) {
+            report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+          }
+ else           if (result == HttpServletResponse.SC_NOT_MODIFIED) {
+            report.println(report.key("search.indexing_file_skipped"),I_CmsReport.C_FORMAT_NOTE);
+          }
+ else {
+            report.println(String.valueOf(result),I_CmsReport.C_FORMAT_OK);
+          }
         }
-        client.executeMethod(method);
-        report.println(report.key("report.ok") + " ",I_CmsReport.C_FORMAT_OK);
-        method.releaseConnection();
+ catch (        IOException e) {
+          report.println(e);
+        }
       }
     }
   }

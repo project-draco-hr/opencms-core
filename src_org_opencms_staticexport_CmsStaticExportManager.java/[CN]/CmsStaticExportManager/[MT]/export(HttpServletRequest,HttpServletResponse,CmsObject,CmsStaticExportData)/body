@@ -28,12 +28,6 @@
   if (OpenCms.getLinkManager().exportRequired(cms,vfsName)) {
     createExportFolder(rfsName);
     exportFile=new File(exportFileName);
-    try {
-      exportStream=new FileOutputStream(exportFile);
-    }
- catch (    Throwable t) {
-      throw new CmsException("Creation of static export output stream failed for RFS file " + exportFileName);
-    }
   }
   if (exportOnDemand) {
     String mimetype=OpenCms.getLoaderManager().getMimeType(file.getName(),cms.getRequestContext().getEncoding());
@@ -41,16 +35,23 @@
     oldUri=cms.getRequestContext().getUri();
     cms.getRequestContext().setUri(vfsName);
   }
-  loader.export(cms,file,exportStream,req,res);
-  if (req != null) {
-    Long timestamp=(Long)req.getAttribute(I_CmsConstants.C_HEADER_OPENCMS_EXPORT);
-    if (timestamp != null) {
-      exportFile.setLastModified(timestamp.longValue());
-    }
-  }
+  byte[] result=loader.export(cms,file,req,res);
   file=null;
-  if (exportStream != null) {
-    exportStream.close();
+  if (result != null) {
+    try {
+      exportStream=new FileOutputStream(exportFile);
+      exportStream.write(result);
+      exportStream.close();
+    }
+ catch (    Throwable t) {
+      throw new CmsException("Creation of static export output stream failed for RFS file " + exportFileName);
+    }
+    if (req != null) {
+      Long dateLastModified=(Long)req.getAttribute(I_CmsConstants.C_HEADER_OPENCMS_EXPORT);
+      if (dateLastModified != null) {
+        exportFile.setLastModified((dateLastModified.longValue() / 1000) * 1000);
+      }
+    }
   }
   if (exportOnDemand) {
     cms.getRequestContext().setUri(oldUri);
