@@ -1,0 +1,39 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing export an re-import of a module");
+  String moduleName="org.opencms.test.modules.testExport";
+  String moduleFile=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/" + moduleName + ".zip");
+  File file=new File(moduleFile);
+  if (file.exists()) {
+    file.delete();
+  }
+  CmsModule module=new CmsModule(moduleName,"A test module for export",null,"This is the description",new CmsModuleVersion("1.0"),"Alexander Kandzior","alex@opencms.org",System.currentTimeMillis(),null,0L,null,null,null,null);
+  OpenCms.getModuleManager().addModule(cms,module);
+  if (!OpenCms.getModuleManager().hasModule(moduleName)) {
+    fail("Module '" + moduleName + "' was not created!");
+  }
+  CmsModuleImportExportHandler moduleExportHandler=new CmsModuleImportExportHandler();
+  moduleExportHandler.setFileName(moduleFile);
+  moduleExportHandler.setAdditionalResources(new String[0]);
+  moduleExportHandler.setModuleName(moduleName.replace('\\','/'));
+  moduleExportHandler.setDescription("Module export of " + moduleExportHandler.getModuleName());
+  OpenCms.getImportExportManager().exportData(cms,moduleExportHandler,new CmsShellReport());
+  OpenCms.getModuleManager().deleteModule(cms,moduleName,false,new CmsShellReport());
+  if (OpenCms.getModuleManager().hasModule(moduleName)) {
+    fail("Module '" + moduleName + "' was not deleted!");
+  }
+  OpenCms.getImportExportManager().importData(cms,moduleFile,null,new CmsShellReport());
+  if (!OpenCms.getModuleManager().hasModule(moduleName)) {
+    fail("Module '" + moduleName + "' was not imported!");
+  }
+  CmsModule importedModule=OpenCms.getModuleManager().getModule(moduleName);
+  if (!module.isIdentical(importedModule)) {
+    fail("Impoted module not identical to original module!");
+  }
+  if (file.exists()) {
+    file.delete();
+  }
+ else {
+    fail("Module export file was not written to expected location!");
+  }
+}

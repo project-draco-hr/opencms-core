@@ -1,0 +1,99 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing module dependencies");
+  String moduleName="org.opencms.test.modules.test2";
+  String moduleFile=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/" + moduleName + ".zip");
+  boolean caughtException=false;
+  try {
+    OpenCms.getImportExportManager().importData(cms,moduleFile,null,new CmsShellReport());
+  }
+ catch (  CmsConfigurationException e) {
+    caughtException=true;
+  }
+  if (!caughtException || OpenCms.getModuleManager().hasModule(moduleName)) {
+    fail("Module '" + moduleName + "' was imported even though depdencies are not fullfilled!");
+  }
+  CmsModule module;
+  module=CmsModuleImportExportHandler.readModuleFromImport(moduleFile);
+  List dependencies=OpenCms.getModuleManager().checkDependencies(module,CmsModuleManager.C_DEPENDENCY_MODE_IMPORT);
+  if (dependencies.size() != 2) {
+    fail("Module '" + moduleName + "' has 2 dependencies, not "+ dependencies.size());
+  }
+  CmsModuleDependency dep1=new CmsModuleDependency("org.opencms.test.dependency1",new CmsModuleVersion("1.0"));
+  CmsModuleDependency dep2=new CmsModuleDependency("org.opencms.test.dependency2",new CmsModuleVersion("2.0"));
+  if (!dependencies.contains(dep1)) {
+    fail("Missing required dependency: " + dep1);
+  }
+  if (!dependencies.contains(dep2)) {
+    fail("Missing required dependency: " + dep2);
+  }
+  addDependency(cms,new CmsModuleDependency(dep1.getName(),new CmsModuleVersion("2.5")));
+  dependencies=OpenCms.getModuleManager().checkDependencies(module,CmsModuleManager.C_DEPENDENCY_MODE_IMPORT);
+  if (dependencies.size() != 1) {
+    fail("Module '" + moduleName + "' still needs 1 dependency, not "+ dependencies.size());
+  }
+  if (!dependencies.contains(dep2)) {
+    fail("Missing required dependency: " + dep2);
+  }
+  CmsModuleDependency dep3=new CmsModuleDependency("org.opencms.test.dependency2",new CmsModuleVersion("1.0"));
+  addDependency(cms,dep3);
+  dependencies=OpenCms.getModuleManager().checkDependencies(module,CmsModuleManager.C_DEPENDENCY_MODE_IMPORT);
+  if (dependencies.size() != 1) {
+    fail("Module '" + moduleName + "' still needs 1 dependency, not "+ dependencies.size());
+  }
+  if (!dependencies.contains(dep2)) {
+    fail("Missing required dependency: " + dep2);
+  }
+  addDependency(cms,dep2);
+  dependencies=OpenCms.getModuleManager().checkDependencies(module,CmsModuleManager.C_DEPENDENCY_MODE_IMPORT);
+  if (dependencies.size() != 0) {
+    fail("Module '" + moduleName + "' must have dependencies fullfilled");
+  }
+  OpenCms.getImportExportManager().importData(cms,moduleFile,null,new CmsShellReport());
+  module=OpenCms.getModuleManager().getModule(moduleName);
+  assertEquals(module.getNiceName(),"OpenCms configuration test module 2");
+  assertEquals(module.getDescription(),"Test 2 for the OpenCms module import");
+  assertEquals(module.getVersion(),new CmsModuleVersion("1.5"));
+  assertTrue(module.getActionClass() == null);
+  assertEquals(module.getAuthorName(),"Alexander Kandzior");
+  assertEquals(module.getAuthorEmail(),"alex@opencms.org");
+  assertEquals(module.getExportPoints().size(),2);
+  assertEquals(module.getResources().size(),1);
+  assertEquals(module.getResources().get(0),"/system/modules/org.opencms.test.modules.test2/");
+  assertEquals(module.getParameter("param1"),"value1");
+  assertEquals(module.getParameter("param2"),"value2");
+  caughtException=false;
+  try {
+    OpenCms.getModuleManager().deleteModule(cms,dep1.getName(),false,new CmsShellReport());
+  }
+ catch (  CmsConfigurationException e) {
+    caughtException=true;
+  }
+  if (!caughtException) {
+    fail("Deleting '" + dep1.getName() + "' must generate an error");
+  }
+  caughtException=false;
+  try {
+    OpenCms.getModuleManager().deleteModule(cms,dep2.getName(),false,new CmsShellReport());
+  }
+ catch (  CmsConfigurationException e) {
+    caughtException=true;
+  }
+  if (!caughtException) {
+    fail("Deleting '" + dep2.getName() + "' must generate an error");
+  }
+  CmsModuleDependency dep4=new CmsModuleDependency("org.opencms.test.modules.test2",new CmsModuleVersion("1.5"));
+  module=OpenCms.getModuleManager().getModule(dep1.getName());
+  dependencies=OpenCms.getModuleManager().checkDependencies(module,CmsModuleManager.C_DEPENDENCY_MODE_DELETE);
+  if (!dependencies.contains(dep4)) {
+    fail("Dependency not checked: " + dep4);
+  }
+  module=OpenCms.getModuleManager().getModule(dep2.getName());
+  dependencies=OpenCms.getModuleManager().checkDependencies(module,CmsModuleManager.C_DEPENDENCY_MODE_DELETE);
+  if (!dependencies.contains(dep4)) {
+    fail("Dependency not checked: " + dep4);
+  }
+  OpenCms.getModuleManager().deleteModule(cms,moduleName,false,new CmsShellReport());
+  OpenCms.getModuleManager().deleteModule(cms,dep1.getName(),false,new CmsShellReport());
+  OpenCms.getModuleManager().deleteModule(cms,dep2.getName(),false,new CmsShellReport());
+}
