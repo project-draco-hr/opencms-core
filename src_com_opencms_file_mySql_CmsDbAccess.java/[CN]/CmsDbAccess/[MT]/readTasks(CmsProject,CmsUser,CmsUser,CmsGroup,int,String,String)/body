@@ -1,81 +1,9 @@
 {
-  boolean first=true;
-  Vector tasks=new Vector();
-  CmsTask task=null;
-  ResultSet recset=null;
-  Connection con=null;
-  Statement statement=null;
-  String sqlstr="SELECT * FROM " + m_cq.get("C_TABLENAME_TASK") + " WHERE ";
-  if (project != null) {
-    sqlstr=sqlstr + m_cq.get("C_TASK_ROOT") + "="+ project.getTaskId();
-    first=false;
+  Vector v=super.readTasks(project,agent,owner,role,tasktype,orderBy,sort);
+  for (int i=0; i < v.size(); i++) {
+    CmsTask task=(CmsTask)v.elementAt(i);
+    task.setName(unescape(task.getName()));
+    v.set(i,task);
   }
- else {
-    sqlstr=sqlstr + m_cq.get("C_TASK_ROOT") + "<>0 AND "+ m_cq.get("C_TASK_PARENT")+ "<>0";
-    first=false;
-  }
-  if (agent != null) {
-    if (!first) {
-      sqlstr=sqlstr + " AND ";
-    }
-    sqlstr=sqlstr + m_cq.get("C_TASK_AGENTUSER") + "="+ agent.getId();
-    first=false;
-  }
-  if (owner != null) {
-    if (!first) {
-      sqlstr=sqlstr + " AND ";
-    }
-    sqlstr=sqlstr + m_cq.get("C_TASK_INITIATORUSER") + "="+ owner.getId();
-    first=false;
-  }
-  if (role != null) {
-    if (!first) {
-      sqlstr=sqlstr + " AND ";
-    }
-    sqlstr=sqlstr + m_cq.get("C_TASK_ROLE") + "="+ role.getId();
-    first=false;
-  }
-  sqlstr=sqlstr + getTaskTypeConditon(first,tasktype);
-  if (orderBy != null) {
-    if (!orderBy.equals("")) {
-      sqlstr=sqlstr + " ORDER BY " + orderBy;
-      if (orderBy != null) {
-        if (!orderBy.equals("")) {
-          sqlstr=sqlstr + " " + sort;
-        }
-      }
-    }
-  }
-  try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.createStatement();
-    recset=statement.executeQuery(sqlstr);
-    while (recset.next()) {
-      task=new CmsTask(recset.getInt(m_cq.get("C_TASK_ID")),recset.getString(m_cq.get("C_TASK_NAME")),recset.getInt(m_cq.get("C_TASK_STATE")),recset.getInt(m_cq.get("C_TASK_TASKTYPE")),recset.getInt(m_cq.get("C_TASK_ROOT")),recset.getInt(m_cq.get("C_TASK_PARENT")),recset.getInt(m_cq.get("C_TASK_INITIATORUSER")),recset.getInt(m_cq.get("C_TASK_ROLE")),recset.getInt(m_cq.get("C_TASK_AGENTUSER")),recset.getInt(m_cq.get("C_TASK_ORIGINALUSER")),SqlHelper.getTimestamp(recset,m_cq.get("C_TASK_STARTTIME")),SqlHelper.getTimestamp(recset,m_cq.get("C_TASK_WAKEUPTIME")),SqlHelper.getTimestamp(recset,m_cq.get("C_TASK_TIMEOUT")),SqlHelper.getTimestamp(recset,m_cq.get("C_TASK_ENDTIME")),recset.getInt(m_cq.get("C_TASK_PERCENTAGE")),recset.getString(m_cq.get("C_TASK_PERMISSION")),recset.getInt(m_cq.get("C_TASK_PRIORITY")),recset.getInt(m_cq.get("C_TASK_ESCALATIONTYPE")),recset.getString(m_cq.get("C_TASK_HTMLLINK")),recset.getInt(m_cq.get("C_TASK_MILESTONE")),recset.getInt(m_cq.get("C_TASK_AUTOFINISH")));
-      tasks.addElement(task);
-    }
-  }
- catch (  SQLException exc) {
-    throw new CmsException(exc.getMessage(),CmsException.C_SQL_ERROR,exc);
-  }
-catch (  Exception exc) {
-    throw new CmsException(exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
-  }
- finally {
-    if (statement != null) {
-      try {
-        statement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (con != null) {
-      try {
-        con.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-  }
-  return tasks;
+  return v;
 }
