@@ -1,0 +1,49 @@
+{
+  long timer1;
+  if (DEBUG > 0) {
+    timer1=System.currentTimeMillis();
+    System.err.println("============ CmsXmlTemplateLoader loading: " + cms.readAbsolutePath(file));
+    System.err.println("CmsXmlTemplateLoader.service() cms uri is: " + cms.getRequestContext().getUri());
+  }
+  String rnc=cms.getRequestContext().getEncoding().trim();
+  I_CmsRequest cms_req=cms.getRequestContext().getRequest();
+  HttpServletRequest originalreq=(HttpServletRequest)cms_req.getOriginalRequest();
+  try {
+    byte[] result=null;
+    org.opencms.file.CmsFile fx=cms.readFile(cms.readAbsolutePath(file));
+    String dnc=OpenCms.getSystemInfo().getDefaultEncoding().trim();
+    String enc=cms.readProperty(cms.readAbsolutePath(fx),I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,true,dnc).trim();
+    cms_req.setOriginalRequest(req);
+    cms.getRequestContext().setEncoding(enc);
+    if (DEBUG > 1) {
+      System.err.println("CmsXmlTemplateLoader.service(): Encodig set to " + cms.getRequestContext().getEncoding());
+      System.err.println("CmsXmlTemplateLoader.service(): Uri set to " + cms.getRequestContext().getUri());
+    }
+    result=generateOutput(cms,fx,cms_req);
+    if (result != null) {
+      result=CmsEncoder.changeEncoding(result,enc,dnc);
+      if (DEBUG > 1) {
+        System.err.println("CmsXmlTemplateLoader.service(): encoding=" + enc + " requestEncoding="+ rnc+ " defaultEncoding="+ dnc);
+      }
+      res.getOutputStream().write(result);
+    }
+  }
+ catch (  Throwable t) {
+    if (DEBUG > 0) {
+      t.printStackTrace(System.err);
+    }
+    throw new ServletException("Error in CmsXmlTemplateLoader while processing " + cms.readAbsolutePath(file),t);
+  }
+ finally {
+    cms_req.setOriginalRequest(originalreq);
+    cms.getRequestContext().setEncoding(rnc);
+    if (DEBUG > 1) {
+      System.err.println("CmsXmlTemplateLoader.service(): Encodig reset to " + cms.getRequestContext().getEncoding());
+      System.err.println("CmsXmlTemplateLoader.service(): Uri reset to " + cms.getRequestContext().getUri());
+    }
+  }
+  if (DEBUG > 0) {
+    long timer2=System.currentTimeMillis() - timer1;
+    System.err.println("============ CmsXmlTemplateLoader time delivering XmlTemplate for " + cms.readAbsolutePath(file) + ": "+ timer2+ "ms");
+  }
+}
