@@ -1,33 +1,43 @@
 {
-  String resourceName=getParamResource();
-  CmsResource file=null;
-  CmsLock lock=null;
-  try {
-    file=getCms().readFileHeader(resourceName);
-    if (file.isFolder()) {
-      resourceName+="/";
+  if (m_isEditable == null) {
+    if (getCms().getRequestContext().currentProject().getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
+      m_isEditable=new Boolean(false);
     }
-  }
- catch (  CmsException e) {
-  }
-  try {
-    lock=getCms().getLock(resourceName);
-  }
- catch (  CmsException e) {
-    lock=CmsLock.getNullLock();
-    if (OpenCms.getLog(this).isErrorEnabled()) {
-      OpenCms.getLog(this).error("Error getting lock state for resource " + resourceName,e);
-    }
-  }
-  if (!lock.isNullLock()) {
-    if (lock.getType() != CmsLock.C_TYPE_SHARED_EXCLUSIVE && lock.getType() != CmsLock.C_TYPE_SHARED_INHERITED && lock.getUserId().equals(getCms().getRequestContext().currentUser().getId())) {
-      if (getCms().getRequestContext().currentProject().getId() == lock.getProjectId() || "true".equals(getParamUsetempfileproject())) {
-        return true;
+ else {
+      String resourceName=getParamResource();
+      CmsResource file=null;
+      CmsLock lock=null;
+      try {
+        file=getCms().readFileHeader(resourceName);
+        if (file.isFolder()) {
+          resourceName+="/";
+        }
       }
+ catch (      CmsException e) {
+      }
+      try {
+        lock=getCms().getLock(resourceName);
+      }
+ catch (      CmsException e) {
+        lock=CmsLock.getNullLock();
+        if (OpenCms.getLog(this).isErrorEnabled()) {
+          OpenCms.getLog(this).error("Error getting lock state for resource " + resourceName,e);
+        }
+      }
+      if (!lock.isNullLock()) {
+        if (lock.getType() != CmsLock.C_TYPE_SHARED_EXCLUSIVE && lock.getType() != CmsLock.C_TYPE_SHARED_INHERITED && lock.getUserId().equals(getCms().getRequestContext().currentUser().getId())) {
+          if (getCms().getRequestContext().currentProject().getId() == lock.getProjectId() || "true".equals(getParamUsetempfileproject())) {
+            m_isEditable=new Boolean(true);
+            return m_isEditable.booleanValue();
+          }
+        }
+      }
+ else       if (getSettings().getAutoLockResources()) {
+        m_isEditable=new Boolean(true);
+        return m_isEditable.booleanValue();
+      }
+      m_isEditable=new Boolean(false);
     }
   }
- else   if (getSettings().getAutoLockResources()) {
-    return true;
-  }
-  return false;
+  return m_isEditable.booleanValue();
 }
