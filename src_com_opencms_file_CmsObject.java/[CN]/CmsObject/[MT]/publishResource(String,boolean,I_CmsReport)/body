@@ -1,0 +1,44 @@
+{
+  int oldProjectId=m_context.currentProject().getId();
+  int retValue=-1;
+  CmsResource res=null;
+  if (resourcename.endsWith("/")) {
+    res=readFolder(resourcename,true);
+  }
+ else {
+    res=readFileHeader(resourcename);
+  }
+  if (res.isLocked()) {
+    throw new CmsException("[CmsObject] cannot publish locked resource",CmsException.C_NO_ACCESS);
+  }
+  if (res.getState() == C_STATE_NEW) {
+    try {
+      CmsFolder parent=m_rb.readFolder(m_context.currentUser(),readProject(I_CmsConstants.C_PROJECT_ONLINE_ID),res.getRootName() + res.getParent());
+    }
+ catch (    CmsException ex) {
+      throw new CmsException("[CmsObject] cannot read parent folder in online project",CmsException.C_NOT_FOUND);
+    }
+  }
+  if (oldProjectId != C_PROJECT_ONLINE_ID) {
+    if (isAdmin() || isManagerOfProject()) {
+      int newProjectId=m_rb.createDirectPublishProject(m_context.currentUser(),m_context.currentProject(),"Direct Publish","","Users","Projectmanager",I_CmsConstants.C_PROJECT_TYPE_TEMPORARY).getId();
+      retValue=newProjectId;
+      getRequestContext().setCurrentProject(newProjectId);
+      I_CmsResourceType rt=getResourceType(res.getType());
+      rt.copyResourceToProject(this,resourcename);
+      rt.changeLockedInProject(this,newProjectId,resourcename);
+      if (!justPrepare) {
+        publishProject(newProjectId,report);
+      }
+      getRequestContext().setCurrentProject(oldProjectId);
+    }
+ else {
+      throw new CmsException("[CmsObject] cannot publish resource in current project",CmsException.C_NO_ACCESS);
+    }
+  }
+ else {
+    throw new CmsException("[CmsObject] cannot publish resource in online project",CmsException.C_NO_ACCESS);
+  }
+  this.fireEvent(com.opencms.flex.I_CmsEventListener.EVENT_PUBLISH_RESOURCE,res);
+  return retValue;
+}
