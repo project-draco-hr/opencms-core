@@ -3,8 +3,9 @@
   CmsResource res=(CmsResource)resource.getData();
   String path=cms.getRequestContext().removeSiteRoot(resource.getRootPath());
   I_CmsExtractionResult content=extractContent(cms,resource,language);
-  if (content != null) {
-    document.add(Field.Text(I_CmsDocumentFactory.DOC_CONTENT,content.getContent()));
+  String text=mergeMetaInfo(content);
+  if (text != null) {
+    document.add(Field.Text(I_CmsDocumentFactory.DOC_CONTENT,text));
   }
   StringBuffer meta=new StringBuffer(512);
   String value;
@@ -41,11 +42,13 @@
   if (CmsStringUtil.isNotEmpty(value)) {
     value=value.trim().toLowerCase();
     if (value.length() > 0) {
-      document.add(Field.Keyword(I_CmsDocumentFactory.DOC_CATEGORY,value));
+      field=Field.Keyword(I_CmsDocumentFactory.DOC_CATEGORY,value);
+      field.setBoost(0);
+      document.add(field);
     }
   }
-  String rootPath=CmsSearchIndex.rewriteResourcePath(resource.getRootPath(),false);
-  field=Field.UnStored(I_CmsDocumentFactory.DOC_ROOT,rootPath);
+  String rootPath=CmsSearchIndex.rootPathRewrite(resource.getRootPath());
+  field=Field.Text(I_CmsDocumentFactory.DOC_ROOT,rootPath);
   field.setBoost(0);
   document.add(field);
   document.add(Field.UnIndexed(I_CmsDocumentFactory.DOC_PATH,resource.getRootPath()));
@@ -60,13 +63,13 @@
   if ((value=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_SEARCH_PRIORITY,true).getValue()) != null) {
     value=value.trim().toLowerCase();
     if (value.equals(I_CmsDocumentFactory.SEARCH_PRIORITY_MAX_VALUE)) {
-      boost=1.5f;
+      boost=2.0f;
     }
  else     if (value.equals(I_CmsDocumentFactory.SEARCH_PRIORITY_HIGH_VALUE)) {
-      boost=1.25f;
+      boost=1.5f;
     }
  else     if (value.equals(I_CmsDocumentFactory.SEARCH_PRIORITY_LOW_VALUE)) {
-      boost=0.75f;
+      boost=0.5f;
     }
   }
   document.setBoost(boost);

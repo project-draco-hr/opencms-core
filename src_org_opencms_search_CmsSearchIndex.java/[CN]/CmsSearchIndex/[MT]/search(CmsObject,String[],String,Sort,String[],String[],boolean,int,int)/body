@@ -25,27 +25,39 @@
       Thread.currentThread().setPriority(m_priority);
     }
     context.setCurrentProject(cms.readProject(m_project));
+    String[] roots;
     if ((searchRoots != null) && (searchRoots.length > 0)) {
+      roots=new String[searchRoots.length];
       for (int i=0; i < searchRoots.length; i++) {
-        searchRoots[i]=cms.getRequestContext().addSiteRoot(searchRoots[i]);
+        roots[i]=cms.getRequestContext().addSiteRoot(searchRoots[i]);
       }
     }
  else {
-      searchRoots=new String[]{cms.getRequestContext().getSiteRoot()};
+      roots=new String[]{cms.getRequestContext().getSiteRoot()};
     }
     timeLucene=-System.currentTimeMillis();
     Analyzer languageAnalyzer=OpenCms.getSearchManager().getAnalyzer(m_locale);
     BooleanQuery query=new BooleanQuery();
-    StringBuffer phrase=new StringBuffer();
-    phrase.append("+(");
-    for (int i=0; i < searchRoots.length; i++) {
-      phrase.append("\"");
-      phrase.append(rewriteResourcePath(searchRoots[i],true));
-      phrase.append("\" ");
+    BooleanQuery pathQuery=new BooleanQuery();
+    for (int i=0; i < roots.length; i++) {
+      String[] paths=rootPathSplit(roots[i]);
+      PhraseQuery phrase=new PhraseQuery();
+      for (int j=0; j < paths.length; j++) {
+        Term term=new Term(I_CmsDocumentFactory.DOC_ROOT,paths[j]);
+        phrase.add(term);
+      }
+      pathQuery.add(phrase,false,false);
     }
-    phrase.append(")");
-    Query phraseQuery=QueryParser.parse(phrase.toString(),I_CmsDocumentFactory.DOC_ROOT,languageAnalyzer);
-    query.add(phraseQuery,true,false);
+    query.add(pathQuery,true,false);
+    if ((categories != null) && (categories.length > 0)) {
+      BooleanQuery categoryQuery=new BooleanQuery();
+      for (int i=0; i < categories.length; i++) {
+        Term term=new Term(I_CmsDocumentFactory.DOC_CATEGORY,categories[i]);
+        TermQuery termQuery=new TermQuery(term);
+        categoryQuery.add(termQuery,false,false);
+      }
+      query.add(categoryQuery,true,false);
+    }
     if ((fields != null) && (fields.length > 0)) {
       BooleanQuery fieldsQuery=new BooleanQuery();
       for (int i=0; i < fields.length; i++) {
@@ -69,7 +81,7 @@
       OpenCms.getLog(this).debug("Rewritten query: " + finalQuery);
     }
     CmsSearchCategoryCollector categoryCollector;
-    if (countCategories) {
+    if (calculateCategories) {
       categoryCollector=new CmsSearchCategoryCollector(searcher);
       searcher.search(finalQuery,categoryCollector);
       searchResults.setCategories(categoryCollector.getCategoryCountResult());
