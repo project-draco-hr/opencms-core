@@ -3,8 +3,12 @@
   String template=null;
   String type=null;
   byte[] content=new byte[0];
+  CmsFile contentFile=null;
   HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
   String currentFilelist=(String)session.getValue(C_PARA_FILELIST);
+  if (currentFilelist == null) {
+    currentFilelist=cms.rootFolder().getAbsolutePath();
+  }
   String newFile=(String)parameters.get(C_PARA_NEWFILE);
   String title=(String)parameters.get(C_PARA_TITLE);
   String flags=(String)parameters.get(C_PARA_FLAGS);
@@ -20,13 +24,18 @@
       try {
         content=createPagefile(C_CLASSNAME,templatefile,C_CONTENTBODYPATH + currentFilelist.substring(1,currentFilelist.length()) + newFile);
         checkFolders(cms,currentFilelist);
-        System.err.println("##Creating file " + currentFilelist);
         CmsFile file=cms.createFile(currentFilelist,newFile,content,"page");
         cms.lockResource(file.getAbsolutePath());
         cms.writeMetainformation(file.getAbsolutePath(),C_METAINFO_TITLE,title);
-        System.err.println("##Creating body " + C_CONTENTBODYPATH + currentFilelist.substring(1,currentFilelist.length()));
-        CmsFile contentfile=cms.createFile(C_CONTENTBODYPATH + currentFilelist.substring(1,currentFilelist.length()),newFile,C_DEFAULTBODY.getBytes(),"plain");
-        cms.lockResource(contentfile.getAbsolutePath());
+        try {
+          contentFile=cms.readFile(C_CONTENTBODYPATH + currentFilelist.substring(1,currentFilelist.length()),newFile);
+        }
+ catch (        CmsException e) {
+          if (contentFile == null) {
+            contentFile=cms.createFile(C_CONTENTBODYPATH + currentFilelist.substring(1,currentFilelist.length()),newFile,C_DEFAULTBODY.getBytes(),"plain");
+          }
+        }
+        cms.lockResource(contentFile.getAbsolutePath());
         if (navtitle != null) {
           cms.writeMetainformation(file.getAbsolutePath(),C_METAINFO_NAVTITLE,navtitle);
           if (navpos != null) {
@@ -35,7 +44,7 @@
         }
       }
  catch (      CmsException ex) {
-        throw new CmsException(ex.getMessage(),ex.getType(),ex);
+        throw new CmsException("Error while creating new Page" + ex.getMessage(),ex.getType(),ex);
       }
       try {
         cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
