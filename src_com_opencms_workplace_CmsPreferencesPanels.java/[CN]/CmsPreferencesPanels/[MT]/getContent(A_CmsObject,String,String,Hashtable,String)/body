@@ -1,5 +1,6 @@
 {
-  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  A_CmsRequestContext reqCont=cms.getRequestContext();
+  HttpSession session=((HttpServletRequest)reqCont.getRequest().getOriginalRequest()).getSession(true);
   String template="";
   String panel;
   String oldPanel;
@@ -43,6 +44,12 @@
           session.putValue("USERSETTINGS",userSettings);
         }
       }
+      if (panel.equals("start")) {
+        Hashtable startSettings=getStartSettings(parameters);
+        if (startSettings != null) {
+          session.putValue("STARTSETTINGS",startSettings);
+        }
+      }
     }
     String explorerSettings=(String)session.getValue("EXPLORERSETTINGS");
     if (explorerSettings != null) {
@@ -55,6 +62,10 @@
     String userSettings=(String)session.getValue("USERSETTINGS");
     if (userSettings != null) {
       cms.getRequestContext().setCurrentGroup(userSettings);
+    }
+    Hashtable startSettings=(Hashtable)session.getValue("STARTSETTINGS");
+    if (startSettings != null) {
+      cms.getRequestContext().currentUser().setAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS,startSettings);
     }
     cms.writeUser(cms.getRequestContext().currentUser());
   }
@@ -174,6 +185,92 @@
         xmlTemplateDocument.setXmlData("CHMESSAGEMEMEBERS"," ");
       }
     }
+ else     if (panel.equals("start")) {
+      Hashtable startSettings=null;
+      startSettings=(Hashtable)session.getValue("STARTSETTINGS");
+      if (startSettings == null) {
+        startSettings=(Hashtable)cms.getRequestContext().currentUser().getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
+      }
+      Hashtable blub=cms.getRequestContext().currentUser().getAdditionalInfo();
+      Enumeration sdkeys=blub.keys();
+      while (sdkeys.hasMoreElements()) {
+        String sdkey=(String)sdkeys.nextElement();
+        System.err.println(sdkey + " : " + blub.get(sdkey));
+      }
+      if (startSettings == null) {
+        startSettings=new Hashtable();
+        startSettings.put(C_START_LANGUAGE,"de");
+        startSettings.put(C_START_PROJECT,reqCont.currentProject().getName());
+        String currentView=(String)session.getValue(C_PARA_VIEW);
+        if (currentView == null) {
+          currentView="explorer.html";
+        }
+        startSettings.put(C_START_VIEW,currentView);
+        startSettings.put(C_START_DEFAULTGROUP,reqCont.currentGroup().getName());
+        startSettings.put(C_START_ACCESSFLAGS,new Integer(C_ACCESS_DEFAULT_FLAGS));
+      }
+      int flags=((Integer)startSettings.get(C_START_ACCESSFLAGS)).intValue();
+      if ((flags & C_ACCESS_OWNER_READ) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKUR","CHECKED");
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKUR"," ");
+      }
+      if ((flags & C_ACCESS_OWNER_WRITE) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKUW","CHECKED");
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKUW"," ");
+      }
+      if ((flags & C_ACCESS_OWNER_VISIBLE) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKUV","CHECKED");
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKUV"," ");
+      }
+      if ((flags & C_ACCESS_GROUP_READ) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKGR","CHECKED");
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKGR"," ");
+      }
+      if ((flags & C_ACCESS_GROUP_WRITE) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKGW","CHECKED");
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKGW"," ");
+      }
+      if ((flags & C_ACCESS_GROUP_VISIBLE) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKGV","CHECKED");
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKGV"," ");
+      }
+      if ((flags & C_ACCESS_PUBLIC_READ) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKPR","CHECKED");
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKPR"," ");
+      }
+      if ((flags & C_ACCESS_PUBLIC_WRITE) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKPW","CHECKED");
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKPW"," ");
+      }
+      if ((flags & C_ACCESS_PUBLIC_VISIBLE) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKPV","CHECKED");
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKPV"," ");
+      }
+      if ((flags & C_ACCESS_INTERNAL_READ) > 0) {
+        xmlTemplateDocument.setXmlData("CHECKIF","CHECKED");
+      }
+ else {
+        xmlTemplateDocument.setXmlData("CHECKIF"," ");
+      }
+    }
  else     if (panel.equals("user")) {
       A_CmsUser user=cms.getRequestContext().currentUser();
       xmlTemplateDocument.setXmlData("USER",user.getName());
@@ -201,6 +298,12 @@
           session.putValue("USERSETTINGS",userSettings);
         }
       }
+      if (oldPanel.equals("start")) {
+        Hashtable startSettings=getStartSettings(parameters);
+        if (startSettings != null) {
+          session.putValue("STARTSETTINGS",startSettings);
+        }
+      }
     }
     session.putValue(C_PARA_OLDPANEL,panel);
   }
@@ -208,6 +311,7 @@
     session.removeValue("EXPLORERSETTINGS");
     session.removeValue("TASKSETTINGS");
     session.removeValue("USERSETTINGS");
+    session.removeValue("STARTSETTINGS");
     session.removeValue(C_PARA_OLDPANEL);
     try {
       cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_RELOAD);
