@@ -50,14 +50,13 @@
     String folderPos[]=new String[numFolders];
     String folderVisible[]=new String[numFolders];
     String folderActiv[]=new String[numFolders];
-    String accessActive[]=new String[numFolders];
     String accessVisible[]=new String[numFolders];
     for (int i=0; i < numFolders; i++) {
       CmsResource aktIcon=(CmsResource)iconVector.elementAt(i);
       try {
+        Hashtable propertyinfos=cms.readAllProperties(aktIcon.getAbsolutePath());
         iconNames[i]=aktIcon.getAbsolutePath();
         index[i]=i;
-        Hashtable propertyinfos=cms.readAllProperties(iconNames[i]);
         folderLangKeys[i]=getStringValue((String)propertyinfos.get(C_PROPERTY_NAVTEXT));
         folderTitles[i]=getStringValue((String)propertyinfos.get(C_PROPERTY_TITLE));
         folderPos[i]=getStringValue((String)propertyinfos.get(C_PROPERTY_NAVPOS));
@@ -66,10 +65,14 @@
         }
         folderVisible[i]=getStringValue((String)propertyinfos.get(C_PROPERTY_VISIBLE));
         folderActiv[i]=getStringValue((String)propertyinfos.get(C_PROPERTY_ACTIV));
-        accessActive[i]=new Boolean(checkActive(cms,aktIcon)).toString();
         accessVisible[i]=new Boolean(checkVisible(cms,aktIcon)).toString();
       }
- catch (      Exception exc) {
+ catch (      CmsException e) {
+        if (e.getType() != CmsException.C_NO_ACCESS && e.getType() != CmsException.C_ACCESS_DENIED) {
+          throw e;
+        }
+      }
+catch (      Exception exc) {
         throw new CmsException("[" + this.getClass().getName() + "] "+ exc.getMessage(),CmsException.C_SQL_ERROR,exc);
       }
     }
@@ -81,7 +84,9 @@
       String completeRow="";
       while ((element < numFolders)) {
         int pos=index[element];
-        completeRow+=generateIcon(cms,templateDocument,parameters,lang,folderTitles[pos],iconNames[element],folderLangKeys[pos],folderActiv[pos],folderVisible[pos],accessActive[pos],accessVisible[pos]);
+        if (iconNames[element] != null) {
+          completeRow+=generateIcon(cms,templateDocument,parameters,lang,folderTitles[pos],iconNames[element],folderLangKeys[pos],folderActiv[pos],folderVisible[pos],accessVisible[pos]);
+        }
         element++;
       }
       templateDocument.setData("entrys",completeRow);
