@@ -30,17 +30,15 @@
         newFile+=".html";
       }
       try {
-        createPagefile(C_CLASSNAME,templatefile,C_VFS_PATH_BODIES + currentFilelist.substring(1,currentFilelist.length()) + newFile);
         Hashtable prop=new Hashtable();
-        prop.put(C_PROPERTY_TITLE,title);
-        CmsResource file=null;
-        if (!currentFilelist.endsWith(C_FOLDER_SEPARATOR))         currentFilelist+=C_FOLDER_SEPARATOR;
-        file=((CmsResourceTypePage)cms.getResourceType("page")).createResourceForTemplate(cms,currentFilelist + newFile,prop,"".getBytes(),templatefile);
+        if (title != null && !title.equals("")) {
+          prop.put(C_PROPERTY_TITLE,title);
+        }
         if (keywords != null && !keywords.equals("")) {
-          cms.writeProperty(cms.readAbsolutePath(file),C_PROPERTY_KEYWORDS,keywords);
+          prop.put(C_PROPERTY_KEYWORDS,keywords);
         }
         if (description != null && !description.equals("")) {
-          cms.writeProperty(cms.readAbsolutePath(file),C_PROPERTY_DESCRIPTION,description);
+          prop.put(C_PROPERTY_DESCRIPTION,description);
         }
         byte[] bodyBytes=null;
         boolean layoutFileDefined=false;
@@ -51,9 +49,21 @@
           bodyBytes=ensureBodyEncoding(cms,layoutFilePath);
           layoutFileDefined=true;
         }
-        CmsFile bodyFile=cms.readFile(C_VFS_PATH_BODIES + currentFilelist.substring(1,currentFilelist.length()),newFile);
-        bodyFile.setContents(bodyBytes);
-        cms.writeFile(bodyFile);
+        byte[] content=null;
+        if (CmsResourceTypePage.C_SIMPLE_PAGE) {
+          content=bodyBytes;
+        }
+ else {
+          content="".getBytes();
+        }
+        CmsResource file=null;
+        if (!currentFilelist.endsWith(C_FOLDER_SEPARATOR))         currentFilelist+=C_FOLDER_SEPARATOR;
+        file=((CmsResourceTypePage)cms.getResourceType("page")).createResourceForTemplate(cms,currentFilelist + newFile,prop,content,templatefile);
+        if (!CmsResourceTypePage.C_SIMPLE_PAGE) {
+          CmsFile bodyFile=cms.readFile(C_VFS_PATH_BODIES + currentFilelist.substring(1,currentFilelist.length()),newFile);
+          bodyFile.setContents(bodyBytes);
+          cms.writeFile(bodyFile);
+        }
         if (layoutFileDefined) {
           CmsPageLinks linkObject=cms.getPageLinks(currentFilelist + newFile);
           cms.createLinkEntrys(linkObject.getResourceId(),linkObject.getLinkTargets());
