@@ -7,25 +7,55 @@
   String resource4="/folder2/image1_sibling3.gif";
   CmsProject onlineProject=cms.readProject("Online");
   CmsProject offlineProject=cms.readProject("Offline");
-  long timestamp=System.currentTimeMillis();
+  CmsProperty prop1;
+  CmsProperty prop2;
+  CmsProperty prop3;
+  CmsProperty prop4;
   cms.lockResource(resource1);
   cms.lockResource(resource2);
-  cms.touch(resource1,timestamp,I_CmsConstants.C_DATE_UNCHANGED,I_CmsConstants.C_DATE_UNCHANGED,true);
-  cms.touch(resource2,timestamp,I_CmsConstants.C_DATE_UNCHANGED,I_CmsConstants.C_DATE_UNCHANGED,true);
+  cms.writePropertyObject(resource1,new CmsProperty("Title",resource1,null));
+  cms.writePropertyObject(resource2,new CmsProperty("Title",resource2,null));
+  cms.writePropertyObject(resource3,new CmsProperty("Title",resource3,null));
+  cms.writePropertyObject(resource4,new CmsProperty("Title",resource4,null));
   cms.unlockResource(resource1);
   cms.unlockResource(resource2);
   cms.publishResource(resource1);
   cms.getRequestContext().setCurrentProject(onlineProject);
-  assertDateLastModified(cms,resource1,timestamp);
+  prop1=cms.readPropertyObject(resource1,"Title",false);
+  if (!prop1.getValue().equals((resource1))) {
+    fail("Property not published for " + resource1);
+  }
   cms.getRequestContext().setCurrentProject(offlineProject);
   assertState(cms,resource1,I_CmsConstants.C_STATE_UNCHANGED);
   cms.publishResource(resource2);
   cms.getRequestContext().setCurrentProject(onlineProject);
-  assertDateLastModified(cms,resource2,timestamp);
-  assertDateLastModified(cms,resource3,timestamp);
-  assertDateLastModified(cms,resource4,timestamp);
+  prop2=cms.readPropertyObject(resource2,"Title",false);
+  prop3=cms.readPropertyObject(resource3,"Title",false);
+  prop4=cms.readPropertyObject(resource4,"Title",false);
+  if (!prop2.getValue().equals((resource2))) {
+    fail("Property not published for " + resource2);
+  }
+  if (prop3.getValue().equals((resource3))) {
+    fail("Property  published for " + resource3);
+  }
+  if (prop4.getValue().equals((resource4))) {
+    fail("Property  published for " + resource4);
+  }
   cms.getRequestContext().setCurrentProject(offlineProject);
   assertState(cms,resource2,I_CmsConstants.C_STATE_UNCHANGED);
+  assertState(cms,resource3,I_CmsConstants.C_STATE_CHANGED);
+  assertState(cms,resource4,I_CmsConstants.C_STATE_CHANGED);
+  cms.publishResource(resource3,true,new CmsShellReport());
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  prop3=cms.readPropertyObject(resource3,"Title",false);
+  prop4=cms.readPropertyObject(resource4,"Title",false);
+  if (!prop3.getValue().equals((resource3))) {
+    fail("Property  not published for " + resource3);
+  }
+  if (!prop4.getValue().equals((resource4))) {
+    fail("Property  not published for " + resource4);
+  }
+  cms.getRequestContext().setCurrentProject(offlineProject);
   assertState(cms,resource3,I_CmsConstants.C_STATE_UNCHANGED);
   assertState(cms,resource4,I_CmsConstants.C_STATE_UNCHANGED);
 }
