@@ -1,0 +1,57 @@
+{
+  Connection con=null;
+  PreparedStatement statement=null;
+  CmsUser owner=readUser(project.getOwnerId());
+  CmsGroup group=readGroup(project.getGroupId());
+  CmsGroup managerGroup=readGroup(project.getManagerGroupId());
+  Vector projectresources=readAllProjectResources(project.getId());
+  try {
+    con=DriverManager.getConnection(m_poolNameBackup);
+    statement=con.prepareStatement(m_cq.get("C_PROJECTS_CREATE_BACKUP"));
+    statement.setInt(1,versionId);
+    statement.setInt(2,project.getId());
+    statement.setString(3,project.getName());
+    statement.setTimestamp(4,new Timestamp(publishDate));
+    statement.setInt(5,currentUser.getId());
+    statement.setString(6,currentUser.getName() + " " + currentUser.getFirstname()+ " "+ currentUser.getLastname());
+    statement.setInt(7,project.getOwnerId());
+    statement.setString(8,owner.getName() + " " + owner.getFirstname()+ " "+ owner.getLastname());
+    statement.setInt(9,project.getGroupId());
+    statement.setString(10,group.getName());
+    statement.setInt(11,project.getManagerGroupId());
+    statement.setString(12,managerGroup.getName());
+    statement.setString(13,project.getDescription());
+    statement.setTimestamp(14,new Timestamp(project.getCreateDate()));
+    statement.setInt(15,project.getType());
+    statement.setInt(16,project.getTaskId());
+    statement.executeUpdate();
+    statement.close();
+    for (int i=0; i < projectresources.size(); i++) {
+      statement=con.prepareStatement(m_cq.get("C_PROJECTRESOURCES_CREATE_BACKUP"));
+      statement.setInt(1,versionId);
+      statement.setInt(2,project.getId());
+      statement.setString(3,(String)projectresources.get(i));
+      statement.executeUpdate();
+      statement.close();
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+  }
+}

@@ -12,38 +12,38 @@
     session.putValue(C_PARA_FILE,filename);
   }
   filename=(String)session.getValue(C_PARA_FILE);
-  String projectId=(String)parameters.get(C_PARA_PROJECT);
+  String versionId=(String)parameters.get(C_PARA_PROJECT);
   Integer id=null;
-  CmsFile file=null;
-  if (projectId != null) {
-    id=new Integer(Integer.parseInt(projectId));
+  CmsBackupResource backupFile=null;
+  String theFileName="";
+  if (versionId != null) {
+    id=new Integer(Integer.parseInt(versionId));
     session.putValue(C_PARA_PROJECT,id);
-    file=(CmsFile)cms.readFileHeaderForHist(filename,id.intValue());
+    backupFile=(CmsBackupResource)cms.readFileHeaderForHist(filename,id.intValue());
+    theFileName=backupFile.getName();
   }
  else {
-    file=(CmsFile)cms.readFileHeader(filename);
+    CmsFile offlineFile=(CmsFile)cms.readFileHeader(filename);
+    theFileName=offlineFile.getName();
   }
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
   if (id != null) {
     template="detail";
-    CmsProject project=cms.readProject(id.intValue());
+    CmsBackupProject project=cms.readBackupProject(id.intValue());
     xmlTemplateDocument.setData("PROJECT",project.getName());
     String title=cms.readProperty(filename,C_PROPERTY_TITLE);
     if (title == null) {
       title="";
     }
+    String editedBy=backupFile.getLastModifiedByName();
     xmlTemplateDocument.setData("TITLE",title);
-    xmlTemplateDocument.setData("SIZE",new Integer(file.getLength()).toString());
-    xmlTemplateDocument.setData("EDITEDBY",cms.readUser(file.getResourceLastModifiedBy()).getName());
-    xmlTemplateDocument.setData("EDITEDAT",Utils.getNiceDate(file.getDateLastModified()));
-    xmlTemplateDocument.setData("PUBLISHEDBY","Not yet available");
-    String published="---";
-    if (project.getFlags() == this.C_PROJECT_STATE_ARCHIVE) {
-      published=Utils.getNiceDate(project.getPublishingDate());
-    }
-    xmlTemplateDocument.setData("PUBLISHEDAT",published);
+    xmlTemplateDocument.setData("SIZE",new Integer(backupFile.getLength()).toString());
+    xmlTemplateDocument.setData("EDITEDBY",editedBy);
+    xmlTemplateDocument.setData("EDITEDAT",Utils.getNiceDate(backupFile.getDateLastModified()));
+    xmlTemplateDocument.setData("PUBLISHEDBY",project.getPublishedByName());
+    xmlTemplateDocument.setData("PUBLISHEDAT",Utils.getNiceDate(project.getPublishingDate()));
     xmlTemplateDocument.setData("PROJECTDESCRIPTION",project.getDescription());
   }
-  xmlTemplateDocument.setData("FILENAME",file.getName());
+  xmlTemplateDocument.setData("FILENAME",theFileName);
   return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
 }
