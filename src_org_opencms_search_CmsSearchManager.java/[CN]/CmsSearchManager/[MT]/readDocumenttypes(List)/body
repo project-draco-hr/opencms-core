@@ -1,0 +1,64 @@
+{
+  m_documenttypes=new HashMap();
+  for (Iterator i=documenttypes.iterator(); i.hasNext(); ) {
+    Map documenttype=(Map)i.next();
+    String name=(String)documenttype.get("name");
+    String className=(String)documenttype.get("class");
+    I_CmsDocumentFactory documentFactory=null;
+    List resourceTypes;
+    List mimeTypes;
+    try {
+      resourceTypes=(List)documenttype.get("resourcetype");
+    }
+ catch (    ClassCastException exc) {
+      resourceTypes=Arrays.asList(new String[]{(String)documenttype.get("resourcetype")});
+    }
+    try {
+      mimeTypes=(List)documenttype.get("mimetype");
+    }
+ catch (    ClassCastException exc) {
+      mimeTypes=Arrays.asList(new String[]{(String)documenttype.get("mimetype")});
+    }
+    if (name == null) {
+      throw new CmsIndexException("[" + this.getClass().getName() + "] "+ "No name defined for documenttype");
+    }
+    if (className == null) {
+      throw new CmsIndexException("[" + this.getClass().getName() + "] "+ "No class defined for documenttype");
+    }
+    if (resourceTypes == null) {
+      throw new CmsIndexException("[" + this.getClass().getName() + "] "+ "No resourcetype defined for documenttype");
+    }
+    try {
+      Class c=Class.forName(className);
+      documentFactory=(I_CmsDocumentFactory)c.getConstructor(new Class[]{m_cms.getClass(),String.class}).newInstance(new Object[]{m_cms,name});
+    }
+ catch (    ClassNotFoundException exc) {
+      throw new CmsIndexException("[" + this.getClass().getName() + "] "+ "Documentclass "+ className+ " not found",exc);
+    }
+catch (    Exception exc) {
+      throw new CmsIndexException("[" + this.getClass().getName() + "] "+ "Instanciation of documentclass "+ className+ " failed",exc);
+    }
+    for (Iterator r=resourceTypes.iterator(); r.hasNext(); ) {
+      String resourceType=(String)r.next();
+      int resourceTypeId;
+      try {
+        resourceTypeId=((I_CmsResourceType)Class.forName(resourceType).newInstance()).getResourceType();
+      }
+ catch (      Exception exc) {
+        throw new CmsIndexException("[" + this.getClass().getName() + "] "+ "Instanciation of resource type"+ resourceType+ " failed",exc);
+      }
+      if (mimeTypes != null) {
+        for (Iterator m=mimeTypes.iterator(); m.hasNext(); ) {
+          String mimeType=(String)m.next();
+          if (OpenCms.getLog(this).isDebugEnabled()) {
+            OpenCms.getLog(this).debug("Configured document class: " + className + " for "+ resourceType+ ":"+ mimeType);
+          }
+          m_documenttypes.put(resourceTypeId + ":" + mimeType,documentFactory);
+        }
+      }
+ else {
+        m_documenttypes.put(resourceTypeId + "",documentFactory);
+      }
+    }
+  }
+}

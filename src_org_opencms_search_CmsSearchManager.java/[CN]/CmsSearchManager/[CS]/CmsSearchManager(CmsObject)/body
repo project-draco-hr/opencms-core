@@ -1,0 +1,51 @@
+{
+  List documenttypes;
+  List analyzers;
+  m_cms=cms;
+  if (OpenCms.getLog(this).isDebugEnabled()) {
+    OpenCms.getLog(this).debug("Initializing CmsSearchManager");
+  }
+  CmsRegistry registry=m_cms.getRegistry();
+  m_config=registry.getSubNodeValues(registry.getSystemElement(),"search");
+  if ((documenttypes=(List)m_config.get("documenttype")) == null) {
+    throw new CmsIndexException("[" + this.getClass().getName() + "] "+ "No documenttypes defined");
+  }
+ else {
+    readDocumenttypes(documenttypes);
+  }
+  if ((analyzers=(List)m_config.get("analyzer")) == null) {
+    throw new CmsIndexException("[" + this.getClass().getName() + "] "+ "No analyzer defined");
+  }
+ else {
+    readAnalyzer(analyzers);
+  }
+  if ((m_path=(String)m_config.get("directory")) == null) {
+    throw new CmsIndexException("[" + this.getClass().getName() + "] "+ "Directory for storing index data not defined");
+  }
+  if ((m_timeout=(String)m_config.get("timeout")) == null) {
+    m_timeout="20000";
+  }
+  String cacheSize=null;
+  if ((cacheSize=(String)m_config.get("cache")) == null) {
+    cacheSize="8";
+  }
+  if (m_resultCache == null) {
+    LRUMap hashMap=new LRUMap(Integer.parseInt(cacheSize));
+    m_resultCache=Collections.synchronizedMap(hashMap);
+    if (OpenCms.getMemoryMonitor().enabled()) {
+      OpenCms.getMemoryMonitor().register(this.getClass().getName() + "." + "m_resultCache",hashMap);
+    }
+  }
+  try {
+    m_indexes=(List)m_config.get("index");
+  }
+ catch (  ClassCastException exc) {
+    m_indexes=Arrays.asList(new Map[]{(Map)m_config.get("index")});
+  }
+  OpenCms.addCmsEventListener(this,new int[]{I_CmsEventListener.EVENT_CLEAR_CACHES});
+  if (OpenCms.getLog(this).isDebugEnabled()) {
+    for (Iterator i=m_indexes.iterator(); i.hasNext(); ) {
+      OpenCms.getLog(this).debug("Configured index: " + (((Map)i.next()).get("name")));
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  CmsSearchIndex index=null;
+  IndexWriter writer=null;
+  if (report == null) {
+    report=(I_CmsReport)new CmsLogReport();
+  }
+  if (report != null) {
+    report.print(report.key("search.indexing_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+    report.print(indexName,I_CmsReport.C_FORMAT_HEADLINE);
+    report.println(report.key("search.dots"),I_CmsReport.C_FORMAT_HEADLINE);
+  }
+  index=getIndex(indexName);
+  CmsRequestContext context=m_cms.getRequestContext();
+  int currentProject=context.currentProject().getId();
+  context.saveSiteRoot();
+  context.setSiteRoot(index.getSite());
+  context.setCurrentProject(I_CmsConstants.C_PROJECT_ONLINE_ID);
+  if (report != null) {
+    report.println(report.key("search.indexing_context") + context.getSiteRoot() + ", "+ context.currentProject().getName(),I_CmsReport.C_FORMAT_NOTE);
+  }
+  try {
+    CmsIndexingThreadManager threadManager=new CmsIndexingThreadManager(this,report,Long.parseLong(m_timeout));
+    List sources=index.getSources();
+    writer=index.getIndexWriter();
+    for (Iterator i=sources.iterator(); i.hasNext(); ) {
+      String vfsPath=(String)i.next();
+      createSubtreeIndex(writer,vfsPath,index,report,threadManager);
+    }
+    threadManager.reportStatistics();
+  }
+ catch (  Exception exc) {
+    if (report != null) {
+      report.println(report.key("search.indexing_failed"),I_CmsReport.C_FORMAT_WARNING);
+    }
+    if (OpenCms.getLog(this).isWarnEnabled()) {
+      OpenCms.getLog(this).warn("Rebuilding index " + index.getName() + " failed.",exc);
+    }
+  }
+ finally {
+    if (writer != null) {
+      try {
+        writer.close();
+      }
+ catch (      IOException exc) {
+      }
+    }
+    context.restoreSiteRoot();
+    context.setCurrentProject(currentProject);
+  }
+  m_resultCache.clear();
+}
