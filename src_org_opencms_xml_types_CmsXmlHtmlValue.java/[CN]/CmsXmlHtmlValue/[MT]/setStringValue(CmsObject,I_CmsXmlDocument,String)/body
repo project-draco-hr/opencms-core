@@ -1,17 +1,18 @@
 {
   Element content=m_element.element(CmsXmlPage.NODE_CONTENT);
   Element links=m_element.element(CmsXmlPage.NODE_LINKS);
-  int todo=0;
-  A_CmsXmlDocument xmlDoc=(A_CmsXmlDocument)document;
-  String encoding=xmlDoc.getEncoding();
-  CmsLinkProcessor linkProcessor=xmlDoc.getLinkProcessor(cms,new CmsLinkTable());
-  if (encoding != null) {
-    value=CmsEncoder.adjustHtmlEncoding(value,encoding);
-  }
-  String contentConversion=xmlDoc.getConversion();
-  if (CmsHtmlConverter.isConversionEnabled(contentConversion)) {
-    CmsHtmlConverter converter=new CmsHtmlConverter(encoding,contentConversion);
-    value=converter.convertToStringSilent(value);
+  CmsLinkProcessor linkProcessor=null;
+  if (document != null) {
+    String encoding=document.getEncoding();
+    linkProcessor=document.getLinkProcessor(cms,new CmsLinkTable());
+    if (encoding != null) {
+      value=CmsEncoder.adjustHtmlEncoding(value,encoding);
+    }
+    String contentConversion=document.getConversion();
+    if (CmsHtmlConverter.isConversionEnabled(contentConversion)) {
+      CmsHtmlConverter converter=new CmsHtmlConverter(encoding,contentConversion);
+      value=converter.convertToStringSilent(value);
+    }
   }
   if (linkProcessor != null) {
     try {
@@ -22,18 +23,22 @@
     }
   }
   content.clearContent();
-  content.addCDATA(value);
-  CmsLinkTable linkTable=linkProcessor.getLinkTable();
-  links.setContent(null);
-  for (Iterator i=linkTable.iterator(); i.hasNext(); ) {
-    CmsLink link=linkTable.getLink((String)i.next());
-    Element linkElement=links.addElement(CmsXmlPage.NODE_LINK).addAttribute(CmsXmlPage.ATTRIBUTE_NAME,link.getName()).addAttribute(CmsXmlPage.ATTRIBUTE_TYPE,link.getType()).addAttribute(CmsXmlPage.ATTRIBUTE_INTERNAL,Boolean.toString(link.isInternal()));
-    linkElement.addElement(CmsXmlPage.NODE_TARGET).addCDATA(link.getTarget());
-    if (link.getAnchor() != null) {
-      linkElement.addElement(CmsXmlPage.NODE_ANCHOR).addCDATA(link.getAnchor());
-    }
-    if (link.getQuery() != null) {
-      linkElement.addElement(CmsXmlPage.NODE_QUERY).addCDATA(link.getQuery());
+  links.clearContent();
+  if (CmsStringUtil.isNotEmpty(value)) {
+    content.addCDATA(value);
+    if (linkProcessor != null) {
+      CmsLinkTable linkTable=linkProcessor.getLinkTable();
+      for (Iterator i=linkTable.iterator(); i.hasNext(); ) {
+        CmsLink link=linkTable.getLink((String)i.next());
+        Element linkElement=links.addElement(CmsXmlPage.NODE_LINK).addAttribute(CmsXmlPage.ATTRIBUTE_NAME,link.getName()).addAttribute(CmsXmlPage.ATTRIBUTE_TYPE,link.getType()).addAttribute(CmsXmlPage.ATTRIBUTE_INTERNAL,Boolean.toString(link.isInternal()));
+        linkElement.addElement(CmsXmlPage.NODE_TARGET).addCDATA(link.getTarget());
+        if (link.getAnchor() != null) {
+          linkElement.addElement(CmsXmlPage.NODE_ANCHOR).addCDATA(link.getAnchor());
+        }
+        if (link.getQuery() != null) {
+          linkElement.addElement(CmsXmlPage.NODE_QUERY).addCDATA(link.getQuery());
+        }
+      }
     }
   }
   m_stringValue=null;
