@@ -2,32 +2,37 @@
   boolean listonly="listonly".equals(getSettings().getExplorerMode());
   boolean projectView="projectview".equals(getSettings().getExplorerMode());
   boolean vfslinkView="vfslink".equals(getSettings().getExplorerMode());
+  CmsResource currentResource=null;
   String currentFolder=getSettings().getExplorerFolder();
-  if (vfslinkView) {
-    boolean found=true;
-    try {
-      getCms().readFileHeader(currentFolder);
-    }
- catch (    CmsException e) {
-      found=false;
-    }
-    if (found) {
+  boolean found=true;
+  try {
+    currentResource=getCms().readFileHeader(currentFolder);
+  }
+ catch (  CmsException e) {
+    found=false;
+  }
+  if (found) {
+    if (vfslinkView) {
       currentFolder="vfslink:" + currentFolder;
     }
+  }
  else {
-      currentFolder="/";
-      vfslinkView=false;
+    currentFolder="/";
+    vfslinkView=false;
+    try {
+      currentResource=getCms().readFileHeader(currentFolder);
+    }
+ catch (    CmsException e) {
     }
   }
   long check=getCms().getFileSystemFolderChanges();
   boolean newTreePlease=getSettings().getExplorerChecksum() != check;
-  CmsUUID currentFolderId=CmsUUID.getNullUUID();
-  if (!vfslinkView) {
-    try {
-      currentFolderId=(getCms().readFolder(currentFolder)).getId();
-    }
- catch (    CmsException e) {
-    }
+  CmsUUID currentFolderId;
+  if (currentResource.isFile()) {
+    currentFolderId=currentResource.getParentId();
+  }
+ else {
+    currentFolderId=currentResource.getId();
   }
   StringBuffer content=new StringBuffer(2048);
   content.append("function initialize() {\n");
@@ -83,8 +88,13 @@
   content.append("top.setDirectory(\"");
   content.append(currentFolderId.hashCode());
   content.append("\",\"");
-  content.append(currentFolder);
+  content.append(CmsResource.getPath(getSettings().getExplorerFolder()));
   content.append("\");\n");
+  if (vfslinkView) {
+    content.append("top.addHist('");
+    content.append(CmsResource.getPath(getSettings().getExplorerFolder()));
+    content.append("')\n");
+  }
   content.append("top.rD();\n\n");
   int preferences=getDefaultPreferences();
   boolean showTitle=(preferences & I_CmsWpConstants.C_FILELIST_TITLE) > 0;
