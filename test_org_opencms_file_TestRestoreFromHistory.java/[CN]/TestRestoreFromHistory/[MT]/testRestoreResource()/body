@@ -4,9 +4,22 @@
   String resourcename="/test-restore1.txt";
   String contentStr1="Hello this is content version 1";
   String contentStr2="Hello this is content version 2";
-  CmsResource res=cms.createResource(resourcename,CmsResourceTypePlain.C_RESOURCE_TYPE_ID,contentStr1.getBytes(),null);
+  CmsProperty sProp1=new CmsProperty("StructureProp","Structure property value version 1",null,true);
+  CmsProperty rProp1=new CmsProperty("ResourceProp",null,"Resource property value version 1",true);
+  List props1=new ArrayList();
+  props1.add(sProp1);
+  props1.add(rProp1);
+  CmsProperty sProp2=new CmsProperty("StructureProp","Structure property value version 2",null,true);
+  CmsProperty rProp2=new CmsProperty("ResourceProp",null,"Resource property value version 2",true);
+  List props2=new ArrayList();
+  props2.add(sProp2);
+  props2.add(rProp2);
+  cms.createResource(resourcename,CmsResourceTypePlain.C_RESOURCE_TYPE_ID,contentStr1.getBytes(),null);
   this.storeResources(cms,resourcename);
+  cms.writePropertyObject(resourcename,sProp1);
+  cms.writePropertyObject(resourcename,rProp1);
   assertContent(cms,resourcename,contentStr1.getBytes());
+  assertPropertyNew(cms,resourcename,props1);
   List allFiles=cms.readAllBackupFileHeaders(resourcename);
   if (!allFiles.isEmpty()) {
     fail("Unexpected backup files for new created resource found.");
@@ -17,11 +30,15 @@
   if (allFiles.size() != 1) {
     fail("Unexpected number of backup files for published resource found (one expected)");
   }
+  this.storeResources(cms,resourcename);
   cms.lockResource(resourcename);
   CmsFile update=cms.readFile(resourcename);
   update.setContents(contentStr2.getBytes());
   cms.writeFile(update);
+  cms.writePropertyObject(resourcename,sProp2);
+  cms.writePropertyObject(resourcename,rProp2);
   assertContent(cms,resourcename,contentStr2.getBytes());
+  assertPropertyChanged(cms,resourcename,props2);
   cms.unlockProject(cms.getRequestContext().currentProject().getId());
   cms.publishProject();
   allFiles=cms.readAllBackupFileHeaders(resourcename);
@@ -29,7 +46,9 @@
     fail("Unexpected number of backup files for published resource found (two expected)");
   }
   CmsBackupResource backup=(CmsBackupResource)allFiles.get(1);
+  this.storeResources(cms,resourcename);
   cms.lockResource(resourcename);
   cms.restoreResourceBackup(resourcename,backup.getTagId());
   assertContent(cms,resourcename,contentStr1.getBytes());
+  assertPropertyChanged(cms,resourcename,props1);
 }
