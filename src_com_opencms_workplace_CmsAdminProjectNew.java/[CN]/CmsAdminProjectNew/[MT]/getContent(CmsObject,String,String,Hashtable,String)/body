@@ -17,6 +17,7 @@
     session.removeValue(C_NEWMANAGERGROUP);
     session.removeValue(C_NEWFOLDER);
     session.removeValue(C_NEWRESOURCES);
+    session.removeValue(C_NEWCHANNELS);
     session.removeValue(C_NEWTYPE);
     session.removeValue("lasturl");
     session.removeValue("newProjectCallingFrom");
@@ -68,6 +69,7 @@
   newDescription=(String)parameters.get(C_PROJECTNEW_DESCRIPTION);
   newManagerGroup=(String)parameters.get(C_PROJECTNEW_MANAGERGROUP);
   String allResources=(String)parameters.get(C_NEWRESOURCES);
+  String allChannels=(String)parameters.get(C_NEWCHANNELS);
   newType=(String)parameters.get(C_NEWTYPE);
   if (newGroup == null) {
     newGroup=(String)session.getValue(C_NEWGROUP);
@@ -80,6 +82,9 @@
   }
   if (allResources == null) {
     allResources=(String)session.getValue(C_NEWRESOURCES);
+  }
+  if (allChannels == null) {
+    allChannels=(String)session.getValue(C_NEWCHANNELS);
   }
   if (newType == null) {
     newType=(String)session.getValue(C_NEWTYPE);
@@ -99,6 +104,9 @@
   if (allResources == null) {
     allResources="";
   }
+  if (allChannels == null) {
+    allChannels="";
+  }
   if (newType == null || "".equals(newType)) {
     projectType=I_CmsConstants.C_PROJECT_TYPE_NORMAL;
     newType="";
@@ -112,6 +120,7 @@
     session.putValue(C_NEWDESCRIPTION,newDescription);
     session.putValue(C_NEWMANAGERGROUP,newManagerGroup);
     session.putValue(C_NEWTYPE,newType);
+    session.putValue(C_NEWCHANNELS,allChannels);
     if (newName.equals("") || newGroup.equals("") || newManagerGroup.equals("")|| allResources.equals("")) {
       templateSelector="datamissing" + errorTemplateAddOn;
     }
@@ -138,14 +147,29 @@
       }
       checkRedundancies(folders);
       numRes=folders.size();
+      Vector channels=parseResources(allChannels);
+      int numChan=channels.size();
+      for (int j=0; j < numChan; j++) {
+        if (lang.getLanguageValue("title.rootfolder").equals(channels.elementAt(j))) {
+          channels.setElementAt("/",j);
+        }
+      }
+      checkRedundancies(channels);
+      numChan=channels.size();
       CmsProject project=cms.createProject(newName,newDescription,newGroup,newManagerGroup,projectType);
       reqCont.setCurrentProject(project.getId());
       try {
         for (int i=0; i < folders.size(); i++) {
           cms.copyResourceToProject((String)folders.elementAt(i));
         }
+        cms.setContextToCos();
+        for (int j=0; j < channels.size(); j++) {
+          cms.copyResourceToProject((String)channels.elementAt(j));
+        }
+        cms.setContextToVfs();
       }
  catch (      CmsException e) {
+        cms.setContextToVfs();
         Vector projectResources=cms.readAllProjectResources(project.getId());
         if ((projectResources == null) || (projectResources.size() == 0)) {
           cms.deleteProject(project.getId());
@@ -162,7 +186,8 @@
       session.removeValue(C_NEWMANAGERGROUP);
       session.removeValue(C_NEWFOLDER);
       session.removeValue(C_NEWTYPE);
-      session.removeValue(C_NEWTYPE);
+      session.removeValue(C_NEWRESOURCES);
+      session.removeValue(C_NEWCHANNELS);
       session.removeValue("lasturl");
       session.removeValue("newProjectCallingFrom");
       return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"done");
