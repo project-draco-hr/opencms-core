@@ -1,35 +1,34 @@
 {
-  if (m_languagePath == null) {
-    CmsXmlWpConfigFile configFile=new CmsXmlWpConfigFile(cms);
-    m_languagePath=configFile.getLanguagePath();
-  }
   String currentLanguage=null;
-  Hashtable startSettings=null;
-  startSettings=(Hashtable)cms.getRequestContext().currentUser().getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
-  if (startSettings != null) {
-    currentLanguage=(String)startSettings.get(C_START_LANGUAGE);
+  I_CmsSession session=cms.getRequestContext().getSession(false);
+  if (session != null) {
+    currentLanguage=(String)session.getValue(I_CmsConstants.C_START_LANGUAGE);
   }
   if (currentLanguage == null) {
-    Vector langs=cms.getRequestContext().getAcceptedLanguages();
-    int numlangs=langs.size();
-    for (int i=0; i < numlangs; i++) {
-      String loop=(String)langs.elementAt(i);
-      boolean supported;
-      if ("en".equalsIgnoreCase(loop) || "uk".equalsIgnoreCase(loop)) {
-        supported=languageSupported(cms,"en") || languageSupported(cms,"uk");
-        currentLanguage="en";
-      }
- else {
-        supported=languageSupported(cms,(String)langs.elementAt(i));
-      }
-      if (supported) {
-        currentLanguage=(String)langs.elementAt(i);
-        break;
+    Hashtable startSettings=(Hashtable)cms.getRequestContext().currentUser().getAdditionalInfo(I_CmsConstants.C_ADDITIONAL_INFO_STARTSETTINGS);
+    if (startSettings != null) {
+      currentLanguage=(String)startSettings.get(I_CmsConstants.C_START_LANGUAGE);
+    }
+    if (currentLanguage == null) {
+      Vector language=(Vector)cms.getRequestContext().getAcceptedLanguages();
+      int numlangs=language.size();
+      for (int i=0; i < numlangs; i++) {
+        String lang=(String)language.elementAt(i);
+        try {
+          cms.readFolder(I_CmsWpConstants.C_VFS_PATH_LOCALES + lang);
+          currentLanguage=lang;
+          break;
+        }
+ catch (        CmsException e) {
+        }
       }
     }
-  }
-  if (currentLanguage == null) {
-    currentLanguage=C_DEFAULT_LANGUAGE;
+    if (currentLanguage == null) {
+      currentLanguage=I_CmsWpConstants.C_DEFAULT_LANGUAGE;
+    }
+    if (session != null) {
+      session.putValue(I_CmsConstants.C_START_LANGUAGE,currentLanguage);
+    }
   }
   return currentLanguage;
 }
