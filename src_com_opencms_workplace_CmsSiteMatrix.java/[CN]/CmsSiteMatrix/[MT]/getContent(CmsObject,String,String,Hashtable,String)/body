@@ -1,15 +1,36 @@
 {
   CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
-  StringBuffer list=new StringBuffer();
-  CmsSite site=null;
-  Vector sites=cms.getAllSites();
-  for (int i=0; i < sites.size(); i++) {
-    site=(CmsSite)sites.elementAt(i);
-    xmlTemplateDocument.setData("id","" + site.getId());
-    xmlTemplateDocument.setData("name",site.getName());
-    xmlTemplateDocument.setData("description",site.getDescription());
-    list.append(xmlTemplateDocument.getProcessedDataValue("row"));
+  Vector sitelist=cms.getSiteMatrixInfo();
+  Vector categories=cms.getAllCategories();
+  Object[] matrixinfo=createMatrix(categories,sitelist);
+  Vector country_names=(Vector)matrixinfo[0];
+  Hashtable[][] matrix=(Hashtable[][])matrixinfo[1];
+  StringBuffer line=null;
+  StringBuffer matrixbuffer=null;
+  xmlTemplateDocument.setData("domaincount","" + country_names.size());
+  xmlTemplateDocument.setData("categorycount","" + categories.size());
+  line=new StringBuffer();
+  for (int i=0; i < country_names.size(); i++) {
+    xmlTemplateDocument.setData("domainname",(String)country_names.elementAt(i));
+    line.append(xmlTemplateDocument.getProcessedDataValue("domaindot"));
   }
-  xmlTemplateDocument.setData("list",list.toString());
+  xmlTemplateDocument.setData("domains",line.toString());
+  xmlTemplateDocument.setData("domainlist",xmlTemplateDocument.getProcessedDataValue("domainrow"));
+  matrixbuffer=new StringBuffer();
+  for (int i=0; i < categories.size(); i++) {
+    line=new StringBuffer();
+    xmlTemplateDocument.setData("categoryname",((CmsCategory)categories.elementAt(i)).getName());
+    for (int j=0; j < country_names.size(); j++) {
+      if (matrix[i][j] != null) {
+        line.append(xmlTemplateDocument.getProcessedDataValue("activedot"));
+      }
+ else {
+        line.append(xmlTemplateDocument.getProcessedDataValue("emptydot"));
+      }
+    }
+    xmlTemplateDocument.setData("dots",line.toString());
+    matrixbuffer.append(xmlTemplateDocument.getProcessedDataValue((i == 0) ? "firstrow" : "row"));
+  }
+  xmlTemplateDocument.setData("lines",matrixbuffer.toString());
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }
