@@ -19,6 +19,7 @@
   try {
     fileNodes=m_docXml.getElementsByTagName(C_EXPORT_TAG_FILE);
     int importSize=fileNodes.getLength();
+    String root=I_CmsConstants.C_DEFAULT_SITE + I_CmsConstants.C_ROOTNAME_VFS;
     for (int i=0; i < fileNodes.getLength(); i++) {
       m_report.print(" ( " + (i + 1) + " / "+ importSize+ " ) ");
       currentElement=(Element)fileNodes.item(i);
@@ -38,7 +39,15 @@
       if ("script".equals(type)) {
         type=C_TYPE_PLAIN_NAME;
       }
-      if (!inExcludeList(excludeList,m_importPath + destination)) {
+      String translatedName=root + m_importPath + destination;
+      if (C_TYPE_FOLDER_NAME.equals(type)) {
+        translatedName+=C_FOLDER_SEPARATOR;
+      }
+      translatedName=m_cms.getRequestContext().getDirectoryTranslator().translateResource(translatedName);
+      translatedName=translatedName.substring(root.length());
+      if (!excludeList.contains(translatedName)) {
+        m_report.print(m_report.key("report.importing"),I_CmsReport.C_FORMAT_NOTE);
+        m_report.print(translatedName + " ");
         propertyNodes=currentElement.getElementsByTagName(C_EXPORT_TAG_PROPERTY);
         properties=new Hashtable();
         if (propertyName != null && propertyValue != null && !"".equals(propertyName)) {
@@ -64,7 +73,7 @@
       }
  else {
         m_report.print(m_report.key("report.skipping"),I_CmsReport.C_FORMAT_NOTE);
-        m_report.println(destination);
+        m_report.println(translatedName);
       }
     }
     m_report.println(m_report.key("report.check_links_begin"),I_CmsReport.C_FORMAT_HEADLINE);
