@@ -1,0 +1,60 @@
+{
+  super(req);
+  m_req=req;
+  m_cache=cache;
+  m_cms=cms;
+  m_file=file;
+  m_resource=file.getAbsolutePath();
+  m_includeCalls=java.util.Collections.synchronizedSet(new java.util.HashSet(23));
+  try {
+    m_isOnline=(m_cms.onlineProject().equals(m_cms.getRequestContext().currentProject()));
+  }
+ catch (  Exception e) {
+  }
+  String[] paras=req.getParameterValues("_flex");
+  boolean nocachepara=false;
+  boolean dorecompile=false;
+  boolean isAdmin=false;
+  if (paras != null) {
+    try {
+      isAdmin=m_cms.getRequestContext().isAdmin();
+    }
+ catch (    Exception e) {
+    }
+    if (isAdmin) {
+      java.util.List l=java.util.Arrays.asList(paras);
+      String context=(String)req.getAttribute(C_ATTR_PROCESSED);
+      boolean firstCall=(context == null);
+      if (firstCall)       req.setAttribute(C_ATTR_PROCESSED,"true");
+      nocachepara=l.contains("nocache");
+      dorecompile=l.contains("recompile");
+      boolean p_on=l.contains("online");
+      boolean p_off=l.contains("offline");
+      if (l.contains("purge") && firstCall) {
+        A_OpenCms.fireCmsEvent(new CmsEvent(cms,I_CmsEventListener.EVENT_FLEX_PURGE_JSP_REPOSITORY,new java.util.HashMap(0)));
+        A_OpenCms.fireCmsEvent(new CmsEvent(cms,I_CmsEventListener.EVENT_FLEX_CACHE_CLEAR,Collections.singletonMap("action",new Integer(CmsFlexCache.C_CLEAR_ENTRIES))));
+        dorecompile=false;
+      }
+ else       if ((l.contains("clearcache") || dorecompile) && firstCall) {
+        if (!(p_on || p_off)) {
+          A_OpenCms.fireCmsEvent(new CmsEvent(cms,I_CmsEventListener.EVENT_FLEX_CACHE_CLEAR,Collections.singletonMap("action",new Integer(CmsFlexCache.C_CLEAR_ALL))));
+        }
+ else {
+          if (p_on)           A_OpenCms.fireCmsEvent(new CmsEvent(cms,I_CmsEventListener.EVENT_FLEX_CACHE_CLEAR,Collections.singletonMap("action",new Integer(CmsFlexCache.C_CLEAR_ONLINE_ALL))));
+          if (p_off)           A_OpenCms.fireCmsEvent(new CmsEvent(cms,I_CmsEventListener.EVENT_FLEX_CACHE_CLEAR,Collections.singletonMap("action",new Integer(CmsFlexCache.C_CLEAR_OFFLINE_ALL))));
+        }
+      }
+ else       if (l.contains("clearentries") && firstCall) {
+        if (!(p_on || p_off)) {
+          A_OpenCms.fireCmsEvent(new CmsEvent(cms,I_CmsEventListener.EVENT_FLEX_CACHE_CLEAR,Collections.singletonMap("action",new Integer(CmsFlexCache.C_CLEAR_ENTRIES))));
+        }
+ else {
+          if (p_on)           A_OpenCms.fireCmsEvent(new CmsEvent(cms,I_CmsEventListener.EVENT_FLEX_CACHE_CLEAR,Collections.singletonMap("action",new Integer(CmsFlexCache.C_CLEAR_ONLINE_ENTRIES))));
+          if (p_off)           A_OpenCms.fireCmsEvent(new CmsEvent(cms,I_CmsEventListener.EVENT_FLEX_CACHE_CLEAR,Collections.singletonMap("action",new Integer(CmsFlexCache.C_CLEAR_OFFLINE_ENTRIES))));
+        }
+      }
+    }
+  }
+  m_canCache=(((m_isOnline || m_cache.cacheOffline()) && !nocachepara) || dorecompile);
+  m_doRecompile=dorecompile;
+}

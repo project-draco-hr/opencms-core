@@ -1,0 +1,107 @@
+{
+  String jspTargetName=getJspName(file.getAbsolutePath());
+  String jspPath=getJspPath(jspTargetName,req.isOnline());
+  File d=new File(jspPath).getParentFile();
+  if (!(d != null) && (d.exists() && d.isDirectory() && d.canRead())) {
+    log("Could not access directory for " + jspPath);
+    throw new CmsException("JspLoader: Could not access directory for " + jspPath);
+  }
+  if (updates.contains(jspTargetName))   return null;
+  updates.add(jspTargetName);
+  boolean mustUpdate=false;
+  File f=new File(jspPath);
+  if (!f.exists()) {
+    mustUpdate=true;
+  }
+ else   if (f.lastModified() <= file.getDateLastModified()) {
+    mustUpdate=true;
+  }
+ else   if (req.isDoRecompile()) {
+    mustUpdate=true;
+  }
+  String jspfilename=getJspUri(file.getAbsolutePath(),req.isOnline());
+  if (mustUpdate) {
+    if (DEBUG > 2)     System.err.println("JspLoader writing new file: " + jspfilename);
+    byte[] contents=req.getCmsObject().readFile(file.getAbsolutePath()).getContents();
+    try {
+      FileOutputStream fs=new FileOutputStream(f);
+      String page=new String(contents);
+      StringBuffer buf=new StringBuffer(contents.length);
+      int p0=0, i2=0, slen=C_DIRECTIVE_START.length(), elen=C_DIRECTIVE_END.length();
+      int i1=page.indexOf(C_DIRECTIVE_START);
+      while (i1 >= 0) {
+        i2=page.indexOf(C_DIRECTIVE_END,i1 + slen);
+        if (i2 > i1) {
+          String directive=page.substring(i1 + slen,i2);
+          if (DEBUG > 2)           System.err.println("JspLoader: Detected " + C_DIRECTIVE_START + directive+ C_DIRECTIVE_END);
+          int t1=0, t2=0, t3=0, t4=0, t5=0, t6=slen, t7=0;
+          while (directive.charAt(t1) == ' ')           t1++;
+          String filename=null;
+          if (directive.startsWith("include",t1)) {
+            if (DEBUG > 2)             System.err.println("JspLoader: Detected 'include' directive!");
+            t2=directive.indexOf("file",t1 + 7);
+            t5=6;
+          }
+ else           if (directive.startsWith("page",t1)) {
+            if (DEBUG > 2)             System.err.println("JspLoader: Detected 'page' directive!");
+            t2=directive.indexOf("errorPage",t1 + 4);
+            t5=11;
+          }
+ else           if (directive.startsWith("cms",t1)) {
+            if (DEBUG > 2)             System.err.println("JspLoader: Detected 'cms' directive!");
+            t2=directive.indexOf("file",t1 + 3);
+            t5=4;
+            t6=0;
+            t7=elen;
+          }
+          if (t2 > 0) {
+            String sub=directive.substring(t2 + t5);
+            char c1=sub.charAt(t3);
+            while ((c1 == ' ') || (c1 == '=') || (c1 == '"'))             c1=sub.charAt(++t3);
+            t4=t3;
+            while (c1 != '"')             c1=sub.charAt(++t4);
+            if (t4 > t3)             filename=sub.substring(t3,t4);
+            if (DEBUG > 2)             System.err.println("JspLoader: File given in directive is: " + filename);
+          }
+          if (filename != null) {
+            String pre=((t7 == 0) ? directive.substring(0,t2 + t3 + t5) : "");
+            ;
+            String suf=((t7 == 0) ? directive.substring(t2 + t3 + t5+ filename.length()) : "");
+            String absolute=req.toAbsolute(filename);
+            if (DEBUG > 2)             System.err.println("JspLoader: Absolute location=" + absolute);
+            String jspname=null;
+            try {
+              CmsResource jsp=cms.readFileHeader(absolute);
+              updateJsp(cms,jsp,req,updates);
+              jspname=getJspUri(jsp.getAbsolutePath(),req.isOnline());
+            }
+ catch (            Exception e) {
+              jspname=null;
+              if (DEBUG > 2)               System.err.println("JspLoader: Error while creating jsp file " + absolute + "\n"+ e);
+            }
+            if (jspname != null) {
+              if (DEBUG > 2)               System.err.println("JspLoader: Name of jsp file is " + jspname);
+              directive=pre + jspname + suf;
+              if (DEBUG > 2)               System.err.println("JspLoader: Changed directive to " + C_DIRECTIVE_START + directive+ C_DIRECTIVE_END);
+            }
+          }
+          buf.append(page.substring(p0,i1 + t6));
+          buf.append(directive);
+          p0=i2 + t7;
+          i1=page.indexOf(C_DIRECTIVE_START,p0);
+        }
+      }
+      if (i2 > 0) {
+        buf.append(page.substring(p0,page.length()));
+        contents=buf.toString().getBytes();
+      }
+      fs.write(contents);
+      fs.close();
+      log("Updated JSP file \"" + jspfilename + "\" for resource \""+ file.getAbsolutePath()+ "\"");
+    }
+ catch (    Exception e) {
+      throw new CmsException("JspLauncher: Could not write to file '" + f.getName() + "'\n"+ e,e);
+    }
+  }
+  return jspfilename;
+}

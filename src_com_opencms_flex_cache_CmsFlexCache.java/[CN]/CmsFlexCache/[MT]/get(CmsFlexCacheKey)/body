@@ -1,0 +1,45 @@
+{
+  if (!isEnabled())   return null;
+  if (DEBUG > 0)   System.err.println("FlexCache: Trying to get entry for resource " + key.Resource);
+  Object o=m_resourceMap.get(key.Resource);
+  if (o != null) {
+    CmsFlexCacheVariation v=(CmsFlexCacheVariation)o;
+    String variation=v.key.matchRequestKey(key);
+    if (DEBUG > 0) {
+      if (variation != null) {
+        CmsFlexCacheEntry e=(CmsFlexCacheEntry)v.map.get(variation);
+        if (e != null) {
+          System.err.println("FlexCache: Found entry for variation " + variation);
+        }
+ else {
+          System.err.println("FlexCache: Did not find entry for variation " + variation);
+        }
+      }
+ else {
+        System.err.println("FlexCache: Found nothing because resource is not cachable for this request!");
+      }
+    }
+    if (variation == null)     return null;
+    if (v.key.m_timeout < 0) {
+      return (CmsFlexCacheEntry)v.map.get(variation);
+    }
+ else {
+      CmsFlexCacheEntry e=(CmsFlexCacheEntry)v.map.get(variation);
+      if (e == null)       return null;
+      if (DEBUG > 1)       System.err.println("FlexCache: Checking timeout for resource " + key.Resource);
+      if (e.getTimeout() < key.m_timeout) {
+        if (DEBUG > 1)         System.err.println("FlexCache: Resource has reached timeout, removing from cache!");
+        v.map.remove(variation);
+        this.decSize();
+        return null;
+      }
+      if (DEBUG > 1)       System.err.println("FlexCache: Resource timeout not reached!");
+      return e;
+    }
+  }
+ else   if (DEBUG > 0) {
+    System.err.println("FlexCache: Did not find any entry for resource");
+    return null;
+  }
+ else   return null;
+}
