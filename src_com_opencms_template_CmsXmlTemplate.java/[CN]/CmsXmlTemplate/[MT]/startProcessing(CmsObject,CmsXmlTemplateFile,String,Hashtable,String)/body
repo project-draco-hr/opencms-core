@@ -1,22 +1,42 @@
 {
+  System.err.println("*** startProcessing called for " + getClass().getName() + "/"+ xmlTemplateDocument.getAbsoluteFilename());
   String result=null;
-  try {
-    result=xmlTemplateDocument.getProcessedTemplateContent(this,parameters,templateSelector);
+  if (cms.getRequestContext().isStaging()) {
+    System.err.println("*** staging mode");
+    CmsElementVariant variant=new CmsElementVariant();
+    xmlTemplateDocument.generateStagingVariant(this,parameters,elementName,templateSelector,variant);
+    System.err.println("*** variantXXX " + variant);
+    CmsStaging staging=OpenCms.getStaticStaging();
+    CmsElementDescriptor elKey=new CmsElementDescriptor(getClass().getName(),xmlTemplateDocument.getAbsoluteFilename());
+    A_CmsElement currElem=staging.getElementLocator().get(elKey);
+    if (currElem == null) {
+      System.err.println("** Cannot find element for the variant I'm currently generating. This hould not happen!");
+      System.err.println("** Avoiding further errors by creating a new element on the fly.");
+      currElem=createElement(cms,xmlTemplateDocument.getAbsoluteFilename(),elementName,parameters);
+      staging.getElementLocator().put(elKey,currElem);
+    }
+    currElem.addVariant(getKey(cms,xmlTemplateDocument.getAbsoluteFilename(),parameters,templateSelector),variant);
+    return null;
   }
- catch (  Throwable e) {
-    xmlTemplateDocument.removeFromFileCache();
-    if (isCacheable(cms,xmlTemplateDocument.getAbsoluteFilename(),elementName,parameters,templateSelector)) {
-      m_cache.clearCache(getKey(cms,xmlTemplateDocument.getAbsoluteFilename(),parameters,templateSelector));
-    }
-    if (e instanceof CmsException) {
-      throw (CmsException)e;
-    }
  else {
-      String errorMessage="Exception while getting content for (sub)template " + elementName + ". "+ e;
-      if (A_OpenCms.isLogging()) {
-        A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + errorMessage);
+    try {
+      result=xmlTemplateDocument.getProcessedTemplateContent(this,parameters,templateSelector);
+    }
+ catch (    Throwable e) {
+      xmlTemplateDocument.removeFromFileCache();
+      if (isCacheable(cms,xmlTemplateDocument.getAbsoluteFilename(),elementName,parameters,templateSelector)) {
+        m_cache.clearCache(getKey(cms,xmlTemplateDocument.getAbsoluteFilename(),parameters,templateSelector));
       }
-      throw new CmsException(errorMessage);
+      if (e instanceof CmsException) {
+        throw (CmsException)e;
+      }
+ else {
+        String errorMessage="Exception while getting content for (sub)template " + elementName + ". "+ e;
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + errorMessage);
+        }
+        throw new CmsException(errorMessage);
+      }
     }
   }
   return result.getBytes();
