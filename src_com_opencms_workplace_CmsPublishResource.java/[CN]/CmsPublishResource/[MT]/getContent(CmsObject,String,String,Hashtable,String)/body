@@ -5,15 +5,9 @@
   String initial=(String)parameters.get(C_PARA_INITIAL);
   if (initial != null) {
     session.removeValue(C_PARA_FILE);
-    session.removeValue("publish");
     session.removeValue("lasturl");
   }
   String lasturl=getLastUrl(cms,parameters);
-  String publish=(String)parameters.get("publish");
-  if (publish != null) {
-    session.putValue("publish",publish);
-  }
-  publish=(String)session.getValue("publish");
   String filename=(String)parameters.get(C_PARA_FILE);
   if (filename != null) {
     session.putValue(C_PARA_FILE,filename);
@@ -27,8 +21,29 @@
  else {
     file=(CmsResource)cms.readFileHeader(filename);
   }
-  if (publish != null) {
-    if (action != null) {
+  if (action != null) {
+    if ("check".equals(action)) {
+      if (checkLocked(cms,file)) {
+        action="wait";
+      }
+ else {
+        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"asklock");
+      }
+    }
+ else     if ("rmlocks".equals(action)) {
+      try {
+        unlockResource(cms,file);
+        action="wait";
+      }
+ catch (      CmsException exc) {
+        xmlTemplateDocument.setData("details",Utils.getStackTrace(exc));
+        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"errorlock");
+      }
+    }
+    if ((action != null) && "wait".equals(action)) {
+      return startProcessing(cms,xmlTemplateDocument,"",parameters,"wait");
+    }
+    if ((action != null) && "ok".equals(action)) {
       try {
         cms.publishResource(file.getAbsolutePath());
         session.removeValue(C_PARA_FILE);
@@ -39,9 +54,6 @@
         xmlTemplateDocument.setData("details",Utils.getStackTrace(e));
         return startProcessing(cms,xmlTemplateDocument,"",parameters,"error");
       }
-    }
- else {
-      template="wait";
     }
   }
   if (action == null) {
