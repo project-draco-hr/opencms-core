@@ -17,7 +17,7 @@
           try {
             onlineFolder=m_driverManager.getVfsDriver().readFolder(onlineProject.getId(),newFolder.getStructureId());
             onlineFolder.setFullResourceName(offlineFolder.getRootPath());
-            m_driverManager.getVfsDriver().writeResource(onlineFolder,offlineFolder);
+            m_driverManager.getVfsDriver().writeResource(onlineFolder,offlineFolder,false);
           }
  catch (          CmsException e1) {
             if (OpenCms.getLog(this).isErrorEnabled()) {
@@ -26,10 +26,12 @@
             throw e1;
           }
         }
- else         if (OpenCms.getLog(this).isErrorEnabled()) {
-          OpenCms.getLog(this).error("Error creating resource " + offlineFolder.toString(),e);
+ else {
+          if (OpenCms.getLog(this).isErrorEnabled()) {
+            OpenCms.getLog(this).error("Error creating resource " + offlineFolder.toString(),e);
+          }
+          throw e;
         }
-        throw e;
       }
       try {
         m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,offlineFolder.getResourceId(),newFolder.getResourceId());
@@ -71,13 +73,15 @@
             throw e1;
           }
         }
- else         if (OpenCms.getLog(this).isErrorEnabled()) {
-          OpenCms.getLog(this).error("Error reading resource " + offlineFolder.toString(),e);
+ else {
+          if (OpenCms.getLog(this).isErrorEnabled()) {
+            OpenCms.getLog(this).error("Error reading resource " + offlineFolder.toString(),e);
+          }
+          throw e;
         }
-        throw e;
       }
       try {
-        m_driverManager.getVfsDriver().writeResource(onlineFolder,offlineFolder);
+        m_driverManager.getVfsDriver().writeResource(onlineFolder,offlineFolder,false);
       }
  catch (      CmsException e) {
         if (OpenCms.getLog(this).isErrorEnabled()) {
@@ -108,6 +112,9 @@
     }
     try {
       if (backupEnabled) {
+        if (offlineProperties == null) {
+          offlineProperties=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),offlineFolder,offlineFolder.getType());
+        }
         m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),offlineFolder,offlineProperties,backupTagId,publishDate,maxVersions);
       }
       writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,offlineFolder.getRootPath(),offlineFolder);

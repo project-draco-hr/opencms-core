@@ -1,7 +1,6 @@
 {
   CmsExportPointDriver discAccess=null;
   CmsFolder currentFolder=null;
-  CmsFile currentFile=null;
   CmsResource currentFileHeader=null;
   CmsLock currentLock=null;
   List offlineFolders=null;
@@ -16,10 +15,9 @@
   List projectResources=null;
   Map sortedFolderMap=null;
   List sortedFolderList=null;
-  byte[] contents=null;
   int publishHistoryId=readNextPublishVersionId();
-  String encoding=null;
   int m, n;
+  Set publishedContentIds=(Set)new HashSet();
   try {
     discAccess=new CmsExportPointDriver(exportpoints);
     if (backupEnabled) {
@@ -61,7 +59,7 @@
     while (i.hasNext()) {
       currentResourceName=(String)i.next();
       currentFolder=(CmsFolder)sortedFolderMap.get(currentResourceName);
-      currentExportKey=internalCheckExport(currentResourceName,exportpoints);
+      currentExportKey=internalCheckExportPoint(currentResourceName,exportpoints);
       if (currentFolder.getState() == I_CmsConstants.C_STATE_DELETED) {
         deletedFolders.add(currentFolder);
         changedResources.addElement(currentResourceName);
@@ -134,7 +132,7 @@ m_driverManager.getVfsDriver().removeTempFile(currentFileHeader);
 }
 if (currentFileHeader.getName().startsWith(I_CmsConstants.C_TEMP_PREFIX)) {
 m_driverManager.getVfsDriver().deleteProperties(context.currentProject().getId(),currentFileHeader);
-m_driverManager.getVfsDriver().removeFile(context.currentProject(),currentFileHeader);
+m_driverManager.getVfsDriver().removeFile(context.currentProject(),currentFileHeader,true);
 }
 if (!publishCurrentResource) {
 i.remove();
@@ -149,63 +147,24 @@ report.println(report.key("report.publish_files_begin"),I_CmsReport.C_FORMAT_HEA
 while (i.hasNext()) {
 currentFileHeader=(CmsResource)i.next();
 currentResourceName=currentFileHeader.getRootPath();
-currentExportKey=internalCheckExport(currentResourceName,exportpoints);
-currentFile=m_driverManager.getVfsDriver().readFile(context.currentProject().getId(),true,currentFileHeader.getStructureId());
-currentFile.setFullResourceName(currentResourceName);
+currentFileHeader.setFullResourceName(currentResourceName);
+currentExportKey=internalCheckExportPoint(currentResourceName,exportpoints);
+changedResources.addElement(currentResourceName);
 if (currentFileHeader.getState() == I_CmsConstants.C_STATE_DELETED) {
-changedResources.addElement(currentResourceName);
 if (currentExportKey != null) {
-try {
-discAccess.removeResource(currentResourceName,currentExportKey);
-}
- catch (Exception e) {
-if (OpenCms.getLog(this).isErrorEnabled()) {
-OpenCms.getLog(this).error("Error deleting export point of " + currentFile.toString(),e);
+internalDeleteExportPoint(discAccess,currentExportKey,currentFileHeader);
 }
 }
-}
-m_driverManager.getProjectDriver().publishFile(context,report,m++,n,onlineProject,currentFileHeader,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
-}
- else if (currentFileHeader.getState() == I_CmsConstants.C_STATE_CHANGED) {
-changedResources.addElement(currentResourceName);
+ else if (currentFileHeader.getState() == I_CmsConstants.C_STATE_CHANGED || currentFileHeader.getState() == I_CmsConstants.C_STATE_NEW) {
 if (currentExportKey != null) {
-try {
-contents=currentFile.getContents();
-encoding=m_driverManager.getVfsDriver().readProperty(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,context.currentProject().getId(),currentFile,currentFile.getType());
-if (encoding != null) {
-try {
-contents=(new String(contents,encoding)).getBytes();
-}
- catch (UnsupportedEncodingException uex) {
+internalWriteExportPoint(context,discAccess,currentExportKey,currentFileHeader);
 }
 }
-discAccess.writeFile(currentResourceName,currentExportKey,contents);
-}
- catch (Exception e) {
-if (OpenCms.getLog(this).isErrorEnabled()) {
-OpenCms.getLog(this).error("Error writing export point of " + currentFile.toString(),e);
-}
-}
-}
-m_driverManager.getProjectDriver().publishFile(context,report,m++,n,onlineProject,currentFileHeader,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
-}
- else if (currentFileHeader.getState() == I_CmsConstants.C_STATE_NEW) {
-changedResources.addElement(currentResourceName);
-if (currentExportKey != null) {
-contents=currentFile.getContents();
-encoding=m_driverManager.getVfsDriver().readProperty(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,context.currentProject().getId(),currentFile,currentFile.getType());
-if (encoding != null) {
-try {
-contents=(new String(contents,encoding)).getBytes();
-}
- catch (UnsupportedEncodingException uex) {
-}
-}
-discAccess.writeFile(currentResourceName,currentExportKey,contents);
-}
-m_driverManager.getProjectDriver().publishFile(context,report,m++,n,onlineProject,currentFileHeader,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
-}
+m_driverManager.getProjectDriver().publishFile(context,report,m++,n,onlineProject,currentFileHeader,publishedContentIds,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
 i.remove();
+currentFileHeader=null;
+currentResourceName=null;
+currentExportKey=null;
 }
 if (n > 0) {
 report.println(report.key("report.publish_files_end"),I_CmsReport.C_FORMAT_HEADLINE);
@@ -240,7 +199,7 @@ report.println(report.key("report.publish_delete_folders_begin"),I_CmsReport.C_F
 while (i.hasNext()) {
 currentResourceName=(String)i.next();
 currentFolder=(CmsFolder)sortedFolderMap.get(currentResourceName);
-currentExportKey=internalCheckExport(currentResourceName,exportpoints);
+currentExportKey=internalCheckExportPoint(currentResourceName,exportpoints);
 if (currentExportKey != null) {
 discAccess.removeResource(currentResourceName,currentExportKey);
 }
@@ -294,12 +253,10 @@ if (offlineFiles != null) {
 offlineFiles.clear();
 offlineFiles=null;
 }
-currentFile=null;
 currentFileHeader=null;
 currentFolder=null;
 discAccess=null;
 currentExportKey=null;
-contents=null;
 }
 return changedResources;
 }
