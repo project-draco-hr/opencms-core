@@ -1,0 +1,90 @@
+{
+  String source, destination, type, uuidstructure, uuidresource, uuidcontent, userlastmodified, usercreated, flags, timestamp;
+  long datelastmodified, datecreated;
+  NodeList fileNodes, acentryNodes;
+  Element currentElement, currentEntry;
+  Map properties=null;
+  if (m_importingChannelData)   m_cms.setContextToCos();
+  if (excludeList == null) {
+    excludeList=new Vector();
+  }
+  List deleteProperties=(List)A_OpenCms.getRuntimeProperty("compatibility.support.import.remove.propertytags");
+  if (deleteProperties == null)   deleteProperties=new ArrayList();
+  List immutableResources=(List)A_OpenCms.getRuntimeProperty("import.immutable.resources");
+  if (immutableResources == null)   immutableResources=new ArrayList();
+  try {
+    fileNodes=m_docXml.getElementsByTagName(C_EXPORT_TAG_FILE);
+    int importSize=fileNodes.getLength();
+    for (int i=0; i < fileNodes.getLength(); i++) {
+      m_report.print(" ( " + (i + 1) + " / "+ importSize+ " ) ");
+      currentElement=(Element)fileNodes.item(i);
+      source=getTextNodeValue(currentElement,C_EXPORT_TAG_SOURCE);
+      destination=getTextNodeValue(currentElement,C_EXPORT_TAG_DESTINATION);
+      type=getTextNodeValue(currentElement,C_EXPORT_TAG_TYPE);
+      uuidstructure=getTextNodeValue(currentElement,C_EXPORT_TAG_UUIDSTRUCTURE);
+      uuidresource=getTextNodeValue(currentElement,C_EXPORT_TAG_UUIDRESOURCE);
+      uuidcontent=getTextNodeValue(currentElement,C_EXPORT_TAG_UUIDCONTENT);
+      if ((timestamp=getTextNodeValue(currentElement,C_EXPORT_TAG_DATELASTMODIFIED)) != null) {
+        datelastmodified=Long.parseLong(timestamp);
+      }
+ else {
+        datelastmodified=System.currentTimeMillis();
+      }
+      userlastmodified=getTextNodeValue(currentElement,C_EXPORT_TAG_USERLASTMODIFIED);
+      if ((timestamp=getTextNodeValue(currentElement,C_EXPORT_TAG_DATECREATED)) != null) {
+        datecreated=Long.parseLong(timestamp);
+      }
+ else {
+        datecreated=System.currentTimeMillis();
+      }
+      usercreated=getTextNodeValue(currentElement,C_EXPORT_TAG_USERCREATED);
+      flags=getTextNodeValue(currentElement,C_EXPORT_TAG_FLAGS);
+      String translatedName=C_VFS_DEFAULT + m_importPath + destination;
+      if (CmsResourceTypeFolder.C_RESOURCE_TYPE_NAME.equals(type)) {
+        translatedName+=C_FOLDER_SEPARATOR;
+      }
+      translatedName=m_cms.getRequestContext().getDirectoryTranslator().translateResource(translatedName);
+      boolean resourceNotImmutable=checkImmutable(translatedName,immutableResources);
+      translatedName=translatedName.substring(C_VFS_DEFAULT.length());
+      if (resourceNotImmutable && (!excludeList.contains(translatedName))) {
+        m_report.print(m_report.key("report.importing"),I_CmsReport.C_FORMAT_NOTE);
+        m_report.print(translatedName + " ");
+        properties=getPropertiesFromXml(currentElement,type,propertyName,propertyValue,deleteProperties);
+        CmsResource res=importResourceVersion3(source,destination,type,uuidstructure,uuidresource,uuidcontent,datelastmodified,userlastmodified,datecreated,usercreated,flags,properties,writtenFilenames,fileCodes);
+        if (res != null) {
+          acentryNodes=currentElement.getElementsByTagName(C_EXPORT_TAG_ACCESSCONTROL_ENTRY);
+          for (int j=0; j < acentryNodes.getLength(); j++) {
+            currentEntry=(Element)acentryNodes.item(j);
+            String id=getTextNodeValue(currentEntry,C_EXPORT_TAG_ACCESSCONTROL_PRINCIPAL);
+            String acflags=getTextNodeValue(currentEntry,C_EXPORT_TAG_FLAGS);
+            String allowed=getTextNodeValue(currentEntry,C_EXPORT_TAG_ACCESSCONTROL_ALLOWEDPERMISSIONS);
+            String denied=getTextNodeValue(currentEntry,C_EXPORT_TAG_ACCESSCONTROL_DENIEDPERMISSIONS);
+            addImportAccessControlEntry(res,id,allowed,denied,acflags);
+          }
+          importAccessControlEntries(res);
+        }
+ else {
+          m_report.print(m_report.key("report.skipping"),I_CmsReport.C_FORMAT_NOTE);
+          m_report.println(translatedName);
+        }
+      }
+ else {
+        m_report.print(m_report.key("report.skipping"),I_CmsReport.C_FORMAT_NOTE);
+        m_report.println(translatedName);
+      }
+    }
+    if (!m_importingChannelData) {
+      m_report.println(m_report.key("report.check_links_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+      updatePageLinks();
+      m_report.println(m_report.key("report.check_links_end"),I_CmsReport.C_FORMAT_HEADLINE);
+      m_cms.joinLinksToTargets(m_report);
+    }
+  }
+ catch (  Exception exc) {
+    m_report.println(exc);
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+ finally {
+    if (m_importingChannelData)     m_cms.setContextToVfs();
+  }
+}

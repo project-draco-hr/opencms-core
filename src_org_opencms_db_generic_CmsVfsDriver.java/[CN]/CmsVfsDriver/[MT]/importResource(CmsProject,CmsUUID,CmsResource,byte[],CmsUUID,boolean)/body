@@ -5,7 +5,7 @@
     throw new CmsException("The resource name '" + newResource.getResourceName() + "' is too long! (max. allowed length must be <= "+ I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME+ " chars.!)",CmsException.C_BAD_NAME);
   }
   int state=0;
-  CmsUUID modifiedByUserId=userId;
+  CmsUUID modifiedByUserId=newResource.getUserLastModified();
   if (project.getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
     state=newResource.getState();
     modifiedByUserId=newResource.getUserLastModified();
@@ -34,10 +34,19 @@
   CmsUUID newFileId=CmsUUID.getNullUUID();
   CmsUUID resourceId=new CmsUUID();
   CmsUUID structureId=new CmsUUID();
+  if (newResource.getId() != CmsUUID.getNullUUID()) {
+    structureId=newResource.getId();
+  }
+  if (newResource.getResourceId() != CmsUUID.getNullUUID()) {
+    resourceId=newResource.getResourceId();
+  }
   try {
     conn=m_sqlManager.getConnection(project);
     if (!isFolder) {
       newFileId=new CmsUUID();
+      if (newResource.getFileId() != CmsUUID.getNullUUID()) {
+        newFileId=newResource.getFileId();
+      }
       try {
         createFileContent(newFileId,filecontent,0,project.getId(),false);
       }
@@ -54,7 +63,7 @@
     stmt.setString(4,newFileId.toString());
     stmt.setInt(5,newResource.getLauncherType());
     stmt.setTimestamp(6,new Timestamp(newResource.getDateCreated()));
-    stmt.setString(7,userId.toString());
+    stmt.setString(7,newResource.getUserCreated().toString());
     stmt.setTimestamp(8,new Timestamp(newResource.getDateLastModified()));
     stmt.setString(9,modifiedByUserId.toString());
     stmt.setInt(10,state);
@@ -71,8 +80,8 @@
     stmt.setInt(5,newResource.getVfsLinkType());
     stmt.setInt(6,state);
     stmt.setTimestamp(7,new Timestamp(newResource.getDateLastModified()));
-    stmt.setString(8,modifiedByUserId.toString());
-    stmt.setString(9,userId.toString());
+    stmt.setString(8,newResource.getUserCreated().toString());
+    stmt.setString(9,newResource.getUserLastModified().toString());
     stmt.executeUpdate();
   }
  catch (  SQLException e) {

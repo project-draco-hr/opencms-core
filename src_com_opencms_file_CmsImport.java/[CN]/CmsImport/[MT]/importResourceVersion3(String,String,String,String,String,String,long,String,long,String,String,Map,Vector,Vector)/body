@@ -1,0 +1,83 @@
+{
+  boolean success=true;
+  byte[] content=null;
+  String fullname=null;
+  CmsResource res=null;
+  try {
+    if (m_importingChannelData) {
+      String channelId=null;
+      try {
+        if ((type.equalsIgnoreCase(CmsResourceTypeFolder.C_RESOURCE_TYPE_NAME)) && (!destination.endsWith(C_FOLDER_SEPARATOR))) {
+          destination+=C_FOLDER_SEPARATOR;
+        }
+        CmsResource channel=m_cms.readFileHeader(C_ROOT + destination);
+        channelId=m_cms.readProperty(m_cms.readAbsolutePath(channel),I_CmsConstants.C_PROPERTY_CHANNELID);
+      }
+ catch (      Exception e) {
+      }
+      if (channelId == null) {
+        int newChannelId=org.opencms.db.CmsIdGenerator.nextId(C_TABLE_CHANNELID);
+        channelId="" + newChannelId;
+      }
+      properties.put(I_CmsConstants.C_PROPERTY_CHANNELID,channelId);
+    }
+    if (source != null) {
+      content=getFileBytes(source);
+    }
+    int resType=m_cms.getResourceTypeId(type);
+    int size=0;
+    if (content != null)     size=content.length;
+    CmsUUID curUser=m_cms.getRequestContext().currentUser().getId();
+    CmsUUID newUserlastmodified=new CmsUUID(userlastmodified);
+    CmsUUID newUsercreated=new CmsUUID(usercreated);
+    CmsUUID newUuidstructure=new CmsUUID();
+    CmsUUID newUuidcontent=new CmsUUID();
+    CmsUUID newUuidresource=new CmsUUID();
+    if (uuidstructure != null) {
+      newUuidstructure=new CmsUUID(uuidstructure);
+    }
+    if (uuidcontent != null) {
+      newUuidcontent=new CmsUUID(uuidcontent);
+    }
+    if (uuidresource != null) {
+      newUuidresource=new CmsUUID(uuidresource);
+    }
+    String resname=destination;
+    if (resname.endsWith("/")) {
+      resname=resname.substring(0,resname.length() - 1);
+    }
+    if (resname.lastIndexOf("/") > 0) {
+      resname=resname.substring(resname.lastIndexOf("/") + 1,resname.length());
+    }
+    CmsResource resource=new CmsResource(newUuidstructure,newUuidresource,CmsUUID.getNullUUID(),newUuidcontent,resname,resType,new Integer(flags).intValue(),m_cms.getRequestContext().currentProject().getId(),0,I_CmsConstants.C_STATE_NEW,curUser,m_cms.getResourceType(resType).getLauncherType(),m_cms.getResourceType(resType).getLauncherClass(),datelastmodified,newUserlastmodified,datecreated,newUsercreated,size,m_cms.getRequestContext().currentProject().getId(),I_CmsConstants.C_VFS_LINK_TYPE_MASTER);
+    res=m_cms.importResource(resource,content,properties,m_importPath + destination);
+    if (res != null) {
+      if (CmsResourceTypePage.C_RESOURCE_TYPE_NAME.equals(type)) {
+        m_importedPages.add(I_CmsConstants.C_FOLDER_SEPARATOR + destination);
+      }
+    }
+    m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+  }
+ catch (  Exception exc) {
+    success=false;
+    m_report.println(exc);
+    try {
+      Thread.sleep(1000);
+    }
+ catch (    Exception e) {
+    }
+  }
+  byte[] digestContent={0};
+  if (content != null) {
+    digestContent=m_digest.digest(content);
+  }
+  if (success && (fullname != null)) {
+    if (writtenFilenames != null) {
+      writtenFilenames.addElement(fullname);
+    }
+    if (fileCodes != null) {
+      fileCodes.addElement(new String(digestContent));
+    }
+  }
+  return res;
+}

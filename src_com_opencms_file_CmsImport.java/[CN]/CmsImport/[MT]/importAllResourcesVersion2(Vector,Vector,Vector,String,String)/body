@@ -1,0 +1,108 @@
+{
+  NodeList fileNodes, acentryNodes;
+  Element currentElement, currentEntry;
+  String source, destination, type, access, timestamp, uuid, uuidfile, uuidresource;
+  long lastmodified=0;
+  Map properties=null;
+  if (m_importingChannelData)   m_cms.setContextToCos();
+  if (excludeList == null) {
+    excludeList=new Vector();
+  }
+  m_webAppNames=(List)A_OpenCms.getRuntimeProperty("compatibility.support.webAppNames");
+  if (m_webAppNames == null)   m_webAppNames=new ArrayList();
+  m_webappUrl=(String)A_OpenCms.getRuntimeProperty("compatibility.support.import.old.webappurl");
+  if (m_webappUrl == null) {
+    m_webappUrl="http://localhost:8080/opencms/opencms";
+  }
+  if (m_webappUrl.endsWith("/")) {
+    m_webappUrl=m_webappUrl.substring(0,m_webappUrl.lastIndexOf("/"));
+  }
+  List deleteProperties=(List)A_OpenCms.getRuntimeProperty("compatibility.support.import.remove.propertytags");
+  if (deleteProperties == null)   deleteProperties=new ArrayList();
+  List immutableResources=(List)A_OpenCms.getRuntimeProperty("import.immutable.resources");
+  if (immutableResources == null)   immutableResources=new ArrayList();
+  if (DEBUG > 0)   System.err.println("Import: Immutable resources size is " + immutableResources.size());
+  try {
+    fileNodes=m_docXml.getElementsByTagName(C_EXPORT_TAG_FILE);
+    int importSize=fileNodes.getLength();
+    for (int i=0; i < fileNodes.getLength(); i++) {
+      m_report.print(" ( " + (i + 1) + " / "+ importSize+ " ) ");
+      currentElement=(Element)fileNodes.item(i);
+      source=getTextNodeValue(currentElement,C_EXPORT_TAG_SOURCE);
+      destination=getTextNodeValue(currentElement,C_EXPORT_TAG_DESTINATION);
+      type=getTextNodeValue(currentElement,C_EXPORT_TAG_TYPE);
+      access=getTextNodeValue(currentElement,C_EXPORT_TAG_ACCESS);
+      uuid=getTextNodeValue(currentElement,C_EXPORT_TAG_UUIDSTRUCTURE);
+      uuidfile=getTextNodeValue(currentElement,C_EXPORT_TAG_UUIDCONTENT);
+      uuidresource=getTextNodeValue(currentElement,C_EXPORT_TAG_UUIDRESOURCE);
+      if ((timestamp=getTextNodeValue(currentElement,C_EXPORT_TAG_LASTMODIFIED)) != null) {
+        lastmodified=Long.parseLong(timestamp);
+      }
+ else {
+        lastmodified=System.currentTimeMillis();
+      }
+      if ("script".equals(type)) {
+        type=CmsResourceTypePlain.C_RESOURCE_TYPE_NAME;
+      }
+      String translatedName=C_VFS_DEFAULT + m_importPath + destination;
+      if (CmsResourceTypeFolder.C_RESOURCE_TYPE_NAME.equals(type)) {
+        translatedName+=C_FOLDER_SEPARATOR;
+      }
+      translatedName=m_cms.getRequestContext().getDirectoryTranslator().translateResource(translatedName);
+      if (DEBUG > 3)       System.err.println("Import: Translated resource name is " + translatedName);
+      boolean resourceNotImmutable=checkImmutable(translatedName,immutableResources);
+      translatedName=translatedName.substring(C_VFS_DEFAULT.length());
+      if (resourceNotImmutable && (!excludeList.contains(translatedName))) {
+        m_report.print(m_report.key("report.importing"),I_CmsReport.C_FORMAT_NOTE);
+        m_report.print(translatedName + " ");
+        properties=getPropertiesFromXml(currentElement,type,propertyName,propertyValue,deleteProperties);
+        CmsResource res=importResourceVersion2(source,destination,uuid,uuidfile,uuidresource,type,access,lastmodified,properties,writtenFilenames,fileCodes);
+        if (res != null) {
+          acentryNodes=currentElement.getElementsByTagName(C_EXPORT_TAG_ACCESSCONTROL_ENTRY);
+          for (int j=0; j < acentryNodes.getLength(); j++) {
+            currentEntry=(Element)acentryNodes.item(j);
+            String id=getTextNodeValue(currentEntry,C_EXPORT_TAG_ID);
+            String flags=getTextNodeValue(currentEntry,C_EXPORT_TAG_FLAGS);
+            String allowed=getTextNodeValue(currentEntry,C_EXPORT_TAG_ACCESSCONTROL_ALLOWEDPERMISSIONS);
+            String denied=getTextNodeValue(currentEntry,C_EXPORT_TAG_ACCESSCONTROL_DENIEDPERMISSIONS);
+            addImportAccessControlEntry(res,id,allowed,denied,flags);
+          }
+          importAccessControlEntries(res);
+        }
+ else {
+          m_report.print(m_report.key("report.skipping"),I_CmsReport.C_FORMAT_NOTE);
+          m_report.println(translatedName);
+        }
+      }
+ else {
+        m_report.print(m_report.key("report.skipping"),I_CmsReport.C_FORMAT_NOTE);
+        m_report.println(translatedName);
+      }
+    }
+    if (!m_importingChannelData) {
+      m_report.println(m_report.key("report.check_links_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+      updatePageLinks();
+      m_report.println(m_report.key("report.check_links_end"),I_CmsReport.C_FORMAT_HEADLINE);
+      m_cms.joinLinksToTargets(m_report);
+    }
+    if (m_importVersion < 3) {
+      CmsResource newpage=null;
+      try {
+        newpage=m_cms.readFileHeader("/system/workplace/restypes/" + CmsResourceTypeNewPage.C_RESOURCE_TYPE_NAME);
+      }
+ catch (      CmsException e1) {
+      }
+      if (newpage != null) {
+        mergePageFiles();
+        removeFolders();
+      }
+    }
+  }
+ catch (  Exception exc) {
+    m_report.println(exc);
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+ finally {
+    if (m_importingChannelData)     m_cms.setContextToVfs();
+  }
+}
