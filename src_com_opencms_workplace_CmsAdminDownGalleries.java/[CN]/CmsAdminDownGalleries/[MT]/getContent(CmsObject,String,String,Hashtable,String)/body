@@ -45,57 +45,63 @@
       templateSelector="error";
     }
   }
- else   if ("upload".equals(action)) {
-    String filename=null;
-    byte[] filecontent=new byte[0];
-    Enumeration files=cms.getRequestContext().getRequest().getFileNames();
-    while (files.hasMoreElements()) {
-      filename=(String)files.nextElement();
-    }
-    if (filename != null) {
-      session.putValue(C_PARA_FILE,filename);
-    }
-    filename=(String)session.getValue(C_PARA_FILE);
-    if (filename != null) {
-      filecontent=cms.getRequestContext().getRequest().getFile(filename);
-    }
-    if (filecontent != null) {
-      session.putValue(C_PARA_FILECONTENT,filecontent);
-    }
-    filecontent=(byte[])session.getValue(C_PARA_FILECONTENT);
-    if ("0".equals(step)) {
-      templateSelector="";
-    }
- else     if ("1".equals(step)) {
+ else {
+    if ("upload".equals(action)) {
+      String filename=null;
+      byte[] filecontent=new byte[0];
+      Enumeration files=cms.getRequestContext().getRequest().getFileNames();
+      while (files.hasMoreElements()) {
+        filename=(String)files.nextElement();
+      }
       if (filename != null) {
-        if (filecontent.length == 0) {
-          templateSelector="error";
-          xmlTemplateDocument.setData("details",filename);
+        session.putValue(C_PARA_FILE,filename);
+      }
+      filename=(String)session.getValue(C_PARA_FILE);
+      if (filename != null) {
+        filecontent=cms.getRequestContext().getRequest().getFile(filename);
+      }
+      if (filecontent != null) {
+        session.putValue(C_PARA_FILECONTENT,filecontent);
+      }
+      filecontent=(byte[])session.getValue(C_PARA_FILECONTENT);
+      if ("0".equals(step)) {
+        templateSelector="";
+      }
+ else {
+        if ("1".equals(step)) {
+          if (filename != null) {
+            if (filecontent.length == 0) {
+              templateSelector="error";
+              xmlTemplateDocument.setData("details",filename);
+            }
+ else {
+              xmlTemplateDocument.setData("MIME",filename);
+              xmlTemplateDocument.setData("SIZE","Not yet available");
+              xmlTemplateDocument.setData("FILESIZE",new Integer(filecontent.length).toString() + " Bytes");
+              xmlTemplateDocument.setData("FILENAME",filename);
+              templateSelector="step1";
+            }
+          }
         }
  else {
-          xmlTemplateDocument.setData("MIME",filename);
-          xmlTemplateDocument.setData("SIZE","Not yet available");
-          xmlTemplateDocument.setData("FILESIZE",new Integer(filecontent.length).toString() + " Bytes");
-          xmlTemplateDocument.setData("FILENAME",filename);
-          templateSelector="step1";
+          if ("2".equals(step)) {
+            if (newname != null) {
+              filename=newname;
+            }
+            CmsFile file=cms.createFile(foldername,filename,filecontent,C_TYPE_PLAIN_NAME);
+            if (title != null) {
+              String filepath=file.getAbsolutePath();
+              cms.lockResource(filepath);
+              cms.writeProperty(filepath,C_PROPERTY_TITLE,title);
+            }
+            try {
+              cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + lasturl);
+            }
+ catch (            Exception ex) {
+              throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + lasturl,CmsException.C_UNKNOWN_EXCEPTION,ex);
+            }
+          }
         }
-      }
-    }
- else     if ("2".equals(step)) {
-      if (newname != null) {
-        filename=newname;
-      }
-      CmsFile file=cms.createFile(foldername,filename,filecontent,C_TYPE_PLAIN_NAME);
-      if (title != null) {
-        String filepath=file.getAbsolutePath();
-        cms.lockResource(filepath);
-        cms.writeProperty(filepath,C_PROPERTY_TITLE,title);
-      }
-      try {
-        cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + lasturl);
-      }
- catch (      Exception ex) {
-        throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + lasturl,CmsException.C_UNKNOWN_EXCEPTION,ex);
       }
     }
   }
