@@ -1,0 +1,58 @@
+{
+  ByteArrayOutputStream temp=new ByteArrayOutputStream();
+  ByteArrayOutputStream tmp=new ByteArrayOutputStream(ENDSTREAM.length);
+  boolean endstream=false;
+  int b=read();
+  char ch=(char)b;
+  while (true) {
+    if (isNewLineChar(ch)) {
+      tmp.reset();
+      boolean notMatch=false;
+      for (int i=0; i < ENDSTREAM.length; i++) {
+        b=read();
+        tmp.write(b);
+        if ((char)b != ENDSTREAM[i]) {
+          notMatch=true;
+          tmp.writeTo(temp);
+          break;
+        }
+      }
+      if (!notMatch)       endstream=true;
+    }
+ else {
+      temp.write(b);
+      b=read();
+      ch=(char)b;
+    }
+    if (endstream)     break;
+  }
+  if (compression == FLATE) {
+    ByteArrayInputStream bis=new ByteArrayInputStream(temp.toByteArray());
+    InflaterInputStream iin=new InflaterInputStream(bis);
+    temp.reset();
+    while ((b=iin.read()) != -1) {
+      temp.write(b);
+    }
+  }
+  ByteArrayInputStream bis=new ByteArrayInputStream(temp.toByteArray());
+  tmp.reset();
+  boolean end=false;
+  while (true) {
+    b=bis.read();
+    if (b == -1)     break;
+    if ((char)b == '(') {
+      while (true) {
+        b=bis.read();
+        if (b == -1) {
+          end=true;
+          break;
+        }
+        if ((char)b == ')')         break;
+        replaceSpChars(b,bis,tmp);
+      }
+    }
+    if (end)     break;
+  }
+  compression=NONE;
+  return new String(tmp.toByteArray());
+}
