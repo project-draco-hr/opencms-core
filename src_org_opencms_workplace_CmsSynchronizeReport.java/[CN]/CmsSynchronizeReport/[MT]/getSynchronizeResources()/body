@@ -1,0 +1,32 @@
+{
+  Vector folders=new Vector();
+  Vector files=new Vector();
+  Hashtable resources;
+  resources=getCms().getRegistry().getSystemValues(I_CmsConstants.C_SYNCHRONISATION_RESOURCE);
+  int count=resources.size();
+  for (int i=0; i < count; i++) {
+    String resource=(String)resources.get("res" + (i + 1));
+    if (CmsResource.isFolder(resource)) {
+      folders.add(resource);
+    }
+ else {
+      files.add(resource);
+    }
+  }
+  CmsExport.checkRedundancies(folders,files);
+  Vector result=new Vector(folders.size() + files.size());
+  result.addAll(folders);
+  result.addAll(files);
+  List projectResources=getCms().readProjectResources(getCms().getRequestContext().currentProject());
+  Iterator i=result.iterator();
+  while (i.hasNext()) {
+    String resource=(String)i.next();
+    if (!getCms().hasPermissions(resource,I_CmsConstants.C_WRITE_ACCESS)) {
+      throw new CmsSecurityException("No write permissions on resource: " + resource,CmsSecurityException.C_SECURITY_NO_PERMISSIONS);
+    }
+    if (!CmsProject.isInsideProject(projectResources,resource)) {
+      throw new CmsSecurityException("Resource path not in current project: " + resource,CmsSecurityException.C_SECURITY_NO_PERMISSIONS);
+    }
+  }
+  return result;
+}
