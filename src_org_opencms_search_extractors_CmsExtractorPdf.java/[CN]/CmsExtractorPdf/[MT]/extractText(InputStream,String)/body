@@ -1,0 +1,62 @@
+{
+  PDDocument pdfDocument=null;
+  try {
+    PDFParser parser=new PDFParser(in);
+    parser.parse();
+    pdfDocument=parser.getPDDocument();
+    if (pdfDocument.isEncrypted()) {
+      DocumentEncryption decryptor=new DocumentEncryption(pdfDocument);
+      decryptor.decryptDocument("");
+    }
+    PDFTextStripper stripper=new PDFTextStripper();
+    PDDocumentInformation info=pdfDocument.getDocumentInformation();
+    Map metaInfo=new HashMap();
+    StringBuffer result=new StringBuffer(4096);
+    String meta;
+    meta=info.getTitle();
+    if (CmsStringUtil.isNotEmpty(meta)) {
+      metaInfo.put(I_CmsExtractionResult.META_TITLE,meta);
+      result.append(meta);
+      result.append('\n');
+    }
+    meta=info.getKeywords();
+    if (CmsStringUtil.isNotEmpty(meta)) {
+      metaInfo.put(I_CmsExtractionResult.META_KEYWORDS,meta);
+      result.append(meta);
+      result.append('\n');
+    }
+    meta=info.getSubject();
+    if (CmsStringUtil.isNotEmpty(meta)) {
+      metaInfo.put(I_CmsExtractionResult.META_SUBJECT,meta);
+      result.append(meta);
+      result.append('\n');
+    }
+    meta=info.getAuthor();
+    if (CmsStringUtil.isNotEmpty(meta)) {
+      metaInfo.put(I_CmsExtractionResult.META_AUTHOR,meta);
+    }
+    meta=info.getCreator();
+    if (CmsStringUtil.isNotEmpty(meta)) {
+      metaInfo.put(I_CmsExtractionResult.META_CREATOR,meta);
+    }
+    meta=info.getProducer();
+    if (CmsStringUtil.isNotEmpty(meta)) {
+      metaInfo.put(I_CmsExtractionResult.META_PRODUCER,meta);
+    }
+    if (info.getCreationDate() != null) {
+      meta=CmsDateUtil.getHeaderDate(info.getCreationDate().getTime().getTime());
+      metaInfo.put(I_CmsExtractionResult.META_DATE_CREATED,meta);
+    }
+    if (info.getModificationDate() != null) {
+      meta=CmsDateUtil.getHeaderDate(info.getModificationDate().getTime().getTime());
+      metaInfo.put(I_CmsExtractionResult.META_DATE_LASTMODIFIED,meta);
+    }
+    result.append(stripper.getText(pdfDocument));
+    return new CmsExtractionResult(result.toString(),metaInfo);
+  }
+  finally {
+    if (pdfDocument != null) {
+      pdfDocument.close();
+    }
+  }
+}
