@@ -1,0 +1,65 @@
+{
+  Vector deletedByName=new Vector(deleted.size());
+  for (int i=0; i < deleted.size(); i++) {
+    deletedByName.add(((CmsResource)deleted.elementAt(i)).getResourceName());
+  }
+  Vector newByName=new Vector(newRes.size());
+  for (int i=0; i < newRes.size(); i++) {
+    newByName.add(((CmsResource)newRes.elementAt(i)).getResourceName());
+  }
+  Vector changedByName=new Vector(changed.size());
+  for (int i=0; i < changed.size(); i++) {
+    changedByName.add(((CmsResource)changed.elementAt(i)).getResourceName());
+  }
+  Vector onlineResNames=getOnlineResourceNames();
+  for (int i=0; i < changed.size(); i++) {
+    CmsUUID resId=((CmsResource)changed.elementAt(i)).getResourceId();
+    Vector currentLinks=m_driverManager.getProjectDriver().readLinkEntrys(resId);
+    CmsPageLinks aktualBrokenList=new CmsPageLinks(resId);
+    for (int index=0; index < currentLinks.size(); index++) {
+      String curElement=(String)currentLinks.elementAt(index);
+      if (!((onlineResNames.contains(curElement) && !deletedByName.contains(curElement)) || (newByName.contains(curElement)))) {
+        aktualBrokenList.addLinkTarget(curElement);
+      }
+    }
+    if (aktualBrokenList.getLinkTargets().size() != 0) {
+      aktualBrokenList.setResourceName(((CmsResource)changed.elementAt(i)).getResourceName());
+      report.println(aktualBrokenList);
+    }
+  }
+  for (int i=0; i < newRes.size(); i++) {
+    CmsUUID resId=((CmsResource)newRes.elementAt(i)).getResourceId();
+    Vector currentLinks=m_driverManager.getProjectDriver().readLinkEntrys(resId);
+    CmsPageLinks aktualBrokenList=new CmsPageLinks(resId);
+    for (int index=0; index < currentLinks.size(); index++) {
+      String curElement=(String)currentLinks.elementAt(index);
+      if (!((onlineResNames.contains(curElement) && !deletedByName.contains(curElement)) || (newByName.contains(curElement)))) {
+        aktualBrokenList.addLinkTarget(curElement);
+      }
+    }
+    if (aktualBrokenList.getLinkTargets().size() != 0) {
+      aktualBrokenList.setResourceName(((CmsResource)newRes.elementAt(i)).getResourceName());
+      report.println(aktualBrokenList);
+    }
+  }
+  Hashtable onlineResults=new Hashtable();
+  changedByName.addAll(deletedByName);
+  for (int i=0; i < deleted.size(); i++) {
+    Vector refs=getAllOnlineReferencesForLink(((CmsResource)deleted.elementAt(i)).getResourceName(),changedByName);
+    for (int index=0; index < refs.size(); index++) {
+      CmsPageLinks pl=(CmsPageLinks)refs.elementAt(index);
+      CmsUUID key=pl.getResourceId();
+      CmsPageLinks old=(CmsPageLinks)onlineResults.get(key);
+      if (old == null) {
+        onlineResults.put(key,pl);
+      }
+ else {
+        old.addLinkTarget((String)(pl.getLinkTargets().firstElement()));
+      }
+    }
+  }
+  Enumeration enu=onlineResults.elements();
+  while (enu.hasMoreElements()) {
+    report.println((CmsPageLinks)enu.nextElement());
+  }
+}
