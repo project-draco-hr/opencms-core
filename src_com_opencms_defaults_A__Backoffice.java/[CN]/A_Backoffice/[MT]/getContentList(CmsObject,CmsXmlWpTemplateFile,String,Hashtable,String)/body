@@ -1,0 +1,113 @@
+{
+  byte[] processResult=null;
+  I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  Class cdClass=getContentDefinitionClass();
+  String filterParam=(String)parameters.get("filterparameter");
+  String filterMethodName=(String)parameters.get("selectbox");
+  if (filterMethodName == null)   filterMethodName="";
+  String tableHead="";
+  String singleRow="";
+  String allEntrys="";
+  String entry="";
+  int columns=0;
+  Vector columnsVector=new Vector();
+  String fieldNamesMethod="getFieldNames";
+  Class paramClasses[]={CmsObject.class};
+  Object params[]={cms};
+  columnsVector=(Vector)getContentMethodObject(cms,cdClass,fieldNamesMethod,paramClasses,params);
+  columns=columnsVector.size();
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  for (int i=0; i < columns; i++) {
+    tableHead+=(template.getDataValue("tabledatabegin")) + lang.getLanguageValue(C_BACKOFFICE_LABEL + columnsVector.elementAt(i).toString().toLowerCase()) + (template.getDataValue("tabledataend"));
+  }
+  template.setData("tableheadline",tableHead);
+  Vector tableContent=new Vector();
+  try {
+    Vector filterMethods=(Vector)cdClass.getMethod("getFilterMethods",new Class[]{CmsObject.class}).invoke(null,new Object[]{cms});
+    FilterMethod filterMethod=null;
+    FilterMethod filterName=(FilterMethod)filterMethods.elementAt(Integer.parseInt(filterMethodName));
+    filterMethodName=filterName.getFilterName();
+    for (int i=0; i < filterMethods.size(); i++) {
+      FilterMethod currentFilter=(FilterMethod)filterMethods.elementAt(i);
+      if (currentFilter.getFilterName().equals(filterMethodName)) {
+        filterMethod=currentFilter;
+        break;
+      }
+    }
+    if (filterMethod == null) {
+      filterMethod=(FilterMethod)filterMethods.firstElement();
+    }
+    tableContent=(Vector)cdClass.getMethod("applyFilter",new Class[]{CmsObject.class,FilterMethod.class,String.class}).invoke(null,new Object[]{cms,filterMethod,filterParam});
+  }
+ catch (  InvocationTargetException ite) {
+    System.err.println("Backoffice apply filter: InvocationTargetException!");
+    ite.getTargetException().printStackTrace();
+    templateSelector="error";
+    template.setData("filtername",filterMethodName);
+    template.setData("filtererror",ite.getTargetException().getMessage());
+  }
+catch (  NoSuchMethodException nsm) {
+    System.err.println("Backoffice apply filter: Requested method was not found!");
+  }
+catch (  Exception e) {
+    System.err.println("Backoffice apply filter: Other Exception!");
+    e.printStackTrace();
+    templateSelector="error";
+    template.setData("filtername",filterMethodName);
+  }
+  int rows=tableContent.size();
+  Vector fieldMethods=new Vector();
+  try {
+    fieldMethods=(Vector)cdClass.getMethod("getFieldMethods",new Class[]{CmsObject.class}).invoke(null,new Object[]{cms});
+  }
+ catch (  Exception exc) {
+    System.err.println("Backoffice fieldMethods throwed an exception");
+    exc.printStackTrace();
+  }
+  String fieldEntry="";
+  String id="";
+  for (int i=0; i < rows; i++) {
+    entry="";
+    singleRow="";
+    Object entryObject=new Object();
+    entryObject=tableContent.elementAt(i);
+    for (int j=0; j < columns; j++) {
+      Method getMethod=(Method)fieldMethods.elementAt(j);
+      try {
+        fieldEntry=(String)getMethod.invoke(entryObject,new Object[0]);
+      }
+ catch (      InvocationTargetException ite) {
+        System.err.println("Backoffice table entry: Catched Exception while using reflection!");
+        ite.getTargetException().printStackTrace();
+      }
+catch (      Exception e) {
+        System.err.println("Backoffice table entry: Other exception!");
+        e.printStackTrace();
+      }
+      if (fieldEntry != null)       entry+=(template.getDataValue("tabledatabegin")) + fieldEntry + (template.getDataValue("tabledataend"));
+    }
+    try {
+      id=(String)cdClass.getMethod("getUniqueId",new Class[]{CmsObject.class}).invoke(entryObject,new Object[]{cms});
+    }
+ catch (    InvocationTargetException ite) {
+      System.err.println("Backoffice getUniqueId: Catched Exception while using reflection!");
+      ite.getTargetException().printStackTrace();
+    }
+catch (    NoSuchMethodException nsm) {
+      System.err.println("Backoffice getUniqueId: Requested method was not found!");
+    }
+catch (    Exception e) {
+      System.err.println("Backoffice getUniqueId: Output section throwed an exception!");
+      e.printStackTrace();
+    }
+    if (id != null)     template.setData("uniqueid",id);
+    setLockstates(template,cdClass,entryObject);
+    template.setData("entry",entry);
+    singleRow=template.getProcessedDataValue("singlerow",this);
+    allEntrys+=(template.getDataValue("tablerowbegin")) + singleRow + (template.getDataValue("tablerowend"));
+  }
+  template.setData("tablecontent","" + allEntrys);
+  session.putValue("selectbox",filterMethodName);
+  processResult=startProcessing(cms,template,elementName,parameters,templateSelector);
+  return processResult;
+}

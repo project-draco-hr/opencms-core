@@ -1,0 +1,109 @@
+{
+  byte[] processResult=null;
+  I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  Class cdClass=getContentDefinitionClass();
+  String id=(String)parameters.get("id");
+  if (id == null)   id="";
+  if (id != "") {
+    session.putValue("idsave",id);
+  }
+ else {
+    String idsave=(String)session.getValue("idsave");
+    if (idsave == null)     idsave="";
+    id=idsave;
+    session.removeValue("idsave");
+  }
+  parameters.put("idlock",id);
+  String action=(String)parameters.get("action");
+  if (action == null || action.equals("")) {
+    Integer idInteger=Integer.valueOf(id);
+    String ls="";
+    String title="no title";
+    Object o=null;
+    o=getContentDefinitionConstructor(cms,cdClass,idInteger);
+    try {
+      Method getLockstateMethod=(Method)cdClass.getMethod("getLockstate",new Class[]{});
+      ls=(String)getLockstateMethod.invoke(o,new Object[0]);
+    }
+ catch (    Exception e) {
+      e.printStackTrace();
+    }
+    CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+    template.setData("lockdialog",lang.getLanguageValue(C_BACKOFFICE_MESSAGEBOX_DIALOG + ls));
+    template.setData("newsentry",id);
+    template.setData("setaction","default");
+    templateSelector="default";
+    parameters.put("action","done");
+  }
+ else {
+    templateSelector="done";
+    session.removeValue("idlocksave");
+    session.removeValue("idsave");
+    Integer idInteger=Integer.valueOf(id);
+    String ls="";
+    Object o=null;
+    o=getContentDefinitionConstructor(cms,cdClass,idInteger);
+    try {
+      Method getLockstateMethod=(Method)cdClass.getMethod("getLockstate",new Class[]{});
+      ls=(String)getLockstateMethod.invoke(o,new Object[0]);
+      System.err.println("lock ls:" + ls);
+    }
+ catch (    Exception e) {
+      e.printStackTrace();
+    }
+    if (ls.equals("lockuser")) {
+      try {
+        Method setLockstateMethod=(Method)cdClass.getMethod("setLockstate",new Class[]{String.class});
+        setLockstateMethod.invoke(o,new Object[]{"lock"});
+      }
+ catch (      Exception e) {
+        e.printStackTrace();
+      }
+      try {
+        Method writeMethod=(Method)cdClass.getMethod("write",new Class[]{CmsObject.class});
+        writeMethod.invoke(o,new Object[]{cms});
+      }
+ catch (      Exception e) {
+        e.printStackTrace();
+      }
+      templateSelector="done";
+    }
+ else {
+      if (ls.equals("lock")) {
+        try {
+          Method setLockstateMethod=(Method)cdClass.getMethod("setLockstate",new Class[]{String.class});
+          setLockstateMethod.invoke(o,new Object[]{"nolock"});
+        }
+ catch (        Exception e) {
+          e.printStackTrace();
+        }
+        try {
+          Method writeMethod=(Method)cdClass.getMethod("write",new Class[]{CmsObject.class});
+          writeMethod.invoke(o,new Object[]{cms});
+        }
+ catch (        Exception e) {
+          e.printStackTrace();
+        }
+        templateSelector="done";
+      }
+ else {
+        try {
+          Method setLockstateMethod=(Method)cdClass.getMethod("setLockstate",new Class[]{String.class});
+          setLockstateMethod.invoke(o,new Object[]{"lock"});
+        }
+ catch (        Exception e) {
+          e.printStackTrace();
+        }
+        try {
+          Method writeMethod=(Method)cdClass.getMethod("write",new Class[]{CmsObject.class});
+          writeMethod.invoke(o,new Object[]{cms});
+        }
+ catch (        Exception e) {
+          e.printStackTrace();
+        }
+      }
+    }
+  }
+  processResult=startProcessing(cms,template,elementName,parameters,templateSelector);
+  return processResult;
+}
