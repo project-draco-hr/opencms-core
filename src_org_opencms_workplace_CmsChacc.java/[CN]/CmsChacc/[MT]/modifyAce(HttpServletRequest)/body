@@ -1,0 +1,61 @@
+{
+  String file=getSettings().getFileUri();
+  String name=(String)request.getParameter("name");
+  String type=(String)request.getParameter("type");
+  String inherit=(String)request.getParameter("inherit");
+  String overWriteInherited=(String)request.getParameter("overwriteinherited");
+  Set permissionKeys=CmsPermissionSet.getPermissionKeys();
+  int allowValue=0;
+  int denyValue=0;
+  String key, param;
+  int value, paramInt;
+  Iterator i=permissionKeys.iterator();
+  while (i.hasNext()) {
+    key=(String)i.next();
+    value=CmsPermissionSet.getPermissionValue(key);
+    try {
+      param=(String)request.getParameter(value + "allow");
+      paramInt=Integer.parseInt(param);
+      allowValue|=paramInt;
+    }
+ catch (    Exception e) {
+    }
+    try {
+      param=(String)request.getParameter(value + "deny");
+      paramInt=Integer.parseInt(param);
+      denyValue|=paramInt;
+    }
+ catch (    Exception e) {
+    }
+  }
+  try {
+    Vector allEntries=getCms().getAccessControlEntries(file,false);
+    int flags=0;
+    for (int k=0; k < allEntries.size(); k++) {
+      CmsAccessControlEntry curEntry=(CmsAccessControlEntry)allEntries.elementAt(k);
+      String curType=getEntryType(curEntry.getFlags());
+      String curName=getCms().lookupPrincipal(curEntry.getPrincipal()).getName();
+      if (curName.equals(name) && curType.equals(type)) {
+        flags=curEntry.getFlags();
+        break;
+      }
+    }
+    if ("true".equals(inherit)) {
+      flags|=I_CmsConstants.C_ACCESSFLAGS_INHERIT;
+    }
+ else {
+      flags&=~I_CmsConstants.C_ACCESSFLAGS_INHERIT;
+    }
+    if ("true".equals(overWriteInherited)) {
+      flags|=I_CmsConstants.C_ACCESSFLAGS_OVERWRITE;
+    }
+ else {
+      flags&=~I_CmsConstants.C_ACCESSFLAGS_OVERWRITE;
+    }
+    getCms().chacc(file,type,name,allowValue,denyValue,flags);
+    return true;
+  }
+ catch (  CmsException e) {
+    return false;
+  }
+}
