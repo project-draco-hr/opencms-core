@@ -1,4 +1,25 @@
 {
+  CmsTemplateParts parts=null;
+  boolean cacheNavEnabled=!getRequestContext().currentProject().isOnlineProject();
+  String cacheKey=null;
+  if (cacheNavEnabled) {
+    parts=CmsTemplateParts.getInstance(this);
+    StringBuffer key=new StringBuffer(8);
+    key.append(getRequestContext().getSiteRoot());
+    key.append("_");
+    key.append(getHeadNavFolder().hashCode());
+    key.append("_");
+    key.append(getStartFolder().hashCode());
+    key.append("_");
+    key.append(getMenuDepth());
+    key.append("_");
+    key.append(showMenus());
+    cacheKey=key.toString();
+    String cachedNav=parts.getPart(cacheKey);
+    if (CmsStringUtil.isNotEmpty(cachedNav)) {
+      return cachedNav;
+    }
+  }
   StringBuffer result=new StringBuffer(4096);
   if (showMenus()) {
     List navElements=getNavigation().getNavigationForFolder(getHeadNavFolder());
@@ -14,6 +35,9 @@
         List subNav=getNavigation().getNavigationForFolder(subfolder);
         result.append(getMenuNavigation(subNav,styleClass,"menu" + count,1));
       }
+    }
+    if (cacheNavEnabled) {
+      parts.setPart(cacheKey,result.toString());
     }
   }
   return result.toString();
