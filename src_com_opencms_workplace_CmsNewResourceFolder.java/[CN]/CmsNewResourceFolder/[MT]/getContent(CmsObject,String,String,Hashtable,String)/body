@@ -1,6 +1,15 @@
 {
   String template=null;
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
   I_CmsSession session=cms.getRequestContext().getSession(true);
+  String initial=(String)parameters.get("initial");
+  if (initial != null) {
+    clearSession(session);
+    xmlTemplateDocument.setData("name","");
+    xmlTemplateDocument.setData("title","");
+  }
+  xmlTemplateDocument.setData("navtext","");
+  xmlTemplateDocument.setData("doOnload","");
   String currentFilelist=(String)session.getValue(C_PARA_FILELIST);
   if (currentFilelist == null) {
     currentFilelist=cms.rootFolder().getAbsolutePath();
@@ -9,28 +18,83 @@
   String title=(String)parameters.get(C_PARA_TITLE);
   String navtitle=(String)parameters.get(C_PARA_NAVTEXT);
   String navpos=(String)parameters.get(C_PARA_NAVPOS);
-  String step=cms.getRequestContext().getRequest().getParameter("step");
+  String step=(String)parameters.get("step");
   if (step != null) {
     if (step.equals("1")) {
-      try {
-        CmsFolder folder=cms.createFolder(currentFilelist,newFolder);
-        cms.lockResource(folder.getAbsolutePath());
-        cms.writeProperty(folder.getAbsolutePath(),C_PROPERTY_TITLE,title);
+      if (true) {
+        session.putValue(C_SESSIONHEADER + C_PARA_NEWFOLDER,newFolder);
+        session.putValue(C_SESSIONHEADER + C_PARA_TITLE,title);
         if (navtitle != null) {
-          cms.writeProperty(folder.getAbsolutePath(),C_PROPERTY_NAVTEXT,navtitle);
-          if (navpos != null) {
+          session.putValue(C_SESSIONHEADER + C_PARA_NAVTEXT,navtitle);
+          session.putValue(C_SESSIONHEADER + C_PARA_NAVPOS,navpos);
+        }
+        Hashtable preprops=(Hashtable)session.getValue(C_SESSIONHEADER + "extendedProperties");
+        setNavDefault(xmlTemplateDocument,preprops,newFolder);
+        if (cms.rootFolder().getAbsolutePath().equals(currentFilelist)) {
+          xmlTemplateDocument.setData("displaySektLogo",xmlTemplateDocument.getProcessedDataValue("SektLogo",this));
+        }
+ else {
+          xmlTemplateDocument.setData("displaySektLogo","");
+        }
+        template="extendedNav";
+      }
+ else {
+        try {
+          CmsFolder folder=cms.createFolder(currentFilelist,newFolder);
+          cms.lockResource(folder.getAbsolutePath());
+          cms.writeProperty(folder.getAbsolutePath(),C_PROPERTY_TITLE,title);
+          if (navtitle != null) {
+            cms.writeProperty(folder.getAbsolutePath(),C_PROPERTY_NAVTEXT,navtitle);
+            if (navpos != null) {
+              updateNavPos(cms,folder,navpos);
+            }
+          }
+          clearSession(session);
+        }
+ catch (        CmsException ex) {
+          throw new CmsException("Error while creating new Folder" + ex.getMessage(),ex.getType(),ex);
+        }
+        template="update";
+      }
+    }
+ else     if ("2".equals(step)) {
+      String back=(String)parameters.get("back");
+      newFolder=(String)session.getValue(C_SESSIONHEADER + C_PARA_NEWFOLDER);
+      title=(String)session.getValue(C_SESSIONHEADER + C_PARA_TITLE);
+      navtitle=(String)session.getValue(C_SESSIONHEADER + C_PARA_NAVTEXT);
+      navpos=(String)session.getValue(C_SESSIONHEADER + C_PARA_NAVPOS);
+      Hashtable allProperties=new Hashtable();
+      insertProperty(allProperties,C_PROPERTY_TITLE,title);
+      insertProperty(allProperties,C_PROPERTY_NAVTEXT,navtitle);
+      fillProperties(allProperties,parameters);
+      if (back == null) {
+        try {
+          CmsFolder folder=cms.createFolder(currentFilelist,newFolder);
+          cms.lockResource(folder.getAbsolutePath());
+          cms.writeProperties(folder.getAbsolutePath(),allProperties);
+          if ((navtitle != null) && (navpos != null)) {
             updateNavPos(cms,folder,navpos);
           }
+          clearSession(session);
         }
+ catch (        CmsException ex) {
+          throw new CmsException("Error while creating new Folder" + ex.getMessage(),ex.getType(),ex);
+        }
+        template="update";
       }
- catch (      CmsException ex) {
-        throw new CmsException("Error while creating new Folder" + ex.getMessage(),ex.getType(),ex);
+ else {
+        xmlTemplateDocument.setData("name",newFolder);
+        xmlTemplateDocument.setData("title",title);
+        if (navtitle != null) {
+          xmlTemplateDocument.setData("navtext",navtitle);
+        }
+ else {
+          xmlTemplateDocument.setData("doOnload","checkInTheBox();");
+        }
+        session.putValue(C_SESSIONHEADER + "extendedProperties",allProperties);
+        template=null;
       }
-      template="update";
     }
   }
- else {
-  }
-  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
   return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
 }
