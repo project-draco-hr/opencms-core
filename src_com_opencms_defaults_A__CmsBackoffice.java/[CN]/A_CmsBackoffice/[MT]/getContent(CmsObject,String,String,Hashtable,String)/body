@@ -1,0 +1,105 @@
+{
+  byte[] returnProcess=null;
+  I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  CmsXmlWpTemplateFile template=new CmsXmlWpTemplateFile(cms,templateFile);
+  String selectBox=(String)parameters.get("selectbox");
+  String filterParam=(String)parameters.get("filterparameter");
+  String id=(String)parameters.get("id");
+  String idlock=(String)parameters.get("idlock");
+  String iddelete=(String)parameters.get("iddelete");
+  String idedit=(String)parameters.get("idedit");
+  String idview=(String)parameters.get("idview");
+  String action=(String)parameters.get("action");
+  String parentId=(String)parameters.get("parentId");
+  String ok=(String)parameters.get("ok");
+  String setaction=(String)parameters.get("setaction");
+  String hasFilterParam=(String)session.getValue("filterparameter");
+  template.setData("filternumber","0");
+  if ((hasFilterParam == null) && (filterParam == null) && (setaction == null)) {
+    if (selectBox != null) {
+      session.putValue("filter",selectBox);
+      template.setData("filternumber",selectBox);
+      System.err.println("### changed filter to " + session.getValue("filter"));
+    }
+  }
+ else {
+    template.setData("filternumber",(String)session.getValue("filter"));
+  }
+  if (idlock != null) {
+    id=idlock;
+    session.putValue("idlock",idlock);
+    session.removeValue("idedit");
+    session.removeValue("idnew");
+    session.removeValue("iddelete");
+  }
+  if (idedit != null) {
+    id=idedit;
+    session.putValue("idedit",idedit);
+    session.removeValue("idlock");
+    session.removeValue("idnew");
+    session.removeValue("iddelete");
+  }
+  if (iddelete != null) {
+    id=iddelete;
+    session.putValue("iddelete",iddelete);
+    session.removeValue("idedit");
+    session.removeValue("idnew");
+    session.removeValue("idlock");
+  }
+  if ((id != null) && (id.equals("new"))) {
+    session.putValue("idnew",id);
+    session.removeValue("idedit");
+    session.removeValue("idnew");
+    session.removeValue("iddelete");
+    session.removeValue("idlock");
+  }
+  String idsave=(String)session.getValue("idsave");
+  if (ok == null)   idsave=null;
+  if (parentId != null) {
+    session.putValue("parentId",parentId);
+  }
+  String idnewsave=(String)session.getValue("idnew");
+  if ((id != null) && (id.equals("new")) || ((idsave != null) && (idsave.equals("new")))) {
+    if (idsave != null)     parameters.put("idsave",idsave);
+    if (id != null)     parameters.put("id",id);
+    returnProcess=getContentNew(cms,template,elementName,parameters,templateSelector);
+    return returnProcess;
+  }
+  if ((id == null) && (idsave == null) && (action == null)&& (idlock == null)&& (iddelete == null)&& (idedit == null)) {
+    returnProcess=getContentHead(cms,template,elementName,parameters,templateSelector);
+    return returnProcess;
+  }
+ else {
+    if (action == null)     action="";
+    if (action.equalsIgnoreCase("list")) {
+      returnProcess=getContentList(cms,template,elementName,parameters,templateSelector);
+      return returnProcess;
+    }
+ else {
+      String ideditsave=(String)session.getValue("idedit");
+      if ((idedit != null) || (ideditsave != null)) {
+        if (idsave != null)         parameters.put("idsave",idsave);
+        if (id != null)         parameters.put("id",id);
+        returnProcess=getContentEdit(cms,template,elementName,parameters,templateSelector);
+        return returnProcess;
+      }
+ else {
+        if (idsave != null) {
+          parameters.put("id",idsave);
+        }
+ else {
+          parameters.put("id",id);
+        }
+        String iddeletesave=(String)session.getValue("iddelete");
+        if (((iddelete != null) || (iddeletesave != null)) && (idlock == null)) {
+          returnProcess=getContentDelete(cms,template,elementName,parameters,templateSelector);
+          return returnProcess;
+        }
+ else {
+          returnProcess=getContentLock(cms,template,elementName,parameters,templateSelector);
+          return returnProcess;
+        }
+      }
+    }
+  }
+}

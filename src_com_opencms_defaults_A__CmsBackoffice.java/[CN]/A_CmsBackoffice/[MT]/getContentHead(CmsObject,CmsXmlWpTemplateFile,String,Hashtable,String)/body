@@ -1,0 +1,82 @@
+{
+  byte[] processResult=null;
+  Class cdClass=getContentDefinitionClass();
+  String singleSelection="";
+  String allSelections="";
+  CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  String uri=cms.getRequestContext().getUri();
+  String sessionSelectBoxValue=uri + "selectBoxValue";
+  String selectBoxValue=(String)parameters.get("selectbox");
+  if (selectBoxValue == null) {
+    if ((String)session.getValue(sessionSelectBoxValue) != null) {
+      selectBoxValue=(String)session.getValue(sessionSelectBoxValue);
+    }
+ else {
+      selectBoxValue="0";
+    }
+  }
+  boolean filterChanged=true;
+  if (selectBoxValue.equals((String)session.getValue(sessionSelectBoxValue))) {
+    filterChanged=false;
+  }
+ else {
+    filterChanged=true;
+  }
+  session.putValue(sessionSelectBoxValue,selectBoxValue);
+  session.putValue("filter",selectBoxValue);
+  String filterParam=(String)parameters.get("filterparameter");
+  String action=(String)parameters.get("action");
+  String setaction=(String)parameters.get("setaction");
+  String sessionFilterParam=uri + selectBoxValue + "filterparameter";
+  if (filterParam != null) {
+    session.putValue(sessionFilterParam,filterParam);
+  }
+  String moduleName="";
+  moduleName=(String)getClass().toString();
+  moduleName=moduleName.substring(5);
+  moduleName=moduleName.trim();
+  moduleName=moduleName.replace('.','_');
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  template.setData("filterlabel",lang.getLanguageValue(moduleName + ".label.filter"));
+  template.setData("filterparameterlabel",lang.getLanguageValue(moduleName + ".label.filterparameter"));
+  Vector filterMethods=getFilterMethods(cms);
+  CmsFilterMethod filterMethod=null;
+  if (selectBoxValue == null) {
+    CmsFilterMethod defaultFilter=(CmsFilterMethod)filterMethods.firstElement();
+    session.putValue("selectbox",defaultFilter.getFilterName());
+  }
+  CmsFilterMethod currentFilter=(CmsFilterMethod)filterMethods.elementAt(Integer.parseInt(selectBoxValue));
+  if (currentFilter.hasUserParameter()) {
+    if (filterChanged) {
+      template.setData("filterparameter",currentFilter.getDefaultFilterParam());
+      session.putValue(sessionFilterParam,currentFilter.getDefaultFilterParam());
+    }
+ else     if (filterParam != null) {
+      template.setData("filterparameter",filterParam);
+    }
+ else {
+      template.setData("filterparameter",(String)session.getValue(sessionFilterParam));
+    }
+    template.setData("insertFilter",template.getProcessedDataValue("selectboxWithParam",this,parameters));
+    template.setData("setfocus",template.getDataValue("focus"));
+  }
+ else {
+    template.setData("insertFilter",template.getProcessedDataValue("singleSelectbox",this,parameters));
+  }
+  String createButton=null;
+  try {
+    createButton=(String)getCreateUrl(cms,null,null,null);
+  }
+ catch (  Exception e) {
+  }
+  if (createButton == null) {
+    String cb=template.getDataValue("nowand");
+    template.setData("createbutton",cb);
+  }
+ else {
+    String cb=template.getProcessedDataValue("wand",this,parameters);
+    template.setData("createbutton",cb);
+  }
+  processResult=startProcessing(cms,template,elementName,parameters,templateSelector);
+  return processResult;
+}
