@@ -23,15 +23,19 @@
   if (mustUpdate) {
     if (DEBUG > 2)     System.err.println("JspLoader writing new file: " + jspfilename);
     byte[] contents=null;
+    String jspEncoding=null;
     try {
       contents=req.getCmsObject().readFile(file.getAbsolutePath()).getContents();
+      jspEncoding=CmsPropertyLookup.lookupProperty(cms,file.getAbsolutePath(),C_PROPERTY_CONTENT_ENCODING,false);
+      if (jspEncoding == null)       jspEncoding=C_DEFAULT_JSP_ENCODING;
+      jspEncoding=jspEncoding.trim().toLowerCase();
     }
  catch (    CmsException e) {
       throw new ServletException("JspLoader: Could not read contents for file '" + file.getAbsolutePath() + "'",e);
     }
     try {
       FileOutputStream fs=new FileOutputStream(f);
-      String page=new String(contents);
+      String page=new String(contents,A_OpenCms.getDefaultEncoding());
       StringBuffer buf=new StringBuffer(contents.length);
       int p0=0, i2=0, slen=C_DIRECTIVE_START.length(), elen=C_DIRECTIVE_END.length();
       int i1=page.indexOf(C_DIRECTIVE_START);
@@ -99,20 +103,14 @@
       }
       if (i2 > 0) {
         buf.append(page.substring(p0,page.length()));
-        contents=buf.toString().getBytes();
+        contents=buf.toString().getBytes(jspEncoding);
       }
-      try {
-        String dnc=OpenCms.getDefaultEncoding().trim().toLowerCase();
-        String enc=CmsPropertyLookup.lookupProperty(cms,file.getAbsolutePath(),C_PROPERTY_CONTENT_ENCODING,true);
-        if (enc != null)         enc=enc.trim().toLowerCase();
-        if ((enc != null) && (!dnc.equals(enc))) {
-          System.err.println("CmsJspLoader.updateJsp(): Encoding result from " + dnc + " to "+ enc);
-          contents=(new String(contents,dnc)).getBytes(enc);
+ else {
+        String defaultEncoding=A_OpenCms.getDefaultEncoding().trim().toLowerCase();
+        if (!jspEncoding.equals(defaultEncoding)) {
+          contents=(new String(contents,defaultEncoding)).getBytes(jspEncoding);
         }
       }
- catch (      Exception ex) {
-      }
-      ;
       fs.write(contents);
       fs.close();
       log("Updated JSP file \"" + jspfilename + "\" for resource \""+ file.getAbsolutePath()+ "\"");
