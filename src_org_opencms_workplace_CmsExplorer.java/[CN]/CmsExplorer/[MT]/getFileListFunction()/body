@@ -1,4 +1,5 @@
 {
+  boolean isInsideCurrentProject=false;
   boolean listonly="listonly".equals(getSettings().getExplorerMode());
   boolean projectView="projectview".equals(getSettings().getExplorerMode());
   boolean vfslinkView="vfslink".equals(getSettings().getExplorerMode());
@@ -67,7 +68,7 @@
   if (!vfslinkView) {
     try {
       CmsFolder test=getCms().readFolder(currentFolder);
-      writeAccess=test.getProjectId() == getSettings().getProject();
+      writeAccess=getCms().isInsideCurrentProject(test);
     }
  catch (    CmsException e) {
       writeAccess=false;
@@ -127,6 +128,7 @@
         A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,this.getClass().getName() + " error getting lock state for resource " + res+ " "+ e.getMessage());
       }
     }
+    isInsideCurrentProject=getCms().isInsideCurrentProject(res);
     content.append("top.aF(");
     content.append("\"");
     content.append(res.getResourceName());
@@ -169,7 +171,7 @@
     }
     content.append(res.getState());
     content.append(",");
-    int projectId=lock.isNullLock() ? getCms().getRequestContext().currentProject().getId() : lock.getProjectId();
+    int projectId=lock.isNullLock() ? res.getProjectId() : lock.getProjectId();
     content.append(projectId);
     content.append(",");
     if (showDateLastModified) {
@@ -253,6 +255,14 @@
     content.append(lockedInProjectName);
     content.append("\",");
     content.append(lockedInProject);
+    content.append(",\"");
+    if (isInsideCurrentProject) {
+      content.append("I");
+    }
+ else {
+      content.append("O");
+    }
+    content.append("\"");
     content.append(");\n");
   }
   if (newTreePlease && (!(listonly || vfslinkView))) {
@@ -293,7 +303,7 @@
       Hashtable idMixer=new Hashtable();
       CmsFolder rootFolder=(CmsFolder)tree.get(0);
       String folderToIgnore=null;
-      if (!CmsProject.isOnlineProject(rootFolder.getProjectId())) {
+      if (getCms().isInsideCurrentProject(rootFolder)) {
         grey=false;
       }
  else {
@@ -316,7 +326,6 @@
         }
  else {
           if (!CmsProject.isOnlineProject(folder.getProjectId())) {
-            grey=false;
             parentId=folder.getParentId();
             try {
               if (getCms().readAbsolutePath(folder).equals(getCms().readAbsolutePath((CmsFolder)tree.get(i + 1)))) {
@@ -328,11 +337,16 @@
             }
           }
  else {
-            grey=true;
             parentId=folder.getParentId();
             if (idMixer.containsKey(parentId)) {
               parentId=(CmsUUID)idMixer.get(parentId);
             }
+          }
+          if (getCms().isInsideCurrentProject(folder)) {
+            grey=false;
+          }
+ else {
+            grey=true;
           }
           content.append("top.aC(\"");
           content.append(folder.getId().hashCode());
