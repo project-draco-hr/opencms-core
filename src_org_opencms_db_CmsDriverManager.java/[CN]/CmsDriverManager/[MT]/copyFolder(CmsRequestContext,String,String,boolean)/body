@@ -1,0 +1,26 @@
+{
+  CmsResource newResource=null;
+  String destinationFoldername=null;
+  String destinationResourceName=null;
+  validFilename(destination.replace('/','a'));
+  destinationFoldername=destination.substring(0,destination.substring(0,destination.length() - 1).lastIndexOf("/") + 1);
+  destinationResourceName=destination.substring(destinationFoldername.length(),destination.lastIndexOf(I_CmsConstants.C_FOLDER_SEPARATOR));
+  CmsFolder destinationFolder=readFolder(context,destinationFoldername);
+  CmsFolder sourceFolder=readFolder(context,source);
+  checkPermissions(context,destinationFolder,I_CmsConstants.C_WRITE_ACCESS);
+  newResource=m_vfsDriver.createFolder(context.currentUser(),context.currentProject(),destinationFolder.getId(),CmsUUID.getNullUUID(),destinationResourceName,sourceFolder.getFlags());
+  clearResourceCache();
+  writeProperties(context,destination,readProperties(context,source,null,false));
+  ListIterator aceList=getAccessControlEntries(context,sourceFolder,false).listIterator();
+  while (aceList.hasNext()) {
+    CmsAccessControlEntry ace=(CmsAccessControlEntry)aceList.next();
+    m_userDriver.createAccessControlEntry(context.currentProject(),newResource.getResourceAceId(),ace.getPrincipal(),ace.getPermissions().getAllowedPermissions(),ace.getPermissions().getDeniedPermissions(),ace.getFlags());
+  }
+  if (lockCopy) {
+    lockResource(context,destination,true);
+  }
+  clearAccessControlListCache();
+  m_resourceListCache.clear();
+  m_accessCache.clear();
+  fileSystemChanged(true);
+}
