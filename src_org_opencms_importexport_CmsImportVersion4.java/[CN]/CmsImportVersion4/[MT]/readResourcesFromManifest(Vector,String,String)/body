@@ -1,7 +1,6 @@
 {
-  String source=null, destination=null, type=null, uuidresource=null, userlastmodified=null, usercreated=null, flags=null, timestamp=null;
+  String source=null, destination=null, uuidresource=null, userlastmodified=null, usercreated=null, flags=null, timestamp=null;
   long datelastmodified=0, datecreated=0, datereleased=0, dateexpired=0;
-  int resType=I_CmsConstants.C_UNKNOWN_ID;
   List fileNodes=null, acentryNodes=null;
   Element currentElement=null, currentEntry=null;
   List properties=null;
@@ -29,26 +28,9 @@
       currentElement=(Element)fileNodes.get(i);
       source=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_SOURCE);
       destination=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DESTINATION);
-      boolean folder;
-      type=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_TYPE);
-      if (C_RESOURCE_TYPE_NEWPAGE_NAME.equals(type)) {
-        resType=C_RESOURCE_TYPE_NEWPAGE_ID;
-        folder=false;
-      }
- else       if (C_RESOURCE_TYPE_PAGE_NAME.equals(type)) {
-        resType=C_RESOURCE_TYPE_PAGE_ID;
-        folder=false;
-      }
- else       if (C_RESOURCE_TYPE_LINK_NAME.equals(type)) {
-        resType=C_RESOURCE_TYPE_LINK_ID;
-        folder=false;
-      }
- else {
-        I_CmsResourceType rt=OpenCms.getResourceManager().getResourceType(type);
-        resType=rt.getTypeId();
-        folder=rt.isFolder();
-      }
-      if (!folder) {
+      String typeName=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_TYPE);
+      I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(typeName);
+      if (!type.isFolder()) {
         uuidresource=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDRESOURCE);
       }
  else {
@@ -84,7 +66,7 @@
       }
       flags=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_FLAGS);
       String translatedName=m_cms.getRequestContext().addSiteRoot(m_importPath + destination);
-      if (CmsResourceTypeFolder.C_RESOURCE_TYPE_NAME.equals(type)) {
+      if (type.isFolder()) {
         if (!CmsResource.isFolder(translatedName)) {
           translatedName+=I_CmsConstants.C_FOLDER_SEPARATOR;
         }
@@ -96,7 +78,7 @@
         m_report.print(translatedName);
         m_report.print(m_report.key("report.dots"));
         properties=readPropertiesFromManifest(currentElement,propertyKey,propertyValue,ignoredProperties);
-        CmsResource res=importResource(source,translatedName,resType,uuidresource,datelastmodified,userlastmodified,datecreated,usercreated,datereleased,dateexpired,flags,properties);
+        CmsResource res=importResource(source,translatedName,type,uuidresource,datelastmodified,userlastmodified,datecreated,usercreated,datereleased,dateexpired,flags,properties);
         if (res != null) {
           List aceList=new ArrayList();
           acentryNodes=currentElement.selectNodes("*/" + I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_ENTRY);
