@@ -1,0 +1,44 @@
+{
+  Hashtable parameters=(Hashtable)userObj;
+  String elementName=(String)parameters.get("_ELEMENT_");
+  int j=0;
+  String result="";
+  CmsXmlTemplateFile newsTemplateFile=(CmsXmlTemplateFile)doc;
+  String newsFolder=getNewsFolder(elementName,parameters);
+  Vector v=CmsNewsContentFile.getAllArticles(cms,newsFolder);
+  String maxArticles=getMaxArticles(elementName,parameters);
+  int max=new Integer(maxArticles).intValue();
+  String startArticle=getStartArticle(parameters);
+  if (startArticle == null || "".equals(startArticle)) {
+    for (int i=0; i < v.size(); i++) {
+      if (i % max == 0) {
+        j=i + max;
+        newsTemplateFile.setData("begin","" + (i + 1));
+        if (max <= 1) {
+          newsTemplateFile.setData("enumeration","" + (i + 1));
+        }
+ else {
+          newsTemplateFile.setData("enumeration",(i + 1) + "-" + j);
+        }
+        result=result + newsTemplateFile.getProcessedDataValue(C_TAG_WMLMAINNAV);
+      }
+    }
+  }
+ else {
+    int first=new Integer(startArticle).intValue();
+    first-=1;
+    for (int i=first; i < (first + max); i++) {
+      if (i < v.size()) {
+        Object o=v.elementAt(i);
+        CmsNewsContentFile doc2=(CmsNewsContentFile)o;
+        newsTemplateFile.setData("date",Utils.getNiceShortDate(doc2.getNewsDate()));
+        newsTemplateFile.setData("headline",doc2.getNewsHeadline());
+        newsTemplateFile.setData("shorttext",doc2.getNewsShortText());
+        newsTemplateFile.setData("author",doc2.getNewsAuthor());
+        newsTemplateFile.setData("index","" + i);
+        result=result + newsTemplateFile.getProcessedDataValue(C_TAG_WMLCONTENT);
+      }
+    }
+  }
+  return result;
+}
