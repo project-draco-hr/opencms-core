@@ -1,0 +1,58 @@
+{
+  Hashtable parameters=(Hashtable)userObj;
+  StringBuffer result=new StringBuffer();
+  Vector values=new Vector();
+  Vector names=new Vector();
+  Integer returnObject=null;
+  String radioName=n.getAttribute(C_RADIO_NAME);
+  String radioMethod=n.getAttribute(C_RADIO_METHOD);
+  String radioOrder=n.getAttribute(C_RADIO_ORDER);
+  if (radioOrder == null || ((!"row".equals(radioOrder)) && (!"col".equals(radioOrder)))) {
+    radioOrder="col";
+  }
+  Method groupsMethod=null;
+  int selectedOption=0;
+  try {
+    groupsMethod=callingObject.getClass().getMethod(radioMethod,new Class[]{CmsObject.class,Vector.class,Vector.class,Hashtable.class});
+    returnObject=(Integer)groupsMethod.invoke(callingObject,new Object[]{m_cms,names,values,parameters});
+  }
+ catch (  NoSuchMethodException exc) {
+    throwException("Could not find radio button method " + radioMethod + " in calling class "+ callingObject.getClass().getName()+ " for generating select box content.",CmsException.C_NOT_FOUND);
+  }
+catch (  InvocationTargetException targetEx) {
+    Throwable e=targetEx.getTargetException();
+    if (!(e instanceof CmsException)) {
+      e.printStackTrace();
+      throwException("Radio button method " + radioMethod + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+    }
+ else {
+      throw (CmsException)e;
+    }
+  }
+catch (  Exception exc2) {
+    throwException("Radio button method " + radioMethod + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+  }
+  if (returnObject != null) {
+    selectedOption=((Integer)returnObject).intValue();
+  }
+  int numValues=values.size();
+  CmsXmlTemplateFile radiodef=new CmsXmlTemplateFile(m_cms,"/content/internal/HTMLFormDefs");
+  for (int i=0; i < numValues; i++) {
+    radiodef.setData(C_RADIO_RADIONAME,radioName);
+    radiodef.setData(C_RADIO_NAME,(String)names.elementAt(i));
+    radiodef.setData(C_RADIO_LINK,(String)values.elementAt(i));
+    if (i == selectedOption) {
+      radiodef.setData(C_RADIO_SELECTEDENTRY,radiodef.getDataValue("radiobuttons." + C_RADIO_SELECTEDOPTION));
+    }
+ else {
+      radiodef.setData(C_RADIO_SELECTEDENTRY,"");
+    }
+    if (radioOrder.equals("col")) {
+      result.append(radiodef.getProcessedDataValue("radiobuttons.colentry",callingObject));
+    }
+ else {
+      result.append(radiodef.getProcessedDataValue("radiobuttons.rowentry",callingObject));
+    }
+  }
+  return result.toString();
+}

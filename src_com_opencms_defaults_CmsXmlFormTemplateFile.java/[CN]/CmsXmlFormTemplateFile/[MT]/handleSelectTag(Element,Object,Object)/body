@@ -1,0 +1,69 @@
+{
+  Hashtable parameters=(Hashtable)userObj;
+  Vector values=new Vector();
+  Vector names=new Vector();
+  StringBuffer result=new StringBuffer();
+  String selectClass=n.getAttribute(C_SELECTBOX_CLASS);
+  String selectName=n.getAttribute(C_SELECTBOX_NAME);
+  String selectMethod=n.getAttribute(C_SELECTBOX_METHOD);
+  String selectWidth=n.getAttribute(C_SELECTBOX_WIDTH);
+  String selectOnchange=n.getAttribute(C_SELECTBOX_ONCHANGE);
+  String selectSize=n.getAttribute(C_SELECTBOX_SIZE);
+  if ((selectSize == null) || (selectSize.length() == 0)) {
+    selectSize="1";
+  }
+  CmsXmlTemplateFile inputdef=new CmsXmlTemplateFile(m_cms,"/content/internal/HTMLFormDefs");
+  if (selectClass == null || "".equals(selectClass)) {
+    inputdef.setData(C_SELECTBOX_CLASS,"");
+  }
+ else {
+    inputdef.setData(C_SELECTBOX_CLASSNAME,selectClass);
+    inputdef.setData(C_SELECTBOX_CLASS,inputdef.getProcessedData(C_TAG_SELECTBOX_CLASS));
+  }
+  if (selectWidth == null || "".equals(selectWidth)) {
+    inputdef.setData(C_SELECTBOX_WIDTH,"");
+  }
+ else {
+    inputdef.setData(C_SELECTBOX_WIDTHNAME,selectWidth);
+    inputdef.setData(C_SELECTBOX_WIDTH,inputdef.getProcessedData(C_TAG_SELECTBOX_WIDTH));
+  }
+  inputdef.setData(C_SELECTBOX_NAME,selectName);
+  inputdef.setData(C_SELECTBOX_ONCHANGE,selectOnchange);
+  inputdef.setData(C_SELECTBOX_SIZE,selectSize);
+  result.append(inputdef.getProcessedDataValue(C_TAG_SELECTBOX_START));
+  Method groupsMethod=null;
+  int selectedOption=0;
+  try {
+    groupsMethod=callingObject.getClass().getMethod(selectMethod,new Class[]{CmsObject.class,Vector.class,Vector.class,Hashtable.class});
+    selectedOption=((Integer)groupsMethod.invoke(callingObject,new Object[]{m_cms,values,names,parameters})).intValue();
+  }
+ catch (  NoSuchMethodException exc) {
+    throwException("Could not find method " + selectMethod + " in calling class "+ callingObject.getClass().getName()+ " for generating select box content.",CmsException.C_NOT_FOUND);
+  }
+catch (  InvocationTargetException targetEx) {
+    Throwable e=targetEx.getTargetException();
+    if (!(e instanceof CmsException)) {
+      e.printStackTrace();
+      throwException("User method " + selectMethod + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+    }
+ else {
+      throw (CmsException)e;
+    }
+  }
+catch (  Exception exc2) {
+    throwException("User method " + selectMethod + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+  }
+  int numValues=values.size();
+  for (int i=0; i < numValues; i++) {
+    inputdef.setData(C_SELECTBOX_OPTIONNAME,(String)names.elementAt(i));
+    inputdef.setData(C_SELECTBOX_OPTIONVALUE,(String)values.elementAt(i));
+    if (i == selectedOption) {
+      result.append(inputdef.getProcessedDataValue(C_TAG_SELECTBOX_SELOPTION));
+    }
+ else {
+      result.append(inputdef.getProcessedDataValue(C_TAG_SELECTBOX_OPTION));
+    }
+  }
+  result.append(inputdef.getProcessedDataValue(C_TAG_SELECTBOX_END));
+  return result.toString();
+}
