@@ -1,6 +1,41 @@
 {
   StringBuffer result=new StringBuffer();
+  Vector values=new Vector();
+  Vector names=new Vector();
   String radioName=n.getAttribute(C_RADIO_NAME);
+  String radioMethod=n.getAttribute(C_RADIO_METHOD);
+  Method groupsMethod=null;
+  int selectedOption=0;
+  try {
+    groupsMethod=callingObject.getClass().getMethod(radioMethod,new Class[]{A_CmsObject.class,CmsXmlLanguageFile.class,Vector.class,Vector.class,Hashtable.class});
+    groupsMethod.invoke(callingObject,new Object[]{cms,lang,names,values,parameters});
+  }
+ catch (  NoSuchMethodException exc) {
+    throwException("Could not find method " + radioMethod + " in calling class "+ callingObject.getClass().getName()+ " for generating select box content.",CmsException.C_NOT_FOUND);
+  }
+catch (  InvocationTargetException targetEx) {
+    Throwable e=targetEx.getTargetException();
+    if (!(e instanceof CmsException)) {
+      e.printStackTrace();
+      throwException("User method " + radioMethod + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+    }
+ else {
+      throw (CmsException)e;
+    }
+  }
+catch (  Exception exc2) {
+    throwException("User method " + radioMethod + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+  }
+  int numValues=values.size();
+  int numNames=names.size();
   CmsXmlWpRadioDefFile radiodef=getRadioDefinitions(cms);
-  return radiodef.getRadio(radioName);
+  for (int i=0; i < numValues; i++) {
+    if (i == 0) {
+      result.append(radiodef.getRadioSelected(radioName,lang.getLanguageValue("fileicon." + (String)names.elementAt(i)),(String)values.elementAt(i),(String)names.elementAt(i),callingObject));
+    }
+ else {
+      result.append(radiodef.getRadio(radioName,lang.getLanguageValue("fileicon." + (String)names.elementAt(i)),(String)values.elementAt(i),(String)names.elementAt(i),callingObject));
+    }
+  }
+  return result.toString();
 }
