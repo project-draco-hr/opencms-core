@@ -1,21 +1,19 @@
 {
+  int todo=0;
   Element root=document.getRootElement();
   if (!XSD_NODE_SCHEMA.equals(root.getQName())) {
     throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
   }
   List includes=root.elements(XSD_NODE_INCLUDE);
-  if (includes.size() != 1) {
-    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  if (includes.size() < 1) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure: Requires at last one include");
   }
   Element include=(Element)includes.get(0);
   Attribute target=include.attribute(XSD_ATTRIBUTE_SCHEMA_LOCATION);
   if (!XSD_INCLUDE_OPENCMS.equals(target.getValue())) {
-    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure: First include must point to OpenCms master schema");
   }
   List elements=root.elements(XSD_NODE_ELEMENT);
-  if (includes.size() != 1) {
-    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
-  }
   Element main=(Element)elements.get(0);
   Attribute nameAttr=main.attribute(XSD_ATTRIBUTE_NAME);
   Attribute typeAttr=main.attribute(XSD_ATTRIBUTE_TYPE);
@@ -109,11 +107,30 @@
   if (typeSequenceElements.size() < 1) {
     throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
   }
-  CmsXmlContentTypeManager typeManager=OpenCms.getXmlContentTypeManager();
   CmsXmlContentDefinition result=new CmsXmlContentDefinition(name,schemaLocation);
+  if (includes.size() > 1) {
+    for (int i=1; i < includes.size(); i++) {
+      Element inc=(Element)includes.get(i);
+      String schemaLoc=inc.attribute(XSD_ATTRIBUTE_SCHEMA_LOCATION).getValue();
+      EntityResolver resolver=document.getEntityResolver();
+      InputSource source=null;
+      try {
+        source=resolver.resolveEntity(null,schemaLoc);
+      }
+ catch (      SAXException e) {
+        throw new CmsXmlException("Invalid OpenCms content definition XML schema structure: Unable to resolve included schema '" + schemaLoc + "'");
+      }
+catch (      IOException e) {
+        throw new CmsXmlException("Invalid OpenCms content definition XML schema structure: Unable to resolve included schema '" + schemaLoc + "'");
+      }
+      CmsXmlContentDefinition xmlContentDefinition=unmarshal(source,schemaLoc,resolver);
+      result.addInclude(xmlContentDefinition);
+    }
+  }
+  CmsXmlContentTypeManager typeManager=OpenCms.getXmlContentTypeManager();
   Iterator i=typeSequenceElements.iterator();
   while (i.hasNext()) {
-    result.addType(typeManager.getContentType((Element)i.next()));
+    result.addType(typeManager.getContentType((Element)i.next(),result.getIncludes()));
   }
   List annotations=root.elements(XSD_NODE_ANNOTATION);
   I_CmsXmlContentHandler contentHandler=null;

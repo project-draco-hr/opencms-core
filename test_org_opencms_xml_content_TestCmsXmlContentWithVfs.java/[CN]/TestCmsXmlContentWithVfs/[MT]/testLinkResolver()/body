@@ -1,0 +1,43 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing link resolver for XML content");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  String content;
+  content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-definition-2.xsd",CmsEncoder.C_UTF8_ENCODING);
+  CmsXmlContentDefinition definition=CmsXmlContentDefinition.unmarshal(content,C_SCHEMA_SYSTEM_ID_2,resolver);
+  content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-2.xml",CmsEncoder.C_UTF8_ENCODING);
+  CmsXmlEntityResolver.cacheSystemId(C_SCHEMA_SYSTEM_ID_2,definition.getSchema().asXML().getBytes(CmsEncoder.C_UTF8_ENCODING));
+  CmsXmlContent xmlcontent=CmsXmlContentFactory.unmarshal(content,CmsEncoder.C_UTF8_ENCODING,resolver);
+  assertTrue(xmlcontent.hasValue("Html",Locale.ENGLISH));
+  assertTrue(xmlcontent.hasValue("VfsLink",Locale.ENGLISH));
+  assertSame(definition.getContentHandler().getClass().getName(),CmsDefaultXmlContentHandler.class.getName());
+  CmsXmlHtmlValue htmlValue=(CmsXmlHtmlValue)xmlcontent.getValue("Html",Locale.ENGLISH);
+  CmsXmlVfsFileValue vfsValue=(CmsXmlVfsFileValue)xmlcontent.getValue("VfsLink",Locale.ENGLISH);
+  htmlValue.setStringValue(cms,xmlcontent,htmlValue.getStringValue(cms,xmlcontent));
+  vfsValue.setStringValue(cms,xmlcontent,vfsValue.getStringValue(cms,xmlcontent));
+  Iterator i;
+  CmsLinkTable table;
+  table=htmlValue.getLinkTable();
+  assertEquals(3,table.size());
+  i=table.iterator();
+  int result=0;
+  while (i.hasNext()) {
+    CmsLink link=(CmsLink)i.next();
+    if (link.getTarget().equals("/sites/default/index.html") && link.isInternal()) {
+      result++;
+    }
+ else     if (link.getTarget().equals("http://www.alkacon.com") && !link.isInternal()) {
+      result++;
+    }
+ else     if (link.getTarget().equals("/sites/default/folder1/index.html") && link.getQuery().equals("a=b&c=d") && link.getAnchor().equals("anchor")&& link.isInternal()) {
+      result++;
+    }
+  }
+  assertEquals(3,result);
+  table=vfsValue.getLinkTable();
+  assertEquals(1,table.size());
+  CmsLink link=(CmsLink)table.iterator().next();
+  assertEquals("/sites/default/index.html",link.getTarget());
+  assertTrue(link.isInternal());
+  assertEquals("/index.html",vfsValue.getStringValue(cms,xmlcontent));
+}
