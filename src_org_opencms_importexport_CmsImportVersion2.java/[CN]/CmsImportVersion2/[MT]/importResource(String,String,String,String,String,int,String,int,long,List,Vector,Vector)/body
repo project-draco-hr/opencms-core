@@ -1,0 +1,92 @@
+{
+  boolean success=true;
+  byte[] content=null;
+  String fullname=null;
+  CmsResource res=null;
+  try {
+    if (m_importingChannelData) {
+      String channelId=null;
+      try {
+        if ((resourceTypeName.equalsIgnoreCase(CmsResourceTypeFolder.C_RESOURCE_TYPE_NAME)) && (!destination.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR))) {
+          destination+=I_CmsConstants.C_FOLDER_SEPARATOR;
+        }
+        CmsResource channel=m_cms.readFileHeader(I_CmsConstants.C_ROOT + destination);
+        channelId=m_cms.readPropertyObject(m_cms.readAbsolutePath(channel),I_CmsConstants.C_PROPERTY_CHANNELID,false).getValue();
+      }
+ catch (      Exception e) {
+      }
+      if (channelId == null) {
+        int newChannelId=CmsDbUtil.nextId(I_CmsConstants.C_TABLE_CHANNELID);
+        channelId="" + newChannelId;
+      }
+      properties.add(new CmsProperty(I_CmsConstants.C_PROPERTY_CHANNELID,channelId,null));
+    }
+    if (source != null) {
+      content=getFileBytes(source);
+    }
+    content=convertContent(source,destination,content,resourceTypeName);
+    int size=0;
+    if (content != null) {
+      size=content.length;
+    }
+    CmsUUID curUser=m_cms.getRequestContext().currentUser().getId();
+    CmsUUID newUuidstructure=new CmsUUID();
+    CmsUUID newUuidcontent=new CmsUUID();
+    CmsUUID newUuidresource=new CmsUUID();
+    if (uuid != null) {
+      newUuidstructure=new CmsUUID(uuid);
+    }
+    if (uuidfile != null) {
+      newUuidcontent=new CmsUUID(uuidfile);
+    }
+    if (uuidresource != null) {
+      newUuidresource=new CmsUUID(uuidresource);
+    }
+    String resname=destination;
+    if (resname.endsWith("/")) {
+      resname=resname.substring(0,resname.length() - 1);
+    }
+    if (resname.lastIndexOf("/") > 0) {
+      resname=resname.substring(resname.lastIndexOf("/") + 1,resname.length());
+    }
+    CmsResource resource=new CmsResource(newUuidstructure,newUuidresource,CmsUUID.getNullUUID(),newUuidcontent,resname,resourceTypeId,0,m_cms.getRequestContext().currentProject().getId(),I_CmsConstants.C_STATE_NEW,resourceTypeLoaderId,lastmodified,curUser,lastmodified,curUser,CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,1,size);
+    int date_warning=0;
+    if (C_RESOURCE_TYPE_LINK_ID == resourceTypeId) {
+      m_report.print(m_report.key("report.storing_link"),I_CmsReport.C_FORMAT_NOTE);
+      m_linkStorage.put(m_importPath + destination,new String(content));
+      m_linkPropertyStorage.put(m_importPath + destination,properties);
+      res=resource;
+    }
+ else {
+      res=m_cms.importResource(resource,content,properties,m_importPath + destination);
+    }
+    if (res != null) {
+      if (C_RESOURCE_TYPE_PAGE_NAME.equals(resourceTypeName)) {
+        m_importedPages.add(I_CmsConstants.C_FOLDER_SEPARATOR + destination);
+      }
+      m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+    }
+  }
+ catch (  Exception exc) {
+    success=false;
+    m_report.println(exc);
+    try {
+      Thread.sleep(1000);
+    }
+ catch (    Exception e) {
+    }
+  }
+  byte[] digestContent={0};
+  if (content != null) {
+    digestContent=m_digest.digest(content);
+  }
+  if (success && (fullname != null)) {
+    if (writtenFilenames != null) {
+      writtenFilenames.addElement(fullname);
+    }
+    if (fileCodes != null) {
+      fileCodes.addElement(new String(digestContent));
+    }
+  }
+  return res;
+}
