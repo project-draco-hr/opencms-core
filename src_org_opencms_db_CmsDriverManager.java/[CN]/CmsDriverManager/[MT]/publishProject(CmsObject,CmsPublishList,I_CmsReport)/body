@@ -1,6 +1,7 @@
 {
   CmsRequestContext context=cms.getRequestContext();
   int publishProjectId=context.currentProject().getId();
+  boolean temporaryProject=(context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_TEMPORARY);
   boolean backupEnabled=OpenCms.getSystemInfo().isVersionHistoryEnabled();
   int tagId=0;
   CmsResource directPublishResource=null;
@@ -32,29 +33,31 @@
           return;
         }
       }
+      clearcache();
       m_projectDriver.publishProject(context,report,readProject(I_CmsConstants.C_PROJECT_ONLINE_ID),publishList,OpenCms.getSystemInfo().isVersionHistoryEnabled(),tagId,maxVersions);
       Iterator i=OpenCms.getModuleManager().getActionInstances();
       while (i.hasNext()) {
         I_CmsModuleAction moduleActionInstance=(I_CmsModuleAction)i.next();
         moduleActionInstance.publishProject(cms,publishList,tagId,report);
       }
+      if (temporaryProject) {
+        try {
+          m_projectDriver.deleteProject(context.currentProject());
+        }
+ catch (        CmsException e) {
+          OpenCms.getLog(this).error("Could not delete temporary project " + publishProjectId);
+        }
+        cms.getRequestContext().setCurrentProject(readProject(I_CmsConstants.C_PROJECT_ONLINE_ID));
+      }
     }
   finally {
-      this.clearResourceCache();
-      if (context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_TEMPORARY) {
-        m_projectDriver.deleteProject(context.currentProject());
-        try {
-          m_projectCache.remove(new Integer(publishProjectId));
-        }
- catch (        Exception e) {
-          if (OpenCms.getLog(this).isWarnEnabled()) {
-            OpenCms.getLog(this).warn("Could not remove project " + publishProjectId + " from cache");
-          }
-        }
-        if (publishProjectId == context.currentProject().getId()) {
-          cms.getRequestContext().setCurrentProject(readProject(I_CmsConstants.C_PROJECT_ONLINE_ID));
-        }
-      }
+      clearcache();
+      Map eventData=new HashMap();
+      eventData.put(I_CmsEventListener.KEY_REPORT,report);
+      eventData.put(I_CmsEventListener.KEY_PUBLISHID,publishList.getPublishHistoryId().toString());
+      eventData.put(I_CmsEventListener.KEY_PROJECTID,new Integer(publishProjectId));
+      CmsEvent exportPointEvent=new CmsEvent(I_CmsEventListener.EVENT_PUBLISH_PROJECT,eventData);
+      OpenCms.fireCmsEvent(exportPointEvent);
     }
   }
  else   if (publishProjectId == I_CmsConstants.C_PROJECT_ONLINE_ID) {

@@ -1,13 +1,8 @@
 {
-  Set exportPoints=new HashSet();
-  String currentExportPoint=null;
-  List resources=new ArrayList();
-  Iterator i=null;
-  CmsResource currentResource=null;
-  CmsExportPointDriver exportPointDriver=null;
   try {
     CmsRequestContext context=OpenCms.initCmsObject(OpenCms.getDefaultUsers().getUserExport()).getRequestContext();
     context.setCurrentProject(readProject(I_CmsConstants.C_PROJECT_ONLINE_ID));
+    Set exportPoints=new HashSet();
     exportPoints.addAll(OpenCms.getExportPoints());
     exportPoints.addAll(OpenCms.getModuleManager().getExportPoints());
     if (exportPoints.size() == 0) {
@@ -16,22 +11,22 @@
       }
       return;
     }
-    exportPointDriver=new CmsExportPointDriver(exportPoints);
+    CmsExportPointDriver exportPointDriver=new CmsExportPointDriver(exportPoints);
     if (report == null) {
       report=new CmsLogReport();
     }
-    i=exportPointDriver.getExportPointPaths().iterator();
+    Iterator i=exportPointDriver.getExportPointPaths().iterator();
     while (i.hasNext()) {
-      currentExportPoint=(String)i.next();
+      String currentExportPoint=(String)i.next();
       if (OpenCms.getLog(this).isInfoEnabled()) {
         OpenCms.getLog(this).info("Writing export point " + currentExportPoint);
       }
       try {
-        resources=readAllSubResourcesInDfs(context,currentExportPoint,-1);
+        List resources=readAllSubResourcesInDfs(context,currentExportPoint,-1);
         setFullResourceNames(context,resources);
         Iterator j=resources.iterator();
         while (j.hasNext()) {
-          currentResource=(CmsResource)j.next();
+          CmsResource currentResource=(CmsResource)j.next();
           if (currentResource.getTypeId() == CmsResourceTypeFolder.C_RESOURCE_TYPE_ID) {
             exportPointDriver.createFolder(currentResource.getRootPath(),currentExportPoint);
           }
@@ -39,7 +34,7 @@
             exportPointDriver.createFolder(currentExportPoint,currentExportPoint);
             CmsFile file=getVfsDriver().readFile(I_CmsConstants.C_PROJECT_ONLINE_ID,false,currentResource.getStructureId());
             file.setRootPath(currentResource.getRootPath());
-            writeExportPoint(context,exportPointDriver,currentExportPoint,file);
+            exportPointDriver.writeFile(file.getRootPath(),currentExportPoint,file.getContents());
           }
         }
       }
