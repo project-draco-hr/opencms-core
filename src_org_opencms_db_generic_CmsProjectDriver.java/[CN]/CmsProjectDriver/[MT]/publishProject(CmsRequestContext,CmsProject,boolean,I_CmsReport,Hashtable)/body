@@ -125,9 +125,9 @@
           m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFolder,CmsDriverManager.C_UPDATE_ALL);
         }
       }
+      m_driverManager.getVfsDriver().resetProjectId(context.currentProject(),currentFolder);
     }
   }
-  m_driverManager.getVfsDriver().resetProjectId(context.currentProject(),offlineFolders);
   offlineFolders.clear();
   offlineFolders=null;
   offlineFiles=m_driverManager.getVfsDriver().readFiles(context.currentProject().getId(),false,false);
@@ -136,216 +136,228 @@
     currentFile=(CmsFile)i.next();
     currentResourceName=m_driverManager.readPath(context,currentFile,true);
     currentLock=m_driverManager.getLock(context,currentResourceName);
-    publishCurrentResource=currentFile.getState() > I_CmsConstants.C_STATE_CHANGED;
-    if (currentFile.getState() == I_CmsConstants.C_STATE_CHANGED)     publishCurrentResource=currentFile.getProjectId() == context.currentProject().getId();
-    publishCurrentResource=publishCurrentResource && m_driverManager.isInsideProject(projectResources,currentFile);
-    if (publishCurrentResource) {
-      currentResourceName=context.removeSiteRoot(m_driverManager.readPath(context,currentFile,true));
-      currentExportKey=checkExport(currentResourceName,exportpoints);
-      report.print(report.key("report.publishing"),I_CmsReport.C_FORMAT_NOTE);
-      report.println(currentResourceName);
-      if (currentLock.isNullLock()) {
-        m_driverManager.getVfsDriver().removeTemporaryFile(currentFile);
-      }
-      if (!currentLock.isNullLock()) {
-      }
- else       if (currentFile.getResourceName().startsWith(I_CmsConstants.C_TEMP_PREFIX)) {
-        m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),currentFile);
-        m_driverManager.getVfsDriver().removeFile(context.currentProject(),currentFile);
-      }
- else       if (currentFile.getState() == I_CmsConstants.C_STATE_DELETED) {
-        changedResources.addElement(currentResourceName);
-        if (currentExportKey != null) {
-          try {
-            discAccess.removeResource(currentResourceName,currentExportKey);
-          }
- catch (          Exception ex) {
-          }
-        }
-        CmsFile currentOnlineFile=m_driverManager.readFileInProject(context,onlineProject.getId(),currentFile.getId(),false);
-        m_driverManager.readPath(context,currentOnlineFile,true);
-        if (backupEnabled) {
-          Map props=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFile,currentFile.getType());
-          m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,props,backupVersionId,publishDate);
-        }
-        try {
-          m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),currentOnlineFile);
-          m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),currentFile);
-        }
- catch (        CmsException exc) {
-          if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-            A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting properties for "+ currentOnlineFile.toString()+ " Message= "+ exc.getMessage());
-          }
-        }
-        try {
-          m_driverManager.getVfsDriver().removeFile(onlineProject,currentOnlineFile);
-          m_driverManager.getVfsDriver().removeFile(context.currentProject(),currentFile);
-        }
- catch (        CmsException exc) {
-          if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-            A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting resource for "+ currentOnlineFile.toString()+ " Message= "+ exc.getMessage());
-          }
-        }
-        try {
-          m_driverManager.getUserDriver().removeAllAccessControlEntries(onlineProject,currentOnlineFile.getResourceAceId());
-          m_driverManager.getUserDriver().removeAllAccessControlEntries(context.currentProject(),currentFile.getResourceAceId());
-        }
- catch (        CmsException exc) {
-          if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-            A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting resource for "+ currentOnlineFile.toString()+ " Message= "+ exc.getMessage());
-          }
-        }
-        try {
-          m_driverManager.getUserDriver().removeAllAccessControlEntries(onlineProject,currentOnlineFile.getResourceAceId());
-          m_driverManager.getUserDriver().removeAllAccessControlEntries(context.currentProject(),currentFile.getResourceAceId());
-        }
- catch (        CmsException exc) {
-          if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-            A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting resource for "+ currentOnlineFile.toString()+ " Message= "+ exc.getMessage());
-          }
-        }
-      }
- else       if (currentFile.getState() == I_CmsConstants.C_STATE_CHANGED) {
-        changedResources.addElement(currentResourceName);
-        if (currentExportKey != null) {
-          byte[] contents=currentFile.getContents();
-          String encoding=m_driverManager.getVfsDriver().readProperty(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,context.currentProject().getId(),currentFile,currentFile.getType());
-          if (encoding != null) {
-            try {
-              contents=(new String(contents,encoding)).getBytes();
-            }
- catch (            UnsupportedEncodingException uex) {
-            }
-          }
-          discAccess.writeFile(currentResourceName,currentExportKey,contents);
-        }
-        CmsFile onlineFile=null;
-        try {
-          onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),false,currentFile.getId());
-        }
- catch (        CmsException exc) {
-          if (exc.getType() == CmsException.C_NOT_FOUND) {
-            currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
-            onlineFile=m_driverManager.getVfsDriver().createFile(onlineProject,currentFile,context.currentUser().getId(),currentFile.getParentId(),currentFile.getResourceName());
-          }
-        }
-        m_driverManager.getVfsDriver().publishResource(onlineFile,currentFile,true);
-        Map props=(Map)new HashMap();
-        try {
-          m_driverManager.readPath(context,onlineFile,true);
-          m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),onlineFile);
-          props=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFile,currentFile.getType());
-          m_driverManager.getVfsDriver().writeProperties(props,onlineProject.getId(),onlineFile,currentFile.getType());
-        }
- catch (        CmsException exc) {
-          if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-            A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting properties for "+ onlineFile.toString()+ " Message= "+ exc.getMessage());
-          }
-        }
-        m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,currentFile.getResourceAceId(),onlineFile.getResourceAceId());
-        if (backupEnabled) {
-          m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,props,backupVersionId,publishDate);
-        }
-        if (currentFile.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
-          currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
-          m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFile,CmsDriverManager.C_UPDATE_ALL);
-        }
-      }
- else       if (currentFile.getState() == I_CmsConstants.C_STATE_NEW) {
-        changedResources.addElement(currentResourceName);
-        if (currentExportKey != null) {
-          byte[] contents=currentFile.getContents();
-          String encoding=m_driverManager.getVfsDriver().readProperty(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,context.currentProject().getId(),currentFile,currentFile.getType());
-          if (encoding != null) {
-            try {
-              contents=(new String(contents,encoding)).getBytes();
-            }
- catch (            UnsupportedEncodingException uex) {
-            }
-          }
-          discAccess.writeFile(currentResourceName,currentExportKey,contents);
-        }
-        try {
-          newFile=(CmsFile)currentFile.clone();
-          newFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
-          m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentUser().getId(),newFile.getParentId(),newFile.getResourceName());
-        }
- catch (        CmsException e) {
-          if (e.getType() == CmsException.C_FILE_EXISTS) {
-            CmsFile onlineFile=null;
-            try {
-              onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),false,currentFile.getId());
-            }
- catch (            CmsException exc) {
-              throw exc;
-            }
-            m_driverManager.getVfsDriver().publishResource(onlineFile,currentFile,true);
-          }
+switch (currentFile.getState()) {
+case I_CmsConstants.C_STATE_DELETED:
+      publishCurrentResource=currentFile.getProjectId() == context.currentProject().getId();
+    break;
+case I_CmsConstants.C_STATE_NEW:
+  publishCurrentResource=currentFile.getProjectId() == context.currentProject().getId() || currentFile.getProjectId() == 0;
+break;
+case I_CmsConstants.C_STATE_CHANGED:
+publishCurrentResource=currentFile.getProjectId() == context.currentProject().getId();
+break;
+case I_CmsConstants.C_STATE_UNCHANGED:
+default :
+publishCurrentResource=false;
+break;
+}
+if (publishCurrentResource) {
+currentResourceName=context.removeSiteRoot(m_driverManager.readPath(context,currentFile,true));
+currentExportKey=checkExport(currentResourceName,exportpoints);
+report.print(report.key("report.publishing"),I_CmsReport.C_FORMAT_NOTE);
+report.println(currentResourceName);
+if (currentLock.isNullLock()) {
+m_driverManager.getVfsDriver().removeTemporaryFile(currentFile);
+}
+if (!currentLock.isNullLock()) {
+}
+ else if (currentFile.getResourceName().startsWith(I_CmsConstants.C_TEMP_PREFIX)) {
+m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),currentFile);
+m_driverManager.getVfsDriver().removeFile(context.currentProject(),currentFile);
+}
+ else if (currentFile.getState() == I_CmsConstants.C_STATE_DELETED) {
+changedResources.addElement(currentResourceName);
+if (currentExportKey != null) {
+try {
+discAccess.removeResource(currentResourceName,currentExportKey);
+}
+ catch (Exception ex) {
+}
+}
+CmsFile currentOnlineFile=m_driverManager.readFileInProject(context,onlineProject.getId(),currentFile.getId(),false);
+m_driverManager.readPath(context,currentOnlineFile,true);
+if (backupEnabled) {
+Map props=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFile,currentFile.getType());
+m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,props,backupVersionId,publishDate);
+}
+try {
+m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),currentOnlineFile);
+m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),currentFile);
+}
+ catch (CmsException exc) {
+if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting properties for "+ currentOnlineFile.toString()+ " Message= "+ exc.getMessage());
+}
+}
+try {
+m_driverManager.getVfsDriver().removeFile(onlineProject,currentOnlineFile);
+m_driverManager.getVfsDriver().removeFile(context.currentProject(),currentFile);
+}
+ catch (CmsException exc) {
+if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting resource for "+ currentOnlineFile.toString()+ " Message= "+ exc.getMessage());
+}
+}
+try {
+m_driverManager.getUserDriver().removeAllAccessControlEntries(onlineProject,currentOnlineFile.getResourceAceId());
+m_driverManager.getUserDriver().removeAllAccessControlEntries(context.currentProject(),currentFile.getResourceAceId());
+}
+ catch (CmsException exc) {
+if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting resource for "+ currentOnlineFile.toString()+ " Message= "+ exc.getMessage());
+}
+}
+try {
+m_driverManager.getUserDriver().removeAllAccessControlEntries(onlineProject,currentOnlineFile.getResourceAceId());
+m_driverManager.getUserDriver().removeAllAccessControlEntries(context.currentProject(),currentFile.getResourceAceId());
+}
+ catch (CmsException exc) {
+if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting resource for "+ currentOnlineFile.toString()+ " Message= "+ exc.getMessage());
+}
+}
+}
+ else if (currentFile.getState() == I_CmsConstants.C_STATE_CHANGED) {
+changedResources.addElement(currentResourceName);
+if (currentExportKey != null) {
+byte[] contents=currentFile.getContents();
+String encoding=m_driverManager.getVfsDriver().readProperty(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,context.currentProject().getId(),currentFile,currentFile.getType());
+if (encoding != null) {
+try {
+contents=(new String(contents,encoding)).getBytes();
+}
+ catch (UnsupportedEncodingException uex) {
+}
+}
+discAccess.writeFile(currentResourceName,currentExportKey,contents);
+}
+CmsFile onlineFile=null;
+try {
+onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),false,currentFile.getId());
+}
+ catch (CmsException exc) {
+if (exc.getType() == CmsException.C_NOT_FOUND) {
+currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
+onlineFile=m_driverManager.getVfsDriver().createFile(onlineProject,currentFile,context.currentUser().getId(),currentFile.getParentId(),currentFile.getResourceName());
+}
+}
+m_driverManager.getVfsDriver().publishResource(onlineFile,currentFile,true);
+Map props=(Map)new HashMap();
+try {
+m_driverManager.readPath(context,onlineFile,true);
+m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),onlineFile);
+props=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFile,currentFile.getType());
+m_driverManager.getVfsDriver().writeProperties(props,onlineProject.getId(),onlineFile,currentFile.getType());
+}
+ catch (CmsException exc) {
+if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting properties for "+ onlineFile.toString()+ " Message= "+ exc.getMessage());
+}
+}
+m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,currentFile.getResourceAceId(),onlineFile.getResourceAceId());
+if (backupEnabled) {
+m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,props,backupVersionId,publishDate);
+}
+if (currentFile.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
+currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
+m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFile,CmsDriverManager.C_UPDATE_ALL);
+}
+}
+ else if (currentFile.getState() == I_CmsConstants.C_STATE_NEW) {
+changedResources.addElement(currentResourceName);
+if (currentExportKey != null) {
+byte[] contents=currentFile.getContents();
+String encoding=m_driverManager.getVfsDriver().readProperty(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,context.currentProject().getId(),currentFile,currentFile.getType());
+if (encoding != null) {
+try {
+contents=(new String(contents,encoding)).getBytes();
+}
+ catch (UnsupportedEncodingException uex) {
+}
+}
+discAccess.writeFile(currentResourceName,currentExportKey,contents);
+}
+try {
+newFile=(CmsFile)currentFile.clone();
+newFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
+m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentUser().getId(),newFile.getParentId(),newFile.getResourceName());
+}
+ catch (CmsException e) {
+if (e.getType() == CmsException.C_FILE_EXISTS) {
+CmsFile onlineFile=null;
+try {
+onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),false,currentFile.getId());
+}
+ catch (CmsException exc) {
+throw exc;
+}
+m_driverManager.getVfsDriver().publishResource(onlineFile,currentFile,true);
+}
  else {
-            throw e;
-          }
-        }
-        Map props=new HashMap();
-        try {
-          m_driverManager.readPath(context,newFile,true);
-          props=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFile,currentFile.getType());
-          m_driverManager.getVfsDriver().writeProperties(props,onlineProject.getId(),newFile,newFile.getType());
-        }
- catch (        CmsException exc) {
-          if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-            A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, copy properties for "+ newFile.toString()+ " Message= "+ exc.getMessage());
-          }
-        }
-        m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,currentFile.getResourceAceId(),newFile.getResourceAceId());
-        if (backupEnabled) {
-          m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,props,backupVersionId,publishDate);
-        }
-        if (currentFile.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
-          currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
-          m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFile,CmsDriverManager.C_UPDATE_ALL);
-        }
-      }
-    }
-  }
-  m_driverManager.getVfsDriver().resetProjectId(context.currentProject(),offlineFiles);
-  offlineFiles.clear();
-  offlineFiles=null;
-  if (deletedFolders.isEmpty()) {
-    return changedResources;
-  }
-  Collections.reverse(deletedFolders);
-  i=deletedFolders.iterator();
-  while (i.hasNext()) {
-    currentFolder=(CmsFolder)i.next();
-    currentResourceName=m_driverManager.readPath(context,currentFolder,true);
-    currentResourceName=context.removeSiteRoot(m_driverManager.readPath(context,currentFolder,true));
-    currentExportKey=checkExport(currentResourceName,exportpoints);
-    report.print(report.key("report.deleting"),I_CmsReport.C_FORMAT_NOTE);
-    report.println(currentResourceName);
-    if (currentExportKey != null) {
-      discAccess.removeResource(currentResourceName,currentExportKey);
-    }
-    if (backupEnabled) {
-      Map props=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFolder,currentFolder.getType());
-      m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFolder,props,backupVersionId,publishDate);
-    }
-    CmsResource delOnlineFolder=m_driverManager.readFolder(context,currentFolder.getId(),true);
-    try {
-      m_driverManager.readPath(context,delOnlineFolder,true);
-      m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),delOnlineFolder);
-      m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),currentFolder);
-    }
- catch (    CmsException exc) {
-      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting properties for "+ currentFolder.toString()+ " Message= "+ exc.getMessage());
-      }
-    }
-    m_driverManager.getVfsDriver().removeFolder(onlineProject,currentFolder);
-    m_driverManager.getVfsDriver().removeFolder(context.currentProject(),currentFolder);
-    m_driverManager.getUserDriver().removeAllAccessControlEntries(onlineProject,delOnlineFolder.getResourceAceId());
-    m_driverManager.getUserDriver().removeAllAccessControlEntries(context.currentProject(),currentFolder.getResourceAceId());
-  }
-  deletedFolders.clear();
-  deletedFolders=null;
-  return changedResources;
+throw e;
+}
+}
+Map props=new HashMap();
+try {
+m_driverManager.readPath(context,newFile,true);
+props=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFile,currentFile.getType());
+m_driverManager.getVfsDriver().writeProperties(props,onlineProject.getId(),newFile,newFile.getType());
+}
+ catch (CmsException exc) {
+if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, copy properties for "+ newFile.toString()+ " Message= "+ exc.getMessage());
+}
+}
+m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,currentFile.getResourceAceId(),newFile.getResourceAceId());
+if (backupEnabled) {
+m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,props,backupVersionId,publishDate);
+}
+if (currentFile.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
+currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
+m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFile,CmsDriverManager.C_UPDATE_ALL);
+}
+}
+m_driverManager.getVfsDriver().resetProjectId(context.currentProject(),currentFile);
+}
+}
+offlineFiles.clear();
+offlineFiles=null;
+if (deletedFolders.isEmpty()) {
+return changedResources;
+}
+Collections.reverse(deletedFolders);
+i=deletedFolders.iterator();
+while (i.hasNext()) {
+currentFolder=(CmsFolder)i.next();
+currentResourceName=m_driverManager.readPath(context,currentFolder,true);
+currentResourceName=context.removeSiteRoot(m_driverManager.readPath(context,currentFolder,true));
+currentExportKey=checkExport(currentResourceName,exportpoints);
+report.print(report.key("report.deleting"),I_CmsReport.C_FORMAT_NOTE);
+report.println(currentResourceName);
+if (currentExportKey != null) {
+discAccess.removeResource(currentResourceName,currentExportKey);
+}
+if (backupEnabled) {
+Map props=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFolder,currentFolder.getType());
+m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFolder,props,backupVersionId,publishDate);
+}
+CmsResource delOnlineFolder=m_driverManager.readFolder(context,currentFolder.getId(),true);
+try {
+m_driverManager.readPath(context,delOnlineFolder,true);
+m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),delOnlineFolder);
+m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),currentFolder);
+}
+ catch (CmsException exc) {
+if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, deleting properties for "+ currentFolder.toString()+ " Message= "+ exc.getMessage());
+}
+}
+m_driverManager.getVfsDriver().removeFolder(onlineProject,currentFolder);
+m_driverManager.getVfsDriver().removeFolder(context.currentProject(),currentFolder);
+m_driverManager.getUserDriver().removeAllAccessControlEntries(onlineProject,delOnlineFolder.getResourceAceId());
+m_driverManager.getUserDriver().removeAllAccessControlEntries(context.currentProject(),currentFolder.getResourceAceId());
+}
+deletedFolders.clear();
+deletedFolders=null;
+return changedResources;
 }
