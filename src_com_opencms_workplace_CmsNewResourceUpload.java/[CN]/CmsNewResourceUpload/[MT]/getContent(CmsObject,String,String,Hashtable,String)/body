@@ -2,11 +2,9 @@
   String template=null;
   I_CmsSession session=cms.getRequestContext().getSession(true);
   int maxFileSize=((Integer)A_OpenCms.getRuntimeProperty("workplace.file.maxuploadsize")).intValue();
-  boolean limitedFileSize=true;
-  if (maxFileSize < 1) {
-    limitedFileSize=false;
+  if ((maxFileSize <= 0) || cms.userInGroup(cms.getRequestContext().currentUser().getName(),C_GROUP_ADMIN)) {
+    maxFileSize=-1;
   }
-  boolean userAdmin=cms.userInGroup(cms.getRequestContext().currentUser().getName(),CmsObject.C_GROUP_ADMIN);
   String initial=(String)parameters.get(C_PARA_INITIAL);
   if (initial != null) {
     session.removeValue(C_PARA_FILE);
@@ -89,12 +87,11 @@
   if (step != null) {
     if (step.equals("1")) {
       if (filename != null) {
-        int maxFileSizeBytes=maxFileSize * 1024;
         if (filecontent.length == 0) {
           template="error";
           xmlTemplateDocument.setData("details",filename);
         }
- else         if ((limitedFileSize) && (filecontent.length > maxFileSizeBytes) && (!userAdmin)) {
+ else         if ((maxFileSize > 0) && (filecontent.length > (maxFileSize * 1024))) {
           template="errorfilesize";
           xmlTemplateDocument.setData("details",filename + ": " + (filecontent.length / 1024)+ " kb, max. "+ maxFileSize+ " kb.");
         }
@@ -227,7 +224,7 @@
     }
   }
  else {
-    if (limitedFileSize && !userAdmin) {
+    if (maxFileSize > 0) {
       xmlTemplateDocument.setData("maxfilesize","" + maxFileSize);
       String limitation=xmlTemplateDocument.getProcessedDataValue("filesize_limited");
       xmlTemplateDocument.setData("limitation",limitation);
