@@ -1,9 +1,29 @@
 {
   PreparedStatement statement=null;
+  PreparedStatement statementCont=null;
+  PreparedStatement statementProp=null;
   Connection con=null;
+  ResultSet res=null;
   String tempFilename=file.getPath() + C_TEMP_PREFIX + file.getName()+ "%";
   try {
     con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareStatement(m_cq.get("C_RESOURCES_GETTEMPFILES"));
+    statement.setString(1,tempFilename);
+    res=statement.executeQuery();
+    while (res.next()) {
+      int fileId=res.getInt("FILE_ID");
+      int resourceId=res.getInt("RESOURCE_ID");
+      statementProp=con.prepareStatement(m_cq.get("C_PROPERTIES_DELETEALL"));
+      statementProp.setInt(1,resourceId);
+      statementProp.executeQuery();
+      statementProp.close();
+      statementCont=con.prepareStatement(m_cq.get("C_FILE_DELETE"));
+      statementCont.setInt(1,fileId);
+      statementCont.executeUpdate();
+      statementCont.close();
+    }
+    res.close();
+    statement.close();
     statement=con.prepareStatement(m_cq.get("C_RESOURCES_DELETETEMPFILES"));
     statement.setString(1,tempFilename);
     statement.executeUpdate();
@@ -12,6 +32,27 @@
     throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
   }
  finally {
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (statementProp != null) {
+      try {
+        statementProp.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (statementCont != null) {
+      try {
+        statementCont.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
     if (statement != null) {
       try {
         statement.close();
