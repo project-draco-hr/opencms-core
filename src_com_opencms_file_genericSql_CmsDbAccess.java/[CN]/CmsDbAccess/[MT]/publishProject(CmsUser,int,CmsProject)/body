@@ -5,7 +5,7 @@
   Vector offlineFiles;
   Vector deletedFolders=new Vector();
   Hashtable folderIdIndex=new Hashtable();
-  offlineFolders=readFolders(project);
+  offlineFolders=readFolders(projectId);
   for (int i=0; i < offlineFolders.size(); i++) {
     currentFolder=((CmsFolder)offlineFolders.elementAt(i));
     if (currentFolder.getState() == C_STATE_DELETED) {
@@ -22,6 +22,15 @@
       newFolder.setState(C_STATE_UNCHANGED);
       writeFolder(onlineProject,newFolder,false);
       folderIdIndex.put(new Integer(currentFolder.getResourceId()),new Integer(newFolder.getResourceId()));
+      try {
+        Hashtable props=readAllProperties(currentFolder.getResourceId(),currentFolder.getType());
+        writeProperties(props,newFolder.getResourceId(),newFolder.getType());
+      }
+ catch (      CmsException exc) {
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsDbAccess] error publishing, copy properties for " + newFolder.toString() + " Message= "+ exc.getMessage());
+        }
+      }
     }
  else     if (currentFolder.getState() == C_STATE_CHANGED) {
       CmsFolder onlineFolder=null;
@@ -72,6 +81,16 @@
         }
       }
       folderIdIndex.put(new Integer(currentFolder.getResourceId()),new Integer(onlineFolder.getResourceId()));
+      try {
+        deleteAllProperties(onlineFolder.getResourceId());
+        Hashtable props=readAllProperties(currentFolder.getResourceId(),currentFolder.getType());
+        writeProperties(props,onlineFolder.getResourceId(),currentFolder.getType());
+      }
+ catch (      CmsException exc) {
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsDbAccess] error publishing, deleting properties for " + onlineFolder.toString() + " Message= "+ exc.getMessage());
+        }
+      }
     }
  else     if (currentFolder.getState() == C_STATE_UNCHANGED) {
       CmsFolder onlineFolder=null;
@@ -97,11 +116,11 @@
       folderIdIndex.put(new Integer(currentFolder.getResourceId()),new Integer(onlineFolder.getResourceId()));
     }
   }
-  offlineFiles=readFiles(project);
+  offlineFiles=readFiles(projectId);
   for (int i=0; i < offlineFiles.size(); i++) {
     currentFile=((CmsFile)offlineFiles.elementAt(i));
     if (currentFile.getName().startsWith(C_TEMP_PREFIX)) {
-      removeFile(project,currentFile.getAbsolutePath());
+      removeFile(projectId,currentFile.getAbsolutePath());
     }
  else     if (currentFile.getState() == C_STATE_DELETED) {
       CmsFile currentOnlineFile=readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getAbsolutePath());
@@ -167,6 +186,16 @@
           m_pool.putPreparedStatement(C_RESOURCES_UPDATE_FILE_KEY,statement);
         }
       }
+      try {
+        deleteAllProperties(onlineFile.getResourceId());
+        Hashtable props=readAllProperties(currentFile.getResourceId(),currentFile.getType());
+        writeProperties(props,onlineFile.getResourceId(),currentFile.getType());
+      }
+ catch (      CmsException exc) {
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsDbAccess] error publishing, deleting properties for " + onlineFile.toString() + " Message= "+ exc.getMessage());
+        }
+      }
     }
  else     if (currentFile.getState() == C_STATE_NEW) {
       Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFile.getParentId()));
@@ -178,10 +207,27 @@
       CmsFile newFile=createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getAbsolutePath());
       newFile.setState(C_STATE_UNCHANGED);
       writeFile(onlineProject,onlineProject,newFile,false);
+      try {
+        Hashtable props=readAllProperties(currentFile.getResourceId(),currentFile.getType());
+        writeProperties(props,newFile.getResourceId(),newFile.getType());
+      }
+ catch (      CmsException exc) {
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsDbAccess] error publishing, copy properties for " + newFile.toString() + " Message= "+ exc.getMessage());
+        }
+      }
     }
   }
   for (int i=0; i < deletedFolders.size(); i++) {
     currentFolder=((CmsFolder)deletedFolders.elementAt(i));
+    try {
+      deleteAllProperties(currentFolder.getResourceId());
+    }
+ catch (    CmsException exc) {
+      if (A_OpenCms.isLogging()) {
+        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsDbAccess] error publishing, deleting properties for " + currentFolder.toString() + " Message= "+ exc.getMessage());
+      }
+    }
     removeFolderForPublish(onlineProject,currentFolder.getAbsolutePath());
   }
 }
