@@ -1,13 +1,22 @@
 {
+  CmsProject project=null;
   if ((description == null) || (description.length() < 1)) {
     description=" ";
   }
   Timestamp createTime=new Timestamp(new java.util.Date().getTime());
   Connection conn=null;
   PreparedStatement stmt=null;
-  int id=m_sqlManager.nextId(C_TABLE_PROJECTS);
+  int id=I_CmsConstants.C_UNKNOWN_ID;
   try {
-    conn=m_sqlManager.getConnection();
+    if (reservedParam == null) {
+      conn=m_sqlManager.getConnection();
+      id=m_sqlManager.nextId(C_TABLE_PROJECTS);
+    }
+ else {
+      id=((Integer)((Map)reservedParam).get("pkProjectId")).intValue();
+      int projectId=((Integer)((Map)reservedParam).get("projectId")).intValue();
+      conn=m_sqlManager.getConnection(projectId);
+    }
     stmt=m_sqlManager.getPreparedStatement(conn,"C_PROJECTS_CREATE");
     stmt.setInt(1,id);
     stmt.setString(2,owner.getId().toString());
@@ -20,6 +29,7 @@
     stmt.setTimestamp(9,createTime);
     stmt.setInt(10,type);
     stmt.executeUpdate();
+    project=new CmsProject(id,name,description,task.getId(),owner.getId(),group.getId(),managergroup.getId(),flags,createTime,type);
   }
  catch (  SQLException e) {
     throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
@@ -27,5 +37,5 @@
  finally {
     m_sqlManager.closeAll(conn,stmt,null);
   }
-  return readProject(id);
+  return project;
 }
