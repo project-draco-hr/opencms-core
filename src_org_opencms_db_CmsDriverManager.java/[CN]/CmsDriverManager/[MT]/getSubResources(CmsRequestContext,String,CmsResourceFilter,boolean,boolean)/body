@@ -1,0 +1,58 @@
+{
+  CmsFolder parentFolder=null;
+  try {
+    if (!CmsResource.isFolder(parentFolderName)) {
+      parentFolderName+='/';
+    }
+    parentFolder=readFolder(context,parentFolderName,filter);
+    checkPermissions(context,parentFolder,I_CmsConstants.C_READ_ACCESS,filter,-1);
+  }
+ catch (  CmsException e) {
+    return new ArrayList(0);
+  }
+  if ((!CmsResourceFilter.IGNORE_EXPIRATION.isValid(context,parentFolder))) {
+    return new ArrayList(0);
+  }
+  String cacheKey;
+  if (getFolders && getFiles) {
+    cacheKey="_all_";
+  }
+ else   if (getFolders) {
+    cacheKey="_folders_";
+  }
+ else {
+    cacheKey="_files_";
+  }
+  cacheKey=getCacheKey(context.currentUser().getName() + cacheKey + filter.getCacheId(),context.currentProject(),parentFolderName);
+  List subResources=(List)m_resourceListCache.get(cacheKey);
+  if (subResources != null && subResources.size() > 0) {
+    return filterCacheResult(context,subResources,filter);
+  }
+  if (getFolders && getFiles) {
+    subResources=m_vfsDriver.readChildResources(context.currentProject(),parentFolder,true);
+    subResources.addAll(m_vfsDriver.readChildResources(context.currentProject(),parentFolder,false));
+  }
+ else   if (getFolders) {
+    subResources=m_vfsDriver.readChildResources(context.currentProject(),parentFolder,true);
+  }
+ else {
+    subResources=m_vfsDriver.readChildResources(context.currentProject(),parentFolder,false);
+  }
+  for (int i=0; i < subResources.size(); i++) {
+    CmsResource currentResource=(CmsResource)subResources.get(i);
+    Integer perms=hasPermissions(context,currentResource,I_CmsConstants.C_READ_OR_VIEW_ACCESS,filter);
+    if (PERM_DENIED == perms) {
+      subResources.remove(i--);
+    }
+ else {
+      if (currentResource.isFolder() && !CmsResource.isFolder(currentResource.getName())) {
+        currentResource.setFullResourceName(parentFolderName.concat(currentResource.getName().concat("/")));
+      }
+ else {
+        currentResource.setFullResourceName(parentFolderName.concat(currentResource.getName()));
+      }
+    }
+  }
+  m_resourceListCache.put(cacheKey,subResources);
+  return filterCacheResult(context,subResources,filter);
+}
