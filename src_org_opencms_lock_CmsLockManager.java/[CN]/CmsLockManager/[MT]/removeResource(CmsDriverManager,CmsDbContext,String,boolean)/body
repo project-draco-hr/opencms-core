@@ -1,0 +1,38 @@
+{
+  CmsLock lock=getLock(driverManager,dbc,resourcename);
+  CmsResource sibling=null;
+  if (lock.isNullLock()) {
+    return null;
+  }
+  if (!forceUnlock && (!lock.getUserId().equals(dbc.currentUser().getId()) || lock.getProjectId() != dbc.currentProject().getId())) {
+    throw new CmsLockException("Unable to unlock '" + dbc.removeSiteRoot(resourcename) + "', resource is locked by another user and/or in another project",CmsLockException.C_RESOURCE_LOCKED_BY_OTHER_USER);
+  }
+  if (!forceUnlock && (lock.getType() == CmsLock.C_TYPE_INHERITED || lock.getType() == CmsLock.C_TYPE_SHARED_INHERITED || (getParentFolderLock(resourcename) != null))) {
+    throw new CmsLockException("Unable to unlock '" + dbc.removeSiteRoot(resourcename) + "', the lock is inherited from a parent folder",CmsLockException.C_RESOURCE_LOCKED_INHERITED);
+  }
+  if (lock.getType() == CmsLock.C_TYPE_EXCLUSIVE) {
+    if (CmsResource.isFolder(resourcename)) {
+      Iterator i=m_exclusiveLocks.keySet().iterator();
+      String lockedPath=null;
+      while (i.hasNext()) {
+        lockedPath=(String)i.next();
+        if (lockedPath.startsWith(resourcename) && !lockedPath.equals(resourcename)) {
+          i.remove();
+        }
+      }
+    }
+    return (CmsLock)m_exclusiveLocks.remove(resourcename);
+  }
+  if (lock.getType() == CmsLock.C_TYPE_SHARED_EXCLUSIVE) {
+    List siblings=internalReadSiblings(driverManager,dbc,resourcename);
+    for (int i=0; i < siblings.size(); i++) {
+      sibling=(CmsResource)siblings.get(i);
+      if (m_exclusiveLocks.containsKey(sibling.getRootPath())) {
+        m_exclusiveLocks.remove(sibling.getRootPath());
+        break;
+      }
+    }
+    return lock;
+  }
+  return lock;
+}

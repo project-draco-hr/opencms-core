@@ -1,0 +1,36 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  ResultSet res=null;
+  CmsUUID structureId=null;
+  CmsUUID resourceId=null;
+  String rootPath=null;
+  int resourceType=I_CmsConstants.C_UNKNOWN_ID;
+  int resourceState=I_CmsConstants.C_UNKNOWN_ID;
+  List publishedResources=new ArrayList();
+  int siblingCount=I_CmsConstants.C_UNKNOWN_ID;
+  int backupTagId=I_CmsConstants.C_UNKNOWN_ID;
+  try {
+    conn=m_sqlManager.getConnection(dbc,projectId);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_SELECT_PUBLISHED_RESOURCES");
+    stmt.setString(1,publishHistoryId.toString());
+    res=stmt.executeQuery();
+    while (res.next()) {
+      structureId=new CmsUUID(res.getString("STRUCTURE_ID"));
+      resourceId=new CmsUUID(res.getString("RESOURCE_ID"));
+      rootPath=res.getString("RESOURCE_PATH");
+      resourceState=res.getInt("RESOURCE_STATE");
+      resourceType=res.getInt("RESOURCE_TYPE");
+      siblingCount=res.getInt("SIBLING_COUNT");
+      backupTagId=res.getInt("PUBLISH_TAG");
+      publishedResources.add(new CmsPublishedResource(structureId,resourceId,backupTagId,rootPath,resourceType,CmsFolder.isFolderType(resourceType),resourceState,siblingCount));
+    }
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  return publishedResources;
+}

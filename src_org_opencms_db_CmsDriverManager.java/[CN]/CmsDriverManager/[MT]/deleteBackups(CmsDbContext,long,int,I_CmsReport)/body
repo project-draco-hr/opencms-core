@@ -1,0 +1,27 @@
+{
+  if (isAdmin(dbc)) {
+    List allBackupFiles=m_backupDriver.readBackupFileHeaders(dbc);
+    int counter=1;
+    int size=allBackupFiles.size();
+    int maxTag=m_backupDriver.readBackupProjectTag(dbc,timestamp);
+    Iterator i=allBackupFiles.iterator();
+    while (i.hasNext()) {
+      CmsBackupResource res=(CmsBackupResource)i.next();
+      report.print("( " + counter + " / "+ size+ " ) ",I_CmsReport.C_FORMAT_NOTE);
+      report.print(report.key("report.history.checking"),I_CmsReport.C_FORMAT_NOTE);
+      report.print(res.getRootPath() + " ");
+      int resVersions=m_backupDriver.readBackupMaxVersion(dbc,res.getResourceId());
+      int versionsToDelete=resVersions - versions;
+      if (versionsToDelete > 0) {
+        report.print(report.key("report.history.deleting") + report.key("report.dots"));
+        m_backupDriver.deleteBackup(dbc,res,maxTag,versionsToDelete);
+      }
+ else {
+        report.print(report.key("report.history.nothing") + report.key("report.dots"));
+      }
+      report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+      counter++;
+      m_projectDriver.deletePublishHistory(dbc,dbc.currentProject().getId(),maxTag);
+    }
+  }
+}

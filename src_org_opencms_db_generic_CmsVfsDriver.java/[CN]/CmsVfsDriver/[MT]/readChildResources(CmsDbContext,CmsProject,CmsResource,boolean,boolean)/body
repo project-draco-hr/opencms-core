@@ -1,0 +1,55 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  ResultSet res=null;
+  String query=null;
+  String resourceTypeClause;
+  List subFolders;
+  List subFiles;
+  String orderClause=m_sqlManager.readQuery(currentProject,"C_RESOURCES_GET_SUBRESOURCES_ORDER");
+  if (getFolders && getFiles) {
+    resourceTypeClause="";
+    subFolders=new ArrayList();
+    subFiles=new ArrayList();
+  }
+ else   if (getFolders) {
+    resourceTypeClause=" " + m_sqlManager.readQuery(currentProject,"C_RESOURCES_GET_SUBRESOURCES_GET_FOLDERS");
+    subFolders=new ArrayList();
+    subFiles=null;
+  }
+ else {
+    resourceTypeClause=" " + m_sqlManager.readQuery(currentProject,"C_RESOURCES_GET_SUBRESOURCES_GET_FILES");
+    subFolders=null;
+    subFiles=new ArrayList();
+  }
+  try {
+    conn=m_sqlManager.getConnection(dbc,currentProject.getId());
+    query=m_sqlManager.readQuery(currentProject,"C_RESOURCES_GET_SUBRESOURCES") + " " + resourceTypeClause+ " "+ orderClause;
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,query);
+    stmt.setString(1,resource.getStructureId().toString());
+    res=stmt.executeQuery();
+    while (res.next()) {
+      int type=res.getInt(m_sqlManager.readQuery("C_RESOURCES_RESOURCE_TYPE"));
+      if (CmsFolder.isFolderType(type)) {
+        subFolders.add(createFolder(res,currentProject.getId(),false));
+      }
+ else {
+        subFiles.add(createFile(res,currentProject.getId(),false));
+      }
+    }
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  if (getFolders && getFiles) {
+    subFolders.addAll(subFiles);
+    return subFolders;
+  }
+ else   if (getFolders) {
+    return subFolders;
+  }
+  return subFiles;
+}

@@ -1,0 +1,20 @@
+{
+  int state=I_CmsConstants.C_STATE_CHANGED;
+  CmsBackupResource backupFile=readBackupFile(dbc,tag,resource);
+  if (resource.getState() == I_CmsConstants.C_STATE_NEW) {
+    state=I_CmsConstants.C_STATE_NEW;
+  }
+  if (backupFile != null) {
+    int flags=backupFile.getFlags();
+    if (resource.isLabeled()) {
+      flags|=I_CmsConstants.C_RESOURCEFLAG_LABELLINK;
+    }
+    CmsFile newFile=new CmsFile(resource.getStructureId(),resource.getResourceId(),backupFile.getContentId(),resource.getRootPath(),backupFile.getTypeId(),flags,dbc.currentProject().getId(),state,resource.getDateCreated(),backupFile.getUserCreated(),resource.getDateLastModified(),dbc.currentUser().getId(),backupFile.getDateReleased(),backupFile.getDateExpired(),backupFile.getSiblingCount(),backupFile.getLength(),backupFile.getContents());
+    writeFile(dbc,newFile);
+    List backupProperties=m_backupDriver.readBackupProperties(dbc,backupFile);
+    deleteAllProperties(dbc,newFile.getRootPath());
+    writePropertyObjects(dbc,newFile,backupProperties);
+    clearResourceCache();
+  }
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_MODIFIED,Collections.singletonMap("resource",resource)));
+}

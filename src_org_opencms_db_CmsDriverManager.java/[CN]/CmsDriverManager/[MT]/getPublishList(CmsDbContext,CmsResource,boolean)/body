@@ -1,0 +1,35 @@
+{
+  CmsPublishList publishList=new CmsPublishList(directPublishResource);
+  if (directPublishResource == null) {
+    List folderList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getId(),I_CmsConstants.C_READ_IGNORE_PARENT,I_CmsConstants.C_READ_IGNORE_TYPE,I_CmsConstants.C_STATE_UNCHANGED,I_CmsConstants.C_READ_IGNORE_TIME,I_CmsConstants.C_READ_IGNORE_TIME,I_CmsConstants.C_READMODE_INCLUDE_TREE | I_CmsConstants.C_READMODE_INCLUDE_PROJECT | I_CmsConstants.C_READMODE_EXCLUDE_STATE| I_CmsConstants.C_READMODE_ONLY_FOLDERS);
+    publishList.addFolders(filterResources(dbc,folderList,folderList));
+    List fileList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getId(),I_CmsConstants.C_READ_IGNORE_PARENT,I_CmsConstants.C_READ_IGNORE_TYPE,I_CmsConstants.C_STATE_UNCHANGED,I_CmsConstants.C_READ_IGNORE_TIME,I_CmsConstants.C_READ_IGNORE_TIME,I_CmsConstants.C_READMODE_INCLUDE_TREE | I_CmsConstants.C_READMODE_INCLUDE_PROJECT | I_CmsConstants.C_READMODE_EXCLUDE_STATE| I_CmsConstants.C_READMODE_ONLY_FILES);
+    publishList.addFiles(filterResources(dbc,publishList.getFolderList(),fileList));
+  }
+ else   if (directPublishResource.isFolder()) {
+    if (I_CmsConstants.C_STATE_UNCHANGED != directPublishResource.getState() && getLock(dbc,directPublishResource.getRootPath()).isNullLock()) {
+      publishList.addFolder(directPublishResource);
+    }
+    List folderList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getId(),directPublishResource.getRootPath(),I_CmsConstants.C_READ_IGNORE_TYPE,I_CmsConstants.C_STATE_UNCHANGED,I_CmsConstants.C_READ_IGNORE_TIME,I_CmsConstants.C_READ_IGNORE_TIME,I_CmsConstants.C_READMODE_INCLUDE_TREE | I_CmsConstants.C_READMODE_INCLUDE_PROJECT | I_CmsConstants.C_READMODE_EXCLUDE_STATE| I_CmsConstants.C_READMODE_ONLY_FOLDERS);
+    publishList.addFolders(filterResources(dbc,publishList.getFolderList(),folderList));
+    List fileList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getId(),directPublishResource.getRootPath(),I_CmsConstants.C_READ_IGNORE_TYPE,I_CmsConstants.C_STATE_UNCHANGED,I_CmsConstants.C_READ_IGNORE_TIME,I_CmsConstants.C_READ_IGNORE_TIME,I_CmsConstants.C_READMODE_INCLUDE_TREE | I_CmsConstants.C_READMODE_INCLUDE_PROJECT | I_CmsConstants.C_READMODE_EXCLUDE_STATE| I_CmsConstants.C_READMODE_ONLY_FILES);
+    publishList.addFiles(filterResources(dbc,publishList.getFolderList(),fileList));
+  }
+ else   if (directPublishResource.isFile() && I_CmsConstants.C_STATE_UNCHANGED != directPublishResource.getState()) {
+    if (getLock(dbc,directPublishResource.getRootPath()).isNullLock()) {
+      publishList.addFile(directPublishResource);
+    }
+  }
+  if (publishSiblings) {
+    List publishFiles=publishList.getFileList();
+    int size=publishFiles.size();
+    for (int i=0; i < size; i++) {
+      CmsResource currentFile=(CmsResource)publishFiles.get(i);
+      if (currentFile.getSiblingCount() > 1) {
+        publishList.addFiles(filterSiblings(dbc,currentFile,publishList.getFolderList(),readSiblings(dbc,currentFile,CmsResourceFilter.ALL_MODIFIED)));
+      }
+    }
+  }
+  publishList.initialize();
+  return publishList;
+}

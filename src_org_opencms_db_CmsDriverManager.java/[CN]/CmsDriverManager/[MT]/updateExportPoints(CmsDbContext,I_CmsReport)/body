@@ -1,0 +1,52 @@
+{
+  try {
+    Set exportPoints=new HashSet();
+    exportPoints.addAll(OpenCms.getExportPoints());
+    exportPoints.addAll(OpenCms.getModuleManager().getExportPoints());
+    if (exportPoints.size() == 0) {
+      if (OpenCms.getLog(this).isWarnEnabled()) {
+        OpenCms.getLog(this).warn("No export points configured at all.");
+      }
+      return;
+    }
+    CmsExportPointDriver exportPointDriver=new CmsExportPointDriver(exportPoints);
+    if (report == null) {
+      report=new CmsLogReport();
+    }
+    Iterator i=exportPointDriver.getExportPointPaths().iterator();
+    while (i.hasNext()) {
+      String currentExportPoint=(String)i.next();
+      if (OpenCms.getLog(this).isInfoEnabled()) {
+        OpenCms.getLog(this).info("Writing export point " + currentExportPoint);
+      }
+      try {
+        CmsResourceFilter filter=CmsResourceFilter.DEFAULT;
+        List resources=m_vfsDriver.readResourceTree(dbc,I_CmsConstants.C_PROJECT_ONLINE_ID,currentExportPoint,filter.getType(),filter.getState(),filter.getModifiedAfter(),filter.getModifiedBefore(),I_CmsConstants.C_READMODE_INCLUDE_TREE | (filter.excludeType() ? I_CmsConstants.C_READMODE_EXCLUDE_TYPE : 0) | (filter.excludeState() ? I_CmsConstants.C_READMODE_EXCLUDE_STATE : 0));
+        Iterator j=resources.iterator();
+        while (j.hasNext()) {
+          CmsResource currentResource=(CmsResource)j.next();
+          if (currentResource.isFolder()) {
+            exportPointDriver.createFolder(currentResource.getRootPath(),currentExportPoint);
+          }
+ else {
+            exportPointDriver.createFolder(currentExportPoint,currentExportPoint);
+            CmsFile file=getVfsDriver().readFile(dbc,I_CmsConstants.C_PROJECT_ONLINE_ID,false,currentResource.getStructureId());
+            exportPointDriver.writeFile(file.getRootPath(),currentExportPoint,file.getContents());
+          }
+        }
+      }
+ catch (      CmsException e) {
+        if (e.getType() != CmsException.C_NOT_FOUND) {
+          if (OpenCms.getLog(this).isErrorEnabled()) {
+            OpenCms.getLog(this).error("Error updating export points",e);
+          }
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error updating export points",e);
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  StringTokenizer tokens=null;
+  int folderCount=0;
+  boolean lastResourceIsFile=false;
+  List pathList=null;
+  String currentResourceName=null;
+  String currentPath=null;
+  CmsResource currentResource=null;
+  int i=0, count=0;
+  String cacheKey=null;
+  tokens=new StringTokenizer(path,I_CmsConstants.C_FOLDER_SEPARATOR);
+  count=tokens.countTokens() + 1;
+  pathList=new ArrayList(count);
+  folderCount=count;
+  if (!path.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+    folderCount--;
+    lastResourceIsFile=true;
+  }
+  currentResourceName=I_CmsConstants.C_ROOT;
+  currentPath=I_CmsConstants.C_ROOT;
+  cacheKey=getCacheKey(null,projectId,currentPath);
+  if ((currentResource=(CmsResource)m_resourceCache.get(cacheKey)) == null) {
+    currentResource=m_vfsDriver.readFolder(dbc,projectId,currentPath);
+    m_resourceCache.put(cacheKey,currentResource);
+  }
+  pathList.add(0,currentResource);
+  if (count == 1) {
+    return pathList;
+  }
+  currentResourceName=tokens.nextToken();
+  for (i=1; i < folderCount; i++) {
+    currentPath+=currentResourceName + I_CmsConstants.C_FOLDER_SEPARATOR;
+    cacheKey=getCacheKey(null,projectId,currentPath);
+    if ((currentResource=(CmsResource)m_resourceCache.get(cacheKey)) == null) {
+      currentResource=m_vfsDriver.readFolder(dbc,projectId,currentPath);
+      m_resourceCache.put(cacheKey,currentResource);
+    }
+    pathList.add(i,currentResource);
+    if (i < folderCount - 1) {
+      currentResourceName=tokens.nextToken();
+    }
+  }
+  if (lastResourceIsFile) {
+    if (tokens.hasMoreTokens()) {
+      currentResourceName=tokens.nextToken();
+    }
+    currentPath+=currentResourceName;
+    cacheKey=getCacheKey(null,projectId,currentPath);
+    if ((currentResource=(CmsResource)m_resourceCache.get(cacheKey)) == null) {
+      currentResource=m_vfsDriver.readResource(dbc,projectId,currentPath,filter.includeDeleted());
+      m_resourceCache.put(cacheKey,currentResource);
+    }
+    pathList.add(i,currentResource);
+  }
+  return pathList;
+}

@@ -1,0 +1,62 @@
+{
+  List labeledSites=OpenCms.getWorkplaceManager().getLabelSiteFolders();
+  if (labeledSites.size() == 0) {
+    return false;
+  }
+  if (action == 1) {
+    if (!resource.isLabeled()) {
+      boolean linkInside=false;
+      boolean sourceInside=false;
+      for (int i=0; i < labeledSites.size(); i++) {
+        String curSite=(String)labeledSites.get(i);
+        if (newResource.startsWith(curSite)) {
+          linkInside=true;
+        }
+        if (resource.getRootPath().startsWith(curSite)) {
+          sourceInside=true;
+        }
+      }
+      return (linkInside != sourceInside);
+    }
+    return false;
+  }
+ else {
+    boolean isInside=false;
+    boolean isOutside=false;
+    List siblings=m_vfsDriver.readSiblings(dbc,dbc.currentProject(),resource,false);
+    updateContextDates(dbc,siblings);
+    Iterator i=siblings.iterator();
+    while (i.hasNext() && (!isInside || !isOutside)) {
+      CmsResource currentResource=(CmsResource)i.next();
+      if (currentResource.equals(resource)) {
+        continue;
+      }
+      String curPath=currentResource.getRootPath();
+      boolean curInside=false;
+      for (int k=0; k < labeledSites.size(); k++) {
+        if (curPath.startsWith((String)labeledSites.get(k))) {
+          isInside=true;
+          curInside=true;
+          break;
+        }
+      }
+      if (!curInside) {
+        isOutside=true;
+      }
+    }
+    if (newResource != null) {
+      boolean curInside=false;
+      for (int k=0; k < labeledSites.size(); k++) {
+        if (newResource.startsWith((String)labeledSites.get(k))) {
+          isInside=true;
+          curInside=true;
+          break;
+        }
+      }
+      if (!curInside) {
+        isOutside=true;
+      }
+    }
+    return (isInside && isOutside);
+  }
+}

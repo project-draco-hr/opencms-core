@@ -1,0 +1,27 @@
+{
+  String cacheKey;
+  if (getFolders && getFiles) {
+    cacheKey=CmsCacheKey.C_CACHE_KEY_SUBALL;
+  }
+ else   if (getFolders) {
+    cacheKey=CmsCacheKey.C_CACHE_KEY_SUBFOLDERS;
+  }
+ else {
+    cacheKey=CmsCacheKey.C_CACHE_KEY_SUBFILES;
+  }
+  cacheKey=getCacheKey(dbc.currentUser().getName() + cacheKey + filter.getCacheId(),dbc.currentProject(),resource.getRootPath());
+  List subResources=(List)m_resourceListCache.get(cacheKey);
+  if (subResources != null && subResources.size() > 0) {
+    return updateContextDates(dbc,subResources,filter);
+  }
+  subResources=m_vfsDriver.readChildResources(dbc,dbc.currentProject(),resource,getFolders,getFiles);
+  for (int i=0; i < subResources.size(); i++) {
+    CmsResource currentResource=(CmsResource)subResources.get(i);
+    int perms=m_securityManager.hasPermissions(dbc,currentResource,CmsPermissionSet.ACCESS_READ,true,filter);
+    if (CmsSecurityManager.PERM_DENIED == perms) {
+      subResources.remove(i--);
+    }
+  }
+  m_resourceListCache.put(cacheKey,subResources);
+  return updateContextDates(dbc,subResources,filter);
+}
