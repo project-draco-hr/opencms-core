@@ -1,41 +1,19 @@
 {
-  if (C_DEBUG && A_OpenCms.isLogging()) {
-    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
-    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "template file is: " + templateFile);
-    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
-  }
-  CmsFile editFile=null;
-  String content=(String)parameters.get("CONTENT");
-  String file=(String)parameters.get("file");
-  String action=(String)parameters.get("action");
-  String jsfile=(String)parameters.get("editor.jsfile");
+  String content=(String)parameters.get(C_PARA_CONTENT);
+  String file=(String)parameters.get(C_PARA_FILE);
+  String action=(String)parameters.get(C_PARA_ACTION);
+  String jsfile=(String)parameters.get(C_ROOT_TEMPLATE_NAME + "." + C_PARA_JSFILE);
   boolean existsFileParam=((file != null) && (!"".equals(file)));
-  boolean saveRequested=((action != null) && ("save".equals(action) || "saveexit".equals(action)));
-  boolean exitRequested=((action != null) && ("exit".equals(action) || "saveexit".equals(action)));
+  boolean saveRequested=((action != null) && (C_EDIT_ACTION_SAVE.equals(action) || C_EDIT_ACTION_SAVEEXIT.equals(action)));
+  boolean exitRequested=((action != null) && (C_EDIT_ACTION_EXIT.equals(action) || C_EDIT_ACTION_SAVEEXIT.equals(action)));
+  Encoder enc=new Encoder();
+  CmsFile editFile=null;
   if (existsFileParam && (content == null || saveRequested)) {
-    try {
-      editFile=cms.readFile(file);
-    }
- catch (    Exception e) {
-      String errorMessage="Error while reading file " + file + ": "+ e;
-      if (A_OpenCms.isLogging()) {
-        A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + errorMessage);
-        if (!(e instanceof CmsException)) {
-          e.printStackTrace();
-        }
-      }
-      if (e instanceof CmsException) {
-        throw (CmsException)e;
-      }
- else {
-        throw new CmsException(errorMessage,CmsException.C_UNKNOWN_EXCEPTION);
-      }
-    }
-    Encoder enc=new Encoder();
+    editFile=readFile(cms,file);
     if (content == null) {
       content=new String(editFile.getContents());
       content=enc.escape(content);
-      parameters.put("CONTENT",content);
+      parameters.put(C_PARA_CONTENT,content);
     }
     if (saveRequested) {
       String decodedContent=enc.unescape(content);
@@ -54,7 +32,7 @@
   }
   CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
   String sectionName=getBrowserSpecificSection(cms,xmlTemplateDocument);
-  xmlTemplateDocument.setXmlData("file",file);
-  xmlTemplateDocument.setXmlData("jsfile",jsfile);
+  xmlTemplateDocument.setXmlData(C_PARA_FILE,file);
+  xmlTemplateDocument.setXmlData(C_PARA_JSFILE,jsfile);
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,sectionName);
 }
