@@ -2,12 +2,15 @@
   long timer1=0;
   if (DEBUG > 0) {
     timer1=System.currentTimeMillis();
-    System.err.println("========== XmlTemplateLoader loading: " + file.getAbsolutePath());
+    System.err.println("============ CmsXmlTemplateLoader loading: " + file.getAbsolutePath());
+    System.err.println("CmsXmlTemplateLoader.service() cms uri is: " + cms.getRequestContext().getUri());
   }
   String rnc=cms.getRequestContext().getEncoding().trim();
+  String oldUri=cms.getRequestContext().getUri();
   I_CmsRequest cms_req=cms.getRequestContext().getRequest();
   HttpServletRequest originalreq=(HttpServletRequest)cms_req.getOriginalRequest();
   try {
+    System.err.println("service() loading subelement");
     byte[] result=null;
     com.opencms.file.CmsFile fx=req.getCmsObject().readFile(file.getAbsolutePath());
     String dnc=A_OpenCms.getDefaultEncoding().trim();
@@ -15,25 +18,32 @@
     cms.getRequestContext().setUri(fx.getAbsolutePath());
     cms_req.setOriginalRequest(req);
     cms.getRequestContext().setEncoding(enc);
+    if (DEBUG > 1) {
+      System.err.println("CmsXmlTemplateLoader.service(): Encodig set to " + cms.getRequestContext().getEncoding());
+      System.err.println("CmsXmlTemplateLoader.service(): Uri set to " + cms.getRequestContext().getUri());
+    }
     result=generateOutput(cms,fx,fx.getLauncherClassname(),cms_req);
     if (result != null) {
       result=Encoder.changeEncoding(result,enc,dnc);
-      if (DEBUG > 1)       System.out.println("CmsXmlTemplateLoader.service(): encoding=" + enc + " requestEncoding="+ rnc+ " defaultEncoding="+ dnc);
+      if (DEBUG > 1)       System.err.println("CmsXmlTemplateLoader.service(): encoding=" + enc + " requestEncoding="+ rnc+ " defaultEncoding="+ dnc);
       res.getOutputStream().write(result);
     }
   }
  catch (  Exception e) {
-    System.err.println("Error in CmsXmlTemplateLoader: " + e.toString());
     if (DEBUG > 0)     e.printStackTrace(System.err);
     throw new ServletException("Error in CmsXmlTemplateLoader processing",e);
   }
  finally {
     cms_req.setOriginalRequest(originalreq);
     cms.getRequestContext().setEncoding(rnc);
-    cms.getRequestContext().setUri(null);
+    cms.getRequestContext().setUri(oldUri);
+    if (DEBUG > 1) {
+      System.err.println("CmsXmlTemplateLoader.service(): Encodig reset to " + cms.getRequestContext().getEncoding());
+      System.err.println("CmsXmlTemplateLoader.service(): Uri reset to " + cms.getRequestContext().getUri());
+    }
   }
   if (DEBUG > 0) {
     long timer2=System.currentTimeMillis() - timer1;
-    System.err.println("========== Time delivering XmlTemplate for " + file.getAbsolutePath() + ": "+ timer2+ "ms");
+    System.err.println("============ CmsXmlTemplateLoader time delivering XmlTemplate for " + file.getAbsolutePath() + ": "+ timer2+ "ms");
   }
 }
