@@ -1,6 +1,73 @@
 {
+  echo("Testing resource translator for import");
   CmsObject cms=getCmsObject();
+  cms.getRequestContext().setSiteRoot("/");
+  cms.createResource("/system/galleries",CmsResourceTypeFolder.C_RESOURCE_TYPE_ID);
+  cms.unlockResource("/system/galleries");
   cms.getRequestContext().setSiteRoot("/sites/default");
   String importFile=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testimport01.zip");
   OpenCms.getImportExportManager().importData(cms,importFile,"/",new CmsShellReport());
+  CmsXmlPage page;
+  CmsFile file;
+  CmsLinkTable table;
+  List links;
+  Iterator i;
+  List siblings;
+  file=cms.readFile("/importtest/index.html");
+  page=CmsXmlPageFactory.unmarshal(cms,file);
+  table=page.getLinkTable("body",OpenCms.getLocaleManager().getDefaultLocale());
+  links=new ArrayList();
+  i=table.iterator();
+  while (i.hasNext()) {
+    CmsLink link=(CmsLink)i.next();
+    links.add(link.toString());
+  }
+  assertTrue(links.size() == 2);
+  assertTrue(links.contains("/sites/default/importtest/page2.html"));
+  assertTrue(links.contains("/sites/default/importtest/page3.html"));
+  siblings=cms.readSiblings("/importtest/index.html",CmsResourceFilter.ALL);
+  i=siblings.iterator();
+  links=new ArrayList();
+  while (i.hasNext()) {
+    CmsResource sibling=(CmsResource)i.next();
+    links.add(sibling.getRootPath());
+  }
+  assertEquals(2,links.size());
+  assertTrue(links.contains("/sites/default/importtest/index.html"));
+  assertTrue(links.contains("/sites/default/importtest/linktest.html"));
+  file=cms.readFile("/importtest/page2.html");
+  page=CmsXmlPageFactory.unmarshal(cms,file);
+  table=page.getLinkTable("body",OpenCms.getLocaleManager().getDefaultLocale());
+  links=new ArrayList();
+  i=table.iterator();
+  while (i.hasNext()) {
+    CmsLink link=(CmsLink)i.next();
+    links.add(link.toString());
+  }
+  assertEquals(2,links.size());
+  assertTrue(links.contains("/system/galleries/pics/_anfang/bg_teaser_test2.jpg"));
+  assertTrue(links.contains("/sites/default/importtest/index.html"));
+  file=cms.readFile("/importtest/linktest.html");
+  assertEquals(CmsResourceTypeXmlPage.C_RESOURCE_TYPE_ID,file.getTypeId());
+  page=CmsXmlPageFactory.unmarshal(cms,file);
+  table=page.getLinkTable("body",OpenCms.getLocaleManager().getDefaultLocale());
+  links=new ArrayList();
+  i=table.iterator();
+  while (i.hasNext()) {
+    CmsLink link=(CmsLink)i.next();
+    links.add(link.toString());
+  }
+  assertEquals(2,links.size());
+  assertTrue(links.contains("/sites/default/importtest/page2.html"));
+  assertTrue(links.contains("/sites/default/importtest/page3.html"));
+  siblings=cms.readSiblings("/importtest/linktest.html",CmsResourceFilter.ALL);
+  i=siblings.iterator();
+  links=new ArrayList();
+  while (i.hasNext()) {
+    CmsResource sibling=(CmsResource)i.next();
+    links.add(sibling.getRootPath());
+  }
+  assertEquals(2,links.size());
+  assertTrue(links.contains("/sites/default/importtest/index.html"));
+  assertTrue(links.contains("/sites/default/importtest/linktest.html"));
 }
