@@ -2,9 +2,6 @@
   String source, type, user, group, access, launcherStartClass, lastModified;
   source=getSourceFilename(resource.getAbsolutePath());
   type=m_cms.getResourceType(resource.getType()).getResourceTypeName();
-  user=m_cms.readOwner(resource).getName();
-  group=m_cms.readGroup(resource).getName();
-  access=resource.getAccessFlags() + "";
   launcherStartClass=resource.getLauncherClassname();
   lastModified=String.valueOf(resource.getDateLastModified());
   Element file=m_docXml.createElement(C_EXPORT_TAG_FILE);
@@ -20,9 +17,6 @@
   }
   addElement(m_docXml,file,C_EXPORT_TAG_DESTINATION,source);
   addElement(m_docXml,file,C_EXPORT_TAG_TYPE,type);
-  addElement(m_docXml,file,C_EXPORT_TAG_USER,user);
-  addElement(m_docXml,file,C_EXPORT_TAG_GROUP,group);
-  addElement(m_docXml,file,C_EXPORT_TAG_ACCESS,access);
   addElement(m_docXml,file,C_EXPORT_TAG_LASTMODIFIED,lastModified);
   if (launcherStartClass != null && !"".equals(launcherStartClass) && !C_UNKNOWN_LAUNCHER.equals(launcherStartClass)) {
     addElement(m_docXml,file,C_EXPORT_TAG_LAUNCHER_START_CLASS,launcherStartClass);
@@ -42,5 +36,20 @@
       addElement(m_docXml,property,C_EXPORT_TAG_TYPE,propertyType);
       addCdataElement(m_docXml,property,C_EXPORT_TAG_VALUE,value);
     }
+  }
+  Element acentries=m_docXml.createElement(C_EXPORT_TAG_ACCESSCONTROL_ENTRIES);
+  file.appendChild(acentries);
+  addElement(m_docXml,acentries,C_EXPORT_TAG_ID,resource.getResourceAceId().toString());
+  Vector fileAcEntries=m_cms.getAccessControlEntries(resource.getAbsolutePath(),false);
+  i=fileAcEntries.iterator();
+  while (i.hasNext()) {
+    CmsAccessControlEntry ace=(CmsAccessControlEntry)i.next();
+    Element acentry=m_docXml.createElement(C_EXPORT_TAG_ACCESSCONTROL_ENTRY);
+    acentries.appendChild(acentry);
+    addElement(m_docXml,acentry,C_EXPORT_TAG_ID,ace.getPrincipal().toString());
+    addElement(m_docXml,acentry,C_EXPORT_TAG_FLAGS,new Integer(ace.getFlags()).toString());
+    Element acpermissionset=m_docXml.createElement(C_EXPORT_TAG_ACCESSCONTROL_PERMISSIONSET);
+    addElement(m_docXml,acentry,C_EXPORT_TAG_ACCESSCONTROL_ALLOWEDPERMISSIONS,new Integer(ace.getAllowedPermissions()).toString());
+    addElement(m_docXml,acentry,C_EXPORT_TAG_ACCESSCONTROL_DENIEDPERMISSIONS,new Integer(ace.getDeniedPermissions()).toString());
   }
 }
