@@ -1,0 +1,202 @@
+{
+  boolean replaceEscapeSequence=false;
+  String EscapeSequence=null;
+  StringBuffer NewSQL=new StringBuffer();
+  boolean inBraces=false;
+  boolean inQuotes=false;
+  boolean escaped=false;
+  boolean unrecognizedEscape=false;
+  String OpeningBrace="";
+  if (SQL == null) {
+    return null;
+  }
+  int begin_brace=SQL.indexOf("{");
+  int next_end_brace=SQL.indexOf("}",begin_brace);
+  if (next_end_brace == -1) {
+    return SQL;
+  }
+  PushBackTokenizer PBT=new PushBackTokenizer(SQL,"{}'",true);
+  while (PBT.hasMoreTokens()) {
+    String Token=PBT.nextToken();
+    if (Token.startsWith("{")) {
+      if (escaped) {
+        NewSQL.append(Token);
+        escaped=false;
+      }
+ else {
+        NewSQL.append(OpeningBrace);
+        inBraces=true;
+        OpeningBrace=Token;
+      }
+    }
+ else     if (Token.startsWith("}")) {
+      if (escaped) {
+        NewSQL.append(Token);
+        escaped=false;
+      }
+ else {
+        if (inBraces == false) {
+          NewSQL.append(Token);
+        }
+ else {
+          inBraces=false;
+          if (!OpeningBrace.equals("")) {
+            NewSQL.append(OpeningBrace);
+            NewSQL.append(Token);
+            OpeningBrace="";
+          }
+          if (unrecognizedEscape) {
+            NewSQL.append(Token);
+            unrecognizedEscape=false;
+          }
+        }
+      }
+    }
+ else     if (Token.startsWith("'")) {
+      if (escaped) {
+        NewSQL.append(Token);
+        escaped=false;
+      }
+ else {
+        NewSQL.append(Token);
+        inQuotes=!inQuotes;
+      }
+    }
+ else {
+      if (inBraces && !inQuotes) {
+        if (Token.startsWith("escape")) {
+          try {
+            StringTokenizer ST=new StringTokenizer(Token," '");
+            ST.nextToken();
+            EscapeSequence=ST.nextToken();
+            if (EscapeSequence.length() < 3) {
+              throw new java.sql.SQLException("Syntax error for escape sequence '" + Token + "'","42000");
+            }
+            EscapeSequence=EscapeSequence.substring(1,EscapeSequence.length() - 1);
+            replaceEscapeSequence=true;
+          }
+ catch (          java.util.NoSuchElementException E) {
+            throw new java.sql.SQLException("Syntax error for escape sequence '" + Token + "'","42000");
+          }
+        }
+ else         if (Token.startsWith("fn")) {
+          int start_pos=Token.indexOf("fn ") + 3;
+          int end_pos=Token.length();
+          NewSQL.append(Token.substring(start_pos,end_pos));
+          try {
+            NewSQL.append(parseComplexArgument(PBT));
+          }
+ catch (          java.util.NoSuchElementException NSE) {
+            throw new java.sql.SQLException("Syntax error for FN escape code","42000");
+          }
+        }
+ else         if (Token.startsWith("d")) {
+          String Argument="";
+          try {
+            Argument=parseArgument(PBT);
+          }
+ catch (          java.util.NoSuchElementException NSE) {
+            throw new java.sql.SQLException("Illegal argument for DATE escape code '" + Argument + "'","42000");
+          }
+          try {
+            StringTokenizer ST=new StringTokenizer(Argument," -");
+            String YYYY=ST.nextToken();
+            String MM=ST.nextToken();
+            String DD=ST.nextToken();
+            String DateString="'" + YYYY + "-"+ MM+ "-"+ DD+ "'";
+            NewSQL.append(DateString);
+          }
+ catch (          java.util.NoSuchElementException E) {
+            throw new java.sql.SQLException("Syntax error for DATE escape sequence '" + Argument + "'","42000");
+          }
+        }
+ else         if (Token.startsWith("ts")) {
+          String Argument="";
+          try {
+            Argument=parseArgument(PBT);
+          }
+ catch (          java.util.NoSuchElementException NSE) {
+            throw new java.sql.SQLException("Illegal argument for TIMESTAMP escape code '" + Argument + "'","42000");
+          }
+          try {
+            StringTokenizer ST=new StringTokenizer(Argument," .-:");
+            String YYYY=ST.nextToken();
+            String MM=ST.nextToken();
+            String DD=ST.nextToken();
+            String HH=ST.nextToken();
+            String Mm=ST.nextToken();
+            String SS=ST.nextToken();
+            String F="";
+            if (ST.hasMoreTokens()) {
+              F=ST.nextToken();
+            }
+            NewSQL.append("'").append(YYYY).append("-").append(MM).append("-").append(DD).append(" ").append(HH).append(":").append(Mm).append(":").append(SS).append("'");
+          }
+ catch (          java.util.NoSuchElementException E) {
+            throw new java.sql.SQLException("Syntax error for TIMESTAMP escape sequence '" + Argument + "'","42000");
+          }
+        }
+ else         if (Token.startsWith("t")) {
+          String Argument="";
+          try {
+            Argument=parseArgument(PBT);
+          }
+ catch (          java.util.NoSuchElementException NSE) {
+            throw new java.sql.SQLException("Illegal argument for TIME escape code '" + Argument + "'","42000");
+          }
+          try {
+            StringTokenizer ST=new StringTokenizer(Argument," ':");
+            String HH=ST.nextToken();
+            String MM=ST.nextToken();
+            String SS=ST.nextToken();
+            String TimeString="'" + HH + ":"+ MM+ ":"+ SS+ "'";
+            NewSQL.append(TimeString);
+          }
+ catch (          java.util.NoSuchElementException E) {
+            throw new java.sql.SQLException("Syntax error for escape sequence '" + Argument + "'","42000");
+          }
+        }
+ else         if (Token.startsWith("call") || Token.startsWith("? = call")) {
+          throw new java.sql.SQLException("Stored procedures not supported: " + Token,"S1C00");
+        }
+ else         if (Token.startsWith("oj")) {
+          try {
+            NewSQL.append(parseComplexArgument(PBT));
+          }
+ catch (          java.util.NoSuchElementException NSE) {
+            throw new java.sql.SQLException("Syntax error for OJ escape code","42000");
+          }
+        }
+ else {
+          NewSQL.append(OpeningBrace);
+          NewSQL.append(Token);
+          unrecognizedEscape=true;
+          OpeningBrace="";
+        }
+        OpeningBrace="";
+      }
+ else {
+        NewSQL.append(Token);
+      }
+    }
+    if (Token.endsWith("\\")) {
+      escaped=true;
+    }
+  }
+  NewSQL.append(OpeningBrace);
+  String EscapedSQL=NewSQL.toString();
+  if (replaceEscapeSequence) {
+    String CurrentSQL=EscapedSQL;
+    while (CurrentSQL.indexOf(EscapeSequence) != -1) {
+      int escapePos=CurrentSQL.indexOf(EscapeSequence);
+      String LHS=CurrentSQL.substring(0,escapePos);
+      String RHS=CurrentSQL.substring(escapePos + 1,CurrentSQL.length());
+      CurrentSQL=LHS + "\\" + RHS;
+    }
+    EscapedSQL=CurrentSQL;
+  }
+  if (EscapedSQL.indexOf("||") != -1) {
+    EscapedSQL=doConcat(EscapedSQL);
+  }
+  return EscapedSQL;
+}
