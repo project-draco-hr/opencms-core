@@ -1,12 +1,13 @@
 {
-  Vector folders=new Vector();
-  CmsFolder folder;
+  Vector files=new Vector();
+  CmsFile file;
   ResultSet res=null;
   PreparedStatement statement=null;
   Connection con=null;
   String usedPool;
   String usedStatement;
   String onlyChanged=new String();
+  String inProject=new String();
   int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
   if (projectId == onlineProject) {
     usedPool=m_poolNameOnline;
@@ -15,16 +16,16 @@
  else {
     usedPool=m_poolName;
     usedStatement="";
+    if (onlyProject) {
+      inProject=" AND CMS_RESOURCES.PROJECT_ID = CMS_PROJECTRESOURCES.PROJECT_ID";
+    }
   }
   if (!includeUnchanged) {
-    onlyChanged=" AND CMS_RESOURCES.STATE != " + C_STATE_UNCHANGED + " ORDER BY CMS_RESOURCES.RESOURCE_NAME";
-  }
- else {
-    onlyChanged=" ORDER BY CMS_RESOURCES.RESOURCE_NAME";
+    onlyChanged=" AND STATE != " + C_STATE_UNCHANGED;
   }
   try {
     con=DriverManager.getConnection(usedPool);
-    statement=con.prepareStatement(m_cq.get("C_RESOURCES_READFOLDERSBYPROJECT" + usedStatement) + onlyChanged);
+    statement=con.prepareStatement(m_cq.get("C_RESOURCES_READFILESBYPROJECT" + usedStatement) + onlyChanged + inProject);
     statement.setInt(1,projectId);
     res=statement.executeQuery();
     while (res.next()) {
@@ -40,11 +41,16 @@
       int accessFlags=res.getInt(m_cq.get("C_RESOURCES_ACCESS_FLAGS"));
       int state=res.getInt(m_cq.get("C_RESOURCES_STATE"));
       int lockedBy=res.getInt(m_cq.get("C_RESOURCES_LOCKED_BY"));
+      int launcherType=res.getInt(m_cq.get("C_RESOURCES_LAUNCHER_TYPE"));
+      String launcherClass=res.getString(m_cq.get("C_RESOURCES_LAUNCHER_CLASSNAME"));
       long created=SqlHelper.getTimestamp(res,m_cq.get("C_RESOURCES_DATE_CREATED")).getTime();
       long modified=SqlHelper.getTimestamp(res,m_cq.get("C_RESOURCES_DATE_LASTMODIFIED")).getTime();
+      int resSize=res.getInt(m_cq.get("C_RESOURCES_SIZE"));
       int modifiedBy=res.getInt(m_cq.get("C_RESOURCES_LASTMODIFIED_BY"));
-      folder=new CmsFolder(resId,parentId,fileId,resName,resType,resFlags,userId,groupId,projectID,accessFlags,state,lockedBy,created,modified,modifiedBy);
-      folders.addElement(folder);
+      byte[] fileContent=res.getBytes(m_cq.get("C_FILE_CONTENT"));
+      int lockedInProject=res.getInt("LOCKED_IN_PROJECT");
+      file=new CmsFile(resId,parentId,fileId,resName,resType,resFlags,userId,groupId,projectID,accessFlags,state,lockedBy,launcherType,launcherClass,created,modified,modifiedBy,fileContent,resSize,lockedInProject);
+      files.addElement(file);
     }
   }
  catch (  SQLException e) {
@@ -76,5 +82,5 @@ catch (  Exception ex) {
       }
     }
   }
-  return folders;
+  return files;
 }
