@@ -1,0 +1,140 @@
+{
+  boolean lineMode=true;
+  boolean continueReading=true;
+  String in="";
+  String input=null;
+  ecmaPrompt="cms.getRequestContext().currentUser().getName()+\"@\"+cms.getRequestContext().currentProject().getName()+\">\"";
+  JSGlobalObject jSGO=null;
+  jSGO=JSUtil.makeEvaluator();
+  JSObject jsCMS=jSGO.makeObjectWrapper(m_cms);
+  jSGO.setMember("cms",jsCMS);
+  BufferedReader ins=new BufferedReader(new InputStreamReader(fis));
+  printEcmaHelpText();
+  Class[] args={String.class};
+  jSGO.setMember("echoNoLF",new JSFunctionAdapter(){
+    public Object doCall(    JSObject thisObject,    Object args[]) throws JSException {
+      if (args.length == 0)       System.out.println(" ");
+ else       System.out.print(args[0]);
+      return null;
+    }
+  }
+);
+  jSGO.setMember("echo",new JSFunctionAdapter(){
+    public Object doCall(    JSObject thisObject,    Object args[]) throws JSException {
+      if (args.length == 0)       System.out.print(" ");
+ else {
+        if (args[0].equals("on"))         m_echo=true;
+        if (args[0].equals("off"))         m_echo=false;
+        System.out.println(args[0]);
+      }
+      return null;
+    }
+  }
+);
+  jSGO.setMember("input",new JSFunctionAdapter(){
+    public Object doCall(    JSObject thisObject,    Object args[]) throws JSException {
+      String inputPrompt="? ";
+      if (args.length != 0)       inputPrompt=args[0].toString();
+      return ecmaInput(inputPrompt);
+    }
+  }
+);
+  jSGO.setMember("setPrompt",new JSFunctionAdapter(){
+    public Object doCall(    JSObject thisObject,    Object args[]) throws JSException {
+      if (args.length != 0)       ecmaPrompt=args[0].toString();
+ else       ecmaPrompt=null;
+      System.out.println("");
+      return null;
+    }
+  }
+);
+  jSGO.setMember("help",new JSFunctionAdapter(){
+    public Object doCall(    JSObject thisObject,    Object args[]) throws JSException {
+      Method meth[]=m_cms.getClass().getMethods();
+      if (args.length == 0) {
+        for (int z=0; z < meth.length; z++) {
+          cmsHelp(meth[z],"cms");
+        }
+        System.out.println("echo(java.lang.String);");
+        System.out.println("exit();");
+        System.out.println("input(String); returns input (int or string)");
+        System.out.println("input(); returns input (int or string)");
+      }
+ else {
+        if (args[0].toString().startsWith("cms")) {
+          if (args[0].toString().charAt(3) == '.') {
+            String ar=args[0].toString().substring(4);
+            args[0]=ar;
+          }
+        }
+        for (int z=0; z < meth.length; z++)         if (meth[z].getName().equals(args[0]))         cmsHelp(meth[z],"cms");
+        if (args[0].equals("echo"))         System.out.println("echo(java.lang.String);");
+        if (args[0].equals("exit"))         System.out.println("exit();");
+        if (args[0].equals("input"))         System.out.println("input(String); returns input (int or string");
+        if (args[0].equals("input"))         System.out.println("input(); returns input (int or string");
+      }
+      return null;
+    }
+  }
+);
+  jSGO.setMember("exit",new JSFunctionAdapter(){
+    public Object doCall(    JSObject thisObject,    Object args[]) throws JSException {
+      return "exit";
+    }
+  }
+);
+  String eol=System.getProperty("line.separator","\n");
+  ESValue theValue=ESUndefined.theUndefined;
+  Evaluator evaluator=new Evaluator();
+  try {
+    evaluator.addMandatoryExtension("FESI.Extensions.JavaAccess");
+  }
+ catch (  EcmaScriptException e) {
+    System.out.println("Cannot initialize JavaAccess - exiting: " + eol + e);
+    e.printStackTrace();
+  }
+  while (continueReading) {
+    in="";
+    while (in.equals("")) {
+      if (lineMode)       printEcmaPrompt(jSGO,ecmaPrompt);
+ else       if (ecmaPrompt != null)       System.out.print("More> ");
+      try {
+        in=ins.readLine();
+      }
+ catch (      IOException ef) {
+        System.out.println("IOException!!!");
+      }
+      if (in == null) {
+        continueReading=false;
+        break;
+      }
+    }
+    if (lineMode)     input=in;
+ else     input+=in;
+    if (continueReading)     try {
+      theValue=evaluator.evaluate(input);
+    }
+ catch (    EcmaScriptException e) {
+      if (e.isIncomplete()) {
+        lineMode=false;
+      }
+ else {
+        if (input == null)         break;
+        try {
+          if (m_echo)           System.out.println(input);
+          Object result=jSGO.eval(input);
+          if (result != null) {
+            if (result.toString().equals("exit"))             break;
+            System.out.println(result.toString());
+          }
+          lineMode=true;
+        }
+ catch (        JSException je) {
+          System.out.println(je.getMessage());
+          lineMode=true;
+          input="";
+        }
+      }
+    }
+  }
+}
