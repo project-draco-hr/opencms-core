@@ -5,22 +5,58 @@
     A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
   }
   CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
-  int projectId=Integer.parseInt((String)parameters.get("projectid"));
-  CmsProject project=cms.readProject(projectId);
+  CmsProject project=null;
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  String action=(String)parameters.get("action");
+  String projectId=(String)parameters.get("projectid");
+  if (projectId == null || "".equals(projectId)) {
+    projectId=(String)session.getValue("delprojectid");
+  }
+ else {
+    session.putValue("delprojectid",projectId);
+  }
   if (parameters.get("ok") != null) {
-    try {
+    if (action == null) {
+      project=cms.readProject(Integer.parseInt(projectId));
+      if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
+        session.removeValue(C_SESSION_THREAD_ERROR);
+      }
       if (project.equals(cms.getRequestContext().currentProject())) {
         cms.getRequestContext().setCurrentProject(cms.onlineProject().getId());
       }
-      cms.deleteProject(project.getId());
-      templateSelector="done";
+      Thread doDelete=new CmsAdminProjectDeleteThread(cms,Integer.parseInt(projectId),session);
+      doDelete.start();
+      session.putValue(C_DELETE_THREAD,doDelete);
+      xmlTemplateDocument.setData("time","10");
+      templateSelector="wait";
     }
- catch (    CmsException exc) {
-      xmlTemplateDocument.setData("details",Utils.getStackTrace(exc));
-      templateSelector="error";
+ else     if ("working".equals(action)) {
+      Thread doDelete=(Thread)session.getValue(C_DELETE_THREAD);
+      if (doDelete.isAlive()) {
+        String time=(String)parameters.get("time");
+        int wert=Integer.parseInt(time);
+        wert+=2;
+        xmlTemplateDocument.setData("time","" + wert);
+        templateSelector="wait";
+      }
+ else {
+        String errordetails=(String)session.getValue(C_SESSION_THREAD_ERROR);
+        if (errordetails == null) {
+          CmsXmlWpTemplateFile.clearcache();
+          templateSelector="done";
+          session.removeValue("delprojectid");
+        }
+ else {
+          xmlTemplateDocument.setData("details",errordetails);
+          templateSelector="error";
+          session.removeValue(C_SESSION_THREAD_ERROR);
+          session.removeValue("delprojectid");
+        }
+      }
     }
   }
  else {
+    project=cms.readProject(Integer.parseInt(projectId));
     CmsXmlLanguageFile lang=xmlTemplateDocument.getLanguageFile();
     CmsProjectlist.setListEntryData(cms,lang,xmlTemplateDocument,project);
   }
