@@ -1,0 +1,95 @@
+{
+  String la="false";
+  Object laObject=new Object();
+  int ls=-1;
+  String lockString=null;
+  int actUserId=cms.getRequestContext().currentUser().getId();
+  String isLockedBy=null;
+  int lockedInProject=-1;
+  int curProjectId=cms.getRequestContext().currentProject().getId();
+  try {
+    Method laMethod=cdClass.getMethod("isLockable",new Class[]{});
+    laObject=laMethod.invoke(null,null);
+  }
+ catch (  InvocationTargetException ite) {
+    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+      A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice setLockstates: Method isLockable throwed an Invocation target exception!");
+    }
+  }
+catch (  NoSuchMethodException nsm) {
+    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+      A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice setLockstates: Requested method isLockable was not found!");
+    }
+  }
+catch (  Exception e) {
+    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+      A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice setLockstates: Method isLockable throwed an exception: " + e.toString());
+    }
+  }
+  la=(String)laObject.toString();
+  if (la.equals("false")) {
+    try {
+      template.setData("backofficecontextmenue","backofficeedit");
+      template.setData("lockedby",template.getDataValue("nolock"));
+    }
+ catch (    Exception e) {
+      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice setLockstates:'not lockable' section hrowed an exception!");
+      }
+    }
+  }
+ else {
+    try {
+      ls=((A_CmsContentDefinition)entryObject).getLockstate();
+    }
+ catch (    Exception e) {
+      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice setLockstates: Method getLockstate throwed an exception: " + e.toString());
+      }
+    }
+    try {
+      if (ls == actUserId) {
+        isLockedBy=cms.getRequestContext().currentUser().getName();
+        template.setData("isLockedBy",isLockedBy);
+        try {
+          lockedInProject=((I_CmsExtendedContentDefinition)entryObject).getLockedInProject();
+        }
+ catch (        Exception e) {
+          if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+            A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice setLockstates: Method getLockedInProject throwed an exception: " + e.toString());
+          }
+        }
+        if (lockedInProject == curProjectId) {
+          lockString=template.getProcessedDataValue("lockuser",this,parameters);
+        }
+ else {
+          lockString=template.getProcessedDataValue("lock",this,parameters);
+        }
+        template.setData("lockedby",lockString);
+      }
+ else {
+        if (ls != C_NOT_LOCKED) {
+          if (ls == C_NO_ACCESS) {
+            lockString=template.getProcessedDataValue("noaccess",this,parameters);
+            template.setData("lockedby",lockString);
+          }
+ else {
+            isLockedBy=cms.readUser(ls).getName();
+            template.setData("isLockedBy",isLockedBy);
+            lockString=template.getProcessedDataValue("lock",this,parameters);
+            template.setData("lockedby",lockString);
+          }
+        }
+ else {
+          lockString=template.getProcessedDataValue("nolock",this,parameters);
+          template.setData("lockedby",lockString);
+        }
+      }
+    }
+ catch (    Exception e) {
+      if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice setLockstates throwed an exception: " + e.toString());
+      }
+    }
+  }
+}
