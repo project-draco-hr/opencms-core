@@ -1,0 +1,47 @@
+{
+  ArrayList text=new ArrayList();
+  POIFSFileSystem fsys=new POIFSFileSystem(in);
+  DocumentEntry headerProps=(DocumentEntry)fsys.getRoot().getEntry("WordDocument");
+  DocumentInputStream din=fsys.createDocumentInputStream("WordDocument");
+  byte[] header=new byte[headerProps.getSize()];
+  din.read(header);
+  din.close();
+  int info=LittleEndian.getShort(header,0xa);
+  boolean useTable1=(info & 0x200) != 0;
+  int complexOffset=LittleEndian.getInt(header,0x1a2);
+  String tableName=null;
+  if (useTable1) {
+    tableName="1Table";
+  }
+ else {
+    tableName="0Table";
+  }
+  DocumentEntry table=(DocumentEntry)fsys.getRoot().getEntry(tableName);
+  byte[] tableStream=new byte[table.getSize()];
+  din=fsys.createDocumentInputStream(tableName);
+  din.read(tableStream);
+  din.close();
+  din=null;
+  fsys=null;
+  table=null;
+  headerProps=null;
+  int multiple=findText(tableStream,complexOffset,text);
+  StringBuffer sb=new StringBuffer();
+  int size=text.size();
+  tableStream=null;
+  for (int x=0; x < size; x++) {
+    CmsWordTextPiece nextPiece=(CmsWordTextPiece)text.get(x);
+    int start=nextPiece.getStart();
+    int length=nextPiece.getLength();
+    boolean unicode=nextPiece.usesUnicode();
+    String toStr=null;
+    if (unicode) {
+      toStr=new String(header,start,length * multiple,"UTF-16LE");
+    }
+ else {
+      toStr=new String(header,start,length,"ISO-8859-1");
+    }
+    sb.append(toStr).append(" ");
+  }
+  return sb.toString();
+}
