@@ -1,19 +1,26 @@
 {
-  PreparedStatement stmt=null;
+  PreparedStatement stmt1=null;
+  PreparedStatement stmt2=null;
   Connection conn=null;
   CmsBackupResource currentResource=null;
   int count=existingBackups.size() - maxVersions;
   try {
     conn=m_sqlManager.getConnectionForBackup();
-    stmt=m_sqlManager.getPreparedStatement(conn,"C_BACKUP_DELETE_RESOURCE");
+    stmt1=m_sqlManager.getPreparedStatement(conn,"C_BACKUP_DELETE_RESOURCE");
+    stmt2=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_DELETEALL_BACKUP");
     for (int i=0; i < count; i++) {
       currentResource=(CmsBackupResource)existingBackups.get(i);
-      stmt.setString(1,currentResource.getId().toString());
-      stmt.setInt(2,currentResource.getTagId());
-      stmt.addBatch();
+      stmt1.setString(1,currentResource.getId().toString());
+      stmt1.setInt(2,currentResource.getTagId());
+      stmt1.addBatch();
+      stmt2.setString(1,currentResource.getBackupId().toString());
+      stmt2.setString(2,currentResource.getResourceId().toString());
+      stmt2.setInt(3,currentResource.getTagId());
+      stmt2.addBatch();
     }
     if (count > 0) {
-      stmt.executeBatch();
+      stmt1.executeBatch();
+      stmt2.executeBatch();
     }
   }
  catch (  SQLException e) {
@@ -23,6 +30,7 @@ catch (  Exception ex) {
     throw m_sqlManager.getCmsException(this,null,CmsException.C_UNKNOWN_EXCEPTION,ex,false);
   }
  finally {
-    m_sqlManager.closeAll(conn,stmt,null);
+    m_sqlManager.closeAll(conn,stmt1,null);
+    m_sqlManager.closeAll(conn,stmt2,null);
   }
 }
