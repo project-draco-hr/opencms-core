@@ -1,48 +1,111 @@
 {
   HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
   String template=null;
+  System.err.println("");
+  System.err.println("#############");
+  String[] names=session.getValueNames();
+  for (int i=0; i < names.length; i++) {
+    System.err.print(names[i] + " :");
+    System.err.println(session.getValue(names[i]));
+  }
+  System.err.println("#############");
   String filename=(String)parameters.get(C_PARA_FILE);
   if (filename != null) {
     session.putValue(C_PARA_FILE,filename);
   }
   filename=(String)session.getValue(C_PARA_FILE);
-  String newFile=(String)parameters.get("name");
-  CmsFile file=(CmsFile)cms.readFileHeader(filename);
-  if (newFile == null) {
-    session.putValue("name",file.getName());
+  String newFile=(String)parameters.get(C_PARA_NAME);
+  if (newFile != null) {
+    session.putValue(C_PARA_NAME,newFile);
+  }
+  newFile=(String)session.getValue(C_PARA_NAME);
+  String action=(String)parameters.get("action");
+  A_CmsResource file=(A_CmsResource)cms.readFileHeader(filename);
+  if (file.isFile()) {
+    template="file";
   }
  else {
-    if ((cms.getResourceType(file.getType()).getResourceName()).equals(C_TYPE_PAGE_NAME)) {
-      String bodyPath=getBodyPath(cms,file);
-      int help=C_CONTENTBODYPATH.lastIndexOf("/");
-      String hbodyPath=(C_CONTENTBODYPATH.substring(0,help)) + (file.getAbsolutePath());
-      if (hbodyPath.equals(bodyPath)) {
-        cms.renameFile(bodyPath,newFile);
-        help=bodyPath.lastIndexOf("/") + 1;
-        hbodyPath=bodyPath.substring(0,help) + newFile;
-        changeContent(cms,file,hbodyPath);
+    template="folder";
+  }
+  if (newFile == null) {
+    session.putValue(C_PARA_NAME,file.getName());
+  }
+ else {
+    if (action == null) {
+      template="wait";
+    }
+ else {
+      if (file.isFile()) {
+        try {
+          renameFile(cms,file,newFile);
+        }
+ catch (        CmsException ex) {
+          session.removeValue(C_PARA_FILE);
+          session.removeValue(C_PARA_NAME);
+          throw ex;
+        }
+        session.removeValue(C_PARA_FILE);
+        session.removeValue(C_PARA_NAME);
+        try {
+          cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+        }
+ catch (        Exception e) {
+          throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+        }
       }
-    }
-    cms.renameFile(file.getAbsolutePath(),newFile);
-    session.removeValue(C_PARA_FILE);
-    session.removeValue(C_PARA_NAME);
-    try {
-      cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
-    }
- catch (    Exception e) {
-      throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+ else {
+        Vector allFolders=new Vector();
+        Vector allFiles=new Vector();
+        getAllResources(cms,filename,allFiles,allFolders);
+        String parent=file.getParent();
+        try {
+          cms.unlockResource(file.getAbsolutePath());
+          cms.copyFolder(filename,parent + newFile + "/");
+          for (int i=0; i < allFolders.size(); i++) {
+            CmsFolder folder=(CmsFolder)allFolders.elementAt(i);
+            String newname=parent + newFile + "/"+ folder.getAbsolutePath().substring(file.getAbsolutePath().length());
+            cms.copyFolder(folder.getAbsolutePath(),newname);
+          }
+          for (int i=0; i < allFiles.size(); i++) {
+            CmsFile newfile=(CmsFile)allFiles.elementAt(i);
+            String newname=parent + newFile + "/"+ newfile.getAbsolutePath().substring(file.getAbsolutePath().length());
+            cms.lockResource(newfile.getAbsolutePath());
+            moveFile(cms,newfile,newname,"true",true);
+            System.err.println("Unlock new file " + newname);
+            cms.unlockResource(newname);
+          }
+          for (int i=0; i < allFolders.size(); i++) {
+            CmsFolder folder=(CmsFolder)allFolders.elementAt(allFolders.size() - i - 1);
+            cms.lockResource(folder.getAbsolutePath());
+            cms.deleteFolder(folder.getAbsolutePath());
+          }
+          cms.lockResource(filename);
+          cms.deleteFolder(filename);
+          cms.lockResource(parent + newFile + "/");
+        }
+ catch (        CmsException ex) {
+          session.removeValue(C_PARA_FILE);
+          session.removeValue(C_PARA_NAME);
+          throw ex;
+        }
+        session.removeValue(C_PARA_FILE);
+        session.removeValue(C_PARA_NAME);
+        template="update";
+      }
     }
   }
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
-  String title=cms.readProperty(file.getAbsolutePath(),C_PROPERTY_TITLE);
-  if (title == null) {
-    title="";
+  if (action == null) {
+    String title=cms.readProperty(file.getAbsolutePath(),C_PROPERTY_TITLE);
+    if (title == null) {
+      title="";
+    }
+    A_CmsUser owner=cms.readOwner(file);
+    xmlTemplateDocument.setXmlData("TITLE",title);
+    xmlTemplateDocument.setXmlData("STATE",getState(cms,file,new CmsXmlLanguageFile(cms)));
+    xmlTemplateDocument.setXmlData("OWNER",owner.getFirstname() + " " + owner.getLastname()+ "("+ owner.getName()+ ")");
+    xmlTemplateDocument.setXmlData("GROUP",cms.readGroup(file).getName());
+    xmlTemplateDocument.setXmlData("FILENAME",file.getName());
   }
-  A_CmsUser owner=cms.readOwner(file);
-  xmlTemplateDocument.setXmlData("TITLE",title);
-  xmlTemplateDocument.setXmlData("STATE",getState(cms,file,new CmsXmlLanguageFile(cms)));
-  xmlTemplateDocument.setXmlData("OWNER",owner.getFirstname() + " " + owner.getLastname()+ "("+ owner.getName()+ ")");
-  xmlTemplateDocument.setXmlData("GROUP",cms.readGroup(file).getName());
-  xmlTemplateDocument.setXmlData("FILENAME",file.getName());
   return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
 }

@@ -7,8 +7,21 @@
   }
   filename=(String)session.getValue(C_PARA_FILE);
   String newFile=(String)parameters.get(C_PARA_NEWFILE);
+  if (newFile != null) {
+    session.putValue(C_PARA_NEWFILE,newFile);
+  }
+  newFile=(String)session.getValue(C_PARA_NEWFILE);
   String newFolder=(String)parameters.get(C_PARA_NEWFOLDER);
+  if (newFolder != null) {
+    session.putValue(C_PARA_NEWFOLDER,newFolder);
+  }
+  newFolder=(String)session.getValue(C_PARA_NEWFOLDER);
   String flags=(String)parameters.get(C_PARA_FLAGS);
+  if (flags != null) {
+    session.putValue(C_PARA_FLAGS,flags);
+  }
+  flags=(String)session.getValue(C_PARA_FLAGS);
+  String action=(String)parameters.get("action");
   A_CmsResource file=(A_CmsResource)cms.readFileHeader(filename);
   if (file.isFile()) {
     template="file";
@@ -26,32 +39,66 @@
     session.putValue(C_PARA_NAME,file.getName());
   }
  else {
-    if (file.isFile()) {
-      copyFile(cms,(CmsFile)file,newFolder,newFile,flags);
+    if (action == null) {
+      template="wait";
     }
  else {
-      Vector allFolders=new Vector();
-      Vector allFiles=new Vector();
-      getAllResources(cms,filename,allFiles,allFolders);
-      cms.copyFolder(filename,newFolder + newFile + "/");
-      checkFlags(cms,newFolder + newFile + "/",flags);
-      for (int i=0; i < allFolders.size(); i++) {
-        CmsFolder folder=(CmsFolder)allFolders.elementAt(i);
-        cms.copyFolder(folder.getAbsolutePath(),newFolder + newFile + "/"+ folder.getAbsolutePath().substring(file.getAbsolutePath().length()));
-        checkFlags(cms,newFolder + newFile + "/"+ folder.getAbsolutePath().substring(file.getAbsolutePath().length()),flags);
+      if (file.isFile()) {
+        try {
+          copyFile(cms,(CmsFile)file,newFolder,newFile,flags,false);
+        }
+ catch (        CmsException ex) {
+          session.removeValue(C_PARA_FILE);
+          session.removeValue(C_PARA_NAME);
+          session.removeValue(C_PARA_NEWFILE);
+          session.removeValue(C_PARA_NEWFOLDER);
+          session.removeValue(C_PARA_FLAGS);
+          throw ex;
+        }
+        session.removeValue(C_PARA_FILE);
+        session.removeValue(C_PARA_NAME);
+        session.removeValue(C_PARA_NEWFILE);
+        session.removeValue(C_PARA_NEWFOLDER);
+        session.removeValue(C_PARA_FLAGS);
+        try {
+          cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+        }
+ catch (        Exception e) {
+          throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+        }
       }
-      for (int i=0; i < allFiles.size(); i++) {
-        CmsFile newfile=(CmsFile)allFiles.elementAt(i);
-        copyFile(cms,newfile,newFolder + newFile + "/",newfile.getAbsolutePath().substring(file.getAbsolutePath().length()),flags);
+ else {
+        Vector allFolders=new Vector();
+        Vector allFiles=new Vector();
+        getAllResources(cms,filename,allFiles,allFolders);
+        try {
+          cms.copyFolder(filename,newFolder + newFile + "/");
+          checkFlags(cms,newFolder + newFile + "/",flags);
+          for (int i=0; i < allFolders.size(); i++) {
+            CmsFolder folder=(CmsFolder)allFolders.elementAt(i);
+            cms.copyFolder(folder.getAbsolutePath(),newFolder + newFile + "/"+ folder.getAbsolutePath().substring(file.getAbsolutePath().length()));
+            checkFlags(cms,newFolder + newFile + "/"+ folder.getAbsolutePath().substring(file.getAbsolutePath().length()),flags);
+          }
+          for (int i=0; i < allFiles.size(); i++) {
+            CmsFile newfile=(CmsFile)allFiles.elementAt(i);
+            copyFile(cms,newfile,newFolder + newFile + "/",newfile.getAbsolutePath().substring(file.getAbsolutePath().length()),flags,true);
+          }
+          session.removeValue(C_PARA_FILE);
+          session.removeValue(C_PARA_NAME);
+          session.removeValue(C_PARA_NEWFILE);
+          session.removeValue(C_PARA_NEWFOLDER);
+          session.removeValue(C_PARA_FLAGS);
+          template="update";
+        }
+ catch (        CmsException ex) {
+          session.removeValue(C_PARA_FILE);
+          session.removeValue(C_PARA_NAME);
+          session.removeValue(C_PARA_NEWFILE);
+          session.removeValue(C_PARA_NEWFOLDER);
+          session.removeValue(C_PARA_FLAGS);
+          throw ex;
+        }
       }
-    }
-    session.removeValue(C_PARA_FILE);
-    session.removeValue(C_PARA_NAME);
-    try {
-      cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
-    }
- catch (    Exception e) {
-      throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
     }
   }
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
