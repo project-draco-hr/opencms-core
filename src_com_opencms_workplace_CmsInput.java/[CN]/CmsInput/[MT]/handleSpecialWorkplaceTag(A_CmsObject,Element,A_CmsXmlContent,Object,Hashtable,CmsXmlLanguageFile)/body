@@ -3,7 +3,35 @@
   String name=n.getAttribute(C_INPUT_NAME);
   String size=n.getAttribute(C_INPUT_SIZE);
   String length=n.getAttribute(C_INPUT_LENGTH);
+  String value=n.getAttribute(C_INPUT_VALUE);
+  String method=n.getAttribute(C_INPUT_METHOD);
+  if ((method != null) && (method.length() != 0)) {
+    Method valueMethod=null;
+    try {
+      valueMethod=callingObject.getClass().getMethod(method,new Class[]{A_CmsObject.class,CmsXmlLanguageFile.class});
+      value=(String)valueMethod.invoke(callingObject,new Object[]{cms,lang});
+    }
+ catch (    NoSuchMethodException exc) {
+      throwException("Could not find method " + method + " in calling class "+ callingObject.getClass().getName()+ " for generating input value content.",CmsException.C_NOT_FOUND);
+    }
+catch (    InvocationTargetException targetEx) {
+      Throwable e=targetEx.getTargetException();
+      if (!(e instanceof CmsException)) {
+        e.printStackTrace();
+        throwException("User method " + method + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+      }
+ else {
+        throw (CmsException)e;
+      }
+    }
+catch (    Exception exc2) {
+      throwException("User method " + method + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+    }
+  }
+  if (value == null) {
+    value="";
+  }
   CmsXmlWpInputDefFile inputdef=getInputDefinitions(cms);
-  String result=inputdef.getInput(styleClass,name,size,length);
+  String result=inputdef.getInput(styleClass,name,size,length,value);
   return result;
 }
