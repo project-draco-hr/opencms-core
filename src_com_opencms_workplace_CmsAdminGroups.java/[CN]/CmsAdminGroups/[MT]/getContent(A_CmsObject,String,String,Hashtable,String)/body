@@ -7,6 +7,14 @@
   HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
   A_CmsRequestContext reqCont=cms.getRequestContext();
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  System.err.println("******");
+  Enumeration enu=parameters.keys();
+  while (enu.hasMoreElements()) {
+    String key=(String)enu.nextElement();
+    String values=(String)parameters.get(key);
+    System.err.println(key + " : " + values);
+  }
+  System.err.println("******");
   boolean groupYetChanged=true;
   boolean groupYetEstablished=true;
   String perspective=(String)parameters.get("perspective");
@@ -16,10 +24,10 @@
       perspective="changegroup";
       groupYetChanged=false;
     }
- else     if (reqCont.getRequest().getParameter("DELETE") != null) {
+ else     if (parameters.get("DELETE") != null) {
       perspective="deletegroup";
     }
- else     if (reqCont.getRequest().getParameter("NEW") != null) {
+ else     if (parameters.get("NEW") != null) {
       perspective="newgroup";
       groupYetEstablished=false;
     }
@@ -45,6 +53,9 @@
       projectManager=(session.getValue("PROJECTMANAGER") != null);
       projectCoWorker=(session.getValue("PROJECTCOWORKER") != null);
       role=(session.getValue("ROLE") != null);
+      parameters.remove("ADD");
+      parameters.remove("REMOVE");
+      parameters.remove("OK");
       session.removeValue("ERROR");
     }
     if (groupname == null) {
@@ -72,7 +83,10 @@
         session.putValue("selectedUsers",selectedUsers);
         session.putValue("notSelectedUsers",notSelectedUsers);
       }
-      if (reqCont.getRequest().getParameter("ADD") != null) {
+      System.err.println("reqCont:" + parameters.get("ADD"));
+      System.err.println("parameters:" + parameters.get("ADD"));
+      if (parameters.get("ADD") != null) {
+        System.err.println("----ADD");
         String username=(String)parameters.get("NOTSELECTEDUSERS");
         if (username != null) {
           selectedUsers.addElement(username);
@@ -81,7 +95,7 @@
         session.putValue("selectedUsers",selectedUsers);
         session.putValue("notSelectedUsers",notSelectedUsers);
       }
- else       if (reqCont.getRequest().getParameter("REMOVE") != null) {
+ else       if (parameters.get("REMOVE") != null) {
         String username=(String)parameters.get("SELECTEDUSERS");
         if (username != null) {
           notSelectedUsers.addElement(username);
@@ -90,7 +104,7 @@
         session.putValue("selectedUsers",selectedUsers);
         session.putValue("notSelectedUsers",notSelectedUsers);
       }
- else       if (reqCont.getRequest().getParameter("OK") != null) {
+ else       if (parameters.get("OK") != null) {
         try {
           if (groupname == null || groupname.equals("")) {
             throw new CmsException("no groupname",CmsException.C_NO_GROUP);
@@ -184,21 +198,21 @@
         }
       }
  else {
-        if (reqCont.getRequest().getParameter("ADD") != null) {
+        if (parameters.get("ADD") != null) {
           String username=(String)parameters.get("NOTSELECTEDUSERS");
           if (username != null) {
             selectedUsers.addElement(username);
             notSelectedUsers.removeElement(username);
           }
         }
- else         if (reqCont.getRequest().getParameter("REMOVE") != null) {
+ else         if (parameters.get("REMOVE") != null) {
           String username=(String)parameters.get("SELECTEDUSERS");
           if (username != null) {
             notSelectedUsers.addElement(username);
             selectedUsers.removeElement(username);
           }
         }
- else         if (reqCont.getRequest().getParameter("OK") != null) {
+ else         if (parameters.get("OK") != null) {
           try {
             CmsGroup theGroup=(CmsGroup)cms.readGroup(groupname);
             if ("".equals(supergroup) || supergroup.equals(C_NO_SUPERGROUP_SELECTED)) {
@@ -285,6 +299,11 @@
     xmlTemplateDocument.setData("PRCHECKED",role ? "checked" : "");
   }
  else   if (perspective.equals("deletegroup")) {
+    String groupname=(String)parameters.get("GROUPNAME");
+    xmlTemplateDocument.setData("GROUPNAME",groupname);
+    templateSelector="RUsureDelete";
+  }
+ else   if (perspective.equals("reallydeletegroup")) {
     try {
       String groupname=(String)parameters.get("GROUPNAME");
       cms.deleteGroup(groupname);
