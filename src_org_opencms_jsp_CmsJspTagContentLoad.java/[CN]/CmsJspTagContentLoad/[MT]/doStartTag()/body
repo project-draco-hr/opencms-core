@@ -1,25 +1,33 @@
 {
-  if ((CmsStringUtil.isEmpty(m_pageSize) && CmsStringUtil.isNotEmpty(m_pageIndex)) || (CmsStringUtil.isNotEmpty(m_pageSize) && CmsStringUtil.isEmpty(m_pageIndex))) {
-    throw new IllegalArgumentException("The 'cms:contentload' tag requires both a 'pageIndex' and 'pageSize' attribute!");
+  int pageAttribCount=0;
+  pageAttribCount+=CmsStringUtil.isNotEmpty(m_pageSize) ? 1 : 0;
+  pageAttribCount+=CmsStringUtil.isNotEmpty(m_pageIndex) ? 1 : 0;
+  if (pageAttribCount > 0 && pageAttribCount < 2) {
+    throw new IllegalArgumentException("The 'cms:contentload' tag requires a 'pageIndex' and 'pageSize' attribute, or none of them!");
   }
   if (CmsStringUtil.isEmpty(m_collector)) {
-    throw new IllegalArgumentException("The 'cms:contentload' tag requires 'collector' attribute!");
+    throw new IllegalArgumentException("The 'cms:contentload' tag requires a 'collector' attribute!");
+  }
+  if (CmsStringUtil.isEmpty(m_param)) {
+    throw new IllegalArgumentException("The 'cms:contentload' tag requires a 'param' attribute!");
   }
   m_controller=(CmsFlexController)pageContext.getRequest().getAttribute(CmsFlexController.ATTRIBUTE_NAME);
   m_cms=m_controller.getCmsObject();
   m_stringMapper=new CmsStringMapper(m_cms,pageContext);
-  String collectorName=m_stringMapper.map(getCollector(),this);
+  String collectorName=m_stringMapper.map(getCollector(),this,true);
   m_locale=m_cms.getRequestContext().getLocale();
-  String param=m_stringMapper.map(getParam(),this);
+  String param=m_stringMapper.map(getParam(),this,true);
   I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(collectorName);
   try {
     m_collectorResult=collector.getResults(m_cms,collectorName,param);
     m_contentInfoBean=new CmsContentInfoBean();
-    m_contentInfoBean.setPageSizeAsString(m_stringMapper.map(m_pageSize,this));
-    m_contentInfoBean.setPageIndexAsString(m_stringMapper.map(m_pageIndex,this));
+    m_contentInfoBean.setPageSizeAsString(m_stringMapper.map(m_pageSize,this,true));
+    m_contentInfoBean.setPageIndexAsString(m_stringMapper.map(m_pageIndex,this,true));
+    m_contentInfoBean.setPageNavLengthAsString(m_stringMapper.map(m_pageNavLength,this,true));
     m_contentInfoBean.setResultSize(m_collectorResult.size());
     m_contentInfoBean.initResultIndex();
     m_collectorResult=CmsJspTagContentLoad.limitCollectorResult(m_contentInfoBean,m_collectorResult);
+    m_contentInfoBean.initPageNavIndexes();
     if ((m_collectorResult == null) || (m_collectorResult.size() == 0)) {
       return SKIP_BODY;
     }
