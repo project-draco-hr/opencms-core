@@ -8,17 +8,35 @@
   CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
   A_CmsTask task;
   int taskid=-1;
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
   try {
-    taskid=Integer.parseInt((String)parameters.get("taskid"));
-    if ("accept".equals((String)parameters.get("action"))) {
+    Integer sessionTaskid=(Integer)session.getValue("taskid");
+    if (sessionTaskid != null) {
+      taskid=sessionTaskid.intValue();
+    }
+    try {
+      taskid=Integer.parseInt((String)parameters.get("taskid"));
+    }
+ catch (    Exception exc) {
+      exc.printStackTrace();
+    }
+    session.putValue("taskid",new Integer(taskid));
+    parameters.put("taskid",taskid + "");
+    if ("acceptok".equals((String)parameters.get("action"))) {
       cms.acceptTask(taskid);
       String comment="";
       cms.writeTaskLog(taskid,comment,C_TASKLOGTYPE_ACCEPTED);
     }
- else     if ("ok".equals((String)parameters.get("action"))) {
+ else     if ("accept".equals((String)parameters.get("action"))) {
+      templateSelector="accept";
+    }
+ else     if ("okok".equals((String)parameters.get("action"))) {
       cms.endTask(taskid);
       String comment="";
       cms.writeTaskLog(taskid,comment,C_TASKLOGTYPE_OK);
+    }
+ else     if ("ok".equals((String)parameters.get("action"))) {
+      templateSelector="ok";
     }
     task=cms.readTask(taskid);
   }
