@@ -1,0 +1,27 @@
+{
+  CmsFile pageFile=cms.readFile(resource);
+  CmsUser pageLocker=null;
+  CmsUser bodyLocker=null;
+  pageLocker=getLockedBy(cms,resource);
+  CmsUser currentUser=cms.getRequestContext().currentUser();
+  boolean pageLockedAndSelf=pageLocker != null && currentUser.equals(pageLocker);
+  CmsResource bodyFile=null;
+  String bodyPath=null;
+  try {
+    bodyPath=readBodyPath(cms,pageFile);
+    bodyFile=cms.readFileHeader(bodyPath);
+  }
+ catch (  Exception e) {
+    bodyPath=null;
+    bodyFile=null;
+  }
+  if (bodyFile != null) {
+    bodyLocker=getLockedBy(cms,bodyPath);
+    if ((bodyLocker == null && (pageLocker == null || pageLockedAndSelf || force)) || (bodyLocker != null && !currentUser.equals(bodyLocker) && !(pageLocker != null && !currentUser.equals(pageLocker) && !force))) {
+      cms.doLockResource(bodyPath,force);
+    }
+  }
+  if (!(pageLockedAndSelf && (bodyFile != null && ((bodyLocker == null) || !currentUser.equals(bodyLocker))))) {
+    cms.doLockResource(resource,force);
+  }
+}
