@@ -7,7 +7,7 @@
     if (DEBUG)     System.err.println("No OpenCms home folder given. Trying to guess...");
     base=CmsMain.searchBaseFolder(config.getServletContext().getRealPath("/"));
     if (base == null || "".equals(base)) {
-      throw new ServletException("OpenCms base folder could not be guessed. Please define init parameter \"opencms.home\" in servlet engine configuration.");
+      throw new ServletException(C_ERRORMSG + "OpenCms base folder could not be guessed. Please define init parameter \"opencms.home\" in servlet engine configuration.\n\n");
     }
   }
   base=CmsBase.setBasePath(base);
@@ -17,7 +17,7 @@
     extendedProperties=new ExtendedProperties(CmsBase.getPropertiesPath(true));
   }
  catch (  Exception e) {
-    throw new ServletException(e.getMessage() + ". Property file is: " + CmsBase.getPropertiesPath(true));
+    throw new ServletException(C_ERRORMSG + "Trouble reading property file " + CmsBase.getPropertiesPath(true)+ ".\n\n",e);
   }
   logFile=(String)extendedProperties.get("log.file");
   if (logFile != null) {
@@ -48,8 +48,13 @@
   try {
     m_opencms=new OpenCms(m_configurations);
   }
- catch (  Exception exc) {
-    throw new ServletException(Utils.getStackTrace(exc));
+ catch (  CmsException cmsex) {
+    if (cmsex.getType() == CmsException.C_RB_INIT_ERROR) {
+      throw new ServletException(C_ERRORMSG + "Could not connect to the database. Is the database up and running?\n\n",cmsex);
+    }
+  }
+catch (  Exception exc) {
+    throw new ServletException(C_ERRORMSG + "Trouble creating the com.opencms.core.CmsObject. Please check the root cause for more information.\n\n",exc);
   }
   if (C_LOGGING && A_OpenCms.isLogging(C_OPENCMS_INIT))   A_OpenCms.log(C_OPENCMS_INIT,"[OpenCmsServlet] initializing session storage");
   m_sessionStorage=new CmsCoreSession();
