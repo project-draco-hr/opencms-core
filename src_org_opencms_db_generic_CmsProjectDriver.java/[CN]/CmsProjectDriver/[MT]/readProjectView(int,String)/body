@@ -1,0 +1,45 @@
+{
+  List resources=(List)new ArrayList();
+  CmsResource currentResource=null;
+  ResultSet res=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  String orderClause=" ORDER BY CMS_OFFLINE_STRUCTURE.STRUCTURE_ID";
+  String whereClause=new String();
+  if ("new".equalsIgnoreCase(filter)) {
+    whereClause=" AND CMS_OFFLINE_STRUCTURE.STATE=" + I_CmsConstants.C_STATE_NEW;
+  }
+ else   if ("changed".equalsIgnoreCase(filter)) {
+    whereClause=" AND CMS_OFFLINE_STRUCTURE.STATE=" + I_CmsConstants.C_STATE_CHANGED;
+  }
+ else   if ("deleted".equalsIgnoreCase(filter)) {
+    whereClause=" AND CMS_OFFLINE_STRUCTURE.STATE=" + I_CmsConstants.C_STATE_DELETED;
+  }
+ else   if ("locked".equalsIgnoreCase(filter)) {
+    whereClause=" AND CMS_OFFLINE_RESOURCES.LOCKED_BY!='" + CmsUUID.getNullUUID() + "'";
+  }
+ else {
+    whereClause=" AND CMS_OFFLINE_STRUCTURE.STATE!=" + I_CmsConstants.C_STATE_UNCHANGED;
+  }
+  try {
+    conn=m_sqlManager.getConnection();
+    String query=m_sqlManager.get("C_RESOURCES_PROJECTVIEW") + whereClause + orderClause;
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,query);
+    stmt.setInt(1,project);
+    res=stmt.executeQuery();
+    while (res.next()) {
+      currentResource=m_driverManager.getVfsDriver().createCmsResourceFromResultSet(res,project);
+      resources.add(currentResource);
+    }
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+catch (  Exception ex) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_UNKNOWN_EXCEPTION,ex,false);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,res);
+  }
+  return resources;
+}

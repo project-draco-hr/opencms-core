@@ -1,18 +1,26 @@
 {
-  clearcache();
-  CmsPublishedResources allChanged=new CmsPublishedResources();
+  Vector newResources=null;
+  Vector deletedResources=null;
   Vector changedResources=null;
   Vector changedModuleMasters=null;
   boolean success=false;
-  CmsProject theProject=readProject(id);
+  CmsPublishedResources publishedResources=null;
+  CmsProject publishProject=null;
+  clearcache();
+  publishedResources=new CmsPublishedResources();
+  publishProject=readProject(publishProjectId);
   try {
-    Vector newRes=readProjectView(id,"new");
-    updateOnlineProjectLinks(readProjectView(id,"deleted"),readProjectView(id,"changed"),null,this.getResourceType(C_TYPE_PAGE_NAME).getResourceType());
-    allChanged=m_driverManager.publishProject(this,m_context.currentUser(),m_context.currentProject(),id,report);
-    updateOnlineProjectLinks(null,null,newRes,this.getResourceType(C_TYPE_PAGE_NAME).getResourceType());
-    newRes=null;
-    changedResources=allChanged.getChangedResources();
-    changedModuleMasters=allChanged.getChangedModuleMasters();
+    newResources=readProjectView(publishProjectId,"new");
+    deletedResources=readProjectView(publishProjectId,"deleted");
+    changedResources=readProjectView(publishProjectId,"changed");
+    updateOnlineProjectLinks(deletedResources,changedResources,null,this.getResourceType(C_TYPE_PAGE_NAME).getResourceType());
+    publishedResources=m_driverManager.publishProject(this,m_context.currentUser(),m_context.currentProject(),publishProject,report);
+    updateOnlineProjectLinks(null,null,newResources,this.getResourceType(C_TYPE_PAGE_NAME).getResourceType());
+    changedResources.clear();
+    changedResources=null;
+    newResources=null;
+    changedResources=publishedResources.getChangedResources();
+    changedModuleMasters=publishedResources.getChangedModuleMasters();
     if (getOnlineElementCache() != null) {
       getOnlineElementCache().cleanupCache(changedResources,changedModuleMasters);
     }
@@ -23,7 +31,7 @@
         m_context.setCurrentProject(C_PROJECT_ONLINE_ID);
         Vector linkChanges=new Vector();
         Vector allExportedLinks=new Vector();
-        this.exportStaticResources(getStaticExportProperties().getStartPoints(),linkChanges,allExportedLinks,allChanged,report);
+        this.exportStaticResources(getStaticExportProperties().getStartPoints(),linkChanges,allExportedLinks,publishedResources,report);
         m_context.setCurrentProject(oldId);
         Utils.getModulPublishMethods(this,linkChanges);
         this.fireEvent(com.opencms.flex.I_CmsEventListener.EVENT_STATIC_EXPORT,allExportedLinks);
@@ -50,7 +58,7 @@
     success=true;
   }
  catch (  Exception e) {
-    String stamp1="[" + this.getClass().getName() + ".publishProject()/1] Project:"+ id+ " Time:"+ new Date();
+    String stamp1="[" + this.getClass().getName() + ".publishProject()/1] Project:"+ publishProjectId+ " Time:"+ new Date();
     String stamp2="[" + this.getClass().getName() + ".publishProject()/1] User: "+ m_context.currentUser().toString();
     if (DEBUG > 0) {
       System.err.println("###################################");
@@ -72,7 +80,7 @@
   }
  finally {
     if (changedResources == null || changedResources.size() < 1) {
-      String stamp1="[" + this.getClass().getName() + ".publishProject()/2] Project:"+ id+ " Time:"+ new Date();
+      String stamp1="[" + this.getClass().getName() + ".publishProject()/2] Project:"+ publishProjectId+ " Time:"+ new Date();
       String stamp2="[" + this.getClass().getName() + ".publishProject()/2] User: "+ m_context.currentUser().toString();
       String stamp3="[" + this.getClass().getName() + ".publishProject()/2] Vector was null or empty";
       if (DEBUG > 0) {
@@ -91,11 +99,11 @@
     if (!success) {
       if (getOnlineElementCache() != null)       getOnlineElementCache().clearCache();
     }
-    if (theProject.getId() == m_context.currentProject().getId() && (theProject.getType() == I_CmsConstants.C_PROJECT_TYPE_TEMPORARY)) {
+    if (publishProject.getId() == m_context.currentProject().getId() && (publishProject.getType() == I_CmsConstants.C_PROJECT_TYPE_TEMPORARY)) {
       m_context.setCurrentProject(C_PROJECT_ONLINE_ID);
     }
   }
   CmsProject onlineProject=this.readProject(I_CmsConstants.C_PROJECT_ONLINE_ID);
   this.joinLinksToTargets(onlineProject,report);
-  this.fireEvent(com.opencms.flex.I_CmsEventListener.EVENT_PUBLISH_PROJECT,theProject);
+  this.fireEvent(com.opencms.flex.I_CmsEventListener.EVENT_PUBLISH_PROJECT,publishProject);
 }

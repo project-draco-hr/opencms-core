@@ -17,7 +17,7 @@
  else {
       currentFolder=(String)session.getValue(C_PARA_FILELIST);
       if ((currentFolder == null) || (!folderExists(cms,currentFolder))) {
-        currentFolder=cms.rootFolder().getAbsolutePath();
+        currentFolder=cms.readAbsolutePath(cms.rootFolder());
         session.putValue(C_PARA_FILELIST,currentFolder);
       }
     }
@@ -39,7 +39,7 @@
       currentFolder="vfslink:" + file;
     }
  else {
-      currentFolder=cms.rootFolder().getAbsolutePath();
+      currentFolder=cms.readAbsolutePath(cms.rootFolder());
       vfslinkView=false;
       parameters.remove("mode");
     }
@@ -186,7 +186,7 @@
     if (showTitle) {
       String title="";
       try {
-        title=cms.readProperty(res.getAbsolutePath(),C_PROPERTY_TITLE);
+        title=cms.readProperty(cms.readAbsolutePath(res),C_PROPERTY_TITLE);
       }
  catch (      CmsException e) {
       }
@@ -225,7 +225,7 @@
     content.append(",");
     if (showOwner) {
       content.append("\"");
-      content.append(cms.getPermissions(res.getAbsolutePath()).getPermissionString());
+      content.append(cms.getPermissions(cms.readAbsolutePath(res)).getPermissionString());
       content.append("\",");
     }
  else {
@@ -262,13 +262,14 @@
   }
   if (newTreePlease && (!(listonly || vfslinkView))) {
     content.append("\n top.rT();\n");
-    Vector tree=cms.getFolderTree();
+    List tree=cms.getFolderTree();
     int startAt=1;
     CmsUUID parentId=CmsUUID.getNullUUID();
     boolean grey=false;
     int onlineProjectId=I_CmsConstants.C_PROJECT_ONLINE_ID;
     if (cms.getRequestContext().currentProject().isOnlineProject()) {
-      CmsFolder rootFolder=(CmsFolder)tree.elementAt(0);
+      Iterator i=tree.iterator();
+      CmsFolder rootFolder=(CmsFolder)i.next();
       content.append("top.aC(\"");
       content.append(rootFolder.getId());
       content.append("\", ");
@@ -277,8 +278,8 @@
       content.append("\", \"");
       content.append(rootFolder.getParentId());
       content.append("\", false);\n");
-      for (int i=startAt; i < tree.size(); i++) {
-        CmsFolder folder=(CmsFolder)tree.elementAt(i);
+      while (i.hasNext()) {
+        CmsFolder folder=(CmsFolder)i.next();
         content.append("top.aC(\"");
         content.append(folder.getId());
         content.append("\", ");
@@ -291,12 +292,11 @@
     }
  else {
       Hashtable idMixer=new Hashtable();
-      CmsFolder rootFolder=(CmsFolder)tree.elementAt(0);
+      CmsFolder rootFolder=(CmsFolder)tree.get(0);
       String folderToIgnore=null;
       if (rootFolder.getProjectId() != onlineProjectId) {
-        startAt=2;
         grey=false;
-        idMixer.put((CmsFolder)tree.elementAt(1),rootFolder.getId());
+        idMixer.put((CmsFolder)tree.get(1),rootFolder.getId());
       }
  else {
         grey=true;
@@ -312,18 +312,18 @@
       content.append(grey);
       content.append(");\n");
       for (int i=startAt; i < tree.size(); i++) {
-        CmsFolder folder=(CmsFolder)tree.elementAt(i);
-        if ((folder.getState() == C_STATE_DELETED) || (folder.getAbsolutePath().equals(folderToIgnore))) {
-          folderToIgnore=folder.getAbsolutePath();
+        CmsFolder folder=(CmsFolder)tree.get(i);
+        if ((folder.getState() == C_STATE_DELETED) || (cms.readAbsolutePath(folder).equals(folderToIgnore))) {
+          folderToIgnore=cms.readAbsolutePath(folder);
         }
  else {
           if (folder.getProjectId() != onlineProjectId) {
             grey=false;
             parentId=folder.getParentId();
             try {
-              if (folder.getAbsolutePath().equals(((CmsFolder)tree.elementAt(i + 1)).getAbsolutePath())) {
+              if (cms.readAbsolutePath(folder).equals(cms.readAbsolutePath((CmsFolder)tree.get(i + 1)))) {
                 i++;
-                idMixer.put((CmsFolder)tree.elementAt(i),folder.getId());
+                idMixer.put((CmsFolder)tree.get(i),folder.getId());
               }
             }
  catch (            IndexOutOfBoundsException exc) {

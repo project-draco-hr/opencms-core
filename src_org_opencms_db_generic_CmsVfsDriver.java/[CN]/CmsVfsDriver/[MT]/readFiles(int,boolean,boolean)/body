@@ -1,26 +1,33 @@
 {
-  Vector files=new Vector();
-  CmsFile file;
+  List files=(List)new ArrayList();
+  CmsFile currentFile;
   ResultSet res=null;
   PreparedStatement stmt=null;
   Connection conn=null;
-  String onlyChanged=new String();
-  String inProject=new String();
+  String changedClause=null;
+  String projectClause=null;
+  String orderClause=" ORDER BY CMS_T_STRUCTURE.STRUCTURE_ID ASC";
+  String query=null;
   if (projectId != I_CmsConstants.C_PROJECT_ONLINE_ID && onlyProject) {
-    inProject=" AND CMS_OFFLINE_STRUCTURE.PROJECT_ID=CMS_PROJECTRESOURCES.PROJECT_ID";
+    projectClause=" AND CMS_T_STRUCTURE.PROJECT_ID=" + projectId;
+  }
+ else {
+    projectClause="";
   }
   if (!includeUnchanged) {
-    onlyChanged=" AND CMS_OFFLINE_STRUCTURE.STATE!=" + com.opencms.core.I_CmsConstants.C_STATE_UNCHANGED;
+    changedClause=" AND CMS_T_STRUCTURE.STATE!=" + com.opencms.core.I_CmsConstants.C_STATE_UNCHANGED;
+  }
+ else {
+    changedClause="";
   }
   try {
     conn=m_sqlManager.getConnection(projectId);
-    String query=m_sqlManager.get(projectId,"C_RESOURCES_READFILESBYPROJECT") + onlyChanged + inProject+ " ORDER BY CMS_OFFLINE_STRUCTURE.RESOURCE_NAME";
+    query=m_sqlManager.get(projectId,"C_RESOURCES_READ_FILES_BY_PROJECT") + m_sqlManager.replaceTableKey(projectId,projectClause + changedClause + orderClause);
     stmt=m_sqlManager.getPreparedStatementForSql(conn,query);
-    stmt.setInt(1,projectId);
     res=stmt.executeQuery();
     while (res.next()) {
-      file=createCmsFileFromResultSet(res,true,true);
-      files.addElement(file);
+      currentFile=createCmsFileFromResultSet(res,projectId,true,true);
+      files.add(currentFile);
     }
   }
  catch (  SQLException e) {

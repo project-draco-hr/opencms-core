@@ -16,25 +16,22 @@
     state=I_CmsConstants.C_STATE_NEW;
   }
   try {
-    readFileHeader(project.getId(),filename,false);
+    readFileHeader(project.getId(),parentId,filename,false);
     throw new CmsException("[" + this.getClass().getName() + "] ",CmsException.C_FILE_EXISTS);
   }
  catch (  CmsException e) {
     if (e.getType() == CmsException.C_RESOURCE_DELETED) {
-      removeFile(project.getId(),filename);
+      removeFile(project,parentId,filename);
       state=I_CmsConstants.C_STATE_CHANGED;
     }
     if (e.getType() == CmsException.C_FILE_EXISTS) {
       throw e;
     }
   }
-  CmsUUID resourceId=new CmsUUID();
-  CmsUUID fileId=new CmsUUID();
-  CmsUUID structureId=new CmsUUID();
   try {
     conn=m_sqlManager.getConnection(project);
     try {
-      createFileContent(fileId,file.getContents(),0,project.getId(),false);
+      createFileContent(file.getFileId(),file.getContents(),0,project.getId(),false);
     }
  catch (    CmsException se) {
       if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -42,12 +39,12 @@
       }
     }
     stmt=m_sqlManager.getPreparedStatement(conn,project,"C_RESOURCES_WRITE");
-    stmt.setString(1,resourceId.toString());
+    stmt.setString(1,file.getResourceId().toString());
     stmt.setInt(2,file.getType());
     stmt.setInt(3,file.getFlags());
     stmt.setString(4,file.getOwnerId().toString());
     stmt.setString(5,file.getGroupId().toString());
-    stmt.setString(6,fileId.toString());
+    stmt.setString(6,file.getFileId().toString());
     stmt.setInt(7,file.getAccessFlags());
     stmt.setInt(8,file.getLauncherType());
     stmt.setString(9,file.getLauncherClassname());
@@ -57,9 +54,9 @@
     stmt.executeUpdate();
     m_sqlManager.closeAll(null,stmt,null);
     stmt=m_sqlManager.getPreparedStatement(conn,project,"C_STRUCTURE_WRITE");
-    stmt.setString(1,structureId.toString());
+    stmt.setString(1,file.getId().toString());
     stmt.setString(2,parentId.toString());
-    stmt.setString(3,resourceId.toString());
+    stmt.setString(3,file.getResourceId().toString());
     stmt.setInt(4,project.getId());
     stmt.setString(5,filename);
     stmt.setInt(6,0);
@@ -74,5 +71,5 @@
  finally {
     m_sqlManager.closeAll(conn,stmt,null);
   }
-  return readFile(project.getId(),filename);
+  return readFile(project.getId(),false,file.getId());
 }

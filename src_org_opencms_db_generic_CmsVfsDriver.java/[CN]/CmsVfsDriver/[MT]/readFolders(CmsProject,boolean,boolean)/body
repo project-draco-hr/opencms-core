@@ -1,0 +1,44 @@
+{
+  List folders=(List)new ArrayList();
+  CmsFolder currentFolder;
+  ResultSet res=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  String changedClause=null;
+  String projectClause=null;
+  String orderClause=" ORDER BY CMS_T_STRUCTURE.STRUCTURE_ID ASC";
+  String query=null;
+  int projectId=currentProject.getId();
+  if (projectId != I_CmsConstants.C_PROJECT_ONLINE_ID && onlyProject) {
+    projectClause=" AND CMS_T_STRUCTURE.PROJECT_ID=" + projectId;
+  }
+ else {
+    projectClause="";
+  }
+  if (!includeUnchanged) {
+    changedClause=" AND CMS_T_STRUCTURE.STATE!=" + I_CmsConstants.C_STATE_UNCHANGED;
+  }
+ else {
+    projectClause="";
+  }
+  try {
+    conn=m_sqlManager.getConnection(projectId);
+    query=m_sqlManager.get(projectId,"C_RESOURCES_READ_FOLDERS_BY_PROJECT") + m_sqlManager.replaceTableKey(projectId,projectClause + changedClause + orderClause);
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,query);
+    res=stmt.executeQuery();
+    while (res.next()) {
+      currentFolder=createCmsFolderFromResultSet(res,projectId,true);
+      folders.add(currentFolder);
+    }
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+catch (  Exception ex) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_UNKNOWN_EXCEPTION,ex,false);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,res);
+  }
+  return folders;
+}

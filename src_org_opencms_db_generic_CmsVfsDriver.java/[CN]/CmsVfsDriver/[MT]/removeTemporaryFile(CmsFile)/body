@@ -6,15 +6,18 @@
   ResultSet res=null;
   String fileId=null;
   String structureId=null;
-  String tempFilename=file.getRootName() + file.getPath() + I_CmsConstants.C_TEMP_PREFIX+ file.getName()+ "%";
+  boolean hasBatch=false;
+  String tempFilename=I_CmsConstants.C_TEMP_PREFIX + file.getResourceName() + "%";
   try {
     conn=m_sqlManager.getConnection();
     stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_GETTEMPFILES");
     stmt.setString(1,tempFilename);
+    stmt.setString(2,file.getParentId().toString());
     res=stmt.executeQuery();
     statementProp=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_DELETEALL");
-    statementCont=m_sqlManager.getPreparedStatement(conn,"C_FILE_DELETE");
+    statementCont=m_sqlManager.getPreparedStatement(conn,"C_FILE_CONTENT_DELETE");
     while (res.next()) {
+      hasBatch=true;
       fileId=res.getString("FILE_ID");
       structureId=res.getString("STRUCTURE_ID");
       statementProp.setString(1,structureId);
@@ -22,12 +25,15 @@
       statementCont.setString(1,fileId);
       statementCont.addBatch();
     }
-    statementProp.executeBatch();
-    statementCont.executeBatch();
-    m_sqlManager.closeAll(null,stmt,res);
-    stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_DELETETEMPFILES");
-    stmt.setString(1,tempFilename);
-    stmt.executeUpdate();
+    if (hasBatch) {
+      statementProp.executeBatch();
+      statementCont.executeBatch();
+      m_sqlManager.closeAll(null,stmt,res);
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_DELETETEMPFILES");
+      stmt.setString(1,tempFilename);
+      stmt.setString(2,file.getParentId().toString());
+      stmt.executeUpdate();
+    }
   }
  catch (  SQLException e) {
     throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
