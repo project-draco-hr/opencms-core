@@ -1,6 +1,6 @@
 {
   boolean isInsideCurrentProject=false;
-  boolean listonly="listonly".equals(getSettings().getExplorerMode());
+  boolean galleryView="galleryview".equals(getSettings().getExplorerMode());
   boolean projectView="projectview".equals(getSettings().getExplorerMode());
   boolean vfslinkView="vfslink".equals(getSettings().getExplorerMode());
   CmsResource currentResource=null;
@@ -37,23 +37,9 @@
   }
   StringBuffer content=new StringBuffer(2048);
   content.append("function initialize() {\n");
-  if (listonly) {
-    content.append("top.openfolderMethod='openthisfolderflat';\n");
-  }
- else {
-    content.append("top.openfolderMethod='openthisfolder';\n");
-  }
   content.append("top.mode=\"");
   content.append(getSettings().getExplorerMode());
   content.append("\";\n");
-  if (getSettings().getExplorerFlaturl() != null) {
-    content.append("top.flaturl='");
-    content.append(getSettings().getExplorerFlaturl());
-    content.append("';\n");
-  }
- else   if (!listonly) {
-    content.append("top.flaturl='';\n");
-  }
   content.append("top.head.helpUrl='explorer/index.html';\n");
   content.append("top.setProject(");
   content.append(getSettings().getProject());
@@ -64,8 +50,8 @@
   content.append("top.setChecksum(");
   content.append(check);
   content.append(");\n");
-  boolean writeAccess=true;
-  if (!vfslinkView) {
+  boolean writeAccess="explorerview".equals(getSettings().getExplorerMode());
+  if (writeAccess && (!vfslinkView)) {
     try {
       CmsFolder test=getCms().readFolder(currentFolder);
       writeAccess=getCms().isInsideCurrentProject(test);
@@ -102,7 +88,7 @@
   int selectedPage=1;
   int numberOfPages=0;
   int maxEntrys=C_ENTRYS_PER_PAGE;
-  if (!(listonly || projectView || vfslinkView)) {
+  if (!(galleryView || projectView || vfslinkView)) {
     selectedPage=getSettings().getExplorerPage();
     if (stopat > maxEntrys) {
       numberOfPages=(stopat / maxEntrys) + 1;
@@ -246,10 +232,12 @@
     content.append(",");
     int lockedInProject=lock.isNullLock() ? getCms().getRequestContext().currentProject().getId() : lock.getProjectId();
     String lockedInProjectName="";
-    try {
-      lockedInProjectName=getCms().readProject(lockedInProject).getName();
-    }
- catch (    CmsException exc) {
+    if (!lock.isNullLock()) {
+      try {
+        lockedInProjectName=getCms().readProject(lockedInProject).getName();
+      }
+ catch (      CmsException exc) {
+      }
     }
     content.append("\"");
     content.append(lockedInProjectName);
@@ -265,7 +253,7 @@
     content.append("\"");
     content.append(");\n");
   }
-  if (newTreePlease && (!(listonly || vfslinkView))) {
+  if (newTreePlease && (!(galleryView || projectView || vfslinkView))) {
     content.append("\ntop.rT();\n");
     List tree=null;
     try {
