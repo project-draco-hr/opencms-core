@@ -1,61 +1,45 @@
 {
-  Vector resources=new Vector();
-  CmsFile file;
-  CmsFolder folder;
-  ResultSet res=null;
-  PreparedStatement statement=null;
-  PreparedStatement statement2=null;
-  try {
-    statement=m_pool.getPreparedStatement(C_RESOURCES_PUBLISH_PROJECT_READFILE_KEY);
-    statement.setInt(1,project.getId());
-    res=statement.executeQuery();
-    while (res.next()) {
-      file=new CmsFile(res.getInt(C_RESOURCES_RESOURCE_ID),res.getInt(C_RESOURCES_PARENT_ID),res.getInt(C_RESOURCES_FILE_ID),res.getString(C_RESOURCES_RESOURCE_NAME),res.getInt(C_RESOURCES_RESOURCE_TYPE),res.getInt(C_RESOURCES_RESOURCE_FLAGS),res.getInt(C_RESOURCES_USER_ID),res.getInt(C_RESOURCES_GROUP_ID),onlineProject.getId(),res.getInt(C_RESOURCES_ACCESS_FLAGS),res.getInt(C_RESOURCES_STATE),res.getInt(C_RESOURCES_LOCKED_BY),res.getInt(C_RESOURCES_LAUNCHER_TYPE),res.getString(C_RESOURCES_LAUNCHER_CLASSNAME),res.getTimestamp(C_RESOURCES_DATE_CREATED).getTime(),res.getTimestamp(C_RESOURCES_DATE_LASTMODIFIED).getTime(),res.getInt(C_RESOURCES_LASTMODIFIED_BY),new byte[0],res.getInt(C_RESOURCES_SIZE));
-      if (file.getName().startsWith(C_TEMP_PREFIX)) {
-      }
- else {
-        if (file.getState() == C_STATE_CHANGED) {
-          removeFile(onlineProject,file.getAbsolutePath());
-          file=readFile(project.getId(),onlineProject.getId(),file.getAbsolutePath());
-          file.setLocked(C_UNKNOWN_ID);
-          file.setState(C_STATE_UNCHANGED);
-        }
- else         if (file.getState() == C_STATE_DELETED) {
-          removeFile(onlineProject,file.getAbsolutePath());
-        }
- else         if (file.getState() == C_STATE_NEW) {
-        }
+  CmsResource currentOnlineResource=null;
+  CmsResource currentOfflineResource=null;
+  Vector onlineResources;
+  Vector offlineResources;
+  onlineResources=new Vector();
+  offlineResources=new Vector();
+  publishRead(project,onlineProject,C_STATE_DELETED,onlineResources,offlineResources);
+  for (int i=0; i < onlineResources.size(); i++) {
+    currentOnlineResource=((CmsResource)onlineResources.elementAt(i));
+    try {
+      deleteAllProperties(currentOnlineResource.getResourceId());
+    }
+ catch (    CmsException exc) {
+      if (A_OpenCms.isLogging()) {
+        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsDbAccess] error publishing, deleting properties for " + currentOnlineResource.toString() + " Message= "+ exc.getMessage());
       }
     }
-    res.close();
-    statement2=m_pool.getPreparedStatement(C_RESOURCES_PUBLISH_PROJECT_READFOLDER_KEY);
-    statement2.setInt(1,project.getId());
-    statement2.setInt(2,C_TYPE_FOLDER);
-    res=statement2.executeQuery();
-    while (res.next()) {
-      folder=new CmsFolder(res.getInt(C_RESOURCES_RESOURCE_ID),res.getInt(C_RESOURCES_PARENT_ID),res.getInt(C_RESOURCES_FILE_ID),res.getString(C_RESOURCES_RESOURCE_NAME),res.getInt(C_RESOURCES_RESOURCE_TYPE),res.getInt(C_RESOURCES_RESOURCE_FLAGS),res.getInt(C_RESOURCES_USER_ID),res.getInt(C_RESOURCES_GROUP_ID),onlineProject.getId(),res.getInt(C_RESOURCES_ACCESS_FLAGS),res.getInt(C_RESOURCES_STATE),res.getInt(C_RESOURCES_LOCKED_BY),res.getTimestamp(C_RESOURCES_DATE_CREATED).getTime(),res.getTimestamp(C_RESOURCES_DATE_LASTMODIFIED).getTime(),res.getInt(C_RESOURCES_LASTMODIFIED_BY));
-      if (folder.getState() == C_STATE_CHANGED) {
-        removeFolderForPublish(onlineProject,folder.getAbsolutePath());
-        folder.setLocked(C_UNKNOWN_ID);
-      }
- else       if (folder.getState() == C_STATE_DELETED) {
-        removeFolderForPublish(onlineProject,folder.getAbsolutePath());
-      }
- else       if (folder.getState() == C_STATE_NEW) {
+    try {
+      deleteResource(currentOnlineResource.getResourceId());
+    }
+ catch (    CmsException exc) {
+      if (A_OpenCms.isLogging()) {
+        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsDbAccess] error publishing, deleting resource for " + currentOnlineResource.toString() + " Message= "+ exc.getMessage());
       }
     }
-    res.close();
   }
- catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
-  }
-catch (  Exception exc) {
-    throw new CmsException("PublishProject " + exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
-  }
- finally {
-    if (statement != null) {
-      m_pool.putPreparedStatement(C_RESOURCES_PUBLISH_PROJECT_READFILE_KEY,statement);
-      m_pool.putPreparedStatement(C_RESOURCES_PUBLISH_PROJECT_READFOLDER_KEY,statement2);
+  onlineResources=new Vector();
+  offlineResources=new Vector();
+  publishRead(project,onlineProject,C_STATE_CHANGED,onlineResources,offlineResources);
+  for (int i=0; i < onlineResources.size(); i++) {
+    currentOnlineResource=((CmsResource)onlineResources.elementAt(i));
+    currentOfflineResource=((CmsResource)offlineResources.elementAt(i));
+    try {
+      deleteAllProperties(currentOnlineResource.getResourceId());
+      Hashtable props=readAllProperties(currentOfflineResource.getResourceId(),currentOfflineResource.getType());
+      writeProperties(props,currentOnlineResource.getResourceId(),currentOfflineResource.getType());
+    }
+ catch (    CmsException exc) {
+      if (A_OpenCms.isLogging()) {
+        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsDbAccess] error publishing, deleting properties for " + currentOnlineResource.toString() + " Message= "+ exc.getMessage());
+      }
     }
   }
 }
