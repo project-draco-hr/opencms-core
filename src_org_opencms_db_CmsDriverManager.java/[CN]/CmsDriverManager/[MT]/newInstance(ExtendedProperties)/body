@@ -1,0 +1,78 @@
+{
+  List drivers=null;
+  String driverName=null;
+  I_CmsVfsDriver vfsDriver=null;
+  I_CmsUserDriver userDriver=null;
+  I_CmsProjectDriver projectDriver=null;
+  I_CmsWorkflowDriver workflowDriver=null;
+  I_CmsBackupDriver backupDriver=null;
+  CmsDriverManager driverManager=null;
+  try {
+    driverManager=new CmsDriverManager();
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Driver manager init  : phase 1 - initializing database");
+    }
+  }
+ catch (  Exception exc) {
+    String message="Critical error while loading driver manager";
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isFatalEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).fatal(message,exc);
+    }
+    throw new CmsException(message,CmsException.C_RB_INIT_ERROR,exc);
+  }
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Driver manager init  : phase 2 - initializing pools");
+  }
+  String driverPoolNames[]=configuration.getStringArray(I_CmsConstants.C_CONFIGURATION_DB + ".pools");
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    String names="";
+    for (int p=0; p < driverPoolNames.length; p++) {
+      names+=driverPoolNames[p] + " ";
+    }
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Resource pools       : " + names);
+  }
+  for (int p=0; p < driverPoolNames.length; p++) {
+    driverManager.newPoolInstance(configuration,driverPoolNames[p]);
+  }
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Driver manager init  : phase 3 - initializing drivers");
+  }
+  drivers=Arrays.asList(configuration.getStringArray(I_CmsConstants.C_CONFIGURATION_VFS));
+  driverName=configuration.getString((String)drivers.get(0) + ".vfs.driver");
+  drivers=(drivers.size() > 1) ? drivers.subList(1,drivers.size()) : null;
+  vfsDriver=(I_CmsVfsDriver)driverManager.newDriverInstance(configuration,driverName,drivers);
+  drivers=Arrays.asList(configuration.getStringArray(I_CmsConstants.C_CONFIGURATION_USER));
+  driverName=configuration.getString((String)drivers.get(0) + ".user.driver");
+  drivers=(drivers.size() > 1) ? drivers.subList(1,drivers.size()) : null;
+  userDriver=(I_CmsUserDriver)driverManager.newDriverInstance(configuration,driverName,drivers);
+  drivers=Arrays.asList(configuration.getStringArray(I_CmsConstants.C_CONFIGURATION_PROJECT));
+  driverName=configuration.getString((String)drivers.get(0) + ".project.driver");
+  drivers=(drivers.size() > 1) ? drivers.subList(1,drivers.size()) : null;
+  projectDriver=(I_CmsProjectDriver)driverManager.newDriverInstance(configuration,driverName,drivers);
+  drivers=Arrays.asList(configuration.getStringArray(I_CmsConstants.C_CONFIGURATION_WORKFLOW));
+  driverName=configuration.getString((String)drivers.get(0) + ".workflow.driver");
+  drivers=(drivers.size() > 1) ? drivers.subList(1,drivers.size()) : null;
+  workflowDriver=(I_CmsWorkflowDriver)driverManager.newDriverInstance(configuration,driverName,drivers);
+  drivers=Arrays.asList(configuration.getStringArray(I_CmsConstants.C_CONFIGURATION_BACKUP));
+  driverName=configuration.getString((String)drivers.get(0) + ".backup.driver");
+  drivers=(drivers.size() > 1) ? drivers.subList(1,drivers.size()) : null;
+  backupDriver=(I_CmsBackupDriver)driverManager.newDriverInstance(configuration,driverName,drivers);
+  try {
+    driverManager.init(configuration,vfsDriver,userDriver,projectDriver,workflowDriver,backupDriver);
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Driver manager init  : phase 4 ok - finished");
+    }
+  }
+ catch (  Exception exc) {
+    String message="Critical error while loading driver manager";
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isFatalEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).fatal(message,exc);
+    }
+    throw new CmsException(message,CmsException.C_RB_INIT_ERROR,exc);
+  }
+  String cosPoolUrl=configuration.getString("db.cos.pool");
+  OpenCms.setRuntimeProperty("cosPoolUrl",cosPoolUrl);
+  CmsDbUtil.setDefaultPool(cosPoolUrl);
+  org.opencms.main.OpenCms.addCmsEventListener(driverManager,new int[]{I_CmsEventListener.EVENT_CLEAR_CACHES,I_CmsEventListener.EVENT_PUBLISH_PROJECT});
+  return driverManager;
+}

@@ -1,0 +1,383 @@
+{
+  m_configuration=configuration;
+  m_defaultEncoding=getDefaultEncoding();
+  m_defaultEncoding=configuration.getString("defaultContentEncoding",m_defaultEncoding);
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms encoding     : " + m_defaultEncoding);
+  }
+  String systemEncoding=null;
+  try {
+    systemEncoding=System.getProperty("file.encoding");
+  }
+ catch (  SecurityException se) {
+  }
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". System file.encoding : " + systemEncoding);
+  }
+  if (!m_defaultEncoding.equals(systemEncoding)) {
+    String msg="OpenCms startup failure: System file.encoding '" + systemEncoding + "' not equal to OpenCms encoding '"+ m_defaultEncoding+ "'";
+    if (getLog(this).isFatalEnabled()) {
+      getLog(this).fatal(OpenCmsCore.C_MSG_CRITICAL_ERROR + "1: " + msg);
+    }
+    throw new Exception(msg);
+  }
+  try {
+    if (!java.nio.charset.Charset.isSupported(m_defaultEncoding)) {
+      m_defaultEncoding=OpenCms.getDefaultEncoding();
+    }
+  }
+ catch (  Throwable t) {
+  }
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". Encoding set to      : " + m_defaultEncoding);
+  }
+  String ethernetAddress=configuration.getString("server.ethernet.address",CmsUUID.getDummyEthernetAddress());
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". Ethernet address used: " + ethernetAddress);
+  }
+  CmsUUID.init(ethernetAddress);
+  m_serverName=configuration.getString("server.name","OpenCmsServer");
+  m_memoryMonitor=CmsMemoryMonitor.initialize(configuration);
+  try {
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      String jdkinfo=System.getProperty("java.vm.name") + " ";
+      jdkinfo+=System.getProperty("java.vm.version") + " ";
+      jdkinfo+=System.getProperty("java.vm.info") + " ";
+      jdkinfo+=System.getProperty("java.vm.vendor") + " ";
+      getLog(CmsLog.CHANNEL_INIT).info(". Java VM in use       : " + jdkinfo);
+      String osinfo=System.getProperty("os.name") + " ";
+      osinfo+=System.getProperty("os.version") + " ";
+      osinfo+=System.getProperty("os.arch") + " ";
+      getLog(CmsLog.CHANNEL_INIT).info(". Operating sytem      : " + osinfo);
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(this).isErrorEnabled()) {
+      getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "2",e);
+    }
+    throw e;
+  }
+  m_defaultUsers=CmsDefaultUsers.initialize(configuration);
+  try {
+    m_driverManager=CmsDriverManager.newInstance(configuration);
+  }
+ catch (  Exception e) {
+    if (getLog(this).isErrorEnabled()) {
+      getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "3",e);
+    }
+    throw new CmsException("Database init failed",CmsException.C_RB_INIT_ERROR,e);
+  }
+  try {
+    Hashtable mimeTypes=m_driverManager.readMimeTypes();
+    setMimeTypes(mimeTypes);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Found mime types     : " + mimeTypes.size() + " entrys");
+    }
+    if (!new Boolean(System.getProperty("opencms.disableScheduler")).booleanValue()) {
+      m_table=new CmsCronTable(m_driverManager.readCronTable());
+      m_scheduler=new CmsCronScheduler(this,m_table);
+      if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+        getLog(CmsLog.CHANNEL_INIT).info(". OpenCms scheduler    : enabled");
+      }
+    }
+ else {
+      if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+        getLog(CmsLog.CHANNEL_INIT).info(". OpenCms scheduler    : disabled");
+      }
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(this).isErrorEnabled()) {
+      getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "5",e);
+    }
+    throw e;
+  }
+  try {
+    List dialogHandlerClasses=OpenCms.getRegistry().getDialogHandler();
+    Iterator i=dialogHandlerClasses.iterator();
+    while (i.hasNext()) {
+      String currentClass=(String)i.next();
+      I_CmsDialogHandler handler=(I_CmsDialogHandler)Class.forName(currentClass).newInstance();
+      setRuntimeProperty(handler.getDialogHandler(),handler);
+      if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+        getLog(CmsLog.CHANNEL_INIT).info(". Dialog handler class : " + currentClass + " instanciated");
+      }
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(this).isErrorEnabled()) {
+      getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "7",e);
+    }
+    throw e;
+  }
+  m_threadStore=new CmsThreadStore();
+  m_linkManager=new CmsLinkManager();
+  String flexExportUrl=configuration.getString(CmsJspLoader.C_LOADER_JSPEXPORTURL,null);
+  if (null != flexExportUrl) {
+    if (flexExportUrl.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+      flexExportUrl=flexExportUrl.substring(0,flexExportUrl.length() - 1);
+    }
+    setRuntimeProperty(CmsJspLoader.C_LOADER_JSPEXPORTURL,flexExportUrl);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". JSP export URL       : using value from opencms.properties - " + flexExportUrl);
+    }
+  }
+  Boolean flexErrorPageCommit=configuration.getBoolean(CmsJspLoader.C_LOADER_ERRORPAGECOMMIT,new Boolean(true));
+  setRuntimeProperty(CmsJspLoader.C_LOADER_ERRORPAGECOMMIT,flexErrorPageCommit);
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". JSP errorPage commit : " + (flexErrorPageCommit.booleanValue() ? "enabled" : "disabled"));
+  }
+  try {
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : starting");
+    }
+    new CmsFlexCache(configuration);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : finished");
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).warn(". Flex cache init      : non-critical error " + e.toString());
+    }
+  }
+  try {
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". ResourceLoader init  : starting");
+    }
+    m_loaderManager=new CmsLoaderManager(configuration);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". ResourceLoader init  : finished");
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).warn(". ResourceLoader init  : non-critical error " + e.toString());
+    }
+  }
+  try {
+    boolean translationEnabled=configuration.getBoolean("directory.translation.enabled",false);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Directory translation: " + (translationEnabled ? "enabled" : "disabled"));
+    }
+    if (translationEnabled) {
+      String[] translations=configuration.getStringArray("directory.translation.rules");
+      m_directoryTranslator=new CmsResourceTranslator(translations,false);
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).warn(". Directory translation: non-critical error " + e.toString());
+    }
+  }
+  if (m_directoryTranslator == null) {
+    m_directoryTranslator=new CmsResourceTranslator(new String[0],false);
+  }
+  try {
+    boolean translationEnabled=configuration.getBoolean("filename.translation.enabled",false);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Filename translation : " + (translationEnabled ? "enabled" : "disabled"));
+    }
+    if (translationEnabled) {
+      String[] translations=configuration.getStringArray("filename.translation.rules");
+      m_fileTranslator=new CmsResourceTranslator(translations,true);
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).warn(". Filename translation : non-critical error " + e.toString());
+    }
+  }
+  if (m_fileTranslator == null) {
+    m_fileTranslator=new CmsResourceTranslator(new String[0],false);
+  }
+  m_defaultFilenames=null;
+  try {
+    m_defaultFilenames=configuration.getStringArray("directory.default.files");
+    for (int i=0; i < m_defaultFilenames.length; i++) {
+      m_defaultFilenames[i]=m_defaultFilenames[i].trim();
+      if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+        getLog(CmsLog.CHANNEL_INIT).info(". Default file         : " + (i + 1) + " - "+ m_defaultFilenames[i]);
+      }
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).warn(". Default file         : non-critical error " + e.toString());
+    }
+  }
+  if (m_defaultFilenames == null) {
+    m_defaultFilenames=new String[0];
+  }
+  String[] immuResources=configuration.getStringArray("import.immutable.resources");
+  if (immuResources == null) {
+    immuResources=new String[0];
+  }
+  List immutableResourcesOri=java.util.Arrays.asList(immuResources);
+  ArrayList immutableResources=new ArrayList();
+  for (int i=0; i < immutableResourcesOri.size(); i++) {
+    String path=((String)immutableResourcesOri.get(i)).trim();
+    if (path != null && !"".equals(path)) {
+      immutableResources.add(path);
+      if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+        getLog(CmsLog.CHANNEL_INIT).info(". Immutable resource   : " + (i + 1) + " - "+ path);
+      }
+    }
+  }
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". Immutable resources  : " + ((immutableResources.size() > 0) ? "enabled" : "disabled"));
+  }
+  setRuntimeProperty("import.immutable.resources",immutableResources);
+  try {
+    m_userDefaultLanguage=configuration.getString("workplace.user.default.language",I_CmsWpConstants.C_DEFAULT_LANGUAGE);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". User data init       : Default language is '" + m_userDefaultLanguage + "'");
+    }
+  }
+ catch (  Exception e) {
+    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).warn(". User data init       : non-critical error " + e.toString());
+    }
+  }
+  m_passwordValidatingClass=configuration.getString("passwordvalidatingclass","com.opencms.util.PasswordValidtation");
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". Password validation  : " + m_passwordValidatingClass);
+  }
+  Integer fileMaxUploadSize=new Integer(configuration.getInteger("workplace.file.maxuploadsize",-1));
+  setRuntimeProperty("workplace.file.maxuploadsize",fileMaxUploadSize);
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". File max. upload size: " + (fileMaxUploadSize.intValue() > 0 ? (fileMaxUploadSize + " KB") : "unlimited"));
+  }
+  Boolean showUserGroupIcon=configuration.getBoolean("workplace.administration.showusergroupicon",new Boolean(true));
+  setRuntimeProperty("workplace.administration.showusergroupicon",showUserGroupIcon);
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". Show user/group icon : " + (showUserGroupIcon.booleanValue() ? "yes" : "no"));
+  }
+  try {
+    List resourceInitClasses=OpenCms.getRegistry().getResourceInit();
+    Iterator i=resourceInitClasses.iterator();
+    while (i.hasNext()) {
+      String currentClass=(String)i.next();
+      try {
+        m_checkFile.add(Class.forName(currentClass).newInstance());
+        if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+          getLog(CmsLog.CHANNEL_INIT).info(". Resource init class  : " + currentClass + " instanciated");
+        }
+      }
+ catch (      Exception e1) {
+        if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+          getLog(CmsLog.CHANNEL_INIT).warn(". Resource init class  : non-critical error " + e1.toString());
+        }
+      }
+    }
+  }
+ catch (  Exception e2) {
+    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).warn(". Resource init class  : non-critical error " + e2.toString());
+    }
+  }
+  Boolean supportOldLocales=configuration.getBoolean("compatibility.support.oldlocales",new Boolean(false));
+  setRuntimeProperty("compatibility.support.oldlocales",supportOldLocales);
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". Old locale support   : " + (supportOldLocales.booleanValue() ? "enabled" : "disabled"));
+  }
+  String webappUrl=configuration.getString("compatibility.support.import.old.webappurl",null);
+  if (webappUrl != null) {
+    setRuntimeProperty("compatibility.support.import.old.webappurl",webappUrl);
+  }
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". Old webapp URL       : " + ((webappUrl == null) ? "not set!" : webappUrl));
+  }
+  String[] propNames=configuration.getStringArray("compatibility.support.import.remove.propertytags");
+  if (propNames == null) {
+    propNames=new String[0];
+  }
+  List propertyNamesOri=java.util.Arrays.asList(propNames);
+  ArrayList propertyNames=new ArrayList();
+  for (int i=0; i < propertyNamesOri.size(); i++) {
+    String name=((String)propertyNamesOri.get(i)).trim();
+    if (name != null && !"".equals(name)) {
+      propertyNames.add(name);
+      if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+        getLog(CmsLog.CHANNEL_INIT).info(". Clear import property: " + (i + 1) + " - "+ name);
+      }
+    }
+  }
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". Remove properties    : " + ((propertyNames.size() > 0) ? "enabled" : "disabled"));
+  }
+  setRuntimeProperty("compatibility.support.import.remove.propertytags",propertyNames);
+  String[] appNames=configuration.getStringArray("compatibility.support.webAppNames");
+  if (appNames == null) {
+    appNames=new String[0];
+  }
+  List webAppNamesOri=java.util.Arrays.asList(appNames);
+  ArrayList webAppNames=new ArrayList();
+  for (int i=0; i < webAppNamesOri.size(); i++) {
+    String name=((String)webAppNamesOri.get(i)).trim();
+    if (name != null && !"".equals(name)) {
+      webAppNames.add(name);
+      if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+        getLog(CmsLog.CHANNEL_INIT).info(". Old context path     : " + (i + 1) + " - "+ name);
+      }
+    }
+  }
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". Old context support  : " + ((webAppNames.size() > 0) ? "enabled" : "disabled"));
+  }
+  setRuntimeProperty("compatibility.support.webAppNames",webAppNames);
+  CmsObject adminCms=initCmsObject(null,null,getDefaultUsers().getUserAdmin(),null);
+  m_siteManager=CmsSiteManager.initialize(configuration,adminCms);
+  String[] labelSiteFolderString=configuration.getStringArray("site.labeled.folders");
+  if (labelSiteFolderString == null) {
+    labelSiteFolderString=new String[0];
+  }
+  List labelSiteFoldersOri=java.util.Arrays.asList(labelSiteFolderString);
+  ArrayList labelSiteFolders=new ArrayList();
+  for (int i=0; i < labelSiteFoldersOri.size(); i++) {
+    String name=((String)labelSiteFoldersOri.get(i)).trim();
+    if (name != null && !"".equals(name)) {
+      labelSiteFolders.add(name);
+      if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+        getLog(CmsLog.CHANNEL_INIT).info(". Label links in folder: " + (i + 1) + " - "+ name);
+      }
+    }
+  }
+  setRuntimeProperty("site.labeled.folders",labelSiteFolders);
+  m_exportProperties=new CmsStaticExportManager();
+  m_exportProperties.setStaticExportEnabled("true".equalsIgnoreCase(configuration.getString("staticexport.enabled","false")));
+  m_exportProperties.setExportPropertyDefault("true".equalsIgnoreCase(configuration.getString("staticexport.export_default","false")));
+  String[] exportSuffixes=configuration.getStringArray("staticexport.export_suffixes");
+  if (exportSuffixes == null) {
+    exportSuffixes=new String[0];
+  }
+  m_exportProperties.setExportSuffixes(exportSuffixes);
+  m_exportProperties.setExportPath(com.opencms.boot.CmsBase.getAbsoluteWebPath(CmsBase.getAbsoluteWebPath(configuration.getString("staticexport.export_path"))));
+  String rfsPrefix=configuration.getString("staticexport.prefix_rfs","${CONTEXT_NAME}/export");
+  String vfsPrefix=configuration.getString("staticexport.prefix_vfs","${CONTEXT_NAME}${SERVLET_NAME}");
+  String contextName="/" + CmsBase.getWebAppName();
+  if ("/ROOT".equals(contextName)) {
+    contextName="";
+  }
+  String servletName=configuration.getString("servlet.mapping");
+  rfsPrefix=CmsStringSubstitution.substitute(rfsPrefix,"${CONTEXT_NAME}",contextName);
+  rfsPrefix=CmsStringSubstitution.substitute(rfsPrefix,"${SERVLET_NAME}",servletName);
+  vfsPrefix=CmsStringSubstitution.substitute(vfsPrefix,"${CONTEXT_NAME}",contextName);
+  vfsPrefix=CmsStringSubstitution.substitute(vfsPrefix,"${SERVLET_NAME}",servletName);
+  m_exportProperties.setRfsPrefix(rfsPrefix);
+  m_exportProperties.setVfsPrefix(vfsPrefix);
+  m_exportProperties.setExportRelativeLinks(configuration.getBoolean("staticexport.relative_links",false));
+  m_exportProperties.setExportnames();
+  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    getLog(CmsLog.CHANNEL_INIT).info(". Static export        : " + (m_exportProperties.isStaticExportEnabled() ? "enabled" : "disabled"));
+    if (m_exportProperties.isStaticExportEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Export default       : " + m_exportProperties.getExportPropertyDefault());
+      getLog(CmsLog.CHANNEL_INIT).info(". Export path          : " + m_exportProperties.getExportPath());
+      getLog(CmsLog.CHANNEL_INIT).info(". Export rfs prefix    : " + m_exportProperties.getRfsPrefix());
+      getLog(CmsLog.CHANNEL_INIT).info(". Export vfs prefix    : " + m_exportProperties.getVfsPrefix());
+      getLog(CmsLog.CHANNEL_INIT).info(". Export link style    : " + (m_exportProperties.relativLinksInExport() ? "relative" : "absolute"));
+    }
+  }
+  String directPublishSiblings=configuration.getString("workplace.directpublish.siblings","false");
+  setRuntimeProperty("workplace.directpublish.siblings",directPublishSiblings);
+}

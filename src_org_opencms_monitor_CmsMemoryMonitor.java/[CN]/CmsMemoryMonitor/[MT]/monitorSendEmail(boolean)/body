@@ -1,0 +1,56 @@
+{
+  if ((warning && m_warningSendSinceLastEmail) || ((m_intervalEmail <= 0) && (System.currentTimeMillis() < (m_lastEmailWarning + m_intervalWarning)))) {
+    return;
+  }
+ else   if ((!warning) && (m_intervalEmail <= 0)) {
+    return;
+  }
+  String date=Utils.getNiceDate(System.currentTimeMillis());
+  String subject;
+  String content="";
+  if (warning) {
+    m_warningSendSinceLastEmail=true;
+    m_lastEmailWarning=System.currentTimeMillis();
+    subject="OpenCms Memory W A R N I N G [" + OpenCms.getServerName().toUpperCase() + "/"+ date+ "]";
+    content+="W A R N I N G !\nOpenCms memory consumption on server " + OpenCms.getServerName().toUpperCase() + " has reached a critical level !\n\n"+ "The configured limit is "+ m_maxUsagePercent+ "%\n\n";
+  }
+ else {
+    m_warningSendSinceLastEmail=false;
+    m_lastEmailStatus=System.currentTimeMillis();
+    subject="OpenCms Memory Status [" + OpenCms.getServerName().toUpperCase() + "/"+ date+ "]";
+  }
+  long maxMemory=Runtime.getRuntime().maxMemory() / 1048576;
+  long totalMemory=Runtime.getRuntime().totalMemory() / 1048576;
+  long usedMemory=(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1048576;
+  long freeMemory=maxMemory - usedMemory;
+  long usage=usedMemory * 100 / maxMemory;
+  content+="Memory usage report of OpenCms server " + OpenCms.getServerName().toUpperCase() + " at "+ date+ "\n\n"+ "Memory maximum heap size: "+ maxMemory+ " mb\n"+ "Memory current heap size: "+ totalMemory+ " mb\n\n"+ "Memory currently used   : "+ usedMemory+ " mb ("+ usage+ "%)\n"+ "Memory currently unused : "+ freeMemory+ " mb\n\n";
+  if (warning) {
+    content+="*** Please take action NOW to ensure that no OutOfMemoryException occurs.\n\n";
+  }
+  content+="\nCurrent size of the caches:\n\n";
+  List keyList=Arrays.asList(m_monitoredObjects.keySet().toArray());
+  Collections.sort(keyList);
+  for (Iterator keys=keyList.iterator(); keys.hasNext(); ) {
+    String key=(String)keys.next();
+    String shortKeys[]=key.split("\\.");
+    String shortKey=shortKeys[shortKeys.length - 2] + "." + shortKeys[shortKeys.length - 1];
+    PrintfFormat form=new PrintfFormat("%9s");
+    Object obj=m_monitoredObjects.get(key);
+    content+=new PrintfFormat("%-42.42s").sprintf(shortKey) + "  " + "Entries: "+ form.sprintf(getItems(obj))+ "   "+ "Limit: "+ form.sprintf(getLimit(obj))+ "\n";
+  }
+  String from=m_emailSender;
+  String[] to=m_emailReceiver;
+  try {
+    if (from != null && to != null) {
+      CmsMail email=new CmsMail(from,to,subject,content,"text/plain");
+      email.start();
+    }
+    if (OpenCms.getLog(this).isInfoEnabled()) {
+      OpenCms.getLog(this).info("Memory Monitor " + (warning ? "warning" : "status") + " email send");
+    }
+  }
+ catch (  CmsException e) {
+    e.printStackTrace();
+  }
+}

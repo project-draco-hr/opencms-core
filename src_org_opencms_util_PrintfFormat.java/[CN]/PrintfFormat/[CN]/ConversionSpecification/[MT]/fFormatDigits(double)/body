@@ -1,0 +1,253 @@
+{
+  String sx;
+  int i, j, k;
+  int n1In, n2In;
+  int expon=0;
+  boolean minusSign=false;
+  if (x > 0.0) {
+    sx=Double.toString(x);
+  }
+ else   if (x < 0.0) {
+    sx=Double.toString(-x);
+    minusSign=true;
+  }
+ else {
+    sx=Double.toString(x);
+    if (sx.charAt(0) == '-') {
+      minusSign=true;
+      sx=sx.substring(1);
+    }
+  }
+  int ePos=sx.indexOf('E');
+  int rPos=sx.indexOf('.');
+  if (rPos != -1) {
+    n1In=rPos;
+  }
+ else   if (ePos != -1) {
+    n1In=ePos;
+  }
+ else {
+    n1In=sx.length();
+  }
+  if (rPos != -1) {
+    if (ePos != -1) {
+      n2In=ePos - rPos - 1;
+    }
+ else {
+      n2In=sx.length() - rPos - 1;
+    }
+  }
+ else {
+    n2In=0;
+  }
+  if (ePos != -1) {
+    int ie=ePos + 1;
+    expon=0;
+    if (sx.charAt(ie) == '-') {
+      for (++ie; ie < sx.length(); ie++) {
+        if (sx.charAt(ie) != '0') {
+          break;
+        }
+      }
+      if (ie < sx.length()) {
+        expon=-Integer.parseInt(sx.substring(ie));
+      }
+    }
+ else {
+      if (sx.charAt(ie) == '+') {
+        ++ie;
+      }
+      for (; ie < sx.length(); ie++) {
+        if (sx.charAt(ie) != '0') {
+          break;
+        }
+      }
+      if (ie < sx.length()) {
+        expon=Integer.parseInt(sx.substring(ie));
+      }
+    }
+  }
+  int p;
+  if (m_precisionSet) {
+    p=m_precision;
+  }
+ else {
+    p=m_defaultDigits - 1;
+  }
+  char[] ca1=sx.toCharArray();
+  char[] ca2=new char[n1In + n2In];
+  char[] ca3, ca4, ca5;
+  for (j=0; j < n1In; j++) {
+    ca2[j]=ca1[j];
+  }
+  i=j + 1;
+  for (k=0; k < n2In; j++, i++, k++) {
+    ca2[j]=ca1[i];
+  }
+  if (n1In + expon <= 0) {
+    ca3=new char[-expon + n2In];
+    for (j=0, k=0; k < (-n1In - expon); k++, j++) {
+      ca3[j]='0';
+    }
+    for (i=0; i < (n1In + n2In); i++, j++) {
+      ca3[j]=ca2[i];
+    }
+  }
+ else {
+    ca3=ca2;
+  }
+  boolean carry=false;
+  if (p < -expon + n2In) {
+    if (expon < 0) {
+      i=p;
+    }
+ else {
+      i=p + n1In;
+    }
+    carry=checkForCarry(ca3,i);
+    if (carry) {
+      carry=startSymbolicCarry(ca3,i - 1,0);
+    }
+  }
+  if (n1In + expon <= 0) {
+    ca4=new char[2 + p];
+    if (!carry) {
+      ca4[0]='0';
+    }
+ else {
+      ca4[0]='1';
+    }
+    if (m_alternateForm || !m_precisionSet || m_precision != 0) {
+      ca4[1]='.';
+      for (i=0, j=2; i < Math.min(p,ca3.length); i++, j++) {
+        ca4[j]=ca3[i];
+      }
+      for (; j < ca4.length; j++) {
+        ca4[j]='0';
+      }
+    }
+  }
+ else {
+    if (!carry) {
+      if (m_alternateForm || !m_precisionSet || m_precision != 0) {
+        ca4=new char[n1In + expon + p+ 1];
+      }
+ else {
+        ca4=new char[n1In + expon];
+      }
+      j=0;
+    }
+ else {
+      if (m_alternateForm || !m_precisionSet || m_precision != 0) {
+        ca4=new char[n1In + expon + p+ 2];
+      }
+ else {
+        ca4=new char[n1In + expon + 1];
+      }
+      ca4[0]='1';
+      j=1;
+    }
+    for (i=0; i < Math.min(n1In + expon,ca3.length); i++, j++) {
+      ca4[j]=ca3[i];
+    }
+    for (; i < n1In + expon; i++, j++) {
+      ca4[j]='0';
+    }
+    if (m_alternateForm || !m_precisionSet || m_precision != 0) {
+      ca4[j]='.';
+      j++;
+      for (k=0; i < ca3.length && k < p; i++, j++, k++) {
+        ca4[j]=ca3[i];
+      }
+      for (; j < ca4.length; j++) {
+        ca4[j]='0';
+      }
+    }
+  }
+  int nZeros=0;
+  if (!m_leftJustify && m_leadingZeros) {
+    int xThousands=0;
+    if (m_thousands) {
+      int xlead=0;
+      if (ca4[0] == '+' || ca4[0] == '-' || ca4[0] == ' ') {
+        xlead=1;
+      }
+      int xdp=xlead;
+      for (; xdp < ca4.length; xdp++) {
+        if (ca4[xdp] == '.') {
+          break;
+        }
+      }
+      xThousands=(xdp - xlead) / 3;
+    }
+    if (m_fieldWidthSet) {
+      nZeros=m_fieldWidth - ca4.length;
+    }
+    if ((!minusSign && (m_leadingSign || m_leadingSpace)) || minusSign) {
+      nZeros--;
+    }
+    nZeros-=xThousands;
+    if (nZeros < 0) {
+      nZeros=0;
+    }
+  }
+  j=0;
+  if ((!minusSign && (m_leadingSign || m_leadingSpace)) || minusSign) {
+    ca5=new char[ca4.length + nZeros + 1];
+    j++;
+  }
+ else {
+    ca5=new char[ca4.length + nZeros];
+  }
+  if (!minusSign) {
+    if (m_leadingSign) {
+      ca5[0]='+';
+    }
+    if (m_leadingSpace) {
+      ca5[0]=' ';
+    }
+  }
+ else {
+    ca5[0]='-';
+  }
+  for (i=0; i < nZeros; i++, j++) {
+    ca5[j]='0';
+  }
+  for (i=0; i < ca4.length; i++, j++) {
+    ca5[j]=ca4[i];
+  }
+  int lead=0;
+  if (ca5[0] == '+' || ca5[0] == '-' || ca5[0] == ' ') {
+    lead=1;
+  }
+  int dp=lead;
+  for (; dp < ca5.length; dp++) {
+    if (ca5[dp] == '.') {
+      break;
+    }
+  }
+  int nThousands=(dp - lead) / 3;
+  if (dp < ca5.length) {
+    ca5[dp]=m_dfs.getDecimalSeparator();
+  }
+  char[] ca6=ca5;
+  if (m_thousands && nThousands > 0) {
+    ca6=new char[ca5.length + nThousands + lead];
+    ca6[0]=ca5[0];
+    for (i=lead, k=lead; i < dp; i++) {
+      if (i > 0 && (dp - i) % 3 == 0) {
+        ca6[k]=m_dfs.getGroupingSeparator();
+        ca6[k + 1]=ca5[i];
+        k+=2;
+      }
+ else {
+        ca6[k]=ca5[i];
+        k++;
+      }
+    }
+    for (; i < ca5.length; i++, k++) {
+      ca6[k]=ca5[i];
+    }
+  }
+  return ca6;
+}
