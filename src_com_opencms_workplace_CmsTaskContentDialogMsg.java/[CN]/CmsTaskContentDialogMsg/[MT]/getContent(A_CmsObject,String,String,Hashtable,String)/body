@@ -4,18 +4,25 @@
     A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
     A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
   }
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
   HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
-  CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
-  if (parameters.get("filter") != null) {
-    if ("OK".equals(parameters.get("ALL"))) {
-      session.putValue(C_SESSION_TASK_ALLPROJECTS,new Boolean(true));
+  String userName="";
+  try {
+    Integer sessionTaskid=(Integer)session.getValue("taskid");
+    int taskid=sessionTaskid.intValue();
+    A_CmsTask task=cms.readTask(taskid);
+    A_CmsUser user=null;
+    if ("query".equals((String)parameters.get("action"))) {
+      user=cms.readOwner(task);
+      templateSelector="query";
     }
  else {
-      session.putValue(C_SESSION_TASK_ALLPROJECTS,new Boolean(false));
+      user=cms.readAgent(task);
     }
+    userName=Utils.getFullName(user);
   }
-  if ((parameters.get("filter") != null) && (parameters.get("filter") != "-")) {
-    session.putValue(C_SESSION_TASK_FILTER,parameters.get("filter"));
+ catch (  Exception exc) {
   }
+  xmlTemplateDocument.setXmlData("user",userName);
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }
