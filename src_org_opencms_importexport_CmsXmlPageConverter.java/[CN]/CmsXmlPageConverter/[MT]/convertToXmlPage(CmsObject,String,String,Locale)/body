@@ -7,38 +7,51 @@
     if (xmltemplate == null || !"XMLTEMPLATE".equals(xmltemplate.getName())) {
       throw new Exception("Element XMLTEMPLATE not found");
     }
-    Element edittemplate=xmltemplate.element("edittemplate");
-    String bodyContent=null;
-    if (edittemplate != null) {
-      bodyContent=edittemplate.getText();
+    Iterator i=xmltemplate.elementIterator("edittemplate");
+    boolean useEditTemplates=true;
+    if (!i.hasNext()) {
+      i=xmltemplate.elementIterator("TEMPLATE");
+      useEditTemplates=false;
     }
+    while (i.hasNext()) {
+      Element currentTemplate=(Element)i.next();
+      String bodyName=currentTemplate.attributeValue("name");
+      if (bodyName == null || "".equals(bodyName)) {
+        bodyName=body;
+      }
+      String bodyContent=null;
+      if (useEditTemplates) {
+        bodyContent=currentTemplate.getText();
+      }
  else {
-      Element template=xmltemplate.element("TEMPLATE");
-      if (template != null) {
-        StringBuffer contentBuffer=new StringBuffer();
-        for (Iterator i=template.nodeIterator(); i.hasNext(); ) {
-          Node n=(Node)i.next();
-          if (n.getNodeType() == Node.CDATA_SECTION_NODE) {
-            contentBuffer.append(n.getText());
-            continue;
-          }
- else           if (n.getNodeType() == Node.ELEMENT_NODE) {
-            if ("LINK".equals(n.getName())) {
-              contentBuffer.append(OpenCms.getSystemInfo().getOpenCmsContext());
+        if (currentTemplate != null) {
+          StringBuffer contentBuffer=new StringBuffer();
+          for (Iterator k=currentTemplate.nodeIterator(); k.hasNext(); ) {
+            Node n=(Node)k.next();
+            if (n.getNodeType() == Node.CDATA_SECTION_NODE) {
               contentBuffer.append(n.getText());
               continue;
             }
+ else             if (n.getNodeType() == Node.ELEMENT_NODE) {
+              if ("LINK".equals(n.getName())) {
+                contentBuffer.append(OpenCms.getSystemInfo().getOpenCmsContext());
+                contentBuffer.append(n.getText());
+                continue;
+              }
+            }
           }
+          bodyContent=contentBuffer.toString();
         }
-        bodyContent=contentBuffer.toString();
+      }
+      if (bodyContent == null) {
+        throw new Exception("Body content not found");
+      }
+      bodyContent=CmsStringSubstitution.substitute(bodyContent,I_CmsWpConstants.C_MACRO_OPENCMS_CONTEXT,OpenCms.getSystemInfo().getOpenCmsContext());
+      if (!"".equals(bodyContent.trim())) {
+        xmlPage.addElement(bodyName,locale);
+        xmlPage.setContent(cms,bodyName,locale,bodyContent);
       }
     }
-    if (bodyContent == null) {
-      throw new Exception("Body content not found");
-    }
-    bodyContent=CmsStringSubstitution.substitute(bodyContent,I_CmsWpConstants.C_MACRO_OPENCMS_CONTEXT,OpenCms.getSystemInfo().getOpenCmsContext());
-    xmlPage.addElement(body,locale);
-    xmlPage.setContent(cms,body,locale,bodyContent);
     return xmlPage;
   }
  catch (  Exception exc) {
