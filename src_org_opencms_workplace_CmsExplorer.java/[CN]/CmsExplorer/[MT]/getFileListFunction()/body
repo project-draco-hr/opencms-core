@@ -86,12 +86,14 @@
   content.append(currentFolder);
   content.append("\");\n");
   content.append("top.rD();\n\n");
-  int filelist=getDefaultPreferences(getCms());
-  boolean showTitle=(filelist & I_CmsWpConstants.C_FILELIST_TITLE) > 0;
-  boolean showDateChanged=(filelist & I_CmsWpConstants.C_FILELIST_CHANGED) > 0;
-  boolean showOwner=(filelist & I_CmsWpConstants.C_FILELIST_OWNER) > 0;
-  boolean showGroup=(filelist & I_CmsWpConstants.C_FILELIST_GROUP) > 0;
-  boolean showSize=(filelist & I_CmsWpConstants.C_FILELIST_SIZE) > 0;
+  int preferences=getDefaultPreferences(getCms());
+  boolean showTitle=(preferences & I_CmsWpConstants.C_FILELIST_TITLE) > 0;
+  boolean showPermissions=(preferences & I_CmsWpConstants.C_FILELIST_PERMISSIONS) > 0;
+  boolean showSize=(preferences & I_CmsWpConstants.C_FILELIST_SIZE) > 0;
+  boolean showDateLastModified=(preferences & I_CmsWpConstants.C_FILELIST_DATE_LASTMODIFIED) > 0;
+  boolean showUserWhoLastModified=(preferences & I_CmsWpConstants.C_FILELIST_USER_LASTMODIFIED) > 0;
+  boolean showDateCreated=(preferences & I_CmsWpConstants.C_FILELIST_DATE_CREATED) > 0;
+  boolean showUserWhoCreated=(preferences & I_CmsWpConstants.C_FILELIST_USER_CREATED) > 0;
   Vector resources=getRessources(getCms(),getSettings().getExplorerMode(),getSettings().getExplorerFolder());
   int startat=0;
   int stopat=resources.size();
@@ -144,16 +146,6 @@
     }
     content.append(res.getType());
     content.append(",");
-    if (showDateChanged) {
-      content.append("\"");
-      content.append(getSettings().getMessages().getDateTime(res.getDateLastModified()));
-      content.append("\",");
-    }
- else {
-      content.append("\"\",");
-    }
-    content.append("\"\",");
-    content.append("\"\",");
     if (res.isFolder() || (!showSize)) {
       content.append("\"\",");
     }
@@ -165,7 +157,36 @@
     content.append(",");
     content.append(res.getProjectId());
     content.append(",");
-    if (showOwner) {
+    if (showDateLastModified) {
+      content.append("\"");
+      content.append(getSettings().getMessages().getDateTime(res.getDateLastModified()));
+      content.append("\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    if (showUserWhoLastModified) {
+      content.append("\"");
+      try {
+        content.append(getCms().readUser(res.getResourceLastModifiedBy()).getName());
+      }
+ catch (      CmsException e) {
+        content.append(e.getMessage());
+      }
+      content.append("\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    if (showDateCreated) {
+      content.append("\"");
+      content.append(getSettings().getMessages().getDateTime(res.getDateCreated()));
+      content.append("\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    if (showUserWhoCreated) {
       content.append("\"");
       try {
         content.append(getCms().readUser(res.getOwnerId()).getName());
@@ -178,10 +199,10 @@
  else {
       content.append("\"\",");
     }
-    if (showGroup) {
+    if (showPermissions) {
       content.append("\"");
       try {
-        content.append(getCms().readGroup(res).getName());
+        content.append(getCms().getPermissions(getCms().readAbsolutePath(res)).getPermissionString());
       }
  catch (      CmsException e) {
         content.append(e.getMessage());
@@ -191,8 +212,6 @@
  else {
       content.append("\"\",");
     }
-    content.append(res.getAccessFlags());
-    content.append(",");
     if (res.isLockedBy().isNullUUID()) {
       content.append("\"\",");
     }
