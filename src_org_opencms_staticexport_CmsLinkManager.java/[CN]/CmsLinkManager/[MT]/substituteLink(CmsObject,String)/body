@@ -2,13 +2,7 @@
   if (link == null || "".equals(link)) {
     return "";
   }
-  String absoluteLink;
-  if (!link.startsWith("/")) {
-    absoluteLink=Utils.mergeAbsolutePath(cms.getRequestContext().getUri(),link);
-  }
- else {
-    absoluteLink=link;
-  }
+  String absoluteLink=OpenCms.getLinkManager().getAbsoluteUri(link,cms.getRequestContext().getUri());
   String vfsName;
   String parameters;
   int pos=absoluteLink.indexOf('?');
@@ -21,38 +15,38 @@
     parameters=null;
   }
   String resultLink=null;
-  boolean exportRequired=false;
-  if (OpenCms.getStaticExportManager().isStaticExportEnabled() && cms.getRequestContext().currentProject().isOnlineProject()) {
-    try {
-      resultLink=OpenCms.getStaticExportManager().getCachedOnlineLink(vfsName);
-      if (resultLink == null) {
-        String exportValue=cms.readProperty(vfsName,I_CmsConstants.C_PROPERTY_EXPORT,true);
-        if (exportValue == null) {
-          if (OpenCms.getStaticExportManager().getExportPropertyDefault()) {
-            exportRequired=true;
-          }
- else {
-            exportRequired=OpenCms.getStaticExportManager().isSuffixExportable(vfsName);
-          }
+  String uriBaseName=null;
+  boolean useRelativeLinks=false;
+  if (cms.getRequestContext().currentProject().isOnlineProject()) {
+    if (OpenCms.getStaticExportManager().relativLinksInExport()) {
+      uriBaseName=OpenCms.getStaticExportManager().getCachedOnlineLink(cms.getRequestContext().getUri());
+      if (uriBaseName == null) {
+        if (exportRequired(cms,cms.getRequestContext().getUri())) {
+          uriBaseName=OpenCms.getStaticExportManager().getRfsName(cms,cms.getRequestContext().getUri());
         }
  else {
-          exportRequired="true".equalsIgnoreCase(exportValue.trim());
+          uriBaseName=OpenCms.getStaticExportManager().getVfsPrefix() + cms.getRequestContext().getUri();
         }
+        OpenCms.getStaticExportManager().cacheOnlineLink(cms.getRequestContext().getUri(),uriBaseName);
+      }
+      useRelativeLinks=uriBaseName.startsWith(OpenCms.getStaticExportManager().getRfsPrefix());
+    }
+    resultLink=OpenCms.getStaticExportManager().getCachedOnlineLink(vfsName);
+    if (resultLink == null) {
+      if (exportRequired(cms,vfsName)) {
+        resultLink=OpenCms.getStaticExportManager().getRfsName(cms,vfsName);
+      }
+ else {
+        resultLink=OpenCms.getStaticExportManager().getVfsPrefix() + vfsName;
       }
     }
- catch (    Throwable t) {
+    OpenCms.getStaticExportManager().cacheOnlineLink(vfsName,resultLink);
+    if (useRelativeLinks) {
+      resultLink=getRelativeUri(uriBaseName,resultLink);
     }
   }
-  if (resultLink == null) {
-    if (!exportRequired) {
-      resultLink=OpenCms.getStaticExportManager().getVfsPrefix() + vfsName;
-    }
  else {
-      resultLink=OpenCms.getStaticExportManager().getRfsName(cms,vfsName);
-    }
-    if (cms.getRequestContext().currentProject().isOnlineProject()) {
-      OpenCms.getStaticExportManager().cacheOnlineLink(vfsName,resultLink);
-    }
+    resultLink=OpenCms.getStaticExportManager().getVfsPrefix() + vfsName;
   }
   if (parameters != null) {
     return resultLink + parameters;
