@@ -1,0 +1,40 @@
+{
+  int todo=0;
+  if (m_file == null) {
+    throw new CmsXmlException("File not available to resolve element mappings");
+  }
+  String filename=cms.getSitePath(m_file);
+  Locale locale=(Locale)OpenCms.getLocaleManager().getDefaultLocales(cms,filename).get(0);
+  List typeSequence=m_contentDefinition.getTypeSequence();
+  Iterator i=typeSequence.iterator();
+  while (i.hasNext()) {
+    I_CmsXmlSchemaType type=(I_CmsXmlSchemaType)i.next();
+    String name=type.getNodeName();
+    int count=getIndexCount(name,locale);
+    if (count > 0) {
+      String mapping=m_contentDefinition.getMapping(name);
+      if (!CmsStringUtil.isEmpty(mapping)) {
+        I_CmsXmlContentValue value=getValue(name,locale,0);
+        String stringValue=value.getStringValue(cms,this);
+        if (mapping.startsWith(C_MAPTO_PROPERTY)) {
+          String property=mapping.substring(C_MAPTO_PROPERTY.length());
+          cms.writePropertyObject(filename,new CmsProperty(property,stringValue,null));
+        }
+ else         if (mapping.startsWith(C_MAPTO_ATTRIBUTE)) {
+          String attribute=mapping.substring(C_MAPTO_ATTRIBUTE.length());
+          if ("datereleased".equals(attribute)) {
+            long date=Long.valueOf(stringValue).longValue();
+            m_file.setDateReleased(date);
+          }
+ else           if ("dateexpired".equals(attribute)) {
+            long date=Long.valueOf(stringValue).longValue();
+            if (date == 0) {
+              date=CmsResource.DATE_EXPIRED_DEFAULT;
+            }
+            m_file.setDateExpired(date);
+          }
+        }
+      }
+    }
+  }
+}

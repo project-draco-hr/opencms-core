@@ -1,0 +1,32 @@
+{
+  int pos=m_paramNewLink.indexOf('|');
+  String filterName=m_paramNewLink.substring(0,pos);
+  String param=m_paramNewLink.substring(pos + 1);
+  String newFileName;
+  int todo=0;
+  CmsXmlDefaultContentFilter filter=new CmsXmlDefaultContentFilter();
+  try {
+    newFileName=filter.getCreateLink(getCms(),filterName,param);
+    CmsFile templateFile=getCms().readFile(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
+    CmsXmlContent template=CmsXmlContentFactory.unmarshal(getCms(),templateFile);
+    Locale defaultLocale=(Locale)OpenCms.getLocaleManager().getDefaultLocales(getCms(),getParamResource()).get(0);
+    CmsXmlContent newContent=new CmsXmlContent(template.getContentDefinition(new CmsXmlEntityResolver(getCms())),defaultLocale,template.getEncoding());
+    getCms().createResource(newFileName,11);
+    CmsFile newFile=getCms().readFile(newFileName,CmsResourceFilter.IGNORE_EXPIRATION);
+    newFile.setContents(newContent.marshal());
+    getCms().writeFile(newFile);
+    setParamNewLink(null);
+    setParamContent(null);
+    setParamAction(null);
+    setParamResource(newFileName);
+    setAction(ACTION_DEFAULT);
+    initContent();
+    setParamContent(encodeContent(getParamContent()));
+  }
+ catch (  CmsException e) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error accessing XML content filter '" + m_paramNewLink + "'",e);
+    }
+    throw new JspException(e);
+  }
+}

@@ -1,5 +1,29 @@
 {
   m_encoding=CmsEncoder.lookupEncoding(encoding,encoding);
   m_document=document;
-  initBookmarks();
+  m_elementLocales=new HashMap();
+  m_elementNames=new HashMap();
+  if (!NODE_PAGES.equals(m_document.getRootElement().getName())) {
+    convertOldDocument();
+  }
+  Element pages=m_document.getRootElement();
+  try {
+    for (Iterator i=pages.elementIterator(NODE_PAGE); i.hasNext(); ) {
+      Element page=(Element)i.next();
+      Locale locale=CmsLocaleManager.getLocale(page.attributeValue(ATTRIBUTE_LANGUAGE));
+      int pos=0;
+      for (Iterator j=page.elementIterator(NODE_ELEMENT); j.hasNext(); ) {
+        Element element=(Element)j.next();
+        String name=element.attributeValue(ATTRIBUTE_NAME);
+        String elementEnabled=element.attributeValue(ATTRIBUTE_ENABLED);
+        boolean enabled=(elementEnabled == null) ? true : Boolean.valueOf(elementEnabled).booleanValue();
+        CmsXmlHtmlValue value=new CmsXmlHtmlValue(element,NODE_ELEMENT,pos);
+        addBookmark(name,locale,enabled,value);
+        pos++;
+      }
+    }
+  }
+ catch (  NullPointerException e) {
+    OpenCms.getLog(this).error("Error while initalizing XML page bookmarks",e);
+  }
 }

@@ -12,31 +12,30 @@
     List tree=getSubtree(cms,source);
     for (int i=0, n=tree.size(); i < n; i++) {
       CmsResource resource=(CmsResource)tree.get(i);
-      String name=resource.getName().toLowerCase();
-      if (name.endsWith(".txt") || name.endsWith(".jsp")) {
-        modifyResourceInRfs(cms,resource,null);
-      }
- else       if (name.endsWith(".html")) {
-        modifyResourceInRfs(cms,resource,C_NO_CONTENT_XML_PAGE);
+      int type=resource.getTypeId();
+      if (((type == CmsResourceTypePlain.C_RESOURCE_TYPE_ID)) || (type == CmsResourceTypeJsp.C_RESOURCE_TYPE_ID) || (type == CmsResourceTypeXmlPage.C_RESOURCE_TYPE_ID)) {
+        touchResourceInRfs(cms,resource,syncSettings);
       }
     }
+    Thread.sleep(4000);
     new CmsSynchronize(cms,new CmsShellReport());
     for (int i=0, n=tree.size(); i < n; i++) {
       CmsResource vfsResource=(CmsResource)tree.get(i);
-      String name=vfsResource.getName().toLowerCase();
-      if (name.endsWith(".txt") || name.endsWith(".jsp") || name.endsWith(".html")) {
-        assertState(cms,cms.getSitePath(vfsResource),I_CmsConstants.C_STATE_CHANGED);
-        String path=syncSettings.getDestinationPathInRfs() + CmsResource.getFolderPath(cms.getSitePath(vfsResource));
-        File rfsResource=new File(path,name);
-        assertDateLastModifiedAfter(cms,cms.getSitePath(vfsResource),rfsResource.lastModified());
+      int type=vfsResource.getTypeId();
+      String vfsname=cms.getSitePath(vfsResource);
+      System.out.println("( " + i + " / "+ (n - 1)+ " ) Checking "+ vfsname);
+      if (((type == CmsResourceTypePlain.C_RESOURCE_TYPE_ID)) || (type == CmsResourceTypeJsp.C_RESOURCE_TYPE_ID) || (type == CmsResourceTypeXmlPage.C_RESOURCE_TYPE_ID)) {
+        assertState(cms,vfsname,I_CmsConstants.C_STATE_CHANGED);
+        File rfsResource=new File(getRfsPath(cms,vfsResource,syncSettings));
+        assertDateLastModifiedAfter(cms,vfsname,rfsResource.lastModified());
       }
  else {
-        assertState(cms,cms.getSitePath(vfsResource),I_CmsConstants.C_STATE_UNCHANGED);
+        assertState(cms,vfsname,I_CmsConstants.C_STATE_UNCHANGED);
       }
     }
   }
   finally {
     echo("Purging directory " + OpenCms.getSystemInfo().getSynchronizeSettings().getDestinationPathInRfs());
-    CmsStaticExportManager.purgeDirectory(new File(getTestDataPath() + "sync/"));
+    CmsFileUtil.purgeDirectory(new File(getTestDataPath() + "sync/"));
   }
 }

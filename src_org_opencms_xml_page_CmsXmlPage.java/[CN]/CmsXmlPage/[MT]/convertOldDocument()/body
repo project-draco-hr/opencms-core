@@ -1,0 +1,37 @@
+{
+  Document newDocument=DocumentHelper.createDocument();
+  Element root=newDocument.addElement(NODE_PAGES);
+  root.add(I_CmsXmlSchemaType.XSI_NAMESPACE);
+  root.addAttribute(I_CmsXmlSchemaType.XSI_NAMESPACE_ATTRIBUTE_NO_SCHEMA_LOCATION,C_XMLPAGE_XSD_SYSTEM_ID);
+  Map pages=new HashMap();
+  for (Iterator i=m_document.getRootElement().element(NODE_ELEMENTS).elementIterator(NODE_ELEMENT); i.hasNext(); ) {
+    Element elem=(Element)i.next();
+    try {
+      String elementName=elem.attributeValue(ATTRIBUTE_NAME);
+      String elementLang=elem.attributeValue(ATTRIBUTE_LANGUAGE);
+      String elementEnabled=elem.attributeValue(ATTRIBUTE_ENABLED);
+      boolean enabled=(elementEnabled == null) ? true : Boolean.valueOf(elementEnabled).booleanValue();
+      Element page=(Element)pages.get(elementLang);
+      if (page == null) {
+        page=root.addElement(NODE_PAGE).addAttribute(ATTRIBUTE_LANGUAGE,elementLang);
+        pages.put(elementLang,page);
+      }
+      Element newElement=page.addElement(NODE_ELEMENT).addAttribute(ATTRIBUTE_NAME,elementName);
+      if (!enabled) {
+        newElement.addAttribute(ATTRIBUTE_ENABLED,String.valueOf(enabled));
+      }
+      Element links=elem.element(NODE_LINKS);
+      if (links != null) {
+        newElement.add(links.createCopy());
+      }
+      Element content=elem.element(NODE_CONTENT);
+      if (content != null) {
+        newElement.add(content.createCopy());
+      }
+    }
+ catch (    NullPointerException e) {
+      OpenCms.getLog(this).error("Error while converting old xmlPage content",e);
+    }
+  }
+  m_document=newDocument;
+}

@@ -1,0 +1,39 @@
+{
+  byte[] content=file.getContents();
+  String filename=cms.getSitePath(file);
+  String encoding=null;
+  try {
+    encoding=cms.readPropertyObject(filename,I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,true).getValue();
+  }
+ catch (  CmsException e) {
+  }
+  if (encoding == null) {
+    encoding=OpenCms.getSystemInfo().getDefaultEncoding();
+  }
+ else {
+    encoding=CmsEncoder.lookupEncoding(encoding,null);
+    if (encoding == null) {
+      throw new CmsXmlException("Invalid content-encoding property set for xml content '" + filename + "'");
+    }
+  }
+  CmsXmlContent newContent;
+  if (content.length > 0) {
+    if (keepEncoding) {
+      newContent=unmarshal(content,encoding,new CmsXmlEntityResolver(cms));
+    }
+ else {
+      try {
+        String contentStr=new String(content,encoding);
+        newContent=unmarshal(contentStr,encoding,new CmsXmlEntityResolver(cms));
+      }
+ catch (      UnsupportedEncodingException e) {
+        throw new CmsXmlException("Invalid content-encoding property set for xml content '" + filename + "'");
+      }
+    }
+  }
+ else {
+    newContent=new CmsXmlContent(encoding,new CmsXmlEntityResolver(cms));
+  }
+  newContent.setFile(file);
+  return newContent;
+}

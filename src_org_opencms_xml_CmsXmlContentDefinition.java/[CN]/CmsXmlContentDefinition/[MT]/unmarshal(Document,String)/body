@@ -1,0 +1,137 @@
+{
+  Element root=document.getRootElement();
+  if (!XSD_NODE_SCHEMA.equals(root.getQName())) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  List includes=root.elements(XSD_NODE_INCLUDE);
+  if (includes.size() != 1) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  Element include=(Element)includes.get(0);
+  Attribute target=include.attribute(XSD_ATTRIBUTE_SCHEMA_LOCATION);
+  if (!XSD_INCLUDE_OPENCMS.equals(target.getValue())) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  List elements=root.elements(XSD_NODE_ELEMENT);
+  if (includes.size() != 1) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  Element main=(Element)elements.get(0);
+  Attribute nameAttr=main.attribute(XSD_ATTRIBUTE_NAME);
+  Attribute typeAttr=main.attribute(XSD_ATTRIBUTE_TYPE);
+  if ((nameAttr == null) || (typeAttr == null)) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  String name=nameAttr.getValue();
+  if (!name.endsWith("s")) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  name=name.substring(0,name.length() - 1);
+  if (name.length() == 0) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  String listName=createListName(name);
+  String typeName=createTypeName(name);
+  if (!listName.equals(typeAttr.getValue())) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  List complexTypes=root.elements(XSD_NODE_COMPLEXTYPE);
+  if (complexTypes.size() != 2) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  Element complex1=(Element)complexTypes.get(0);
+  Element complex2=(Element)complexTypes.get(1);
+  String name1=complex1.attributeValue(XSD_ATTRIBUTE_NAME);
+  String name2=complex2.attributeValue(XSD_ATTRIBUTE_NAME);
+  if (!(listName.equals(name1) || listName.equals(name2))) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  if (!(typeName.equals(name1) || typeName.equals(name2))) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  Element listElement;
+  Element typeElement;
+  if (listName.equals(name1)) {
+    listElement=complex1;
+    typeElement=complex2;
+  }
+ else {
+    listElement=complex2;
+    typeElement=complex1;
+  }
+  Element listSequence=(Element)listElement.elements().get(0);
+  if (!XSD_NODE_SEQUENCE.equals(listSequence.getQName())) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  Element listSequenceElement=(Element)listSequence.elements().get(0);
+  if (!XSD_NODE_ELEMENT.equals(listSequenceElement.getQName())) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  if (!name.equals(listSequenceElement.attributeValue(XSD_ATTRIBUTE_NAME))) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  if (!typeName.equals(listSequenceElement.attributeValue(XSD_ATTRIBUTE_TYPE))) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  if (!XSD_ATTRIBUTE_VALUE_ZERO.equals(listSequenceElement.attributeValue(XSD_ATTRIBUTE_MIN_OCCURS))) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  if (!XSD_ATTRIBUTE_VALUE_UNBOUNDED.equals(listSequenceElement.attributeValue(XSD_ATTRIBUTE_MAX_OCCURS))) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  List typeElements=typeElement.elements();
+  if ((typeElements.size() != 2) && (typeElements.size() != 3)) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  Element type1=(Element)typeElements.get(0);
+  Element type2=(Element)typeElements.get(1);
+  Element typeSequence=null;
+  Element typeAttribute=null;
+  if (XSD_NODE_SEQUENCE.equals(type1.getQName())) {
+    typeSequence=type1;
+  }
+  if (XSD_NODE_ATTRIBUTE.equals(type2.getQName())) {
+    typeAttribute=type2;
+  }
+  if ((typeSequence == null) || (typeAttribute == null)) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  if (!XSD_ATTRIBUTE_VALUE_LANGUAGE.equals(typeAttribute.attributeValue(XSD_ATTRIBUTE_NAME))) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  if (!CmsXmlLocaleValue.C_TYPE_NAME.equals(typeAttribute.attributeValue(XSD_ATTRIBUTE_TYPE))) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  if (!XSD_ATTRIBUTE_VALUE_REQUIRED.equals(typeAttribute.attributeValue(XSD_ATTRIBUTE_USE))) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  List typeSequenceElements=typeSequence.elements();
+  if (typeSequenceElements.size() < 1) {
+    throw new CmsXmlException("Invalid OpenCms content definition XML schema structure");
+  }
+  CmsXmlContentTypeManager typeManager=CmsXmlContentTypeManager.getTypeManager();
+  CmsXmlContentDefinition result=new CmsXmlContentDefinition(name,schemaLocation);
+  Iterator i=typeSequenceElements.iterator();
+  while (i.hasNext()) {
+    result.addType(typeManager.getContentType((Element)i.next()));
+  }
+  List annotations=root.elements(XSD_NODE_ANNOTATION);
+  if (annotations.size() > 0) {
+    List appinfos=((Element)annotations.get(0)).elements(XSD_NODE_APPINFO);
+    if (appinfos.size() > 0) {
+      i=((Element)appinfos.get(0)).elements().iterator();
+      while (i.hasNext()) {
+        Element appinfo=(Element)i.next();
+        if (appinfo.getName().equals("mapping")) {
+          String key=appinfo.attributeValue("element");
+          String value=appinfo.attributeValue("mapto");
+          if ((key != null) && (value != null)) {
+            result.addMapping(key,value);
+          }
+        }
+      }
+    }
+  }
+  result.freeze();
+  return result;
+}

@@ -1,0 +1,29 @@
+{
+  StringBuffer result=new StringBuffer(128);
+  try {
+    String fileName=getParamResource();
+    CmsFile file=getCms().readFile(fileName,CmsResourceFilter.IGNORE_EXPIRATION);
+    CmsXmlContent content=CmsXmlContentFactory.unmarshal(getCms(),file);
+    CmsXmlContentDefinition contentDefinition=content.getContentDefinition(new CmsXmlEntityResolver(getCms()));
+    int todo=0;
+    Locale locale=(Locale)content.getLocales().get(0);
+    result.append("<table class=\"xmlTable\">\n");
+    List typeSequence=contentDefinition.getTypeSequence();
+    Iterator i=typeSequence.iterator();
+    while (i.hasNext()) {
+      I_CmsXmlSchemaType type=(I_CmsXmlSchemaType)i.next();
+      String name=type.getNodeName();
+      int count=content.getIndexCount(name,locale);
+      for (int j=0; j < count; j++) {
+        I_CmsXmlContentValue value=content.getValue(name,locale,j);
+        I_CmsXmlWidget widget=CmsXmlContentTypeManager.getTypeManager().getEditorWidget(value.getTypeName());
+        result.append(widget.getEditorWidget(getCms(),content,this,value));
+      }
+    }
+    result.append("</table>\n");
+  }
+ catch (  Throwable t) {
+    OpenCms.getLog(this).error("Error in XML editor",t);
+  }
+  return result.toString();
+}
