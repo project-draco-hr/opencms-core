@@ -1,6 +1,6 @@
 {
-  CmsFolder newFolder=null;
-  CmsFolder onlineFolder=null;
+  CmsResource newFolder=null;
+  CmsResource onlineFolder=null;
   List offlineProperties=null;
   try {
     report.print("( " + m + " / "+ n+ " ) "+ report.key("report.publishing.folder"),I_CmsReport.C_FORMAT_NOTE);
@@ -11,7 +11,7 @@
         newFolder=(CmsFolder)offlineFolder.clone();
         newFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
         newFolder.setFullResourceName(offlineFolder.getRootPath());
-        onlineFolder=m_driverManager.getVfsDriver().createFolder(onlineProject,newFolder,newFolder.getParentStructureId());
+        onlineFolder=m_driverManager.getVfsDriver().createResource(onlineProject,newFolder,null);
         onlineFolder.setFullResourceName(offlineFolder.getRootPath());
       }
  catch (      CmsException e) {
@@ -19,7 +19,7 @@
           try {
             onlineFolder=m_driverManager.getVfsDriver().readFolder(onlineProject.getId(),newFolder.getStructureId());
             onlineFolder.setFullResourceName(offlineFolder.getRootPath());
-            m_driverManager.getVfsDriver().writeResource(onlineProject,onlineFolder,offlineFolder,false);
+            m_driverManager.getVfsDriver().publishResource(onlineProject,onlineFolder,offlineFolder,false);
           }
  catch (          CmsException e1) {
             if (OpenCms.getLog(this).isErrorEnabled()) {
@@ -41,30 +41,22 @@
         onlineFolder=m_driverManager.getVfsDriver().readFolder(onlineProject.getId(),offlineFolder.getStructureId());
         onlineFolder.setFullResourceName(offlineFolder.getRootPath());
       }
- catch (      CmsException e) {
-        if (e.getType() == CmsException.C_NOT_FOUND) {
-          try {
-            onlineFolder=m_driverManager.getVfsDriver().createFolder(onlineProject,offlineFolder,offlineFolder.getParentStructureId());
-            onlineFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
-            onlineFolder.setFullResourceName(offlineFolder.getRootPath());
-            m_driverManager.getVfsDriver().writeResourceState(context.currentProject(),onlineFolder,CmsDriverManager.C_UPDATE_ALL);
-          }
- catch (          CmsException e1) {
-            if (OpenCms.getLog(this).isErrorEnabled()) {
-              OpenCms.getLog(this).error("Error creating resource " + offlineFolder.toString(),e1);
-            }
-            throw e1;
-          }
+ catch (      CmsVfsResourceNotFoundException e) {
+        try {
+          onlineFolder=m_driverManager.getVfsDriver().createResource(onlineProject,offlineFolder,null);
+          onlineFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+          onlineFolder.setFullResourceName(offlineFolder.getRootPath());
+          m_driverManager.getVfsDriver().writeResourceState(context.currentProject(),onlineFolder,CmsDriverManager.C_UPDATE_ALL);
         }
- else {
+ catch (        CmsException e1) {
           if (OpenCms.getLog(this).isErrorEnabled()) {
-            OpenCms.getLog(this).error("Error reading resource " + offlineFolder.toString(),e);
+            OpenCms.getLog(this).error("Error creating resource " + offlineFolder.toString(),e1);
           }
-          throw e;
+          throw e1;
         }
       }
       try {
-        m_driverManager.getVfsDriver().writeResource(onlineProject,onlineFolder,offlineFolder,false);
+        m_driverManager.getVfsDriver().publishResource(onlineProject,onlineFolder,offlineFolder,false);
       }
  catch (      CmsException e) {
         if (OpenCms.getLog(this).isErrorEnabled()) {

@@ -1,0 +1,32 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  try {
+    if (writeBackup) {
+      conn=m_sqlManager.getConnectionForBackup();
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_FILES_WRITE_BACKUP");
+    }
+ else {
+      conn=m_sqlManager.getConnection(project);
+      stmt=m_sqlManager.getPreparedStatement(conn,project,"C_FILES_WRITE");
+    }
+    stmt.setString(1,contentId.toString());
+    if (content.length < 2000) {
+      stmt.setBytes(2,content);
+    }
+ else {
+      stmt.setBinaryStream(2,new ByteArrayInputStream(content),content.length);
+    }
+    if (writeBackup) {
+      stmt.setInt(3,versionId);
+      stmt.setString(4,new CmsUUID().toString());
+    }
+    stmt.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,null);
+  }
+}

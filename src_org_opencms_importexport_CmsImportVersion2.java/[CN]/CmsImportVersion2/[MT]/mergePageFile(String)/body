@@ -1,13 +1,8 @@
 {
-  Document contentXml=null;
-  CmsFile bodyfile=null;
-  String mastertemplate="";
-  String bodyname="";
-  String bodyclass="";
-  Map bodyparams=null;
-  CmsFile pagefile=m_cms.readFile(resname);
-  contentXml=CmsImport.getXmlDocument(pagefile.getContents());
+  CmsFile pagefile=m_cms.readFile(resourcename);
+  Document contentXml=CmsImport.getXmlDocument(pagefile.getContents());
   List masterTemplateNode=contentXml.selectNodes("//masterTemplate");
+  String mastertemplate=null;
   if (masterTemplateNode.size() == 1) {
     mastertemplate=((Element)masterTemplateNode.get(0)).getTextTrim();
   }
@@ -17,6 +12,7 @@
     List nodes=bodyElement.elements();
     int i;
     Node node=null;
+    String bodyclass=null;
     for (i=0; i < nodes.size(); i++) {
       node=(Node)nodes.get(i);
       if ("CLASS".equals(node.getName())) {
@@ -24,16 +20,18 @@
         break;
       }
     }
+    String bodyname=null;
     for (i=0; i < nodes.size(); i++) {
       node=(Node)nodes.get(i);
       if ("TEMPLATE".equals(node.getName())) {
         bodyname=((Element)node).getTextTrim();
         if (!bodyname.startsWith("/")) {
-          bodyname=CmsResource.getFolderPath(resname) + bodyname;
+          bodyname=CmsResource.getFolderPath(resourcename) + bodyname;
         }
         break;
       }
     }
+    Map bodyparams=null;
     for (i=0; i < nodes.size(); i++) {
       node=(Node)nodes.get(i);
       if ("PARAMETER".equals(node.getName())) {
@@ -44,46 +42,55 @@
         bodyparams.put((paramElement.attribute("name")).getText(),paramElement.getTextTrim());
       }
     }
-    m_cms.lockResource(resname);
-    List properties=m_cms.readPropertyObjects(resname,false);
-    bodyfile=m_cms.readFile(bodyname);
+    if ((mastertemplate == null) || (bodyname == null)) {
+      throw new CmsException("Could not merge page file '" + resourcename + "', bad XML structure!");
+    }
+    m_cms.lockResource(resourcename);
+    List properties=m_cms.readPropertyObjects(resourcename,false);
+    CmsFile bodyfile=m_cms.readFile(bodyname);
     String encoding=null;
     encoding=CmsProperty.get(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,properties).getValue();
     if (encoding == null) {
       encoding=OpenCms.getSystemInfo().getDefaultEncoding();
     }
     if (m_convertToXmlPage) {
-      CmsXmlPage xmlPage=CmsXmlPageConverter.convertToXmlPage(m_cms,new String(bodyfile.getContents(),encoding),"body",getLocale(resname,properties),encoding);
+      CmsXmlPage xmlPage=CmsXmlPageConverter.convertToXmlPage(m_cms,new String(bodyfile.getContents(),encoding),"body",getLocale(resourcename,properties),encoding);
       if (xmlPage != null) {
         pagefile.setContents(xmlPage.marshal());
         pagefile.setType(CmsResourceTypeXmlPage.C_RESOURCE_TYPE_ID);
         pagefile.setLoaderId(CmsXmlPageLoader.C_RESOURCE_LOADER_ID);
       }
     }
-    m_cms.writeFile(pagefile);
-    m_cms.writePropertyObject(resname,new CmsProperty(I_CmsConstants.C_PROPERTY_TEMPLATE,mastertemplate,null));
+    CmsProperty newProperty;
+    newProperty=new CmsProperty(I_CmsConstants.C_PROPERTY_TEMPLATE,mastertemplate,null);
+    properties.remove(newProperty);
+    properties.add(newProperty);
     if (bodyclass != null && !"".equals(bodyclass)) {
-      m_cms.writePropertyObject(resname,new CmsProperty(I_CmsConstants.C_PROPERTY_BODY_CLASS,bodyclass,null));
+      newProperty=new CmsProperty(I_CmsConstants.C_PROPERTY_TEMPLATE,mastertemplate,null);
+      newProperty.setAutoCreatePropertyDefinition(true);
+      properties.remove(newProperty);
+      properties.add(newProperty);
     }
     if (bodyparams != null) {
       for (Iterator p=bodyparams.keySet().iterator(); p.hasNext(); ) {
         String key=(String)p.next();
-        m_cms.writePropertyObject(resname,new CmsProperty(key,(String)bodyparams.get(key),null));
+        newProperty=new CmsProperty(key,(String)bodyparams.get(key),null);
+        newProperty.setAutoCreatePropertyDefinition(true);
+        properties.remove(newProperty);
+        properties.add(newProperty);
       }
     }
-    CmsProperty.setAutoCreatePropertyDefinitions(properties,true);
-    m_cms.writePropertyObjects(resname,properties);
-    m_cms.touch(resname,pagefile.getDateLastModified(),I_CmsConstants.C_DATE_UNCHANGED,I_CmsConstants.C_DATE_UNCHANGED,pagefile.getUserLastModified(),false);
-    m_cms.unlockResource(resname,false);
+    m_cms.importResource(resourcename,pagefile,pagefile.getContents(),properties);
+    m_cms.unlockResource(resourcename);
     m_cms.lockResource(bodyname);
     m_cms.deleteResource(bodyname,I_CmsConstants.C_DELETE_OPTION_IGNORE_SIBLINGS);
     m_report.println(" " + m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
   }
  else {
-    m_cms.lockResource(resname);
+    m_cms.lockResource(resourcename);
     pagefile.setType(CmsResourceTypePlain.C_RESOURCE_TYPE_ID);
     m_cms.writeFile(pagefile);
-    m_cms.unlockResource(resname,false);
+    m_cms.unlockResource(resourcename);
     m_report.println(" " + m_report.key("report.notconverted"),I_CmsReport.C_FORMAT_OK);
   }
 }

@@ -6,68 +6,45 @@
     List allFolders=readChangedResourcesInsideProject(context,projectId,CmsResourceTypeFolder.C_RESOURCE_TYPE_ID);
     for (int i=0; i < allFiles.size(); i++) {
       CmsFile currentFile=(CmsFile)allFiles.get(i);
-      String currentResourceName=readPath(context,currentFile,CmsResourceFilter.ALL);
       if (currentFile.getState() == I_CmsConstants.C_STATE_NEW) {
         CmsLock lock=getLock(context,currentFile);
         if (lock.isNullLock()) {
-          lockResource(context,currentResourceName);
+          lockResource(context,currentFile,CmsLock.C_MODE_COMMON);
         }
  else         if (!lock.getUserId().equals(context.currentUser().getId()) || lock.getProjectId() != context.currentProject().getId()) {
-          changeLock(context,currentResourceName);
+          changeLock(context,currentFile);
         }
         m_vfsDriver.deleteProperties(projectId,currentFile,CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
         m_vfsDriver.removeFile(context.currentProject(),currentFile,true);
         m_userDriver.removeAccessControlEntries(context.currentProject(),currentFile.getResourceId());
       }
- else       if (currentFile.getState() == I_CmsConstants.C_STATE_CHANGED) {
+ else       if ((currentFile.getState() == I_CmsConstants.C_STATE_CHANGED) || (currentFile.getState() == I_CmsConstants.C_STATE_DELETED)) {
         CmsLock lock=getLock(context,currentFile);
         if (lock.isNullLock()) {
-          lockResource(context,currentResourceName);
+          lockResource(context,currentFile,CmsLock.C_MODE_COMMON);
         }
  else         if (!lock.getUserId().equals(context.currentUser().getId()) || lock.getProjectId() != context.currentProject().getId()) {
-          changeLock(context,currentResourceName);
+          changeLock(context,currentFile);
         }
-        undoChanges(context,currentResourceName);
-      }
- else       if (currentFile.getState() == I_CmsConstants.C_STATE_DELETED) {
-        undeleteResource(context,currentResourceName);
-        CmsLock lock=getLock(context,currentFile);
-        if (lock.isNullLock()) {
-          lockResource(context,currentResourceName);
-        }
- else         if (!lock.getUserId().equals(context.currentUser().getId()) || lock.getProjectId() != context.currentProject().getId()) {
-          changeLock(context,currentResourceName);
-        }
-        undoChanges(context,currentResourceName);
+        undoChanges(context,currentFile);
       }
       OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",currentFile)));
     }
     for (int i=0; i < allFolders.size(); i++) {
       CmsFolder currentFolder=(CmsFolder)allFolders.get(i);
-      String currentResourceName=readPath(context,currentFolder,CmsResourceFilter.ALL);
       CmsLock lock=getLock(context,currentFolder);
       if (currentFolder.getState() == I_CmsConstants.C_STATE_NEW) {
         m_vfsDriver.deleteProperties(projectId,currentFolder,CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
         deletedFolders.addElement(currentFolder);
       }
- else       if (currentFolder.getState() == I_CmsConstants.C_STATE_CHANGED) {
+ else       if ((currentFolder.getState() == I_CmsConstants.C_STATE_CHANGED) || (currentFolder.getState() == I_CmsConstants.C_STATE_DELETED)) {
         if (lock.isNullLock()) {
-          lockResource(context,currentResourceName);
+          lockResource(context,currentFolder,CmsLock.C_MODE_COMMON);
         }
  else         if (!lock.getUserId().equals(context.currentUser().getId()) || lock.getProjectId() != context.currentProject().getId()) {
-          changeLock(context,currentResourceName);
+          changeLock(context,currentFolder);
         }
-        undoChanges(context,currentResourceName);
-      }
- else       if (currentFolder.getState() == I_CmsConstants.C_STATE_DELETED) {
-        undeleteResource(context,currentResourceName);
-        if (lock.isNullLock()) {
-          lockResource(context,currentResourceName);
-        }
- else         if (!lock.getUserId().equals(context.currentUser().getId()) || lock.getProjectId() != context.currentProject().getId()) {
-          changeLock(context,currentResourceName);
-        }
-        undoChanges(context,currentResourceName);
+        undoChanges(context,currentFolder);
       }
       OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",currentFolder)));
     }

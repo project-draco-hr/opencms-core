@@ -1,0 +1,122 @@
+{
+  CmsResource newResource=null;
+  try {
+    boolean useLostAndFound=importCase && !OpenCms.getImportExportManager().overwriteCollidingResources();
+    CmsResource currentResource=null;
+    try {
+      currentResource=readFileHeader(context,resourcename,CmsResourceFilter.IGNORE_EXPIRATION);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+    }
+    CmsResource parentFolder;
+    String parentFolderName;
+    String createdResourceName=resourcename;
+    if (currentResource != null) {
+      if (!resource.isFolder() && useLostAndFound && (!currentResource.getResourceId().equals(resource.getResourceId()))) {
+        createdResourceName=moveToLostAndFound(context,resourcename,false);
+        currentResource=null;
+      }
+    }
+    parentFolderName=CmsResource.getParentFolder(createdResourceName);
+    parentFolder=readFolder(context,parentFolderName,CmsResourceFilter.IGNORE_EXPIRATION);
+    if (currentResource == null) {
+      checkPermissions(context,parentFolder,I_CmsConstants.C_WRITE_ACCESS,false,CmsResourceFilter.IGNORE_EXPIRATION);
+    }
+ else {
+      checkPermissions(context,currentResource,I_CmsConstants.C_WRITE_ACCESS,!importCase,CmsResourceFilter.IGNORE_EXPIRATION);
+    }
+    String targetName=CmsResource.getName(createdResourceName);
+    CmsUUID contentId;
+    int contentLength;
+    if (resource.isFolder()) {
+      contentId=CmsUUID.getNullUUID();
+      contentLength=-1;
+      if (targetName.charAt(targetName.length() - 1) == '/') {
+        targetName=targetName.substring(0,targetName.length() - 1);
+      }
+    }
+ else {
+      if (currentResource == null) {
+        if (!resource.getContentId().isNullUUID()) {
+          contentId=resource.getContentId();
+          if (content != null) {
+            contentLength=content.length;
+          }
+ else {
+            contentLength=resource.getLength();
+          }
+        }
+ else {
+          contentId=new CmsUUID();
+          if (content != null) {
+            contentLength=content.length;
+          }
+ else {
+            content=new byte[0];
+            contentLength=0;
+          }
+        }
+      }
+ else {
+        contentId=currentResource.getContentId();
+        if (content != null) {
+          contentLength=content.length;
+        }
+ else {
+          contentLength=currentResource.getLength();
+        }
+      }
+    }
+    validFilename(targetName);
+    CmsUUID structureId;
+    CmsUUID resourceId;
+    if (currentResource != null) {
+      structureId=currentResource.getStructureId();
+      resourceId=currentResource.getResourceId();
+    }
+ else {
+      structureId=new CmsUUID();
+      if (!resource.getResourceId().isNullUUID()) {
+        resourceId=resource.getResourceId();
+      }
+ else {
+        resourceId=new CmsUUID();
+      }
+    }
+    newResource=new CmsResource(structureId,resourceId,parentFolder.getStructureId(),contentId,targetName,resource.getTypeId(),resource.getFlags(),context.currentProject().getId(),resource.getState(),resource.getLoaderId(),resource.getDateLastModified(),resource.getUserLastModified(),resource.getDateCreated(),resource.getUserCreated(),resource.getDateReleased(),resource.getDateExpired(),1,contentLength);
+    if (resource.isTouched()) {
+      newResource.setDateLastModified(resource.getDateLastModified());
+    }
+    newResource.setFullResourceName(createdResourceName);
+    if (resource.isFile()) {
+      if (labelResource(context,resource,resourcename,2)) {
+        int flags=resource.getFlags();
+        flags|=I_CmsConstants.C_RESOURCEFLAG_LABELLINK;
+        resource.setFlags(flags);
+      }
+      if (content == null) {
+        newResource.setState(I_CmsConstants.C_STATE_KEEP);
+      }
+    }
+    if (currentResource == null) {
+      newResource=m_vfsDriver.createResource(context.currentProject(),newResource,content);
+      newResource.setFullResourceName(createdResourceName);
+    }
+ else {
+      m_vfsDriver.writeResource(context.currentProject(),newResource,C_UPDATE_ALL);
+      if ((content != null) && resource.isFile()) {
+        m_vfsDriver.writeContent(context.currentProject(),newResource.getContentId(),content,false);
+      }
+    }
+    internalWritePropertyObjects(context,newResource,properties);
+    internalLockResource(context,newResource,CmsLock.C_MODE_COMMON);
+  }
+  finally {
+    clearAccessControlListCache();
+    m_propertyCache.clear();
+    if (newResource != null) {
+      OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_RESOURCE_CREATED,Collections.singletonMap("resource",newResource)));
+    }
+  }
+  return newResource;
+}

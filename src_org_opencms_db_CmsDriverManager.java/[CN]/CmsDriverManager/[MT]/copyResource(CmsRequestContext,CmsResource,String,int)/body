@@ -1,0 +1,51 @@
+{
+  boolean copyAsSibling=false;
+  if (!source.isFolder()) {
+    if (siblingMode == I_CmsConstants.C_COPY_AS_SIBLING) {
+      copyAsSibling=true;
+    }
+    if (siblingMode == I_CmsConstants.C_COPY_PRESERVE_SIBLING) {
+      if (source.getSiblingCount() > 1) {
+        copyAsSibling=true;
+      }
+    }
+  }
+  List properties=readPropertyObjects(context,source.getRootPath(),null,false);
+  if (copyAsSibling) {
+    createSibling(context,source,destination,properties);
+    return;
+  }
+  byte[] content=null;
+  if (source.isFile()) {
+    CmsFile file;
+    if (source instanceof CmsFile) {
+      file=(CmsFile)source;
+      content=file.getContents();
+    }
+    if ((content == null) || (content.length < 1)) {
+      file=m_vfsDriver.readFile(context.currentProject().getId(),false,source.getStructureId());
+      content=file.getContents();
+    }
+  }
+  String destinationFoldername=CmsResource.getParentFolder(destination);
+  String destinationResourceName=destination.substring(destinationFoldername.length());
+  if (CmsResource.isFolder(destinationResourceName)) {
+    destinationResourceName=destinationResourceName.substring(0,destinationResourceName.length() - 1);
+  }
+  CmsFolder destinationFolder=readFolder(context,destinationFoldername,CmsResourceFilter.IGNORE_EXPIRATION);
+  long currentTime=System.currentTimeMillis();
+  int flags=source.getFlags();
+  if (source.isLabeled()) {
+    flags&=~I_CmsConstants.C_RESOURCEFLAG_LABELLINK;
+  }
+  CmsResource newResource=new CmsResource(new CmsUUID(),new CmsUUID(),destinationFolder.getParentStructureId(),new CmsUUID(),destinationResourceName,source.getTypeId(),flags,context.currentProject().getId(),I_CmsConstants.C_STATE_NEW,source.getLoaderId(),currentTime,context.currentUser().getId(),currentTime,context.currentUser().getId(),source.getDateReleased(),source.getDateExpired(),1,source.getLength());
+  newResource.setFullResourceName(destination);
+  newResource=createResource(context,destination,newResource,content,properties,false);
+  internalCopyAccessControlEntries(context,source,newResource);
+  clearAccessControlListCache();
+  List modifiedResources=new ArrayList();
+  modifiedResources.add(source);
+  modifiedResources.add(newResource);
+  modifiedResources.add(destinationFolder);
+  OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_RESOURCE_COPIED,Collections.singletonMap("resources",modifiedResources)));
+}
