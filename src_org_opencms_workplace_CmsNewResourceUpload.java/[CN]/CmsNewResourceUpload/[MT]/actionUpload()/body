@@ -1,5 +1,6 @@
 {
   boolean unzipFile=Boolean.valueOf(getParamUnzipFile()).booleanValue();
+  String errorMsgSuffix="";
   try {
     Iterator i=getMultiPartFileItems().iterator();
     FileItem fi=null;
@@ -18,7 +19,8 @@
       long size=fi.getSize();
       long maxFileSizeBytes=OpenCms.getWorkplaceManager().getFileBytesMaxUploadSize(getCms());
       if (maxFileSizeBytes > 0 && size > maxFileSizeBytes) {
-        throw new CmsException("File size larger than maximum allowed upload size");
+        errorMsgSuffix="size";
+        throw new CmsException("File size larger than maximum allowed upload size, currently set to " + (maxFileSizeBytes / 1024) + " kb");
       }
       byte[] content=fi.get();
       fi.delete();
@@ -35,9 +37,14 @@
         setParamResource(newResname);
         setParamResource(computeFullResourceName());
         int resTypeId=computeFileType(newResname,contentType);
-        getCms().createResource(getParamResource(),resTypeId,Collections.EMPTY_LIST,content,null);
+        try {
+          getCms().createResource(getParamResource(),resTypeId,Collections.EMPTY_LIST,content,null);
+        }
+ catch (        CmsException e) {
+          getCms().lockResource(getParamResource(),true);
+          getCms().replaceResource(getParamResource(),resTypeId,null,content);
+        }
       }
-      fi.delete();
     }
  else {
       throw new CmsException("Upload file not found");
@@ -48,7 +55,7 @@
     getJsp().getRequest().setAttribute(C_SESSION_WORKPLACE_CLASS,this);
     setParamErrorstack(e.getStackTraceAsString());
     setParamMessage(key("error.message.upload"));
-    setParamReasonSuggestion(key("error.reason.upload") + "<br>\n" + key("error.suggestion.upload")+ "\n");
+    setParamReasonSuggestion(key("error.reason.upload" + errorMsgSuffix) + "<br>\n" + key("error.suggestion.upload" + errorMsgSuffix)+ "\n");
     getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
   }
 }
