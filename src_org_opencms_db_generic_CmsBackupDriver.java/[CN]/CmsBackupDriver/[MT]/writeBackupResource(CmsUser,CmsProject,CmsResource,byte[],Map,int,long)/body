@@ -3,36 +3,34 @@
   PreparedStatement stmt=null;
   String lastModifiedName=null;
   String createdName=null;
-  StringBuffer strBuf=null;
+  CmsUUID backupId=new CmsUUID();
   try {
-    strBuf=new StringBuffer();
-    CmsUser lastModified=m_driverManager.readUser(currentUser,publishProject,resource.getResourceLastModifiedBy());
-    strBuf.append(lastModified.getName());
-    strBuf.append(" ");
-    strBuf.append(lastModified.getFirstname());
-    strBuf.append(" ");
-    strBuf.append(lastModified.getLastname());
-    lastModifiedName=strBuf.toString();
-    strBuf=new StringBuffer();
+    CmsUser lastModified=m_driverManager.getUserDriver().readUser(resource.getResourceLastModifiedBy());
+    lastModifiedName=lastModified.getName() + " " + lastModified.getFirstname()+ " "+ lastModified.getLastname();
     CmsUser created=m_driverManager.readUser(currentUser,publishProject,resource.getOwnerId());
-    strBuf.append(created.getName());
-    strBuf.append(" ");
-    strBuf.append(created.getFirstname());
-    strBuf.append(" ");
-    strBuf.append(created.getLastname());
-    createdName=strBuf.toString();
+    createdName=created.getName() + " " + created.getFirstname()+ " "+ created.getLastname();
   }
  catch (  CmsException e) {
     lastModifiedName="";
     createdName="";
   }
   try {
-    if (resource.getType() != I_CmsConstants.C_TYPE_FOLDER) {
-      m_driverManager.getVfsDriver().createFileContent(resource.getFileId(),content,versionId,publishProject.getId(),true);
-    }
     conn=m_sqlManager.getConnectionForBackup();
+    if (resource.getType() != I_CmsConstants.C_TYPE_FOLDER) {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_FILES_WRITE_BACKUP");
+      stmt.setString(1,resource.getFileId().toString());
+      if (content.length < 2000) {
+        stmt.setBytes(2,content);
+      }
+ else {
+        stmt.setBinaryStream(2,new ByteArrayInputStream(content),content.length);
+      }
+      stmt.setInt(3,versionId);
+      stmt.setString(4,backupId.toString());
+      stmt.executeUpdate();
+    }
     stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_WRITE_BACKUP");
-    stmt.setString(1,resource.getId().toString());
+    stmt.setString(1,resource.getResourceId().toString());
     stmt.setInt(2,resource.getType());
     stmt.setInt(3,resource.getFlags());
     stmt.setString(4,resource.getFileId().toString());
@@ -42,12 +40,12 @@
     stmt.setTimestamp(8,new Timestamp(resource.getDateLastModified()));
     stmt.setInt(9,resource.getLength());
     stmt.setInt(10,versionId);
-    stmt.setString(11,new CmsUUID().toString());
+    stmt.setString(11,backupId.toString());
     stmt.executeUpdate();
     m_sqlManager.closeAll(null,stmt,null);
     stmt=m_sqlManager.getPreparedStatement(conn,"C_STRUCTURE_WRITE_BACKUP");
     stmt.setString(1,resource.getId().toString());
-    stmt.setString(2,CmsUUID.getNullUUID().toString());
+    stmt.setString(2,resource.getParentId().toString());
     stmt.setString(3,resource.getResourceId().toString());
     stmt.setInt(4,publishProject.getId());
     stmt.setString(5,resource.getResourceName());
@@ -59,7 +57,7 @@
     stmt.setString(11,lastModifiedName);
     stmt.setString(12,createdName);
     stmt.setInt(13,versionId);
-    stmt.setString(14,new CmsUUID().toString());
+    stmt.setString(14,backupId.toString());
     stmt.executeUpdate();
   }
  catch (  SQLException e) {
