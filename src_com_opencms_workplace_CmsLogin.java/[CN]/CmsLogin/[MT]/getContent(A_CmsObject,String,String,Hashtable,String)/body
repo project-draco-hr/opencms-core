@@ -33,9 +33,17 @@
     String actionPath=conf.getWorkplaceActionPath();
     if (!cms.anonymousUser().equals(cms.getRequestContext().currentUser())) {
       Integer currentProject=null;
+      session.removeValue(C_PARA_STARTPROJECTID);
       if (!startProjectId.equals("")) {
         currentProject=new Integer(startProjectId);
-        if (!cms.accessProject(currentProject.intValue())) {
+        boolean access=true;
+        try {
+          access=cms.accessProject(currentProject.intValue());
+        }
+ catch (        Exception e) {
+          access=false;
+        }
+        if (!access) {
           Hashtable startSettings=(Hashtable)cms.getRequestContext().currentUser().getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
           if (startSettings != null) {
             currentProject=(Integer)startSettings.get(C_START_PROJECT);
@@ -57,6 +65,7 @@
       }
       try {
         cms.getRequestContext().getResponse().sendCmsRedirect(actionPath + "index.html");
+        return "".getBytes();
       }
  catch (      Exception e) {
         throw new CmsException(e.getMessage());
@@ -93,7 +102,14 @@
       if (startProjectId != null && (!startProjectId.equals(""))) {
         currentProject=new Integer(startProjectId);
         session.removeValue(C_PARA_STARTPROJECTID);
-        if (!cms.accessProject(currentProject.intValue())) {
+        boolean access=true;
+        try {
+          access=cms.accessProject(currentProject.intValue());
+        }
+ catch (        Exception e) {
+          access=false;
+        }
+        if (!access) {
           Hashtable startSettings=(Hashtable)cms.getRequestContext().currentUser().getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
           if (startSettings != null) {
             currentProject=(Integer)startSettings.get(C_START_PROJECT);
@@ -123,16 +139,24 @@
  else {
     session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(false);
     if (session != null) {
-      String[] valueNames=session.getValueNames();
-      int numValues=valueNames.length;
-      for (int i=0; i < numValues; i++) {
-        if ((!startTaskId.equals("")) && (valueNames[i].equals(C_PARA_STARTTASKID) || valueNames[i].equals(C_PARA_VIEW))) {
-          continue;
-        }
-        if ((!startProjectId.equals("")) && valueNames[i].equals(C_PARA_STARTPROJECTID)) {
-          continue;
-        }
-        session.removeValue(valueNames[i]);
+      String projectid=(String)session.getValue(C_PARA_STARTPROJECTID);
+      String taskid=(String)session.getValue(C_PARA_STARTTASKID);
+      String view=(String)session.getValue(C_PARA_VIEW);
+      if (projectid == null) {
+        projectid="";
+      }
+      if (taskid == null) {
+        taskid="";
+        view="";
+      }
+      session.invalidate();
+      session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+      if (!projectid.equals("")) {
+        session.putValue(C_PARA_STARTPROJECTID,projectid);
+      }
+      if (!taskid.equals("")) {
+        session.putValue(C_PARA_STARTTASKID,taskid);
+        session.putValue(C_PARA_VIEW,view);
       }
     }
   }
