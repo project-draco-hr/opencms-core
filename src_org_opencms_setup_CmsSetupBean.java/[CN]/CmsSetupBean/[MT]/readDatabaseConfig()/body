@@ -1,0 +1,66 @@
+{
+  String databaseKey=null;
+  FileInputStream input=null;
+  String configPath=null;
+  Properties databaseProperties=null;
+  File databaseSetupFolder=null;
+  File[] childResources=null;
+  File childResource=null;
+  File setupFile=null;
+  boolean hasMissingSetupFiles=false;
+  m_databaseKeys=(List)new ArrayList();
+  m_databaseProperties=(Map)new HashMap();
+  try {
+    databaseSetupFolder=new File(m_webAppRfsPath + File.separator + "setup"+ File.separator+ "database");
+    if (databaseSetupFolder.exists()) {
+      childResources=databaseSetupFolder.listFiles();
+      if (childResources != null) {
+        for (int i=0; i < childResources.length; i++) {
+          childResource=childResources[i];
+          hasMissingSetupFiles=false;
+          if (childResource.exists() && childResource.isDirectory() && childResource.canRead()) {
+            for (int j=0; j < requiredDbSetupFiles.length; j++) {
+              setupFile=new File(childResource.getPath() + File.separator + requiredDbSetupFiles[j]);
+              if (!setupFile.exists() || !setupFile.isFile() || !setupFile.canRead()) {
+                hasMissingSetupFiles=true;
+                System.err.println("[" + getClass().getName() + "] missing or unreadable database setup file: "+ setupFile.getPath());
+                break;
+              }
+              if (!hasMissingSetupFiles) {
+                m_databaseKeys.add(childResource.getName().trim());
+              }
+            }
+          }
+        }
+      }
+      for (int i=0; i < m_databaseKeys.size(); i++) {
+        databaseKey=(String)m_databaseKeys.get(i);
+        configPath=m_webAppRfsPath + "setup" + File.separator+ "database"+ File.separator+ databaseKey+ File.separator+ "database.properties";
+        try {
+          input=new FileInputStream(new File(configPath));
+          databaseProperties=new Properties();
+          databaseProperties.load(input);
+          m_databaseProperties.put(databaseKey,databaseProperties);
+        }
+ catch (        Exception e) {
+          System.err.println(e.toString());
+          e.printStackTrace(System.err);
+          continue;
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    System.err.println(e.toString());
+    e.printStackTrace(System.err);
+  }
+ finally {
+    try {
+      if (input != null) {
+        input.close();
+      }
+    }
+ catch (    Exception e) {
+    }
+  }
+}

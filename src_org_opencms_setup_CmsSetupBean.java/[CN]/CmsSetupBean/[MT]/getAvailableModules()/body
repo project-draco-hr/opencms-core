@@ -1,0 +1,59 @@
+{
+  File packagesFolder=null;
+  File[] childResources=null;
+  File childResource=null;
+  Document manifest=null;
+  String moduleName=null;
+  String moduleNiceName=null;
+  String moduleVersion=null;
+  String moduleDescription=null;
+  List dependencyNodes=null;
+  List moduleDependencies=null;
+  Element rootElement=null;
+  Element moduleDependency=null;
+  String moduleDependencyName=null;
+  Map module=null;
+  try {
+    m_availableModules=(Map)new HashMap();
+    m_moduleDependencies=(Map)new HashMap();
+    packagesFolder=new File(m_webAppRfsPath + "WEB-INF" + File.separator+ "packages"+ File.separator+ "modules");
+    if (packagesFolder.exists()) {
+      childResources=packagesFolder.listFiles();
+      if (childResources != null) {
+        for (int i=0; i < childResources.length; i++) {
+          childResource=childResources[i];
+          if (childResource.exists() && childResource.canRead() && (manifest=getManifest(childResource)) != null) {
+            rootElement=manifest.getRootElement();
+            moduleName=((Element)rootElement.selectNodes("//export/module/name").get(0)).getTextTrim();
+            moduleNiceName=((Element)rootElement.selectNodes("//export/module/nicename").get(0)).getTextTrim();
+            moduleVersion=((Element)rootElement.selectNodes("//export/module/version").get(0)).getTextTrim();
+            moduleDescription=((Element)rootElement.selectNodes("//export/module/description").get(0)).getTextTrim();
+            dependencyNodes=rootElement.selectNodes("//export/module/dependencies/dependency");
+            for (int j=0; j < dependencyNodes.size(); j++) {
+              moduleDependency=(Element)dependencyNodes.get(j);
+              moduleDependencyName=((Element)moduleDependency.selectNodes("./name").get(0)).getTextTrim();
+              moduleDependencies=(List)m_moduleDependencies.get(moduleDependencyName);
+              if (moduleDependencies == null) {
+                moduleDependencies=(List)new ArrayList();
+                m_moduleDependencies.put(moduleDependencyName,moduleDependencies);
+              }
+              moduleDependencies.add(moduleName);
+            }
+            module=(Map)new HashMap();
+            module.put("name",moduleName);
+            module.put("niceName",moduleNiceName);
+            module.put("version",moduleVersion);
+            module.put("description",moduleDescription);
+            module.put("filename",childResource.getName());
+            m_availableModules.put(moduleName,module);
+          }
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    System.err.println(e.toString());
+    e.printStackTrace(System.err);
+  }
+  return m_availableModules;
+}
