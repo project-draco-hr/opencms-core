@@ -1,0 +1,187 @@
+{
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  String action=(String)parameters.get("action");
+  String initial=(String)parameters.get(C_PARA_INITIAL);
+  if (initial != null && action == null) {
+    session.removeValue(C_PARA_FOLDER);
+    session.removeValue("lasturl");
+  }
+  String lasturl=getLastUrl(cms,parameters);
+  if (lasturl != null) {
+    session.putValue("lasturl",lasturl);
+  }
+  lasturl=(String)session.getValue("lasturl");
+  String foldername=(String)parameters.get(C_PARA_FOLDER);
+  if (foldername != null) {
+    try {
+      CmsFolder fold=cms.readFolder(foldername);
+      if (!(fold.getParent().equals(C_LINKGALLERY_ROOTFOLDER))) {
+        foldername=C_LINKGALLERY_ROOTFOLDER;
+      }
+      if (fold.getState() == C_STATE_DELETED) {
+        foldername=C_LINKGALLERY_ROOTFOLDER;
+      }
+    }
+ catch (    CmsException exc) {
+      foldername=C_LINKGALLERY_ROOTFOLDER;
+    }
+    parameters.put(C_PARA_FOLDER,foldername);
+    session.putValue(C_PARA_FOLDER,foldername);
+    if (foldername.equals(C_LINKGALLERY_ROOTFOLDER) && templateFile.endsWith("administration_head_extlinkgalleries2")) {
+      xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,"/system/workplace/administration/externallinksgallery/administration_head_extlinkgalleries1",elementName,parameters,templateSelector);
+    }
+  }
+ else {
+    foldername=(String)session.getValue(C_PARA_FOLDER);
+  }
+  String newname=(String)parameters.get(C_PARA_NAME);
+  String title=(String)parameters.get("TITLE");
+  String step=(String)parameters.get("step");
+  String imagedescription=(String)parameters.get("DESCRIPTION");
+  if (foldername == null) {
+    foldername="";
+  }
+  if ("new".equals(action)) {
+    String galleryname=(String)parameters.get("NAME");
+    String group=(String)parameters.get("GROUP");
+    if (galleryname != null && group != null && galleryname != "" && group != "") {
+      boolean read=parameters.get("READ") != null;
+      boolean write=parameters.get("WRITE") != null;
+      try {
+        CmsResource folder=cms.createResource(C_LINKGALLERY_ROOTFOLDER,galleryname,C_TYPE_FOLDER_NAME);
+        if (title != null) {
+          cms.writeProperty(folder.getAbsolutePath(),C_PROPERTY_TITLE,title);
+        }
+        cms.chgrp(folder.getAbsolutePath(),group);
+        int flag=folder.getAccessFlags();
+        if (read != ((flag & C_ACCESS_PUBLIC_READ) != 0)) {
+          flag^=C_ACCESS_PUBLIC_READ;
+        }
+        if (write != ((flag & C_ACCESS_PUBLIC_WRITE) != 0)) {
+          flag^=C_ACCESS_PUBLIC_WRITE;
+        }
+        if ((flag & C_ACCESS_GROUP_READ) == 0) {
+          flag^=C_ACCESS_GROUP_READ;
+        }
+        if ((flag & C_ACCESS_GROUP_WRITE) == 0) {
+          flag^=C_ACCESS_GROUP_WRITE;
+        }
+        if ((flag & C_ACCESS_GROUP_VISIBLE) == 0) {
+          flag^=C_ACCESS_GROUP_VISIBLE;
+        }
+        if ((flag & C_ACCESS_OWNER_READ) == 0) {
+          flag^=C_ACCESS_OWNER_READ;
+        }
+        if ((flag & C_ACCESS_OWNER_WRITE) == 0) {
+          flag^=C_ACCESS_OWNER_WRITE;
+        }
+        if ((flag & C_ACCESS_OWNER_VISIBLE) == 0) {
+          flag^=C_ACCESS_OWNER_VISIBLE;
+        }
+        if ((flag & C_ACCESS_PUBLIC_VISIBLE) == 0) {
+          flag^=C_ACCESS_PUBLIC_VISIBLE;
+        }
+        cms.chmod(folder.getAbsolutePath(),flag);
+        cms.unlockResource(folder.getAbsolutePath());
+      }
+ catch (      CmsException ex) {
+        xmlTemplateDocument.setData("ERRORDETAILS",Utils.getStackTrace(ex));
+        templateSelector="error";
+      }
+    }
+ else {
+      templateSelector="datamissing";
+    }
+  }
+ else {
+    if ("newlink".equals(action)) {
+      boolean checkurl=true;
+      String error="";
+      if (initial != null) {
+        session.removeValue("extlink.filename");
+        session.removeValue("extlink.linkurl");
+        session.removeValue("lasturl");
+      }
+      String filename=cms.getRequestContext().getRequest().getParameter(C_PARA_FILE);
+      if (filename != null) {
+        session.putValue("extlink.filename",filename);
+      }
+ else {
+        filename=(String)session.getValue("extlink.filename") != null ? (String)session.getValue("extlink.filename") : "";
+      }
+      String link=cms.getRequestContext().getRequest().getParameter(C_PARA_LINK);
+      if (link != null) {
+        session.putValue("extlink.linkurl",link);
+      }
+ else {
+        link=(String)session.getValue("extlink.linkurl") != null ? (String)session.getValue("extlink.linkurl") : "";
+      }
+      xmlTemplateDocument.setData("LINKNAME",filename);
+      xmlTemplateDocument.setData("LINKVALUE",link);
+      if (step != null) {
+        if (step.equals("1") || step.equals("2")) {
+          foldername=(String)session.getValue(C_PARA_FOLDER);
+          if (foldername == null) {
+            foldername=cms.rootFolder().getAbsolutePath();
+          }
+          CmsXmlLanguageFile lang=xmlTemplateDocument.getLanguageFile();
+          String firstTitlePart=lang.getLanguageValue("explorer.linkto") + " " + link;
+          String type="link";
+          Hashtable prop=new Hashtable();
+          prop.put(C_PROPERTY_TITLE,firstTitlePart);
+          try {
+            if (step.equals("1")) {
+              checkurl=CmsLinkCheck.checkUrl(link);
+            }
+            if (checkurl) {
+              cms.createResource(foldername,filename,type,prop,link.getBytes());
+            }
+          }
+ catch (          CmsException e) {
+            error=e.getShortException();
+          }
+        }
+        if (checkurl && ("".equals(error.trim()))) {
+          session.removeValue("extlink.filename");
+          session.removeValue("extlink.linkurl");
+          try {
+            if (lasturl != null) {
+              cms.getRequestContext().getResponse().sendRedirect(lasturl);
+            }
+ else {
+              cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceAdministrationPath() + "/externallinkgallery/");
+            }
+          }
+ catch (          Exception e) {
+            throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceAdministrationPath() + "/externallinkgallery/",CmsException.C_UNKNOWN_EXCEPTION,e);
+          }
+          return null;
+        }
+      }
+ else {
+        session.removeValue("extlink.filename");
+        session.removeValue("extlink.linkurl");
+      }
+      if (lasturl == null) {
+        lasturl=C_WP_EXPLORER_FILELIST;
+      }
+      xmlTemplateDocument.setData("lasturl",lasturl);
+      if (!checkurl) {
+        xmlTemplateDocument.setData("folder",foldername);
+        session.putValue("extlink.linkurl",link);
+        session.putValue("extlink.filename",filename);
+        templateSelector="errorcheckurl";
+      }
+      if (!"".equals(error.trim())) {
+        xmlTemplateDocument.setData("errordetails",error);
+        session.putValue("extlink.linkurl",link);
+        session.putValue("extlink.filename",filename);
+        templateSelector="error";
+      }
+    }
+  }
+  xmlTemplateDocument.setData("link_value",foldername);
+  xmlTemplateDocument.setData("lasturl",lasturl);
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
