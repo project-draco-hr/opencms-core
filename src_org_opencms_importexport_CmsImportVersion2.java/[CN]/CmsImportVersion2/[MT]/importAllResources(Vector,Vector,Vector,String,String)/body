@@ -1,9 +1,10 @@
 {
   List fileNodes=null, acentryNodes=null;
   Element currentElement=null, currentEntry=null;
-  String source=null, destination=null, type=null, timestamp=null, uuid=null, uuidfile=null, uuidresource=null;
+  String source=null, destination=null, resourceTypeName=null, timestamp=null, uuid=null, uuidfile=null, uuidresource=null;
   long lastmodified=0;
-  int resType;
+  int resourceTypeId=I_CmsConstants.C_UNKNOWN_ID;
+  int resourceTypeLoaderId=I_CmsConstants.C_UNKNOWN_ID;
   Map properties=null;
   boolean old_overwriteCollidingResources=false;
   if (m_importingChannelData) {
@@ -39,15 +40,18 @@
       currentElement=(Element)fileNodes.get(i);
       source=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_SOURCE);
       destination=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DESTINATION);
-      type=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_TYPE);
-      if (C_RESOURCE_TYPE_NEWPAGE_NAME.equals(type)) {
-        resType=C_RESOURCE_TYPE_NEWPAGE_ID;
+      resourceTypeName=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_TYPE);
+      if (C_RESOURCE_TYPE_NEWPAGE_NAME.equals(resourceTypeName)) {
+        resourceTypeId=C_RESOURCE_TYPE_NEWPAGE_ID;
+        resourceTypeLoaderId=(m_cms.getResourceType(resourceTypeId)).getLoaderId();
       }
- else       if (C_RESOURCE_TYPE_PAGE_NAME.equals(type)) {
-        resType=C_RESOURCE_TYPE_PAGE_ID;
+ else       if (C_RESOURCE_TYPE_PAGE_NAME.equals(resourceTypeName)) {
+        resourceTypeId=CmsResourceTypePlain.C_RESOURCE_TYPE_ID;
+        resourceTypeLoaderId=(m_cms.getResourceType(resourceTypeId)).getLoaderId();
       }
  else {
-        resType=m_cms.getResourceTypeId(type);
+        resourceTypeId=m_cms.getResourceTypeId(resourceTypeName);
+        resourceTypeLoaderId=(m_cms.getResourceType(resourceTypeId)).getLoaderId();
       }
       uuid=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDSTRUCTURE);
       uuidfile=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDCONTENT);
@@ -58,11 +62,11 @@
  else {
         lastmodified=System.currentTimeMillis();
       }
-      if ("script".equals(type)) {
-        type=CmsResourceTypePlain.C_RESOURCE_TYPE_NAME;
+      if ("script".equals(resourceTypeName)) {
+        resourceTypeName=CmsResourceTypePlain.C_RESOURCE_TYPE_NAME;
       }
       String translatedName=m_cms.getRequestContext().addSiteRoot(m_importPath + destination);
-      if (CmsResourceTypeFolder.C_RESOURCE_TYPE_NAME.equals(type)) {
+      if (CmsResourceTypeFolder.C_RESOURCE_TYPE_NAME.equals(resourceTypeName)) {
         translatedName+=I_CmsConstants.C_FOLDER_SEPARATOR;
       }
       translatedName=m_cms.getRequestContext().getDirectoryTranslator().translateResource(translatedName);
@@ -75,8 +79,8 @@
         m_report.print(m_report.key("report.importing"),I_CmsReport.C_FORMAT_NOTE);
         m_report.print(translatedName);
         m_report.print(m_report.key("report.dots"));
-        properties=getPropertiesFromXml(currentElement,resType,propertyName,propertyValue,deleteProperties);
-        CmsResource res=importResource(source,destination,uuid,uuidfile,uuidresource,type,lastmodified,properties,writtenFilenames,fileCodes);
+        properties=getPropertiesFromXml(currentElement,resourceTypeId,propertyName,propertyValue,deleteProperties);
+        CmsResource res=importResource(source,destination,uuid,uuidfile,uuidresource,resourceTypeId,resourceTypeName,resourceTypeLoaderId,lastmodified,properties,writtenFilenames,fileCodes);
         if (res != null) {
           acentryNodes=currentElement.selectNodes("*/" + I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_ENTRY);
           for (int j=0; j < acentryNodes.size(); j++) {
