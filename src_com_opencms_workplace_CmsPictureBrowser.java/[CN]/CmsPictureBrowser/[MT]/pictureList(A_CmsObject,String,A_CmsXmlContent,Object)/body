@@ -1,6 +1,8 @@
 {
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
   Hashtable parameters=(Hashtable)userObj;
   CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)doc;
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
   StringBuffer result=new StringBuffer();
   String pageText=(String)parameters.get(C_PARA_PAGE);
   Vector filteredPics=(Vector)parameters.get("_PICLIST_");
@@ -8,9 +10,17 @@
   int page=new Integer(pageText).intValue();
   int from=(page - 1) * C_PICBROWSER_MAXIMAGES;
   int to=((from + C_PICBROWSER_MAXIMAGES) > numPics) ? numPics : (from + C_PICBROWSER_MAXIMAGES);
-  String picsUrl=getConfigFile(cms).getCommonPictureUrl();
+  String folder=(String)parameters.get(C_PARA_FOLDER);
+  if (folder == null) {
+    folder=(String)session.getValue(C_PARA_FOLDER);
+  }
+  if (folder == null || "".equals(folder)) {
+    folder=getConfigFile(cms).getDownGalleryPath();
+    parameters.put(C_PARA_FOLDER,folder);
+  }
   HttpServletRequest req=(HttpServletRequest)(cms.getRequestContext().getRequest().getOriginalRequest());
   String hostName=req.getScheme() + "://" + req.getHeader("HOST");
+  String picsUrl=req.getServletPath() + folder;
   for (int i=from; i < to; i++) {
     CmsFile file=(CmsFile)filteredPics.elementAt(i);
     String filename=file.getName();
@@ -29,7 +39,7 @@
       type=filename.substring(filename.lastIndexOf(".") + 1).toUpperCase() + "-Bild";
     }
  else {
-      type="unbekannt";
+      type=lang.getDataValue("input.unknown");
     }
     xmlTemplateDocument.setData("picsource",hostName + picsUrl + file.getName());
     xmlTemplateDocument.setData("title",title);
