@@ -1,9 +1,7 @@
 {
-  System.err.println("### And still the content is:");
-  System.err.println(getXmlText());
+  Vector cdatas=new Vector();
   String datablockName=this.getTemplateDatablockName(templateSelector);
   Element data=getData(datablockName);
-  System.err.println("+++++++++ " + getDataValue(datablockName));
   StringBuffer result=new StringBuffer();
   Document tempDoc=(Document)getXmlDocument().cloneNode(true);
   Element rootElem=tempDoc.getDocumentElement();
@@ -12,14 +10,15 @@
   }
   data=(Element)getXmlParser().importNode(tempDoc,data);
   rootElem.appendChild(data);
-  Node n=data;
-  Vector cdatas=new Vector();
-  while (n != null) {
-    if (n.getNodeType() == n.CDATA_SECTION_NODE) {
-      cdatas.addElement(n.getNodeValue());
-      n.setNodeValue("");
+  if (html) {
+    Node n=data;
+    while (n != null) {
+      if (n.getNodeType() == n.CDATA_SECTION_NODE) {
+        cdatas.addElement(n.getNodeValue());
+        n.setNodeValue("");
+      }
+      n=treeWalker(n);
     }
-    n=treeWalker(n);
   }
   StringWriter out=new StringWriter();
   getXmlParser().getXmlText(tempDoc,out);
@@ -36,18 +35,21 @@
     xmlString=xmlString.substring(endOpeningBodyTag,startClosingBodyTag);
     xmlString=xmlString.trim();
   }
-  int cdataStart=xmlString.indexOf("<![CDATA[");
-  int currentPos=0;
-  int loop=0;
-  result.append("<HTML>\n<HEAD></HEAD>\n");
-  result.append("<BODY " + getProcessedDataValue("bodytag",callingObject,parameters) + ">\n");
-  while (cdataStart != -1) {
-    result.append(xmlString.substring(currentPos,cdataStart).replace('<','[').replace('>',']'));
-    result.append((String)cdatas.elementAt(loop++));
-    cdataStart=xmlString.indexOf("<![CDATA[",cdataStart + 1);
-    currentPos=xmlString.indexOf("]]>",currentPos + 1) + 3;
+  if (html) {
+    int cdataStart=xmlString.indexOf("<![CDATA[");
+    int currentPos=0;
+    int loop=0;
+    result.append("<HTML>\n<HEAD></HEAD>\n");
+    result.append("<BODY " + getProcessedDataValue("bodytag",callingObject,parameters) + ">\n");
+    while (cdataStart != -1) {
+      result.append(xmlString.substring(currentPos,cdataStart).replace('<','[').replace('>',']'));
+      result.append((String)cdatas.elementAt(loop++));
+      cdataStart=xmlString.indexOf("<![CDATA[",cdataStart + 1);
+      currentPos=xmlString.indexOf("]]>",currentPos + 1) + 3;
+    }
+    result.append(xmlString.substring(currentPos).replace('<','[').replace('>',']'));
+    result.append("\n</BODY>\n</HTML>");
+    xmlString=result.toString();
   }
-  result.append(xmlString.substring(currentPos).replace('<','[').replace('>',']'));
-  result.append("\n</BODY>\n</HTML>");
-  return result.toString();
+  return xmlString;
 }
