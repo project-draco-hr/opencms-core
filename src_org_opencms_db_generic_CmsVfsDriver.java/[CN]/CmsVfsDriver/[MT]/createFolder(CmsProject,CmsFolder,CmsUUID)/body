@@ -1,16 +1,7 @@
 {
-  if (foldername.length() > I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME) {
-    throw new CmsException("The resource name '" + foldername + "' is too long! (max. allowed length must be <= "+ I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME+ " chars.!)",CmsException.C_BAD_NAME);
-  }
-  CmsFolder oldFolder=null;
   int state=0;
-  CmsUUID modifiedByUserId=user.getId();
-  if (folder.getUserLastModified().equals(CmsUUID.getNullUUID())) {
-    modifiedByUserId=folder.getUserLastModified();
-  }
-  CmsUUID userCreatedId=user.getId();
-  if (folder.getUserCreated().equals(CmsUUID.getNullUUID())) {
-    userCreatedId=folder.getUserCreated();
+  if (folder.getResourceName().length() > I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME) {
+    throw new CmsException("The resource name '" + folder.getResourceName() + "' is too long! (max. allowed length must be <= "+ I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME+ " chars.!)",CmsException.C_BAD_NAME);
   }
   long dateModified=folder.getDateLastModified();
   if (dateModified == 0) {
@@ -22,14 +13,12 @@
   }
   if (project.getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
     state=folder.getState();
-    modifiedByUserId=folder.getUserLastModified();
-    dateModified=folder.getDateLastModified();
   }
  else {
     state=I_CmsConstants.C_STATE_NEW;
   }
   try {
-    oldFolder=readFolder(project.getId(),parentId,foldername);
+    CmsFolder oldFolder=readFolder(project.getId(),parentId,folder.getResourceName());
     if (oldFolder.getState() == I_CmsConstants.C_STATE_DELETED) {
       throw new CmsException("[" + this.getClass().getName() + "] ",CmsException.C_FILE_EXISTS);
     }
@@ -52,7 +41,7 @@
     stmt.setString(1,folder.getId().toString());
     stmt.setString(2,parentId.toString());
     stmt.setString(3,folder.getResourceId().toString());
-    stmt.setString(4,foldername);
+    stmt.setString(4,folder.getResourceName());
     stmt.setInt(5,state);
     stmt.executeUpdate();
     m_sqlManager.closeAll(null,stmt,null);
@@ -64,9 +53,9 @@
       stmt.setString(4,CmsUUID.getNullUUID().toString());
       stmt.setInt(5,folder.getLoaderId());
       stmt.setTimestamp(6,new Timestamp(dateCreated));
-      stmt.setString(7,userCreatedId.toString());
+      stmt.setString(7,folder.getUserCreated().toString());
       stmt.setTimestamp(8,new Timestamp(dateModified));
-      stmt.setString(9,modifiedByUserId.toString());
+      stmt.setString(9,folder.getUserLastModified().toString());
       stmt.setInt(10,state);
       stmt.setInt(11,folder.getLength());
       stmt.setString(12,CmsUUID.getNullUUID().toString());
@@ -102,7 +91,7 @@
  catch (      CmsException exc) {
       }
       if (rootFolder == null) {
-        createProjectResource(project.getId(),foldername);
+        createProjectResource(project.getId(),folder.getResourceName());
       }
     }
  catch (    CmsException e) {

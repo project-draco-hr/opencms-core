@@ -1,28 +1,38 @@
 {
+  long dateLastModified=0;
+  long dateCreated=0;
+  CmsUUID userLastModified=null;
+  CmsUUID userCreated=null;
   CmsResource newResource=null;
   String destinationFoldername=null;
   String destinationResourceName=null;
   validFilename(destination.replace('/','a'));
   destinationFoldername=destination.substring(0,destination.substring(0,destination.length() - 1).lastIndexOf("/") + 1);
   destinationResourceName=destination.substring(destinationFoldername.length());
-  if (destinationResourceName.endsWith("/"))   destinationResourceName=destinationResourceName.substring(0,destinationResourceName.length() - 1);
+  if (destinationResourceName.endsWith("/")) {
+    destinationResourceName=destinationResourceName.substring(0,destinationResourceName.length() - 1);
+  }
   CmsFolder destinationFolder=readFolder(context,destinationFoldername);
   CmsFolder sourceFolder=readFolder(context,source);
   checkPermissions(context,destinationFolder,I_CmsConstants.C_WRITE_ACCESS);
-  long dateLastModified=0;
-  long dateCreated=0;
-  CmsUUID userLastModified=context.currentUser().getId();
-  CmsUUID userCreated=context.currentUser().getId();
   if (preserveTimestaps) {
     dateLastModified=sourceFolder.getDateLastModified();
     dateCreated=sourceFolder.getDateCreated();
     userLastModified=sourceFolder.getUserLastModified();
     userCreated=sourceFolder.getUserCreated();
   }
-  newResource=m_vfsDriver.createFolder(context.currentUser(),context.currentProject(),destinationFolder.getId(),CmsUUID.getNullUUID(),destinationResourceName,sourceFolder.getFlags(),dateLastModified,userLastModified,dateCreated,userCreated);
+ else {
+    dateLastModified=System.currentTimeMillis();
+    dateCreated=System.currentTimeMillis();
+    userLastModified=context.currentUser().getId();
+    userCreated=context.currentUser().getId();
+  }
+  newResource=m_vfsDriver.createFolder(context.currentProject(),destinationFolder.getId(),CmsUUID.getNullUUID(),destinationResourceName,sourceFolder.getFlags(),dateLastModified,userLastModified,dateCreated,userCreated);
+  newResource.setFullResourceName(destination);
   clearResourceCache();
   Map properties=readProperties(context,source,null,false);
-  writeProperties(context,destination,properties);
+  m_vfsDriver.writeProperties(properties,context.currentProject().getId(),newResource,newResource.getType());
+  m_propertyCache.clear();
   if (preserveTimestaps) {
     touch(context,destination,dateLastModified,userLastModified);
   }
