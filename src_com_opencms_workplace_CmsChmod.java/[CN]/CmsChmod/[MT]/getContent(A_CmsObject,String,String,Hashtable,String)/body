@@ -1,0 +1,164 @@
+{
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String template=null;
+  String newaccess=(String)parameters.get(C_PARA_NEWACCESS);
+  String filename=(String)parameters.get(C_PARA_FILE);
+  if (filename != null) {
+    session.putValue(C_PARA_FILE,filename);
+  }
+  filename=(String)session.getValue(C_PARA_FILE);
+  CmsFile file=(CmsFile)cms.readFileHeader(filename);
+  String ur=(String)parameters.get("ur");
+  String uw=(String)parameters.get("uw");
+  String uv=(String)parameters.get("uv");
+  String gr=(String)parameters.get("gr");
+  String gw=(String)parameters.get("gw");
+  String gv=(String)parameters.get("gv");
+  String pr=(String)parameters.get("pr");
+  String pw=(String)parameters.get("pw");
+  String pv=(String)parameters.get("pv");
+  String ir=(String)parameters.get("ir");
+  if (newaccess != null) {
+    if ((cms.getRequestContext().currentUser().equals(cms.readOwner(file))) || (cms.userInGroup(cms.getRequestContext().currentUser().getName(),C_GROUP_ADMIN))) {
+      int flag=0;
+      if (ur != null) {
+        if (ur.equals("true")) {
+          flag+=C_ACCESS_OWNER_READ;
+        }
+      }
+      if (uw != null) {
+        if (uw.equals("true")) {
+          flag+=C_ACCESS_OWNER_WRITE;
+        }
+      }
+      if (uv != null) {
+        if (uv.equals("true")) {
+          flag+=C_ACCESS_OWNER_VISIBLE;
+        }
+      }
+      if (gr != null) {
+        if (gr.equals("true")) {
+          flag+=C_ACCESS_GROUP_READ;
+        }
+      }
+      if (gw != null) {
+        if (gw.equals("true")) {
+          flag+=C_ACCESS_GROUP_WRITE;
+        }
+      }
+      if (gv != null) {
+        if (gv.equals("true")) {
+          flag+=C_ACCESS_GROUP_VISIBLE;
+        }
+      }
+      if (pr != null) {
+        if (pr.equals("true")) {
+          flag+=C_ACCESS_PUBLIC_READ;
+        }
+      }
+      if (pw != null) {
+        if (pw.equals("true")) {
+          flag+=C_ACCESS_PUBLIC_WRITE;
+        }
+      }
+      if (pv != null) {
+        if (pv.equals("true")) {
+          flag+=C_ACCESS_PUBLIC_VISIBLE;
+        }
+      }
+      if (ir != null) {
+        if (ir.equals("true")) {
+          flag+=C_ACCESS_INTERNAL_READ;
+        }
+      }
+      cms.chmod(file.getAbsolutePath(),flag);
+      if ((cms.getResourceType(file.getType()).getResourceName()).equals(C_TYPE_PAGE_NAME)) {
+        String bodyPath=getBodyPath(cms,file);
+        int help=C_CONTENTBODYPATH.lastIndexOf("/");
+        String hbodyPath=(C_CONTENTBODYPATH.substring(0,help)) + (file.getAbsolutePath());
+        if (hbodyPath.equals(bodyPath)) {
+          if ((flag & C_ACCESS_INTERNAL_READ) == 0) {
+            flag+=C_ACCESS_INTERNAL_READ;
+          }
+          cms.chmod(hbodyPath,flag);
+        }
+      }
+      session.removeValue(C_PARA_FILE);
+      try {
+        cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+      }
+ catch (      Exception e) {
+        throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+      }
+    }
+ else {
+      template="error";
+    }
+  }
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  xmlTemplateDocument.setXmlData("OWNER",cms.readOwner(file).getName());
+  xmlTemplateDocument.setXmlData("GROUP",cms.readGroup(file).getName());
+  xmlTemplateDocument.setXmlData("FILENAME",file.getName());
+  int flags=file.getAccessFlags();
+  if ((flags & C_ACCESS_OWNER_READ) > 0) {
+    xmlTemplateDocument.setXmlData("CHECKUR","CHECKED");
+  }
+ else {
+    xmlTemplateDocument.setXmlData("CHECKUR"," ");
+  }
+  if ((flags & C_ACCESS_OWNER_WRITE) > 0) {
+    xmlTemplateDocument.setXmlData("CHECKUW","CHECKED");
+  }
+ else {
+    xmlTemplateDocument.setXmlData("CHECKUW"," ");
+  }
+  if ((flags & C_ACCESS_OWNER_VISIBLE) > 0) {
+    xmlTemplateDocument.setXmlData("CHECKUV","CHECKED");
+  }
+ else {
+    xmlTemplateDocument.setXmlData("CHECKUV"," ");
+  }
+  if ((flags & C_ACCESS_GROUP_READ) > 0) {
+    xmlTemplateDocument.setXmlData("CHECKGR","CHECKED");
+  }
+ else {
+    xmlTemplateDocument.setXmlData("CHECKGR"," ");
+  }
+  if ((flags & C_ACCESS_GROUP_WRITE) > 0) {
+    xmlTemplateDocument.setXmlData("CHECKGW","CHECKED");
+  }
+ else {
+    xmlTemplateDocument.setXmlData("CHECKGW"," ");
+  }
+  if ((flags & C_ACCESS_GROUP_VISIBLE) > 0) {
+    xmlTemplateDocument.setXmlData("CHECKGV","CHECKED");
+  }
+ else {
+    xmlTemplateDocument.setXmlData("CHECKGV"," ");
+  }
+  if ((flags & C_ACCESS_PUBLIC_READ) > 0) {
+    xmlTemplateDocument.setXmlData("CHECKPR","CHECKED");
+  }
+ else {
+    xmlTemplateDocument.setXmlData("CHECKPR"," ");
+  }
+  if ((flags & C_ACCESS_PUBLIC_WRITE) > 0) {
+    xmlTemplateDocument.setXmlData("CHECKPW","CHECKED");
+  }
+ else {
+    xmlTemplateDocument.setXmlData("CHECKPW"," ");
+  }
+  if ((flags & C_ACCESS_PUBLIC_VISIBLE) > 0) {
+    xmlTemplateDocument.setXmlData("CHECKPV","CHECKED");
+  }
+ else {
+    xmlTemplateDocument.setXmlData("CHECKPV"," ");
+  }
+  if ((flags & C_ACCESS_INTERNAL_READ) > 0) {
+    xmlTemplateDocument.setXmlData("CHECKIF","CHECKED");
+  }
+ else {
+    xmlTemplateDocument.setXmlData("CHECKIF"," ");
+  }
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}
