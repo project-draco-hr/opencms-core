@@ -1,0 +1,41 @@
+{
+  if (!cms.existsResource(C_VIEW_JSPPAGE_LOCATION)) {
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Tool Manager not initialized during setup");
+    }
+    return;
+  }
+  try {
+    I_CmsToolHandler rootHandler=new CmsGenericToolHandler();
+    rootHandler.setup(cms,C_VIEW_JSPPAGE_LOCATION);
+    m_handlers.add(rootHandler);
+    CmsResourceFilter filter=CmsResourceFilter.ONLY_VISIBLE_NO_DELETED;
+    List resources=cms.readResources(C_TOOLS_ROOT,filter,true);
+    Iterator itRes=resources.iterator();
+    while (itRes.hasNext()) {
+      CmsResource res=(CmsResource)itRes.next();
+      CmsProperty prop=cms.readPropertyObject(res.getRootPath(),C_HANDLERCLASS_PROPERTY,false);
+      if (!prop.isNullProperty()) {
+        try {
+          Class handlerClass=Class.forName(prop.getValue());
+          I_CmsToolHandler handler=(I_CmsToolHandler)handlerClass.newInstance();
+          handler.setup(cms,res.getRootPath());
+          m_handlers.add(handler);
+          if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+            OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Administration init  : new tool " + handler.getName() + "("+ handler.getLink()+ ")");
+          }
+        }
+ catch (        Exception e) {
+          if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+            OpenCms.getLog(CmsLog.CHANNEL_INIT).warn(". Administration init  : warning(" + res.getRootPath() + ")",e);
+          }
+        }
+      }
+    }
+  }
+ catch (  CmsException e) {
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isErrorEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).error(". Administration init  : ",e);
+    }
+  }
+}

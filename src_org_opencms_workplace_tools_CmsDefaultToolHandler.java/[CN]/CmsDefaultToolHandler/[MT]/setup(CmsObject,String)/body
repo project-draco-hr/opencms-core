@@ -1,0 +1,77 @@
+{
+  CmsJspNavElement navElem=CmsJspNavBuilder.getNavigationForResource(cms,resourcePath);
+  String name=navElem.getNavText();
+  if (CmsStringUtil.isEmpty(name) || name.equals("??? NavText ???")) {
+    name=navElem.getTitle();
+  }
+  if (CmsStringUtil.isEmpty(name)) {
+    name=C_DEFAULT_NAME;
+  }
+  setName(name);
+  String iconPath=navElem.getNavImage();
+  if (CmsStringUtil.isEmpty(iconPath)) {
+    iconPath=C_DEFAULT_ICONPATH;
+  }
+  String smallIconPath=null;
+  if (iconPath.indexOf(C_VALUE_SEPARATOR) < 0) {
+    smallIconPath=iconPath;
+  }
+ else {
+    smallIconPath=iconPath.substring(iconPath.indexOf(C_VALUE_SEPARATOR) + 1);
+    iconPath=iconPath.substring(0,iconPath.indexOf(C_VALUE_SEPARATOR));
+  }
+  setIconPath(iconPath);
+  setSmallIconPath(smallIconPath);
+  String helpText=navElem.getDescription();
+  if (CmsStringUtil.isEmpty(helpText)) {
+    helpText=C_DEFAULT_HELPTEXT;
+  }
+  setHelpText(helpText);
+  String group=navElem.getInfo();
+  if (CmsStringUtil.isEmpty(group)) {
+    group=C_DEFAULT_GROUP;
+  }
+  setLink(resourcePath);
+  String path=resourcePath;
+  try {
+    cms.readFolder(resourcePath);
+    if (path.endsWith(CmsToolManager.C_TOOLPATH_SEPARATOR)) {
+      path=path.substring(0,path.lastIndexOf(CmsToolManager.C_TOOLPATH_SEPARATOR));
+    }
+    setLink(CmsToolManager.C_VIEW_JSPPAGE_LOCATION);
+    CmsProperty prop=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_DEFAULT_FILE,true);
+    if (!prop.isNullProperty()) {
+      String defFile=prop.getValue();
+      if (defFile.startsWith(CmsToolManager.C_TOOLPATH_SEPARATOR)) {
+        cms.readResource(defFile);
+        setLink(defFile);
+      }
+ else {
+        defFile=path + CmsToolManager.C_TOOLPATH_SEPARATOR + defFile;
+        cms.readResource(defFile);
+        setLink(defFile);
+      }
+    }
+  }
+ catch (  CmsException e) {
+  }
+  path=resourcePath.substring(CmsToolManager.C_TOOLS_ROOT.length(),resourcePath.lastIndexOf(CmsToolManager.C_TOOLPATH_SEPARATOR));
+  addInstallPoint(new CmsToolInstallPoint(path,group,navElem.getNavPosition()));
+  try {
+    Map argsMap=new HashMap();
+    Iterator itArgs=CmsStringUtil.splitAsList(cms.readPropertyObject(resourcePath,C_PROPERTY_DEFINITION,false).getValue(),C_ARGS_SEPARATOR).iterator();
+    while (itArgs.hasNext()) {
+      String arg=(String)itArgs.next();
+      int pos=arg.indexOf(C_VALUE_SEPARATOR);
+      argsMap.put(arg.substring(0,pos),arg.substring(pos + 1));
+    }
+    if (argsMap.get(C_PARAM_ONLYOFFLINE) != null) {
+      m_onlyOffline=true;
+    }
+    if (argsMap.get(C_PARAM_ONLYADMIN) != null) {
+      m_onlyAdmin=true;
+    }
+  }
+ catch (  Exception e) {
+  }
+}
