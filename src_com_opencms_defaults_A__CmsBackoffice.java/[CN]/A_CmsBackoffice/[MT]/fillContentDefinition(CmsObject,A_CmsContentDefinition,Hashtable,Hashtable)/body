@@ -1,0 +1,35 @@
+{
+  Enumeration keys=parameters.keys();
+  while (keys.hasMoreElements()) {
+    String key=(String)keys.nextElement();
+    String value=parameters.get(key).toString();
+    boolean isFile=false;
+    Enumeration uploadedFiles=cms.getRequestContext().getRequest().getFileNames();
+    byte[] content=cms.getRequestContext().getRequest().getFile(value);
+    while (uploadedFiles.hasMoreElements()) {
+      String filename=(String)uploadedFiles.nextElement();
+      if (filename.equals(value)) {
+        isFile=true;
+      }
+    }
+    Method m=(Method)setMethods.get("set" + key);
+    if (m == null) {
+      m=(Method)setMethods.get("set" + key + "string");
+    }
+    if (m != null) {
+      try {
+        m.invoke(contentDefinition,new Object[]{value});
+        if (isFile) {
+          String methodName=m.getName() + "Content";
+          Method contentMethod=this.getContentDefinitionClass().getMethod(methodName,new Class[]{byte[].class});
+          contentMethod.invoke(contentDefinition,new Object[]{content});
+        }
+      }
+ catch (      Exception e) {
+        if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+          A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + "Error during automatic call method '" + m.getName()+ "':"+ e.toString());
+        }
+      }
+    }
+  }
+}

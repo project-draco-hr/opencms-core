@@ -1,0 +1,108 @@
+{
+  Vector errorCodes=null;
+  String errorCode=null;
+  String errorField=null;
+  String errorType=null;
+  if (action != null) {
+    if ((!action.equals("save")) && (!action.equals("saveexit")) && (!action.equals("exit"))) {
+      try {
+        cd.check(false);
+      }
+ catch (      CmsPlausibilizationException plex) {
+        errorCodes=plex.getErrorCodes();
+        for (int i=0; i < errorCodes.size(); i++) {
+          errorCode=(String)errorCodes.elementAt(i);
+          if (template.hasData(C_ERRPREFIX + errorCode)) {
+            error+=template.getProcessedDataValue(C_ERRPREFIX + errorCode);
+          }
+ else {
+            errorField=errorCode.substring(0,errorCode.indexOf(A_CmsContentDefinition.C_ERRSPERATOR));
+            if (template.hasData(C_ERRPREFIX + errorField)) {
+              error+=template.getProcessedDataValue(C_ERRPREFIX + errorField);
+            }
+ else {
+              errorType=errorCode.substring(errorCode.indexOf(C_ERRSPERATOR) + 1,errorCode.length());
+              if (template.hasData(C_ERRPREFIX + errorType)) {
+                error+=template.getProcessedDataValue(C_ERRPREFIX + errorType);
+              }
+ else {
+                error+="[" + errorCode + "]";
+              }
+            }
+          }
+        }
+        if (template.hasData("errormsg")) {
+          error=template.getProcessedDataValue("errormsg") + error;
+        }
+        template.setData("error",error);
+        if (session.getValue("backofficepagetemplateselector") != null) {
+          templateSelector=(String)session.getValue("backofficepagetemplateselector");
+          parameters.put("backofficepage",templateSelector);
+        }
+ else {
+          templateSelector=null;
+        }
+      }
+    }
+    if (((action.equals("save")) || (action.equals("saveexit"))) && (error.equals(""))) {
+      try {
+        cd.check(true);
+        cd.write(cms);
+      }
+ catch (      CmsPlausibilizationException plex) {
+        errorCodes=plex.getErrorCodes();
+        for (int i=0; i < errorCodes.size(); i++) {
+          errorCode=(String)errorCodes.elementAt(i);
+          if (template.hasData(C_ERRPREFIX + errorCode)) {
+            error+=template.getProcessedDataValue(C_ERRPREFIX + errorCode);
+          }
+ else {
+            errorField=errorCode.substring(0,errorCode.indexOf(A_CmsContentDefinition.C_ERRSPERATOR));
+            if (template.hasData(C_ERRPREFIX + errorField)) {
+              error+=template.getProcessedDataValue(C_ERRPREFIX + errorField);
+            }
+ else {
+              errorType=errorCode.substring(errorCode.indexOf(C_ERRSPERATOR) + 1,errorCode.length());
+              if (template.hasData(C_ERRPREFIX + errorType)) {
+                error+=template.getProcessedDataValue(C_ERRPREFIX + errorType);
+              }
+ else {
+                error+="[" + errorCode + "]";
+              }
+            }
+          }
+        }
+        if (template.hasData("errormsg")) {
+          error=template.getProcessedDataValue("errormsg") + error;
+        }
+        template.setData("error",error);
+      }
+catch (      Exception ex) {
+        if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+          A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + "Error while saving data to Content Definition " + ex.toString());
+        }
+        throw new CmsException(ex.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,ex);
+      }
+    }
+    if (errorCodes == null) {
+      if ((action.equals("exit")) || ((action.equals("saveexit")) && (error.equals("")))) {
+        try {
+          session.removeValue(this.getContentDefinitionClass().getName());
+          session.removeValue("backofficepageselectorvector");
+          session.removeValue("backofficepagetemplateselector");
+          String uri=cms.getRequestContext().getUri();
+          uri="/" + uri.substring(1,uri.lastIndexOf("/"));
+          cms.getRequestContext().getResponse().sendCmsRedirect(uri);
+          return null;
+        }
+ catch (        java.io.IOException e) {
+          if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+            A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + "Error while doing redirect " + e.toString());
+          }
+          throw new CmsException(e.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,e);
+        }
+      }
+    }
+  }
+  return startProcessing(cms,template,"",parameters,templateSelector);
+}
