@@ -1,29 +1,30 @@
 {
-  long lastModifiedHeader=req.getDateHeader(I_CmsConstants.C_HEADER_IF_MODIFIED_SINCE);
-  if (lastModifiedHeader > -1) {
-    if ((resource.getState() == I_CmsConstants.C_STATE_UNCHANGED) && (resource.getDateLastModified() == lastModifiedHeader)) {
-      long now=System.currentTimeMillis();
-      if ((resource.getDateReleased() < now) && (resource.getDateExpired() > now)) {
-        CmsFlexController.setDateExpiresHeader(res,resource.getDateExpired());
-        res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
-        return;
+  boolean isWorkplaceUser=CmsWorkplace.isWorkplaceUser(req);
+  if (!isWorkplaceUser) {
+    long lastModifiedHeader=req.getDateHeader(I_CmsConstants.C_HEADER_IF_MODIFIED_SINCE);
+    if (lastModifiedHeader > -1) {
+      if ((resource.getState() == I_CmsConstants.C_STATE_UNCHANGED) && (resource.getDateLastModified() == lastModifiedHeader)) {
+        long now=System.currentTimeMillis();
+        if ((resource.getDateReleased() < now) && (resource.getDateExpired() > now)) {
+          CmsFlexController.setDateExpiresHeader(res,resource.getDateExpired());
+          res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+          return;
+        }
       }
     }
   }
   CmsFile file=CmsFile.upgrade(resource,cms);
   res.setStatus(HttpServletResponse.SC_OK);
   res.setContentLength(file.getContents().length);
-  res.setDateHeader(I_CmsConstants.C_HEADER_LAST_MODIFIED,file.getDateLastModified());
-  int expireTime;
-  if (cms.getRequestContext().currentProject().isOnlineProject()) {
-    expireTime=86400;
+  if (isWorkplaceUser) {
+    res.setHeader(I_CmsConstants.C_HEADER_CACHE_CONTROL,I_CmsConstants.C_HEADER_VALUE_MUST_REVALIDATE);
   }
  else {
-    expireTime=10;
-  }
-  if (!res.containsHeader("Cache-Control")) {
-    res.setHeader("Cache-Control","max-age=" + expireTime);
-    res.setDateHeader("Expires",System.currentTimeMillis() + (expireTime * 1000));
+    res.setDateHeader(I_CmsConstants.C_HEADER_LAST_MODIFIED,file.getDateLastModified());
+    int expireTime=86400;
+    if (!res.containsHeader(I_CmsConstants.C_HEADER_CACHE_CONTROL)) {
+      res.setDateHeader(I_CmsConstants.C_HEADER_EXPIRES,System.currentTimeMillis() + (expireTime * 1000));
+    }
   }
   service(cms,file,req,res);
 }

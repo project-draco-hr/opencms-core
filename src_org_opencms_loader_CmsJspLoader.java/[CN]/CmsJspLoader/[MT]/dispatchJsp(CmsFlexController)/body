@@ -12,7 +12,8 @@
   if (!controller.isStreaming() && !f_res.isSuspended()) {
     try {
       if (!res.isCommitted() || m_errorPagesAreNotCommited) {
-        if (controller.isTop() && CmsFlexController.isNotModifiedSince(f_req,controller.getDateLastModified())) {
+        boolean isWorkplaceUser=CmsWorkplace.isWorkplaceUser(f_req);
+        if (controller.isTop() && !isWorkplaceUser && CmsFlexController.isNotModifiedSince(f_req,controller.getDateLastModified())) {
           if (f_req.getParameterMap().size() == 0) {
             CmsFlexController.setDateExpiresHeader(res,controller.getDateExpires());
           }
@@ -25,9 +26,14 @@
         }
  else         if (controller.isTop()) {
           res.setContentLength(result.length);
-          CmsFlexController.setDateLastModifiedHeader(res,controller.getDateLastModified());
-          if ((f_req.getParameterMap().size() == 0) && (controller.getDateLastModified() > -1)) {
-            CmsFlexController.setDateExpiresHeader(res,controller.getDateExpires());
+          if (isWorkplaceUser) {
+            res.setHeader(I_CmsConstants.C_HEADER_CACHE_CONTROL,I_CmsConstants.C_HEADER_VALUE_MUST_REVALIDATE);
+          }
+ else {
+            CmsFlexController.setDateLastModifiedHeader(res,controller.getDateLastModified());
+            if ((f_req.getParameterMap().size() == 0) && (controller.getDateLastModified() > -1)) {
+              CmsFlexController.setDateExpiresHeader(res,controller.getDateExpires());
+            }
           }
           CmsFlexResponse.processHeaders(f_res.getHeaders(),res);
           res.getOutputStream().write(result);
