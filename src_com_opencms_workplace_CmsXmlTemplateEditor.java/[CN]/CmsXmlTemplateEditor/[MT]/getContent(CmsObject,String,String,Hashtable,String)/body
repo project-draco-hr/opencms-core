@@ -2,6 +2,12 @@
   CmsRequestContext reqCont=cms.getRequestContext();
   HttpServletRequest orgReq=(HttpServletRequest)reqCont.getRequest().getOriginalRequest();
   I_CmsSession session=cms.getRequestContext().getSession(true);
+  int tempProject=0;
+  tempProject=Integer.parseInt((String)cms.getRegistry().getSystemValue("tempfileproject"));
+  if (tempProject == 0) {
+    throw new CmsException("Can not create temporary file for editing!");
+  }
+  int curProject=cms.getRequestContext().currentProject().getId();
   String browser=orgReq.getHeader("user-agent");
   String hostName=orgReq.getScheme() + "://" + orgReq.getHeader("HOST");
   Encoder encoder=new Encoder();
@@ -79,7 +85,8 @@
     if (!cms.accessWrite(bodyElementFilename)) {
       throw new CmsException(getClassName() + "Insufficient rights for editing the file " + bodyElementFilename,CmsException.C_NO_ACCESS);
     }
-    tempPageFilename=createTemporaryFile(cms,pageFileResource);
+    tempPageFilename=createTemporaryFile(cms,pageFileResource,tempProject,curProject);
+    cms.getRequestContext().setCurrentProject(curProject);
     tempBodyFilename="/content/bodys" + tempPageFilename;
     session.putValue("te_temppagefile",tempPageFilename);
     session.putValue("te_tempbodyfile",tempBodyFilename);
@@ -102,7 +109,9 @@
     bodytitle=body.equals("(default)") ? "" : body;
     temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
     temporaryControlFile.setElementTemplate(C_BODY_ELEMENT,tempBodyFilename);
+    cms.getRequestContext().setCurrentProject(tempProject);
     temporaryControlFile.write();
+    cms.getRequestContext().setCurrentProject(curProject);
     try {
       style=getStylesheet(cms,null,layoutTemplateFile,null);
       if (style != null && !"".equals(style)) {
@@ -117,9 +126,12 @@
  else {
     if (titlechangeRequested) {
       try {
+        cms.getRequestContext().setCurrentProject(tempProject);
         cms.writeProperty(tempPageFilename,C_PROPERTY_TITLE,title);
+        cms.getRequestContext().setCurrentProject(curProject);
       }
  catch (      CmsException e) {
+        cms.getRequestContext().setCurrentProject(curProject);
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
           A_OpenCms.log(C_OPENCMS_INFO,getClassName() + "Could not write property " + C_PROPERTY_TITLE+ " for file "+ file+ ".");
           A_OpenCms.log(C_OPENCMS_INFO,getClassName() + e);
@@ -189,16 +201,20 @@
     if ((!exitRequested) || saveRequested) {
       bodyTemplateFile.setEditedTemplateContent(content,oldBody,oldEdit.equals(C_SELECTBOX_EDITORVIEWS[0]));
     }
+    cms.getRequestContext().setCurrentProject(tempProject);
     bodyTemplateFile.write();
     temporaryControlFile.write();
+    cms.getRequestContext().setCurrentProject(curProject);
   }
   if (previewRequested) {
     preview(tempPageFilename,reqCont);
     return "".getBytes();
   }
   if (saveRequested) {
-    commitTemporaryFile(cms,bodyElementFilename,tempBodyFilename);
+    commitTemporaryFile(cms,bodyElementFilename,tempBodyFilename,tempProject,curProject);
+    cms.getRequestContext().setCurrentProject(tempProject);
     title=cms.readProperty(tempPageFilename,C_PROPERTY_TITLE);
+    cms.getRequestContext().setCurrentProject(curProject);
     if (title != null && !"".equals(title)) {
       cms.writeProperty(file,C_PROPERTY_TITLE,title);
     }
@@ -209,7 +225,9 @@
   if (exitRequested) {
     temporaryControlFile.removeFromFileCache();
     bodyTemplateFile.removeFromFileCache();
+    cms.getRequestContext().setCurrentProject(tempProject);
     cms.deleteFile(tempPageFilename);
+    cms.getRequestContext().setCurrentProject(curProject);
     try {
       cms.getRequestContext().getResponse().sendCmsRedirect("/system/workplace/action/index.html");
     }
