@@ -1,0 +1,36 @@
+{
+  String listMethod=n.getAttribute(C_PROJECTLIST_METHOD);
+  CmsXmlWpTemplateFile listdef=getProjectlistDefinitions(cms);
+  Method callingMethod=null;
+  Vector list=new Vector();
+  try {
+    callingMethod=callingObject.getClass().getMethod(listMethod,new Class[]{CmsObject.class,CmsXmlLanguageFile.class});
+    list=(Vector)callingMethod.invoke(callingObject,new Object[]{cms,lang});
+  }
+ catch (  NoSuchMethodException exc) {
+    throwException("Could not find method " + listMethod + " in calling class "+ callingObject.getClass().getName()+ " for generating projectlist content.",CmsException.C_NOT_FOUND);
+  }
+catch (  InvocationTargetException targetEx) {
+    Throwable e=targetEx.getTargetException();
+    if (!(e instanceof CmsException)) {
+      throwException("User method " + listMethod + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+    }
+ else {
+      throw (CmsException)e;
+    }
+  }
+catch (  Exception exc2) {
+    throwException("User method " + listMethod + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+  }
+  StringBuffer result=new StringBuffer();
+  String snaplock=listdef.getProcessedDataValue(C_TAG_PROJECTLIST_SNAPLOCK,callingObject,parameters);
+  for (int i=0; i < list.size(); i++) {
+    CmsBackupProject project=(CmsBackupProject)list.elementAt(i);
+    setListEntryData(cms,lang,listdef,project);
+    listdef.setData(C_PROJECTLIST_LOCKSTATE,"");
+    listdef.setData(C_PROJECTLIST_MENU,C_PROJECT_UNLOCK);
+    listdef.setData(C_PROJECTLIST_IDX,new Integer(i).toString());
+    result.append(listdef.getProcessedDataValue(C_TAG_PROJECTLIST_DEFAULT,callingObject,parameters));
+  }
+  return result.toString();
+}
