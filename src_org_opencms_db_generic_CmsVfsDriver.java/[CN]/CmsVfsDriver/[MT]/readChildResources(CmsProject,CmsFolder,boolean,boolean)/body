@@ -2,16 +2,25 @@
   Connection conn=null;
   PreparedStatement stmt=null;
   ResultSet res=null;
-  CmsResource currentResource=null;
-  List subResources=new ArrayList();
   String query=null;
-  String resourceTypeClause=null;
   String orderClause=" ORDER BY CMS_T_STRUCTURE.RESOURCE_NAME";
-  if (getSubFolders) {
+  String resourceTypeClause;
+  List subFolders;
+  List subFiles;
+  if (getFolders && getFiles) {
+    resourceTypeClause="";
+    subFolders=new ArrayList();
+    subFiles=new ArrayList();
+  }
+ else   if (getFolders) {
     resourceTypeClause=" AND CMS_T_RESOURCES.RESOURCE_TYPE=0";
+    subFolders=new ArrayList();
+    subFiles=null;
   }
  else {
     resourceTypeClause=" AND CMS_T_RESOURCES.RESOURCE_TYPE<>0";
+    subFolders=null;
+    subFiles=new ArrayList();
   }
   try {
     conn=m_sqlManager.getConnection(currentProject);
@@ -20,13 +29,13 @@
     stmt.setString(1,parentFolder.getStructureId().toString());
     res=stmt.executeQuery();
     while (res.next()) {
-      if (getSubFolders) {
-        currentResource=createFolder(res,currentProject.getId(),false);
+      int type=res.getInt(m_sqlManager.readQuery("C_RESOURCES_RESOURCE_TYPE"));
+      if (type == CmsResourceTypeFolder.C_RESOURCE_TYPE_ID) {
+        subFolders.add(createFolder(res,currentProject.getId(),false));
       }
  else {
-        currentResource=createFile(res,currentProject.getId(),false);
+        subFiles.add(createFile(res,currentProject.getId(),false));
       }
-      subResources.add(currentResource);
     }
   }
  catch (  SQLException e) {
@@ -35,5 +44,12 @@
  finally {
     m_sqlManager.closeAll(conn,stmt,res);
   }
-  return subResources;
+  if (getFolders && getFiles) {
+    subFolders.addAll(subFiles);
+    return subFolders;
+  }
+ else   if (getFolders) {
+    return subFolders;
+  }
+  return subFiles;
 }
