@@ -4,7 +4,9 @@
   try {
     cms.getRequestContext().setSiteRoot("/");
     rfsName=rfsName.substring(getRfsPrefix().length());
-    vfsName=getCachedExportUri(rfsName);
+    if (vfsName == null) {
+      vfsName=getCachedExportUri(rfsName);
+    }
     if (vfsName != null) {
       if (!C_CACHEVALUE_404.equals(vfsName)) {
         try {
@@ -21,45 +23,31 @@
     }
  else {
       boolean match=false;
-      try {
-        resource=cms.readFileHeader(cms.getRequestContext().removeSiteRoot(rfsName));
-        if (resource.isFolder() && !rfsName.endsWith("/")) {
-          rfsName+="/";
-        }
-        vfsName=rfsName;
+      vfsName=getVfsName(cms,rfsName);
+      if (vfsName != null) {
         match=true;
-      }
- catch (      Throwable t) {
-      }
-      if (!match) {
-        Map exportnameFolders=getExportnames();
-        Iterator i=exportnameFolders.keySet().iterator();
-        while (i.hasNext()) {
-          String exportName=(String)i.next();
-          if (rfsName.startsWith(exportName)) {
-            match=true;
-            vfsName=exportnameFolders.get(exportName) + rfsName.substring(exportName.length());
-            try {
-              resource=cms.readFileHeader(vfsName);
-              if (resource.isFolder()) {
-                if (!rfsName.endsWith("/")) {
-                  rfsName+="/";
-                }
-                if (!vfsName.endsWith("/")) {
-                  vfsName+="/";
-                }
-              }
-            }
- catch (            CmsException e) {
-              rfsName=null;
-            }
-            break;
-          }
+        try {
+          resource=cms.readFileHeader(vfsName);
+        }
+ catch (        CmsException e) {
+          rfsName=null;
         }
       }
       if (!match) {
         cacheExportUri(rfsName,C_CACHEVALUE_404);
-        return null;
+        String parameters=null;
+        try {
+          parameters=cms.readStaticExportPublishedResourceParamters(rfsName);
+          if (parameters != null && parameters.length() > 0) {
+            return getStaticExportDataWithParameter(cms,rfsName,parameters);
+          }
+ else {
+            return null;
+          }
+        }
+ catch (        CmsException e) {
+          return null;
+        }
       }
  else {
         cacheExportUri(rfsName,vfsName);
