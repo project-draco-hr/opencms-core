@@ -1,0 +1,35 @@
+{
+  CmsUUID parentId=CmsUUID.getNullUUID();
+  CmsGroup group=null;
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  if (existsGroup(runtimeInfo,groupName)) {
+    throw new CmsException("Group " + groupName + " already exists",CmsException.C_GROUP_ALREADY_EXISTS);
+  }
+  try {
+    if ((parentGroupName != null) && (!"".equals(parentGroupName))) {
+      parentId=readGroup(runtimeInfo,parentGroupName).getId();
+    }
+    if (reservedParam == null) {
+      conn=m_sqlManager.getConnection(runtimeInfo);
+    }
+ else {
+      conn=m_sqlManager.getConnection(runtimeInfo,((Integer)reservedParam).intValue());
+    }
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_GROUPS_CREATEGROUP");
+    stmt.setString(1,groupId.toString());
+    stmt.setString(2,parentId.toString());
+    stmt.setString(3,groupName);
+    stmt.setString(4,m_sqlManager.validateEmpty(description));
+    stmt.setInt(5,flags);
+    stmt.executeUpdate();
+    group=new CmsGroup(groupId,parentId,groupName,description,flags);
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,"[CmsGroup]: " + groupName + ", Id="+ groupId.toString(),CmsException.C_SQL_ERROR,e,true);
+  }
+ finally {
+    m_sqlManager.closeAll(runtimeInfo,conn,stmt,null);
+  }
+  return group;
+}

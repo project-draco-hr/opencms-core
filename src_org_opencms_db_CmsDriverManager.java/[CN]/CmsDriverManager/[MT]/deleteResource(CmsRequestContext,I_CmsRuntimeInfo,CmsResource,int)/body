@@ -1,0 +1,72 @@
+{
+  CmsLock currentLock=getLock(context,runtimeInfo,resource.getRootPath());
+  if (currentLock.getType() == CmsLock.C_TYPE_INHERITED) {
+    lockResource(context,runtimeInfo,resource,CmsLock.C_MODE_COMMON);
+  }
+  List resources;
+  if (resource.isFolder()) {
+    siblingMode=I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS;
+  }
+  boolean allSiblingsRemoved;
+  if (siblingMode == I_CmsConstants.C_DELETE_OPTION_DELETE_SIBLINGS) {
+    resources=new ArrayList(readSiblings(context,runtimeInfo,resource.getRootPath(),CmsResourceFilter.ALL));
+    allSiblingsRemoved=true;
+  }
+ else {
+    resources=Collections.singletonList(resource);
+    allSiblingsRemoved=false;
+  }
+  int size=resources.size();
+  if (size > 1) {
+    for (int i=0; i < size; i++) {
+      CmsResource currentResource=(CmsResource)resources.get(i);
+      currentLock=getLock(context,runtimeInfo,currentResource);
+      if (!currentLock.equals(CmsLock.getNullLock()) && !currentLock.getUserId().equals(context.currentUser().getId())) {
+        int exceptionType=currentLock.getUserId().equals(context.currentUser().getId()) ? CmsLockException.C_RESOURCE_LOCKED_BY_CURRENT_USER : CmsLockException.C_RESOURCE_LOCKED_BY_OTHER_USER;
+        throw new CmsLockException("Sibling " + currentResource.getRootPath() + " pointing to "+ resource.getRootPath()+ " is locked by another user!",exceptionType);
+      }
+    }
+  }
+  boolean removeAce=true;
+  for (int i=0; i < size; i++) {
+    CmsResource currentResource=(CmsResource)resources.get(i);
+    if (PERM_ALLOWED != hasPermissions(context,currentResource,CmsPermissionSet.ACCESS_WRITE,true,CmsResourceFilter.ALL)) {
+      allSiblingsRemoved=false;
+    }
+ else {
+      boolean existsOnline=m_vfsDriver.validateStructureIdExists(runtimeInfo,I_CmsConstants.C_PROJECT_ONLINE_ID,currentResource.getStructureId());
+      if (!existsOnline) {
+        deleteAllProperties(context,runtimeInfo,currentResource.getRootPath());
+        if (currentResource.isFolder()) {
+          m_vfsDriver.removeFolder(runtimeInfo,context.currentProject(),currentResource);
+        }
+ else {
+          if (currentResource.isLabeled() && !labelResource(context,currentResource,null,2)) {
+            int flags=currentResource.getFlags();
+            flags&=~I_CmsConstants.C_RESOURCEFLAG_LABELLINK;
+            currentResource.setFlags(flags);
+          }
+          m_vfsDriver.removeFile(runtimeInfo,context.currentProject(),currentResource,true);
+        }
+      }
+ else {
+        removeAce=false;
+        currentResource.setState(I_CmsConstants.C_STATE_DELETED);
+        m_vfsDriver.writeResourceState(runtimeInfo,context.currentProject(),currentResource,C_UPDATE_STRUCTURE_STATE);
+        m_vfsDriver.writePropertyObject(runtimeInfo,context.currentProject(),currentResource,new CmsProperty(I_CmsConstants.C_PROPERTY_INTERNAL,String.valueOf(context.currentProject().getId()),null));
+        m_vfsDriver.writeLastModifiedProjectId(runtimeInfo,context.currentProject(),context.currentProject().getId(),currentResource);
+      }
+    }
+  }
+  if ((resource.getSiblingCount() <= 1) || allSiblingsRemoved) {
+    if (removeAce) {
+      m_userDriver.removeAccessControlEntries(runtimeInfo,context.currentProject(),resource.getResourceId());
+    }
+ else {
+      m_userDriver.deleteAccessControlEntries(runtimeInfo,context.currentProject(),resource.getResourceId());
+    }
+  }
+  clearAccessControlListCache();
+  m_propertyCache.clear();
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_DELETED,Collections.singletonMap("resources",resources)));
+}

@@ -1,0 +1,77 @@
+{
+  CmsFolder onlineFolder=null;
+  List offlineProperties=null;
+  try {
+    report.print("( " + m + " / "+ n+ " ) "+ report.key("report.deleting.folder"),I_CmsReport.C_FORMAT_NOTE);
+    report.print(context.removeSiteRoot(currentFolder.getRootPath()));
+    report.print(report.key("report.dots"));
+    try {
+      if (backupEnabled) {
+        offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(context.currentProject(),currentFolder);
+        m_driverManager.getBackupDriver().writeBackupResource(runtimeInfo,context.currentUser(),context.currentProject(),currentFolder,offlineProperties,backupTagId,publishDate,maxVersions);
+      }
+      m_driverManager.getProjectDriver().writePublishHistory(runtimeInfo,context.currentProject(),publishHistoryId,backupTagId,currentFolder);
+    }
+ catch (    CmsException e) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Error writing backup/publishing history of " + currentFolder.toString(),e);
+      }
+      throw e;
+    }
+    try {
+      onlineFolder=m_driverManager.readFolder(context,currentFolder.getStructureId(),CmsResourceFilter.ALL);
+    }
+ catch (    CmsException e) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Error reading resource " + currentFolder.toString(),e);
+      }
+      throw e;
+    }
+    try {
+      m_driverManager.getVfsDriver().deletePropertyObjects(runtimeInfo,onlineProject.getId(),onlineFolder,CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+      m_driverManager.getVfsDriver().deletePropertyObjects(runtimeInfo,context.currentProject().getId(),currentFolder,CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+    }
+ catch (    CmsException e) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Error deleting properties of " + currentFolder.toString(),e);
+      }
+      throw e;
+    }
+    try {
+      m_driverManager.getVfsDriver().removeFolder(runtimeInfo,context.currentProject(),currentFolder);
+      try {
+        m_driverManager.getVfsDriver().readFolder(runtimeInfo,context.currentProject().getId(),currentFolder.getRootPath());
+      }
+ catch (      CmsVfsResourceNotFoundException e) {
+        m_driverManager.getVfsDriver().removeFolder(runtimeInfo,onlineProject,currentFolder);
+      }
+    }
+ catch (    CmsException e) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Error removing resource " + currentFolder.toString(),e);
+      }
+      throw e;
+    }
+    try {
+      m_driverManager.getUserDriver().removeAccessControlEntries(runtimeInfo,onlineProject,onlineFolder.getResourceId());
+      m_driverManager.getUserDriver().removeAccessControlEntries(runtimeInfo,context.currentProject(),currentFolder.getResourceId());
+    }
+ catch (    CmsException e) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Error removing ACLs of " + currentFolder.toString(),e);
+      }
+      throw e;
+    }
+    report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+  }
+ catch (  Exception e) {
+    if (C_DEBUG) {
+      System.err.println(e.getMessage());
+      e.printStackTrace(System.err);
+    }
+    throw e;
+  }
+ finally {
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",currentFolder)));
+  }
+}

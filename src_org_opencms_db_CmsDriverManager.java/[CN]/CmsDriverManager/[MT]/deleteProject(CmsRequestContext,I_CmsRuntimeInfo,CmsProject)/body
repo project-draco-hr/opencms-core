@@ -1,0 +1,65 @@
+{
+  Vector deletedFolders=new Vector();
+  int projectId=deleteProject.getId();
+  List allFiles=readChangedResourcesInsideProject(context,projectId,1);
+  List allFolders=readChangedResourcesInsideProject(context,projectId,CmsResourceTypeFolder.C_RESOURCE_TYPE_ID);
+  for (int i=0; i < allFiles.size(); i++) {
+    CmsFile currentFile=(CmsFile)allFiles.get(i);
+    if (currentFile.getState() == I_CmsConstants.C_STATE_NEW) {
+      CmsLock lock=getLock(context,runtimeInfo,currentFile);
+      if (lock.isNullLock()) {
+        lockResource(context,null,currentFile,CmsLock.C_MODE_COMMON);
+      }
+ else       if (!lock.getUserId().equals(context.currentUser().getId()) || lock.getProjectId() != context.currentProject().getId()) {
+        changeLock(context,runtimeInfo,currentFile);
+      }
+      m_vfsDriver.deletePropertyObjects(runtimeInfo,projectId,currentFile,CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+      m_vfsDriver.removeFile(runtimeInfo,context.currentProject(),currentFile,true);
+      m_userDriver.removeAccessControlEntries(runtimeInfo,context.currentProject(),currentFile.getResourceId());
+    }
+ else     if ((currentFile.getState() == I_CmsConstants.C_STATE_CHANGED) || (currentFile.getState() == I_CmsConstants.C_STATE_DELETED)) {
+      CmsLock lock=getLock(context,runtimeInfo,currentFile);
+      if (lock.isNullLock()) {
+        lockResource(context,runtimeInfo,currentFile,CmsLock.C_MODE_COMMON);
+      }
+ else       if (!lock.getUserId().equals(context.currentUser().getId()) || lock.getProjectId() != context.currentProject().getId()) {
+        changeLock(context,runtimeInfo,currentFile);
+      }
+      undoChanges(context,runtimeInfo,currentFile);
+    }
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",currentFile)));
+  }
+  for (int i=0; i < allFolders.size(); i++) {
+    CmsFolder currentFolder=(CmsFolder)allFolders.get(i);
+    CmsLock lock=getLock(context,runtimeInfo,currentFolder);
+    if (currentFolder.getState() == I_CmsConstants.C_STATE_NEW) {
+      m_vfsDriver.deletePropertyObjects(runtimeInfo,projectId,currentFolder,CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+      deletedFolders.addElement(currentFolder);
+    }
+ else     if ((currentFolder.getState() == I_CmsConstants.C_STATE_CHANGED) || (currentFolder.getState() == I_CmsConstants.C_STATE_DELETED)) {
+      if (lock.isNullLock()) {
+        lockResource(context,runtimeInfo,currentFolder,CmsLock.C_MODE_COMMON);
+      }
+ else       if (!lock.getUserId().equals(context.currentUser().getId()) || lock.getProjectId() != context.currentProject().getId()) {
+        changeLock(context,runtimeInfo,currentFolder);
+      }
+      undoChanges(context,runtimeInfo,currentFolder);
+    }
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",currentFolder)));
+  }
+  for (int i=deletedFolders.size() - 1; i > -1; i--) {
+    CmsFolder delFolder=((CmsFolder)deletedFolders.elementAt(i));
+    m_vfsDriver.removeFolder(runtimeInfo,context.currentProject(),delFolder);
+    m_userDriver.removeAccessControlEntries(runtimeInfo,context.currentProject(),delFolder.getResourceId());
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",delFolder)));
+  }
+  m_lockManager.removeResourcesInProject(deleteProject.getId());
+  clearAccessControlListCache();
+  clearResourceCache();
+  if (projectId == context.currentProject().getId()) {
+    context.setCurrentProject(readProject(I_CmsConstants.C_PROJECT_ONLINE_ID));
+  }
+  m_projectDriver.deleteProject(runtimeInfo,deleteProject);
+  m_projectCache.remove(new Integer(projectId));
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_PROJECT_MODIFIED,Collections.singletonMap("project",deleteProject)));
+}

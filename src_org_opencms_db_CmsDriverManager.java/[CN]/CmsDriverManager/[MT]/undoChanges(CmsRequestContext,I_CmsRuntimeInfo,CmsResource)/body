@@ -1,0 +1,39 @@
+{
+  if (resource.getState() == I_CmsConstants.C_STATE_NEW) {
+    throw new CmsVfsException("Undo changes is not possible on a new resource '" + context.removeSiteRoot(resource.getRootPath()) + "'",CmsVfsException.C_VFS_UNDO_CHANGES_NOT_POSSIBLE_ON_NEW_RESOURCE);
+  }
+  CmsProject onlineProject=readProject(I_CmsConstants.C_PROJECT_ONLINE_ID);
+  if (resource.isFolder()) {
+    CmsFolder onlineFolder=m_vfsDriver.readFolder(runtimeInfo,I_CmsConstants.C_PROJECT_ONLINE_ID,resource.getRootPath());
+    CmsFolder restoredFolder=new CmsFolder(resource.getStructureId(),resource.getResourceId(),resource.getRootPath(),onlineFolder.getTypeId(),onlineFolder.getFlags(),context.currentProject().getId(),I_CmsConstants.C_STATE_UNCHANGED,onlineFolder.getDateCreated(),onlineFolder.getUserCreated(),onlineFolder.getDateLastModified(),onlineFolder.getUserLastModified(),resource.getSiblingCount(),onlineFolder.getDateReleased(),onlineFolder.getDateExpired());
+    restoredFolder.setDateLastModified(onlineFolder.getDateLastModified());
+    m_vfsDriver.writeResource(runtimeInfo,context.currentProject(),restoredFolder,C_NOTHING_CHANGED);
+    m_vfsDriver.deletePropertyObjects(runtimeInfo,context.currentProject().getId(),restoredFolder,CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+    List propertyInfos=m_vfsDriver.readPropertyObjects(onlineProject,onlineFolder);
+    m_vfsDriver.writePropertyObjects(runtimeInfo,context.currentProject(),restoredFolder,propertyInfos);
+    m_userDriver.removeAccessControlEntries(runtimeInfo,context.currentProject(),resource.getResourceId());
+    ListIterator aceList=m_userDriver.readAccessControlEntries(onlineProject,resource.getResourceId(),false).listIterator();
+    while (aceList.hasNext()) {
+      CmsAccessControlEntry ace=(CmsAccessControlEntry)aceList.next();
+      m_userDriver.createAccessControlEntry(runtimeInfo,context.currentProject(),resource.getResourceId(),ace.getPrincipal(),ace.getPermissions().getAllowedPermissions(),ace.getPermissions().getDeniedPermissions(),ace.getFlags());
+    }
+  }
+ else {
+    CmsFile onlineFile=this.m_vfsDriver.readFile(null,I_CmsConstants.C_PROJECT_ONLINE_ID,true,resource.getStructureId());
+    CmsFile restoredFile=new CmsFile(onlineFile.getStructureId(),onlineFile.getResourceId(),onlineFile.getContentId(),resource.getRootPath(),onlineFile.getTypeId(),onlineFile.getFlags(),context.currentProject().getId(),I_CmsConstants.C_STATE_UNCHANGED,onlineFile.getDateCreated(),onlineFile.getUserCreated(),onlineFile.getDateLastModified(),onlineFile.getUserLastModified(),onlineFile.getDateReleased(),onlineFile.getDateExpired(),0,onlineFile.getLength(),onlineFile.getContents());
+    restoredFile.setDateLastModified(onlineFile.getDateLastModified());
+    List properties=m_vfsDriver.readPropertyObjects(onlineProject,onlineFile);
+    deleteResource(context,runtimeInfo,resource,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
+    CmsResource res=createResource(context,runtimeInfo,restoredFile.getRootPath(),restoredFile,restoredFile.getContents(),properties,false);
+    ListIterator aceList=m_userDriver.readAccessControlEntries(onlineProject,onlineFile.getResourceId(),false).listIterator();
+    while (aceList.hasNext()) {
+      CmsAccessControlEntry ace=(CmsAccessControlEntry)aceList.next();
+      m_userDriver.createAccessControlEntry(runtimeInfo,context.currentProject(),res.getResourceId(),ace.getPrincipal(),ace.getPermissions().getAllowedPermissions(),ace.getPermissions().getDeniedPermissions(),ace.getFlags());
+    }
+    res.setState(I_CmsConstants.C_STATE_UNCHANGED);
+    m_vfsDriver.writeResourceState(runtimeInfo,context.currentProject(),res,C_UPDATE_ALL);
+  }
+  clearResourceCache();
+  m_propertyCache.clear();
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",resource)));
+}
