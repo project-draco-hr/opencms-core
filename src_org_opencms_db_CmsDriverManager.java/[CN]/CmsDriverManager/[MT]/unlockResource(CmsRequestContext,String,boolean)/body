@@ -1,27 +1,39 @@
 {
   String currentResourceName=null;
   CmsResource currentResource=null;
-  List resources=null;
-  if (forceUnlock) {
-    resources=m_lockDispatcher.getDirectLockedSubResources(resourcename);
+  List resourceNames=null;
+  Iterator i=null;
+  CmsLock currentLock=null;
+  CmsUUID currentLockUserId=null;
+  currentLock=m_lockDispatcher.getLock(context,resourcename);
+  if (currentLock.isNullLock() && !resourcename.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+    return;
+  }
+  if (!forceUnlock && currentLock.getType() == CmsLock.C_TYPE_INDIRECT_LOCKED) {
+    throw new CmsLockException("Unlocking resources in locked folders is not allowed!",CmsLockException.C_RESOURCE_LOCKED_INDIRECT);
+  }
+  if (forceUnlock && resourcename.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+    resourceNames=m_lockDispatcher.getLockedSubResources(resourcename);
   }
  else {
-    resources=(List)new ArrayList();
+    resourceNames=(List)new ArrayList();
   }
-  resources.add(resourcename);
-  Iterator i=resources.iterator();
+  resourceNames.add(resourcename);
+  i=resourceNames.iterator();
   while (i.hasNext()) {
     currentResourceName=(String)i.next();
     currentResource=readFileHeader(context,currentResourceName);
-    CmsLock lock=m_lockDispatcher.getLock(context,currentResource.getFullResourceName());
-    CmsUUID lockUserId=lock.getUserId();
-    if (forceUnlock || lockUserId.equals(context.currentUser().getId())) {
-      if (!forceUnlock) {
-        checkPermissions(context,currentResource,I_CmsConstants.C_WRITE_ACCESS);
+    currentLock=m_lockDispatcher.getLock(context,currentResource.getFullResourceName());
+    currentLockUserId=currentLock.getUserId();
+    if (forceUnlock || currentLockUserId.equals(context.currentUser().getId())) {
+      if (currentLock.getType() == CmsLock.C_TYPE_DIRECT_LOCKED) {
+        if (!forceUnlock) {
+          checkPermissions(context,currentResource,I_CmsConstants.C_WRITE_ACCESS);
+        }
+        currentResource.setLocked(CmsUUID.getNullUUID());
+        m_vfsDriver.updateLockstate(currentResource,context.currentProject().getId());
       }
-      currentResource.setLocked(CmsUUID.getNullUUID());
-      m_vfsDriver.updateLockstate(currentResource,context.currentProject().getId());
-      m_lockDispatcher.removeResource(lock.getResourceName());
+      m_lockDispatcher.removeResource(currentLock.getResourceName());
     }
   }
   clearResourceCache();
