@@ -5,6 +5,7 @@
   File currentFile;
   CmsFile hashFile=null;
   CmsFolder hashFolder=null;
+  boolean notCreated=false;
   for (int i=0; i < diskFiles.length; i++) {
     currentFile=new File(sfsFile,diskFiles[i]);
     if (currentFile.isDirectory()) {
@@ -16,12 +17,20 @@
         }
  catch (        CmsException e) {
           if (e.getType() != CmsException.C_FILE_EXISTS && e.getType() != CmsException.C_LOCKED) {
-            throw e;
+            if (e.getType() == CmsException.C_BAD_NAME) {
+              notCreated=true;
+              A_OpenCms.log(A_OpenCms.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] Bad name: "+ currentFile.getName());
+            }
+ else {
+              throw e;
+            }
           }
         }
       }
       hashFolder=null;
-      synchronizeVirtual(sfsAbsolutePath + currentFile.getName() + "/");
+      if (!notCreated) {
+        synchronizeVirtual(sfsAbsolutePath + currentFile.getName() + "/");
+      }
     }
  else {
       hashFile=(CmsFile)m_vfsFiles.get(m_synchronizePath + resourceName + currentFile.getName());
@@ -36,10 +45,13 @@
               m_synchronizeList.putDates(sfsAbsolutePath + currentFile.getName(),newFile.getDateLastModified(),currentFile.lastModified());
             }
  catch (            CmsException e) {
-              if (e.getType() == CmsException.C_FILE_EXISTS || e.getType() == CmsException.C_LOCKED) {
-              }
+              if (e.getType() != CmsException.C_FILE_EXISTS && e.getType() != CmsException.C_LOCKED) {
+                if (e.getType() == CmsException.C_BAD_NAME) {
+                  A_OpenCms.log(A_OpenCms.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] Bad name: "+ currentFile.getName());
+                }
  else {
-                throw e;
+                  throw e;
+                }
               }
             }
           }
