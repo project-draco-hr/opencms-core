@@ -14,15 +14,32 @@
   for (int i=0; i < moduleFiles.size(); i++) {
     String currentFile=(String)moduleFiles.elementAt(i);
     String currentChecksum=(String)moduleChecksums.elementAt(i);
-    System.err.println(currentFile);
-    try {
-      m_cms.readFileHeader(currentFile);
+    CmsFile file=null;
+    if (!currentFile.endsWith("/")) {
+      try {
+        file=m_cms.readFile(currentFile);
+      }
+ catch (      CmsException exc) {
+        missingFiles.addElement(currentFile);
+      }
+      if (otherFiles.contains(currentFile)) {
+        filesInUse.addElement(currentFile);
+      }
+      if (file != null) {
+        String digestContent=com.opencms.util.Encoder.escape(new String(m_digest.digest(file.getContents())));
+        if (!currentChecksum.equals(digestContent)) {
+          wrongChecksum.addElement(currentFile);
+        }
+      }
     }
- catch (    CmsException exc) {
-      missingFiles.addElement(currentFile);
-    }
-    if (otherFiles.contains(currentFile)) {
-      filesInUse.addElement(currentFile);
+  }
+  Vector files=m_cms.getFilesWithProperty("module",modulename + "_" + getModuleVersion(modulename));
+  for (int i=0; i < files.size(); i++) {
+    String currentFile=(String)files.elementAt(i);
+    if (!moduleFiles.contains(currentFile)) {
+      if (!otherFiles.contains(currentFile)) {
+        wrongChecksum.addElement(currentFile);
+      }
     }
   }
 }
