@@ -1,7 +1,7 @@
 {
   String base=context.getInitParameter("opencms.home");
   if (base == null || "".equals(base)) {
-    base=CmsShell.searchBaseFolder(context.getRealPath("/"));
+    base=searchWebInfFolder(context.getRealPath("/"));
     if (base == null || "".equals(base)) {
       throwInitException(new CmsInitException(C_ERRORMSG + "OpenCms base folder could not be guessed. Please define init parameter \"opencms.home\" in servlet engine configuration.\n\n"));
     }
@@ -61,38 +61,7 @@
 catch (  Exception exc) {
     throwInitException(new CmsInitException(C_ERRORMSG + "Trouble creating the com.opencms.core.CmsObject. Please check the root cause for more information.\n\n",exc));
   }
-  m_staticExportManager=new CmsStaticExportManager();
-  m_staticExportManager.setStaticExportEnabled("true".equalsIgnoreCase(configuration.getString("staticexport.enabled","false")));
-  m_staticExportManager.setExportPropertyDefault("true".equalsIgnoreCase(configuration.getString("staticexport.export_default","false")));
-  String[] exportSuffixes=configuration.getStringArray("staticexport.export_suffixes");
-  if (exportSuffixes == null) {
-    exportSuffixes=new String[0];
-  }
-  m_staticExportManager.setExportSuffixes(exportSuffixes);
-  m_staticExportManager.setExportPath(CmsLinkManager.getAbsoluteUri(configuration.getString("staticexport.export_path","export"),getSystemInfo().getWebApplicationName()));
-  String servletName=configuration.getString("servlet.mapping");
-  String contextName="/" + getSystemInfo().getWebApplicationName();
-  if ("/ROOT".equals(contextName)) {
-    contextName="";
-  }
-  configuration.setProperty("CONTEXT_NAME",contextName);
-  configuration.setProperty("SERVLET_NAME",servletName);
-  String rfsPrefix=configuration.getString("staticexport.prefix_rfs",contextName + "/export");
-  String vfsPrefix=configuration.getString("staticexport.prefix_vfs",contextName + servletName);
-  m_staticExportManager.setRfsPrefix(rfsPrefix);
-  m_staticExportManager.setVfsPrefix(vfsPrefix);
-  m_staticExportManager.setExportRelativeLinks(configuration.getBoolean("staticexport.relative_links",false));
-  m_staticExportManager.setExportnames();
-  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(". Static export        : " + (m_staticExportManager.isStaticExportEnabled() ? "enabled" : "disabled"));
-    if (m_staticExportManager.isStaticExportEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". Export default       : " + m_staticExportManager.getExportPropertyDefault());
-      getLog(CmsLog.CHANNEL_INIT).info(". Export path          : " + m_staticExportManager.getExportPath());
-      getLog(CmsLog.CHANNEL_INIT).info(". Export rfs prefix    : " + m_staticExportManager.getRfsPrefix());
-      getLog(CmsLog.CHANNEL_INIT).info(". Export vfs prefix    : " + m_staticExportManager.getVfsPrefix());
-      getLog(CmsLog.CHANNEL_INIT).info(". Export link style    : " + (m_staticExportManager.relativLinksInExport() ? "relative" : "absolute"));
-    }
-  }
+  m_staticExportManager=CmsStaticExportManager.initialize(configuration,null);
   m_sessionInfoManager=new CmsSessionInfoManager();
   if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
     getLog(CmsLog.CHANNEL_INIT).info(". Session storage      : initialized");

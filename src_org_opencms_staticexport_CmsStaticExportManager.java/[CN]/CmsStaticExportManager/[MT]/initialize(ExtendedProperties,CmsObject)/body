@@ -1,0 +1,62 @@
+{
+  CmsStaticExportManager exportManager=new CmsStaticExportManager();
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isDebugEnabled()) {
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).debug("Created static export manager" + ((cms != null) ? (" with CmsObject " + cms) : ""));
+  }
+  exportManager.setStaticExportEnabled("true".equalsIgnoreCase(configuration.getString("staticexport.enabled","false")));
+  exportManager.setExportPropertyDefault("true".equalsIgnoreCase(configuration.getString("staticexport.export_default","false")));
+  String[] exportSuffixes=configuration.getStringArray("staticexport.export_suffixes");
+  if (exportSuffixes == null) {
+    exportSuffixes=new String[0];
+  }
+  exportManager.setExportSuffixes(exportSuffixes);
+  exportManager.setExportPath(CmsLinkManager.getAbsoluteUri(configuration.getString("staticexport.export_path","export"),OpenCms.getSystemInfo().getWebApplicationName()));
+  String servletName=configuration.getString("servlet.mapping");
+  String contextName="/" + OpenCms.getSystemInfo().getWebApplicationName();
+  if ("/ROOT".equals(contextName)) {
+    contextName="";
+  }
+  configuration.setProperty("CONTEXT_NAME",contextName);
+  configuration.setProperty("SERVLET_NAME",servletName);
+  String rfsPrefix=configuration.getString("staticexport.prefix_rfs",contextName + "/export");
+  String vfsPrefix=configuration.getString("staticexport.prefix_vfs",contextName + servletName);
+  exportManager.setRfsPrefix(rfsPrefix);
+  exportManager.setVfsPrefix(vfsPrefix);
+  exportManager.setExportRelativeLinks(configuration.getBoolean("staticexport.relative_links",false));
+  exportManager.setExportnames();
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Static export        : " + (exportManager.isStaticExportEnabled() ? "enabled" : "disabled"));
+    if (exportManager.isStaticExportEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Export default       : " + exportManager.getExportPropertyDefault());
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Export path          : " + exportManager.getExportPath());
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Export rfs prefix    : " + exportManager.getRfsPrefix());
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Export vfs prefix    : " + exportManager.getVfsPrefix());
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Export link style    : " + (exportManager.relativLinksInExport() ? "relative" : "absolute"));
+    }
+  }
+  String[] exportHeaders=null;
+  try {
+    exportHeaders=configuration.getStringArray("staticexport.headers");
+    for (int i=0; i < exportHeaders.length; i++) {
+      if (CmsStringSubstitution.split(exportHeaders[i],":").length == 2) {
+        if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+          OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Export headers       : " + exportHeaders[i]);
+        }
+      }
+ else {
+        if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+          OpenCms.getLog(CmsLog.CHANNEL_INIT).warn(". Export headers       : " + "invalid header: " + exportHeaders[i] + ", using default headers");
+        }
+        exportHeaders=null;
+        break;
+      }
+    }
+  }
+ catch (  Exception e) {
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).warn(". Export headers       : non-critical error " + e.toString());
+    }
+  }
+  exportManager.setExportHeaders(exportHeaders);
+  return exportManager;
+}

@@ -1,33 +1,40 @@
 {
-  final int MAX_TESTS=10000;
+  int maxTests=50000;
+  String oldSiteRoot=m_cms.getRequestContext().getSiteRoot();
+  m_cms.getRequestContext().setSiteRoot("/");
   try {
-    I_CmsVfsDriver vfsDriver=m_driverManager.getVfsDriver();
     Random random=new Random();
-    int projectId=m_cms.getRequestContext().currentProject().getId();
-    List testResources=vfsDriver.readResources(projectId,0,System.currentTimeMillis());
-    int numResources=testResources.size();
-    System.out.println("#Resources:\t" + numResources);
-    long totalTime=0, minTime=0, maxTime=0, t, tt;
-    totalTime=0;
-    minTime=0;
-    maxTime=0;
+    List testResources=m_cms.getResourcesInTimeRange("/",0,System.currentTimeMillis());
+    int resourceCount=testResources.size();
+    System.out.println("#Resources:\t" + resourceCount);
+    long start, time;
+    long totalTime=0;
+    long minTime=Long.MAX_VALUE;
+    long maxTime=Long.MIN_VALUE;
     System.out.print("readFileHeader:\t");
-    for (int i=MAX_TESTS; i > 0; --i) {
-      int index=random.nextInt(numResources);
-      CmsResource res=(CmsResource)testResources.get(index);
-      t=System.currentTimeMillis();
-      vfsDriver.readFileHeader(projectId,res.getParentStructureId(),res.getName(),true);
-      tt=System.currentTimeMillis() - t;
-      totalTime+=tt;
-      minTime=(minTime == 0 | minTime > tt) ? tt : minTime;
-      maxTime=(maxTime == 0 | maxTime < tt) ? tt : maxTime;
+    for (int i=maxTests; i > 0; --i) {
+      int index=random.nextInt(resourceCount);
+      CmsResource resource=(CmsResource)testResources.get(index);
+      start=System.currentTimeMillis();
+      m_cms.readFileHeader(m_cms.readAbsolutePath(resource),true);
+      time=System.currentTimeMillis() - start;
+      totalTime+=time;
+      if (time < minTime) {
+        minTime=time;
+      }
+      if (time > maxTime) {
+        maxTime=time;
+      }
       if ((i % 100) == 0) {
         System.out.print(".");
       }
     }
-    System.out.println("\rreadFileHeader:\t" + minTime + "\t"+ maxTime+ "\t"+ (((float)totalTime) / MAX_TESTS)+ " ms");
+    System.out.println("\nreadFileHeader:\t" + minTime + "\t"+ maxTime+ "\t"+ (((float)totalTime) / maxTests)+ " ms");
   }
- catch (  Exception exc) {
-    printException(exc);
+ catch (  Throwable t) {
+    printException(t);
+  }
+ finally {
+    m_cms.getRequestContext().setSiteRoot(oldSiteRoot);
   }
 }
