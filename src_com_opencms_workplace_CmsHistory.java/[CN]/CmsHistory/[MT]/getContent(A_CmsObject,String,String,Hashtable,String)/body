@@ -1,0 +1,44 @@
+{
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String template=null;
+  Enumeration enu=parameters.keys();
+  System.err.println("#### PARAMETERS");
+  while (enu.hasMoreElements()) {
+    String key=(String)enu.nextElement();
+    System.err.println(key + " : " + parameters.get(key));
+  }
+  System.err.println("###############");
+  String filename=(String)parameters.get(C_PARA_FILE);
+  if (filename != null) {
+    session.putValue(C_PARA_FILE,filename);
+  }
+  filename=(String)session.getValue(C_PARA_FILE);
+  String projectname=(String)parameters.get(C_PARA_PROJECT);
+  if (projectname != null) {
+    session.putValue(C_PARA_PROJECT,projectname);
+  }
+  CmsFile file=(CmsFile)cms.readFileHeader(filename);
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  if (projectname != null) {
+    template="detail";
+    A_CmsProject project=cms.readProject(projectname);
+    xmlTemplateDocument.setXmlData("PROJECT",project.getName());
+    String title=cms.readMetainformation(filename,C_METAINFO_TITLE);
+    if (title == null) {
+      title="";
+    }
+    xmlTemplateDocument.setXmlData("TITLE",title);
+    xmlTemplateDocument.setXmlData("SIZE",new Integer(file.getLength()).toString());
+    xmlTemplateDocument.setXmlData("EDITEDBY","Not yet available");
+    xmlTemplateDocument.setXmlData("EDITEDAT",Utils.getNiceDate(file.getDateLastModified()));
+    xmlTemplateDocument.setXmlData("PUBLISHEDBY","Not yet available");
+    String published="---";
+    if (project.getFlags() == this.C_PROJECT_STATE_ARCHIVE) {
+      published=Utils.getNiceDate(project.getPublishingDate());
+    }
+    xmlTemplateDocument.setXmlData("PUBLISHEDAT",published);
+    xmlTemplateDocument.setXmlData("PROJECTDESCRIPTION",project.getDescription());
+  }
+  xmlTemplateDocument.setXmlData("FILENAME",file.getName());
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}
