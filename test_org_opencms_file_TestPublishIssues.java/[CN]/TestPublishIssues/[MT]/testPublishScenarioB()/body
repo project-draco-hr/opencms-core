@@ -1,0 +1,31 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing publish scenario B");
+  String folderA="/foldera/";
+  String folderB="/folderb/";
+  String resourceA=folderA + "test.txt";
+  String resourceB=folderB + "test.txt";
+  cms.createResource(folderA,CmsResourceTypeFolder.C_RESOURCE_TYPE_ID);
+  cms.createResource(folderB,CmsResourceTypeFolder.C_RESOURCE_TYPE_ID);
+  cms.createResource(resourceA,CmsResourceTypePlain.C_RESOURCE_TYPE_ID);
+  cms.createSibling(resourceA,resourceB,Collections.EMPTY_LIST);
+  CmsFile cmsFile=cms.readFile(resourceA);
+  cmsFile.setContents("Hello, this is a test!".getBytes());
+  cms.writeFile(cmsFile);
+  cms.unlockProject(cms.getRequestContext().currentProject().getId());
+  cms.publishProject();
+  cmsFile=cms.readFile(resourceA);
+  assertEquals(2,cmsFile.getSiblingCount());
+  assertState(cms,resourceA,I_CmsConstants.C_STATE_UNCHANGED);
+  cmsFile=cms.readFile(resourceB);
+  assertEquals(2,cmsFile.getSiblingCount());
+  assertState(cms,resourceB,I_CmsConstants.C_STATE_UNCHANGED);
+  CmsProject projectA=cms.readProject("Offline");
+  cms.createProject("projectB","Test project 2 for scenario B",OpenCms.getDefaultUsers().getGroupUsers(),OpenCms.getDefaultUsers().getGroupUsers());
+  CmsProject projectB=cms.readProject("projectB");
+  cms.getRequestContext().setCurrentProject(projectB);
+  cms.copyResourceToProject("/");
+  List resources=cms.readProjectResources(projectB);
+  assertEquals(1,resources.size());
+  assertEquals("/sites/default/",(String)resources.get(0));
+}

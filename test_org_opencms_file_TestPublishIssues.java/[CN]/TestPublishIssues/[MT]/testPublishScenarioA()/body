@@ -1,0 +1,36 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing publish scenario A");
+  String projectRes1="/folder1/subfolder11/";
+  String resource1=projectRes1 + "index.html";
+  String resource2="/folder1/";
+  long timestamp=System.currentTimeMillis();
+  CmsProject project1=cms.readProject("Offline");
+  cms.createProject("project2","Test project 2 for scenario A",OpenCms.getDefaultUsers().getGroupUsers(),OpenCms.getDefaultUsers().getGroupUsers());
+  CmsProject project2=cms.readProject("project2");
+  cms.getRequestContext().setCurrentProject(project2);
+  cms.copyResourceToProject(projectRes1);
+  List resources=cms.readProjectResources(project2);
+  assertEquals(1,resources.size());
+  assertEquals("/sites/default" + projectRes1,(String)resources.get(0));
+  cms.loginUser("test2","test2");
+  cms.getRequestContext().setCurrentProject(project2);
+  cms.lockResource(resource1);
+  cms.touch(resource1,System.currentTimeMillis(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,false);
+  assertDateLastModifiedAfter(cms,resource1,timestamp);
+  assertProject(cms,resource1,project2);
+  assertLock(cms,resource1,CmsLock.C_TYPE_EXCLUSIVE);
+  assertState(cms,resource1,I_CmsConstants.C_STATE_CHANGED);
+  cms.loginUser("test1","test1");
+  cms.getRequestContext().setCurrentProject(project1);
+  cms.lockResource(resource2);
+  assertProject(cms,resource1,project2);
+  assertLock(cms,resource1,CmsLock.C_TYPE_INHERITED);
+  cms.loginUser("test2","test2");
+  cms.getRequestContext().setCurrentProject(project2);
+  int resourceProjectCount=cms.countLockedResources(project2.getId());
+  assertEquals(1,resourceProjectCount);
+  cms.unlockProject(project2.getId());
+  cms.publishProject();
+  assertState(cms,resource1,I_CmsConstants.C_STATE_UNCHANGED);
+}
