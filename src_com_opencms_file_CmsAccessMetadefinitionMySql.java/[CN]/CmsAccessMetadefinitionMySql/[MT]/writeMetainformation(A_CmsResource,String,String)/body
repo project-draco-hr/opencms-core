@@ -4,15 +4,28 @@
     throw new CmsException("Metadefinition " + meta + " not found.",CmsException.C_NOT_FOUND);
   }
  else {
-    if (readMetainformation(resource,metadef.getName()) != null) {
-      try {
-        m_statementUpdateMetainfo.setString(1,value);
-        m_statementUpdateMetainfo.setInt(2,metadef.getId());
+    try {
+      if (readMetainformation(resource,metadef.getName()) != null) {
+synchronized (m_statementUpdateMetainfo) {
+          m_statementUpdateMetainfo.setString(1,value);
+          m_statementUpdateMetainfo.setString(2,resource.getAbsolutePath());
+          m_statementUpdateMetainfo.setInt(3,resource.getProjectId());
+          m_statementUpdateMetainfo.setInt(4,metadef.getId());
+          m_statementUpdateMetainfo.executeUpdate();
+        }
       }
- catch (      SQLException exc) {
+ else {
+synchronized (m_statementCreateMetainfo) {
+          m_statementCreateMetainfo.setInt(1,metadef.getId());
+          m_statementCreateMetainfo.setString(2,resource.getAbsolutePath());
+          m_statementCreateMetainfo.setInt(3,resource.getProjectId());
+          m_statementCreateMetainfo.setString(4,value);
+          m_statementCreateMetainfo.executeUpdate();
+        }
       }
     }
- else {
+ catch (    SQLException exc) {
+      throw new CmsException(exc.getMessage(),CmsException.C_SQL_ERROR,exc);
     }
   }
 }
