@@ -2,10 +2,14 @@
   PreparedStatement stmnt=null;
   PreparedStatement stmnt2=null;
   ResultSet res=null;
+  Connection con=null;
+  Connection con2=null;
   int masterId=dataset.m_masterId;
   try {
     stmnt=null;
-    stmnt=sqlPrepare(m_backupPoolName,"insert_backup");
+    con=null;
+    con=DriverManager.getConnection(m_backupPoolName);
+    stmnt=sqlPrepare(con,"insert_backup");
     dataset.m_lockedBy=I_CmsConstants.C_UNKNOWN_ID;
     dataset.m_dateCreated=publishDate;
     String ownerName="";
@@ -43,20 +47,24 @@
     throw new CmsException(CmsException.C_SQL_ERROR,exc);
   }
  finally {
-    sqlClose(stmnt,null);
+    sqlClose(con,stmnt,null);
   }
   try {
     stmnt=null;
     res=null;
-    stmnt=sqlPrepare(m_poolName,"read_media_offline");
+    con=null;
+    con=DriverManager.getConnection(m_poolName);
+    stmnt=sqlPrepare(con,"read_media_offline");
     stmnt.setInt(1,masterId);
     res=stmnt.executeQuery();
     while (res.next()) {
       int i=1;
       CmsMasterMedia mediaset=new CmsMasterMedia(res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getString(i++),res.getInt(i++),res.getString(i++),res.getString(i++),res.getString(i++),res.getBytes(i++));
       try {
+        con2=null;
         stmnt2=null;
-        stmnt2=sqlPrepare(m_backupPoolName,"insert_media_backup");
+        con2=DriverManager.getConnection(m_backupPoolName);
+        stmnt2=sqlPrepare(con2,"insert_media_backup");
         int lastId=sqlFillValues(stmnt2,mediaset);
         stmnt2.setInt(lastId,versionId);
         stmnt2.executeUpdate();
@@ -65,7 +73,7 @@
         throw ex;
       }
  finally {
-        sqlClose(stmnt2,null);
+        sqlClose(con2,stmnt2,null);
       }
     }
   }
@@ -73,6 +81,6 @@
     throw new CmsException(CmsException.C_SQL_ERROR,exc);
   }
  finally {
-    sqlClose(stmnt,res);
+    sqlClose(con,stmnt,res);
   }
 }
