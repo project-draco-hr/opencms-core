@@ -1,12 +1,11 @@
 {
-  CmsResource file=null;
-  ResultSet res=null;
+  CmsFile file=null;
   PreparedStatement statement=null;
+  ResultSet res=null;
   Connection con=null;
   String usedPool;
   String usedStatement;
-  int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
-  if (project.getId() == onlineProject) {
+  if (projectId == onlineProjectId) {
     usedPool=m_poolNameOnline;
     usedStatement="_ONLINE";
   }
@@ -16,19 +15,17 @@
   }
   try {
     con=DriverManager.getConnection(usedPool);
-    statement=con.prepareStatement(m_cq.get("C_RESOURCES_READ" + usedStatement));
+    statement=con.prepareStatement(m_cq.get("C_FILES_READ" + usedStatement));
     statement.setString(1,filename);
-    statement.setInt(2,project.getId());
+    statement.setInt(2,projectId);
     res=statement.executeQuery();
     if (res.next()) {
       int resId=res.getInt(m_cq.get("C_RESOURCES_RESOURCE_ID"));
       int parentId=res.getInt(m_cq.get("C_RESOURCES_PARENT_ID"));
-      String resName=res.getString(m_cq.get("C_RESOURCES_RESOURCE_NAME"));
       int resType=res.getInt(m_cq.get("C_RESOURCES_RESOURCE_TYPE"));
       int resFlags=res.getInt(m_cq.get("C_RESOURCES_RESOURCE_FLAGS"));
       int userId=res.getInt(m_cq.get("C_RESOURCES_USER_ID"));
       int groupId=res.getInt(m_cq.get("C_RESOURCES_GROUP_ID"));
-      int projectId=res.getInt(m_cq.get("C_RESOURCES_PROJECT_ID"));
       int fileId=res.getInt(m_cq.get("C_RESOURCES_FILE_ID"));
       int accessFlags=res.getInt(m_cq.get("C_RESOURCES_ACCESS_FLAGS"));
       int state=res.getInt(m_cq.get("C_RESOURCES_STATE"));
@@ -39,22 +36,28 @@
       long modified=SqlHelper.getTimestamp(res,m_cq.get("C_RESOURCES_DATE_LASTMODIFIED")).getTime();
       int modifiedBy=res.getInt(m_cq.get("C_RESOURCES_LASTMODIFIED_BY"));
       int resSize=res.getInt(m_cq.get("C_RESOURCES_SIZE"));
+      byte[] content=res.getBytes(m_cq.get("C_RESOURCES_FILE_CONTENT"));
+      int resProjectId=res.getInt(m_cq.get("C_RESOURCES_PROJECT_ID"));
       int lockedInProject=res.getInt("LOCKED_IN_PROJECT");
-      file=new CmsResource(resId,parentId,fileId,resName,resType,resFlags,userId,groupId,projectId,accessFlags,state,lockedBy,launcherType,launcherClass,created,modified,modifiedBy,resSize,lockedInProject);
+      file=new CmsFile(resId,parentId,fileId,filename,resType,resFlags,userId,groupId,resProjectId,accessFlags,state,lockedBy,launcherType,launcherClass,created,modified,modifiedBy,content,resSize,lockedInProject);
       while (res.next()) {
+      }
+      if (file.getState() == C_STATE_DELETED && !includeDeleted) {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ file.getAbsolutePath(),CmsException.C_RESOURCE_DELETED);
       }
     }
  else {
-      res.close();
-      res=null;
       throw new CmsException("[" + this.getClass().getName() + "] "+ filename,CmsException.C_NOT_FOUND);
     }
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+catch (  CmsException ex) {
+    throw ex;
   }
 catch (  Exception exc) {
-    throw new CmsException("readResource " + exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
+    throw new CmsException("readFile " + exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
   }
  finally {
     if (res != null) {
