@@ -3,15 +3,19 @@
   String user=null;
   String group=null;
   String project=null;
+  String loginParameter;
   HttpServletRequest req=(HttpServletRequest)cmsReq.getOriginalRequest();
   HttpServletResponse res=(HttpServletResponse)cmsRes.getOriginalResponse();
   CmsObject cms=new CmsObject();
   try {
     cms.init(cmsReq,cmsRes,C_USER_GUEST,C_GROUP_GUEST,C_PROJECT_ONLINE);
-    if (req.getParameter("LOGIN") != null) {
-      session=req.getSession(true);
-      String u=req.getParameter("LOGIN");
-      m_sessionStorage.putUser(session.getId(),u);
+    loginParameter=req.getParameter("opencms");
+    if (loginParameter != null) {
+      if (req.getHeader("Authorization") == null) {
+        if (loginParameter.equals("login")) {
+          requestAuthorization(req,res);
+        }
+      }
     }
     session=req.getSession(false);
     if (session != null) {
@@ -21,34 +25,37 @@
         project=m_sessionStorage.getCurrentProject(session.getId());
         cms.init(cmsReq,cmsRes,user,group,project);
       }
+    }
  else {
-        String auth=req.getHeader("Authorization");
-        if (auth != null) {
-          if (auth.toUpperCase().startsWith("BASIC ")) {
-            String userpassEncoded=auth.substring(6);
-            sun.misc.BASE64Decoder dec=new sun.misc.BASE64Decoder();
-            String userstr=new String(dec.decodeBuffer(userpassEncoded));
-            String username=null;
-            String password=null;
-            StringTokenizer st=new StringTokenizer(userstr,":");
-            if (st.hasMoreTokens()) {
-              username=st.nextToken();
-            }
-            if (st.hasMoreTokens()) {
-              password=st.nextToken();
-            }
+      String auth=req.getHeader("Authorization");
+      if (auth != null) {
+        if (auth.toUpperCase().startsWith("BASIC ")) {
+          String userpassEncoded=auth.substring(6);
+          sun.misc.BASE64Decoder dec=new sun.misc.BASE64Decoder();
+          String userstr=new String(dec.decodeBuffer(userpassEncoded));
+          String username=null;
+          String password=null;
+          StringTokenizer st=new StringTokenizer(userstr,":");
+          if (st.hasMoreTokens()) {
+            username=st.nextToken();
+          }
+          if (st.hasMoreTokens()) {
+            password=st.nextToken();
+          }
+          try {
             user=cms.loginUser(username,password);
-            if (user != null) {
-              cms.init(cmsReq,cmsRes,user,C_GROUP_GUEST,C_PROJECT_ONLINE);
+            session=req.getSession(true);
+          }
+ catch (          CmsException e) {
+            if (e.getType() == CmsException.C_NO_ACCESS) {
+              requestAuthorization(req,res);
             }
  else {
-              requestAuthorization(req,res);
+              throw e;
             }
           }
         }
       }
-    }
-    if (user == null) {
     }
   }
  catch (  CmsException e) {
