@@ -5,7 +5,9 @@
   String initial=(String)parameters.get(C_PARA_INITIAL);
   if (initial != null) {
     session.removeValue(C_PARA_FILE);
+    session.removeValue("lasturl");
   }
+  String lasturl=getLastUrl(cms,parameters);
   String filename=(String)parameters.get(C_PARA_FILE);
   if (filename != null) {
     session.putValue(C_PARA_FILE,filename);
@@ -21,12 +23,23 @@
   try {
     cms.undeleteResource(file.getAbsolutePath());
     session.removeValue(C_PARA_FILE);
-    template="done";
+    try {
+      if (lasturl == null || "".equals(lasturl)) {
+        cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+      }
+ else {
+        cms.getRequestContext().getResponse().sendRedirect(lasturl);
+      }
+    }
+ catch (    Exception e) {
+      throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+    }
+    return null;
   }
  catch (  CmsException e) {
     session.removeValue(C_PARA_FILE);
     xmlTemplateDocument.setData("details",Utils.getStackTrace(e));
+    xmlTemplateDocument.setData("lasturl",lasturl);
     return startProcessing(cms,xmlTemplateDocument,"",parameters,"error");
   }
-  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
 }
