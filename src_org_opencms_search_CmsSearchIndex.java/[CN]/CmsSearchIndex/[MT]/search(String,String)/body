@@ -35,10 +35,28 @@
     for (int i=0; i < hits.length(); i++) {
       try {
         Document doc=hits.doc(i);
-        CmsResource res=m_cms.readFileHeader(doc.getField(I_CmsDocumentFactory.DOC_PATH).stringValue());
-        if (m_cms.hasPermissions(res,I_CmsConstants.C_READ_ACCESS)) {
+        CmsIndexResource resource=null;
+        String channel=null;
+        String path=null;
+        Field f;
+        if ((f=doc.getField(I_CmsDocumentFactory.DOC_CHANNEL)) != null) {
+          channel=f.stringValue();
+        }
+        if ((f=doc.getField(I_CmsDocumentFactory.DOC_PATH)) != null) {
+          path=f.stringValue();
+        }
+        if (channel != null) {
+          resource=CmsCosIndexer.readResource(m_cms,doc);
+        }
+ else {
+          CmsResource res=m_cms.readFileHeader(path);
+          if (m_cms.hasPermissions(res,I_CmsConstants.C_READ_ACCESS)) {
+            resource=new CmsIndexResource(res);
+          }
+        }
+        if (resource != null) {
           maxScore=(maxScore < hits.score(i)) ? hits.score(i) : maxScore;
-          result.add(new CmsSearchResult(this,searchQuery,res,doc,(int)((hits.score(i) / maxScore) * 100.0)));
+          result.add(new CmsSearchResult(this,searchQuery,resource,doc,(int)((hits.score(i) / maxScore) * 100.0)));
         }
       }
  catch (      Exception exc) {
