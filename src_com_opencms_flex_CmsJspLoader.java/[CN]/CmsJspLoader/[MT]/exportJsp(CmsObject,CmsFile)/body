@@ -1,0 +1,58 @@
+{
+  if (m_jspExportUrl == null) {
+    throw new CmsException("JSP export URL not set, can not export JSP",CmsException.C_FLEX_LOADER);
+  }
+  ByteArrayOutputStream bytes=null;
+  CmsRequestContext context=cms.getRequestContext();
+  StringBuffer exportUrl=new StringBuffer(m_jspExportUrl);
+  exportUrl.append(file.getAbsolutePath());
+  exportUrl.append("?");
+  Enumeration params=context.getRequest().getParameterNames();
+  while (params.hasMoreElements()) {
+    String key=(String)params.nextElement();
+    String values[]=(String[])context.getRequest().getParameterValues(key);
+    for (int i=0; i < values.length; i++) {
+      exportUrl.append(key);
+      exportUrl.append("=");
+      exportUrl.append(Encoder.encode(values[i],"UTF-8",true));
+      exportUrl.append("&");
+    }
+  }
+  exportUrl.append(C_EXPORT_PARAM);
+  exportUrl.append("=");
+  exportUrl.append(cms.getRequestContext().getUri());
+  if (DEBUG > 2)   System.err.println("CmsJspLoader.exportJsp(): JSP export URL is " + exportUrl);
+  URL export;
+  HttpURLConnection urlcon;
+  DataInputStream input;
+  try {
+    export=new URL(new String(exportUrl));
+    urlcon=(HttpURLConnection)export.openConnection();
+    urlcon.setRequestMethod("POST");
+    HttpURLConnection.setFollowRedirects(false);
+    input=new DataInputStream(urlcon.getInputStream());
+    bytes=new ByteArrayOutputStream(urlcon.getContentLength() > 0 ? urlcon.getContentLength() : 1024);
+  }
+ catch (  Exception e) {
+    throw new CmsException("IO related error while exporting JSP for URI " + cms.getRequestContext().getUri(),CmsException.C_FLEX_LOADER,e);
+  }
+  String cmslinks=urlcon.getHeaderField(C_EXPORT_HEADER);
+  if (cmslinks != null) {
+    StringTokenizer tok=new StringTokenizer(cmslinks,C_EXPORT_HEADER_SEP);
+    while (tok.hasMoreTokens()) {
+      String link=Encoder.decode(tok.nextToken(),"UFT-8",true);
+      cms.getRequestContext().addLink(link);
+      if (DEBUG > 3)       System.err.println("CmsJspLoader.exportJsp(): Extracted link " + link);
+    }
+  }
+  try {
+    int b;
+    while ((b=input.read()) > 0) {
+      bytes.write(b);
+    }
+  }
+ catch (  IOException e) {
+    throw new CmsException("IO error writing bytes to buffer exporting JSP for URI " + cms.getRequestContext().getUri(),CmsException.C_FLEX_LOADER,e);
+  }
+  return bytes.toByteArray();
+}

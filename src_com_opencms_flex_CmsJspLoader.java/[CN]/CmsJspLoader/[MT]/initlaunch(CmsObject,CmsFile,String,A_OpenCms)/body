@@ -1,22 +1,30 @@
 {
   HttpServletRequest req;
   HttpServletResponse res;
-  CmsRequestContext context=cms.getRequestContext();
-  if (context.getRequest() instanceof com.opencms.core.CmsExportRequest) {
+  if (cms.getRequestContext().getRequest() instanceof com.opencms.core.CmsExportRequest) {
     if (DEBUG > 1)     System.err.println("FlexJspLoader: Export requested for " + file.getAbsolutePath());
-    com.opencms.launcher.I_CmsLauncher dumpLauncher=cms.getLauncherManager().getLauncher(com.opencms.launcher.I_CmsLauncher.C_TYPE_DUMP);
-    dumpLauncher.initlaunch(cms,file,startTemplateClass,openCms);
-    return;
+    byte[] export=exportJsp(cms,file);
+    try {
+      OutputStream output=cms.getRequestContext().getResponse().getOutputStream();
+      output.write(export);
+    }
+ catch (    IOException e) {
+      throw new CmsException("IOException writing contents of exported JSP for URI " + cms.getRequestContext().getUri(),CmsException.C_FLEX_LOADER,e);
+    }
   }
  else {
-    req=(HttpServletRequest)context.getRequest().getOriginalRequest();
-    res=(HttpServletResponse)context.getResponse().getOriginalResponse();
-  }
-  try {
-    load(cms,file,req,res);
-  }
- catch (  Exception e) {
-    if (DEBUG > 1)     System.err.println("Error in Flex loader: " + e + Utils.getStackTrace(e));
-    throw new CmsException("Error in Flex loader",CmsException.C_FLEX_LOADER,e,true);
+    req=(HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest();
+    res=(HttpServletResponse)cms.getRequestContext().getResponse().getOriginalResponse();
+    int oldMode=exportCheckMode(cms,req);
+    try {
+      load(cms,file,req,res);
+    }
+ catch (    Exception e) {
+      if (DEBUG > 1)       System.err.println("Error in Flex loader: " + e + Utils.getStackTrace(e));
+      throw new CmsException("Error in Flex loader",CmsException.C_FLEX_LOADER,e,true);
+    }
+ finally {
+      exportResetMode(cms,oldMode);
+    }
   }
 }
