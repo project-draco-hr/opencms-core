@@ -1,5 +1,4 @@
 {
-  initVersion(this);
   String base=context.getInitParameter("opencms.home");
   if (base == null || "".equals(base)) {
     base=CmsMain.searchBaseFolder(context.getRealPath("/"));
@@ -7,7 +6,7 @@
       throwInitException(new CmsInitException(C_ERRORMSG + "OpenCms base folder could not be guessed. Please define init parameter \"opencms.home\" in servlet engine configuration.\n\n"));
     }
   }
-  base=setBasePath(base);
+  m_systemInfo.setBasePath(base);
   ExtendedProperties configuration=null;
   try {
     configuration=CmsSetupUtils.loadProperties(CmsBase.getPropertiesPath(true));
@@ -15,11 +14,12 @@
  catch (  Exception e) {
     throwInitException(new CmsInitException(C_ERRORMSG + "Trouble reading property file " + CmsBase.getPropertiesPath(true)+ ".\n\n",e));
   }
-  m_logfile=(String)configuration.get("log.file");
-  if (m_logfile != null) {
-    m_logfile=CmsBase.getAbsolutePath(m_logfile);
-    configuration.put("log.file",m_logfile);
+  String logfile=(String)configuration.get("log.file");
+  if (logfile != null) {
+    logfile=CmsBase.getAbsolutePath(logfile);
+    configuration.put("log.file",logfile);
   }
+  m_systemInfo.setLogFileName(logfile);
   String servletMapping=context.getInitParameter("OpenCmsServlet");
   if (servletMapping == null) {
     m_instance=null;
@@ -42,12 +42,12 @@
     printCopyrightInformation();
     getLog(CmsLog.CHANNEL_INIT).info(".                      ...............................................................");
     getLog(CmsLog.CHANNEL_INIT).info(". Startup time         : " + (new Date(System.currentTimeMillis())));
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms version      : " + OpenCms.getVersionName());
+    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms version      : " + getSystemInfo().getVersionName());
     getLog(CmsLog.CHANNEL_INIT).info(". OpenCms context path : /" + CmsBase.getWebAppName());
     getLog(CmsLog.CHANNEL_INIT).info(". OpenCms servlet path : " + servletMapping);
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms base path    : " + getBasePath());
+    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms base path    : " + getSystemInfo().getBasePath());
     getLog(CmsLog.CHANNEL_INIT).info(". OpenCms property file: " + CmsBase.getPropertiesPath(true));
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms logfile      : " + m_logfile);
+    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms logfile      : " + getSystemInfo().getLogFileName());
     getLog(CmsLog.CHANNEL_INIT).info(". Servlet container    : " + context.getServerInfo());
   }
   try {
@@ -61,15 +61,15 @@
 catch (  Exception exc) {
     throwInitException(new CmsInitException(C_ERRORMSG + "Trouble creating the com.opencms.core.CmsObject. Please check the root cause for more information.\n\n",exc));
   }
-  m_exportProperties=new CmsStaticExportManager();
-  m_exportProperties.setStaticExportEnabled("true".equalsIgnoreCase(configuration.getString("staticexport.enabled","false")));
-  m_exportProperties.setExportPropertyDefault("true".equalsIgnoreCase(configuration.getString("staticexport.export_default","false")));
+  m_staticExportManager=new CmsStaticExportManager();
+  m_staticExportManager.setStaticExportEnabled("true".equalsIgnoreCase(configuration.getString("staticexport.enabled","false")));
+  m_staticExportManager.setExportPropertyDefault("true".equalsIgnoreCase(configuration.getString("staticexport.export_default","false")));
   String[] exportSuffixes=configuration.getStringArray("staticexport.export_suffixes");
   if (exportSuffixes == null) {
     exportSuffixes=new String[0];
   }
-  m_exportProperties.setExportSuffixes(exportSuffixes);
-  m_exportProperties.setExportPath(org.opencms.setup.CmsBase.getAbsoluteWebPath(CmsBase.getAbsoluteWebPath(configuration.getString("staticexport.export_path"))));
+  m_staticExportManager.setExportSuffixes(exportSuffixes);
+  m_staticExportManager.setExportPath(org.opencms.setup.CmsBase.getAbsoluteWebPath(CmsBase.getAbsoluteWebPath(configuration.getString("staticexport.export_path"))));
   String servletName=configuration.getString("servlet.mapping");
   String contextName="/" + CmsBase.getWebAppName();
   if ("/ROOT".equals(contextName)) {
@@ -79,18 +79,18 @@ catch (  Exception exc) {
   configuration.setProperty("SERVLET_NAME",servletName);
   String rfsPrefix=configuration.getString("staticexport.prefix_rfs",contextName + "/export");
   String vfsPrefix=configuration.getString("staticexport.prefix_vfs",contextName + servletName);
-  m_exportProperties.setRfsPrefix(rfsPrefix);
-  m_exportProperties.setVfsPrefix(vfsPrefix);
-  m_exportProperties.setExportRelativeLinks(configuration.getBoolean("staticexport.relative_links",false));
-  m_exportProperties.setExportnames();
+  m_staticExportManager.setRfsPrefix(rfsPrefix);
+  m_staticExportManager.setVfsPrefix(vfsPrefix);
+  m_staticExportManager.setExportRelativeLinks(configuration.getBoolean("staticexport.relative_links",false));
+  m_staticExportManager.setExportnames();
   if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(". Static export        : " + (m_exportProperties.isStaticExportEnabled() ? "enabled" : "disabled"));
-    if (m_exportProperties.isStaticExportEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". Export default       : " + m_exportProperties.getExportPropertyDefault());
-      getLog(CmsLog.CHANNEL_INIT).info(". Export path          : " + m_exportProperties.getExportPath());
-      getLog(CmsLog.CHANNEL_INIT).info(". Export rfs prefix    : " + m_exportProperties.getRfsPrefix());
-      getLog(CmsLog.CHANNEL_INIT).info(". Export vfs prefix    : " + m_exportProperties.getVfsPrefix());
-      getLog(CmsLog.CHANNEL_INIT).info(". Export link style    : " + (m_exportProperties.relativLinksInExport() ? "relative" : "absolute"));
+    getLog(CmsLog.CHANNEL_INIT).info(". Static export        : " + (m_staticExportManager.isStaticExportEnabled() ? "enabled" : "disabled"));
+    if (m_staticExportManager.isStaticExportEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).info(". Export default       : " + m_staticExportManager.getExportPropertyDefault());
+      getLog(CmsLog.CHANNEL_INIT).info(". Export path          : " + m_staticExportManager.getExportPath());
+      getLog(CmsLog.CHANNEL_INIT).info(". Export rfs prefix    : " + m_staticExportManager.getRfsPrefix());
+      getLog(CmsLog.CHANNEL_INIT).info(". Export vfs prefix    : " + m_staticExportManager.getVfsPrefix());
+      getLog(CmsLog.CHANNEL_INIT).info(". Export link style    : " + (m_staticExportManager.relativLinksInExport() ? "relative" : "absolute"));
     }
   }
   m_sessionInfoManager=new CmsSessionInfoManager();
