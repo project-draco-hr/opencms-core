@@ -1,5 +1,16 @@
 {
   super.init(config);
+  String base=config.getInitParameter("opencms.home");
+  System.err.println("BASE: " + config.getServletContext().getRealPath("/"));
+  System.err.println("BASE2: " + System.getProperty("user.dir"));
+  if (base == null || "".equals(base)) {
+    System.err.println("No OpenCms home folder given. Trying to guess...");
+    base=CmsMain.searchBaseFolder(config.getServletContext().getRealPath("/"));
+    if (base == null || "".equals(base)) {
+      throw new ServletException("OpenCms base folder could not be guessed. Please define init parameter \"opencms.home\" in servlet engine configuration.");
+    }
+  }
+  base=CmsBase.setBasePath(base);
   try {
     ExtendedProperties p=new ExtendedProperties(CmsBase.getPropertiesPath(true));
     String logFile=(String)p.get("log.file");
@@ -45,49 +56,7 @@
   if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
     A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] initializing... DONE");
   }
-  CmsObject cms=new CmsObject();
-  try {
-    m_opencms.initUser(cms,null,null,C_USER_GUEST,C_GROUP_GUEST,C_PROJECT_ONLINE_ID,m_sessionStorage);
-  }
- catch (  CmsException exc) {
-    throw new ServletException("Error while initializing the cms-object for the classloader",exc);
-  }
-  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] initializing CmsClassLoader ");
-  }
-  Vector repositories=new Vector();
-  String[] repositoriesFromConfigFile=null;
-  String[] repositoriesFromRegistry=null;
-  repositoriesFromConfigFile=cms.getConfigurations().getStringArray("repositories");
-  for (int i=0; i < repositoriesFromConfigFile.length; i++) {
-    repositories.addElement(repositoriesFromConfigFile[i]);
-  }
-  I_CmsRegistry reg=null;
-  try {
-    reg=cms.getRegistry();
-  }
- catch (  CmsException e) {
-    throw new ServletException(e.getMessage());
-  }
-  CmsClassLoader loader=(CmsClassLoader)(getClass().getClassLoader());
-  if (reg != null) {
-    repositoriesFromRegistry=reg.getRepositories();
-    for (int i=0; i < repositoriesFromRegistry.length; i++) {
-      try {
-        cms.readFileHeader(repositoriesFromRegistry[i]);
-        loader.addRepository(repositoriesFromRegistry[i],CmsClassLoader.C_REPOSITORY_VIRTUAL_FS);
-      }
- catch (      CmsException e) {
-      }
-    }
-  }
-  loader.init(cms);
-  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] initializing CmsClassLoader... DONE");
-  }
-  try {
-    Utils.getModulStartUpMethods(cms);
-  }
- catch (  CmsException e) {
-  }
+  source.org.apache.java.util.Configurations openCmsConfig=m_opencms.getConfiguration();
+  this.m_UseBasicAuthentication=openCmsConfig.getBoolean("auth.basic",true);
+  this.m_AuthenticationFormURI=openCmsConfig.getString("auth.form_uri","/system/workplace/action/authenticate.html");
 }
