@@ -1,0 +1,44 @@
+{
+  SimpleDateFormat dateFormat=new java.text.SimpleDateFormat("dd.MM.yyyy");
+  String name=(String)table.get(C_MODULE_PACKETNAME);
+  try {
+    CmsModuleVersion version=new CmsModuleVersion((String)table.get(C_VERSION));
+    String niceName=(String)table.get(C_MODULENAME);
+    String description=(String)table.get(C_DESCRIPTION);
+    String moduleClass=(String)table.get(C_PUBLISHCLASS);
+    String moduleAuthor=(String)table.get(C_AUTHOR);
+    String moduleEmail=(String)table.get(C_EMAIL);
+    String date=(String)table.get(C_DATE);
+    long moduleDateCreated=0;
+    try {
+      moduleDateCreated=dateFormat.parse(date).getTime();
+    }
+ catch (    Exception exc) {
+      moduleDateCreated=(new Date()).getTime();
+    }
+    Vector stringDeps=(Vector)table.get(C_DEPENDENCY);
+    List dependencies=new ArrayList();
+    for (int i=0; i < stringDeps.size(); i++) {
+      String complString=(String)stringDeps.elementAt(i);
+      complString=complString.substring(0,complString.lastIndexOf("-") - 1);
+      String min=complString.substring(complString.lastIndexOf(":") + 1);
+      String depName=(complString.substring(0,complString.lastIndexOf("Version:") - 1)).trim();
+      dependencies.add(new CmsModuleDependency(depName,new CmsModuleVersion(String.valueOf(min))));
+    }
+    Vector paraNames=(Vector)table.get(C_SESSION_MODULE_ADMIN_PROP_NAMES);
+    Vector paraVal=(Vector)table.get(C_SESSION_MODULE_ADMIN_PROP_VAL);
+    Map parameters=new HashMap();
+    for (int i=0; i < paraNames.size(); i++) {
+      String key=(String)paraNames.get(i);
+      parameters.put(key,paraVal.get(i));
+    }
+    CmsModule currentModule=OpenCms.getModuleManager().getModule(name);
+    CmsModule updatedModule=new CmsModule(name,niceName,moduleClass,description,version,moduleAuthor,moduleEmail,moduleDateCreated,currentModule.getUserInstalled(),currentModule.getDateInstalled(),dependencies,currentModule.getExportPoints(),currentModule.getResources(),parameters);
+    OpenCms.getModuleManager().updateModule(cms,updatedModule);
+  }
+ catch (  CmsException e) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error in module administration",e);
+    }
+  }
+}

@@ -68,8 +68,16 @@
   getSystemInfo().setVersionHistorySettings(systemConfiguration.isVersionHistoryEnabled(),systemConfiguration.getVersionHistoryMaxCount());
   getSystemInfo().setMailSettings(systemConfiguration.getMailSettings());
   getSystemInfo().setSynchronizeSettings(new CmsSynchronizeSettings());
-  m_resourceInitHandlers=systemConfiguration.getResourceInitHandlers();
   m_scheduleManager=systemConfiguration.getScheduleManager();
+  m_resourceInitHandlers=systemConfiguration.getResourceInitHandlers();
+  Iterator it=systemConfiguration.getRequestHandlers().iterator();
+  while (it.hasNext()) {
+    I_CmsRequestHandler handler=(I_CmsRequestHandler)it.next();
+    addRequestHandler(handler);
+    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      getLog(CmsLog.CHANNEL_INIT).warn(". Request handler class: " + handler.getClass().getName() + " activated");
+    }
+  }
   CmsVfsConfiguration vfsConfiguation=(CmsVfsConfiguration)m_configurationManager.getConfiguration(CmsVfsConfiguration.class);
   m_resourceManager=vfsConfiguation.getResourceManager();
   CmsImportExportConfiguration importExportConfiguration=(CmsImportExportConfiguration)m_configurationManager.getConfiguration(CmsImportExportConfiguration.class);
@@ -80,6 +88,8 @@
   CmsWorkplaceConfiguration workplaceConfiguration=(CmsWorkplaceConfiguration)m_configurationManager.getConfiguration(CmsWorkplaceConfiguration.class);
   m_workplaceManager=workplaceConfiguration.getWorkplaceManager();
   addExportPoints(m_workplaceManager.getExportPoints());
+  CmsModuleConfiguration moduleConfiguration=(CmsModuleConfiguration)m_configurationManager.getConfiguration(CmsModuleConfiguration.class);
+  m_moduleManager=moduleConfiguration.getModuleManager();
   try {
     m_driverManager=CmsDriverManager.newInstance(configuration);
   }
@@ -88,24 +98,6 @@
       getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "3",e);
     }
     throw new CmsException("Database init failed",CmsException.C_RB_INIT_ERROR,e);
-  }
-  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(". Initializing registry: starting");
-  }
-  try {
-    m_registry=new CmsRegistry(getSystemInfo().getAbsoluteRfsPathRelativeToWebInf(configuration.getString(I_CmsConstants.C_CONFIGURATION_REGISTRY)));
-  }
- catch (  CmsException ex) {
-    throw ex;
-  }
-catch (  Exception ex) {
-    if (getLog(this).isErrorEnabled()) {
-      getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "4",ex);
-    }
-    throw new CmsException("Init of registry failed",CmsException.C_REGISTRY_ERROR,ex);
-  }
-  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(". Initializing registry: finished");
   }
   m_threadStore=new CmsThreadStore();
   m_linkManager=new CmsLinkManager();
@@ -171,4 +163,5 @@ catch (  Exception ex) {
   m_siteManager=CmsSiteManager.initialize(configuration,adminCms);
   m_searchManager.initialize(adminCms);
   m_staticExportManager.initialize(adminCms);
+  m_moduleManager.initialize(adminCms);
 }

@@ -1,0 +1,69 @@
+{
+  CmsRequestContext context=cms.getRequestContext();
+  int publishProjectId=context.currentProject().getId();
+  boolean backupEnabled=OpenCms.getSystemInfo().isVersionHistoryEnabled();
+  int tagId=0;
+  CmsResource directPublishResource=null;
+  boolean hasPublishPermissions=false;
+  hasPublishPermissions|=isAdmin(context);
+  hasPublishPermissions|=isManagerOfProject(context);
+  if (publishList.isDirectPublish()) {
+    directPublishResource=readResource(context,publishList.getDirectPublishResourceName(),CmsResourceFilter.ALL);
+    hasPublishPermissions|=(PERM_ALLOWED == hasPermissions(context,directPublishResource,I_CmsConstants.C_DIRECT_PUBLISH,true,CmsResourceFilter.ALL));
+  }
+  hasPublishPermissions&=(publishProjectId != I_CmsConstants.C_PROJECT_ONLINE_ID);
+  hasPublishPermissions&=(context.currentProject().getFlags() == I_CmsConstants.C_PROJECT_STATE_UNLOCKED);
+  if (hasPublishPermissions) {
+    try {
+      if (backupEnabled) {
+        tagId=getBackupTagId();
+      }
+ else {
+        tagId=0;
+      }
+      int maxVersions=OpenCms.getSystemInfo().getVersionHistoryMaxCount();
+      if (publishList.isDirectPublish()) {
+        CmsUUID parentID=publishList.getDirectPublishParentStructureId();
+        try {
+          getVfsDriver().readFolder(I_CmsConstants.C_PROJECT_ONLINE_ID,parentID);
+        }
+ catch (        CmsException e) {
+          report.println("Parent folder not published for resource " + publishList.getDirectPublishResourceName(),I_CmsReport.C_FORMAT_ERROR);
+          return;
+        }
+      }
+      m_projectDriver.publishProject(context,report,readProject(I_CmsConstants.C_PROJECT_ONLINE_ID),publishList,OpenCms.getSystemInfo().isVersionHistoryEnabled(),tagId,maxVersions);
+      Iterator i=OpenCms.getModuleManager().getModuleInstances();
+      while (i.hasNext()) {
+        I_CmsModuleAction moduleActionInstance=(I_CmsModuleAction)i.next();
+        moduleActionInstance.publishProject(cms,publishList,tagId,report);
+      }
+    }
+  finally {
+      this.clearResourceCache();
+      if (context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_TEMPORARY) {
+        m_projectDriver.deleteProject(context.currentProject());
+        try {
+          m_projectCache.remove(new Integer(publishProjectId));
+        }
+ catch (        Exception e) {
+          if (OpenCms.getLog(this).isWarnEnabled()) {
+            OpenCms.getLog(this).warn("Could not remove project " + publishProjectId + " from cache");
+          }
+        }
+        if (publishProjectId == context.currentProject().getId()) {
+          cms.getRequestContext().setCurrentProject(readProject(I_CmsConstants.C_PROJECT_ONLINE_ID));
+        }
+      }
+    }
+  }
+ else   if (publishProjectId == I_CmsConstants.C_PROJECT_ONLINE_ID) {
+    throw new CmsSecurityException("[" + getClass().getName() + "] could not publish project "+ publishProjectId,CmsSecurityException.C_SECURITY_NO_MODIFY_IN_ONLINE_PROJECT);
+  }
+ else   if (!isAdmin(context) && !isManagerOfProject(context)) {
+    throw new CmsSecurityException("[" + getClass().getName() + "] could not publish project "+ publishProjectId,CmsSecurityException.C_SECURITY_PROJECTMANAGER_PRIVILEGES_REQUIRED);
+  }
+ else {
+    throw new CmsSecurityException("[" + getClass().getName() + "] could not publish project "+ publishProjectId,CmsSecurityException.C_SECURITY_NO_PERMISSIONS);
+  }
+}

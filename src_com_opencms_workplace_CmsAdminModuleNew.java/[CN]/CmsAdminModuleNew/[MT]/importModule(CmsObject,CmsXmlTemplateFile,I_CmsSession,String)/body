@@ -1,0 +1,48 @@
+{
+  String nav=(String)session.getValue(C_MODULE_NAV);
+  Vector conflictFiles=new Vector();
+  CmsModule module=null;
+  boolean importNewModule=true;
+  if (nav == null) {
+    module=CmsModuleImportExportHandler.readModuleFromImport(zipName);
+    if (OpenCms.getModuleManager().hasModule(module.getName())) {
+      session.putValue(C_MODULE,module);
+      importNewModule=false;
+    }
+    List dependencies=OpenCms.getModuleManager().checkDependencies(module,CmsModuleManager.C_DEPENDENCY_MODE_IMPORT);
+    if (!dependencies.isEmpty()) {
+      xmlDocument.setData("name",module.getName());
+      xmlDocument.setData("version",module.getVersion().toString());
+      String preconditions="";
+      for (int i=0; i < dependencies.size(); i++) {
+        preconditions+="<br><br>" + dependencies.get(i);
+      }
+      xmlDocument.setData("precondition",preconditions);
+      session.removeValue(C_MODULE_NAV);
+      return C_ERRORDEP;
+    }
+    conflictFiles=new Vector();
+  }
+ else {
+    if (C_FILES.equals(nav)) {
+      zipName=(String)session.getValue(C_MODULE_FILENAME);
+      module=(CmsModule)session.getValue(C_MODULE);
+      if (module != null)       importNewModule=false;
+      conflictFiles=(Vector)session.getValue(C_SESSION_MODULE_VECTOR);
+      session.removeValue(C_MODULE);
+      session.removeValue(C_MODULE_NAV);
+    }
+  }
+  if (importNewModule) {
+    A_CmsReportThread doTheImport=new CmsDatabaseImportThread(cms,zipName);
+    doTheImport.start();
+    session.putValue(C_MODULE_THREAD,doTheImport);
+  }
+ else {
+    A_CmsReportThread doTheReplace=new CmsModuleReplaceThread(cms,module.getName(),zipName);
+    doTheReplace.start();
+    session.putValue(C_MODULE_THREAD,doTheReplace);
+  }
+  xmlDocument.setData("time","5");
+  return "showresult";
+}
