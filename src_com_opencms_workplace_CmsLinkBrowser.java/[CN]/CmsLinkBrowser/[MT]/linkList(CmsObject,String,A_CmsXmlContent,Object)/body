@@ -1,0 +1,51 @@
+{
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  Hashtable parameters=(Hashtable)userObj;
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)doc;
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  StringBuffer result=new StringBuffer();
+  String pageText=(String)parameters.get(C_PARA_PAGE);
+  Vector filteredLinks=(Vector)parameters.get("_LINKLIST_");
+  int numLinks=filteredLinks.size();
+  int page=new Integer(pageText).intValue();
+  int from=(page - 1) * C_PICBROWSER_MAXIMAGES;
+  int to=((from + C_PICBROWSER_MAXIMAGES) > numLinks) ? numLinks : (from + C_PICBROWSER_MAXIMAGES);
+  String folder=(String)parameters.get(C_PARA_FOLDER);
+  if (folder == null) {
+    folder=(String)session.getValue(C_PARA_FOLDER);
+  }
+  if (folder == null || "".equals(folder)) {
+    folder=C_LINKGALLERY_ROOTFOLDER;
+    parameters.put(C_PARA_FOLDER,folder);
+  }
+  HttpServletRequest req=(HttpServletRequest)(cms.getRequestContext().getRequest().getOriginalRequest());
+  String hostName="";
+  String linkUrl=cms.getRequestContext().getRequest().getServletUrl() + folder;
+  for (int i=from; i < to; i++) {
+    CmsFile file=cms.readFile(((CmsFile)filteredLinks.elementAt(i)).getAbsolutePath());
+    String filename=file.getName();
+    String title=cms.readProperty(file.getAbsolutePath(),C_PROPERTY_TITLE);
+    int dotIndex=filename.lastIndexOf(".");
+    if (title == null) {
+      if (dotIndex > 0) {
+        title=filename.substring(0,dotIndex);
+      }
+ else {
+        title=filename;
+      }
+    }
+    xmlTemplateDocument.setData("linksource",hostName + linkUrl + file.getName());
+    xmlTemplateDocument.setData("filename",file.getAbsolutePath());
+    xmlTemplateDocument.setData("title",title);
+    xmlTemplateDocument.setData("linktext",filename);
+    xmlTemplateDocument.setData("url",new String(file.getContents()));
+    String paraSetOnClick=(String)session.getValue("linkBrowser_for_ext_nav");
+    String setOnClick="";
+    if ("true".equals(paraSetOnClick)) {
+      setOnClick=xmlTemplateDocument.getProcessedDataValue("clickentry");
+    }
+    xmlTemplateDocument.setData("toclickornot",setOnClick);
+    result.append(xmlTemplateDocument.getProcessedDataValue("linklistentry",this,userObj));
+  }
+  return result.toString();
+}
