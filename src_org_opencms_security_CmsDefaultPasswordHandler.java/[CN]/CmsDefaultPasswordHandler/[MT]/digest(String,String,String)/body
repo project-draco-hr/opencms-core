@@ -1,15 +1,33 @@
 {
   MessageDigest md;
-  byte[] result;
+  String result;
   try {
-    if (I_CmsPasswordHandler.C_DIGEST_TYPE_PLAIN.equals(digestType.toLowerCase())) {
-      result=password.getBytes(inputEncoding);
+    if (C_DIGEST_TYPE_PLAIN.equals(digestType.toLowerCase())) {
+      result=password;
+    }
+ else     if (C_DIGEST_TYPE_SSHA.equals(digestType.toLowerCase())) {
+      byte[] salt=new byte[4];
+      byte[] digest;
+      byte[] total;
+      if (prng == null) {
+        prng=SecureRandom.getInstance("SHA1PRNG");
+      }
+      prng.nextBytes(salt);
+      md=MessageDigest.getInstance(C_DIGEST_TYPE_SHA);
+      md.reset();
+      md.update(password.getBytes(inputEncoding));
+      md.update(salt);
+      digest=md.digest();
+      total=new byte[digest.length + salt.length];
+      System.arraycopy(digest,0,total,0,digest.length);
+      System.arraycopy(salt,0,total,digest.length,salt.length);
+      result=new String(Base64.encodeBase64(total));
     }
  else {
       md=MessageDigest.getInstance(digestType);
       md.reset();
       md.update(password.getBytes(inputEncoding));
-      result=md.digest();
+      result=new String(Base64.encodeBase64(md.digest()));
     }
   }
  catch (  NoSuchAlgorithmException exc) {
@@ -18,5 +36,5 @@
 catch (  UnsupportedEncodingException exc) {
     throw new CmsException("Password encoding " + inputEncoding + " not supported.");
   }
-  return new String(Base64.encodeBase64(result));
+  return result;
 }
