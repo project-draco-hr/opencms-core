@@ -1,16 +1,28 @@
 {
   List result=new ArrayList();
+  List newFolderList=folderList == null ? new ArrayList() : new ArrayList(folderList);
   for (int i=0; i < resourceList.size(); i++) {
     CmsResource res=(CmsResource)resourceList.get(i);
     try {
       if (res.getStructureId().equals(currentResource.getStructureId())) {
         continue;
       }
-      if (!getLock(dbc,res).isNullLock()) {
+      CmsLock lock=getLock(dbc,res);
+      if (!lock.isNullLock()) {
+        if (lock.getType() == CmsLock.C_TYPE_SHARED_INHERITED || lock.getType() == CmsLock.C_TYPE_SHARED_EXCLUSIVE) {
+          if (res.getState() != I_CmsConstants.C_STATE_DELETED) {
+            continue;
+          }
+        }
+ else {
+          continue;
+        }
+      }
+      if (!I_CmsConstants.C_ROOT.equals(res.getRootPath()) && !checkParentResource(dbc,newFolderList,res)) {
         continue;
       }
-      if (!I_CmsConstants.C_ROOT.equals(res.getRootPath()) && !checkParentResource(dbc,folderList,res)) {
-        continue;
+      if (res.isFolder()) {
+        newFolderList.add(res);
       }
       result.add(res);
     }
