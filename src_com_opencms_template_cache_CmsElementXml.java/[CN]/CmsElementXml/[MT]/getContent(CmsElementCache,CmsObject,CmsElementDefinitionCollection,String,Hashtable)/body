@@ -1,0 +1,61 @@
+{
+  byte[] result=null;
+  CmsElementDefinitionCollection mergedElDefs=new CmsElementDefinitionCollection(elDefs,m_elementDefinitions);
+  I_CmsTemplate templateClass=null;
+  try {
+    templateClass=getTemplateClass(cms,m_className);
+  }
+ catch (  Throwable e) {
+    if (CmsBase.isLogging()) {
+      CmsBase.log(C_OPENCMS_CRITICAL,toString() + " Could not load my template class \"" + m_className+ "\". ");
+      CmsBase.log(C_OPENCMS_CRITICAL,e.toString());
+      return e.toString().getBytes();
+    }
+  }
+  CmsCacheDirectives cd=getCacheDirectives();
+  boolean streamable=false;
+  CmsElementVariant variant=null;
+  if (cd.isInternalCacheable()) {
+    variant=getVariant(cd.getCacheKey(cms,parameters));
+    if (variant != null) {
+      result=resolveVariant(cms,variant,elementCache,mergedElDefs,elementName,parameters);
+    }
+  }
+  if (variant == null) {
+    try {
+      parameters.put("_ELDEFS_",mergedElDefs);
+      try {
+        result=templateClass.getContent(cms,m_templateName,elementName,parameters);
+      }
+ catch (      Exception e) {
+        if (e instanceof CmsException) {
+          CmsException ce=(CmsException)e;
+          if (ce.getType() == ce.C_ACCESS_DENIED) {
+            if (CmsBase.isLogging()) {
+              CmsBase.log(C_OPENCMS_DEBUG,toString() + " Access denied in getContent for template class " + m_className);
+            }
+          }
+ else {
+            if (CmsBase.isLogging()) {
+              CmsBase.log(C_OPENCMS_INFO,toString() + " Error in getContent for template class " + m_className);
+            }
+          }
+          throw ce;
+        }
+ else {
+          if (CmsBase.isLogging()) {
+            CmsBase.log(C_OPENCMS_CRITICAL,toString() + " Non OpenCms error occured in getContent for template class " + m_className);
+          }
+          throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,e);
+        }
+      }
+    }
+ catch (    CmsException e) {
+      throw e;
+    }
+    if (streamable) {
+      result=null;
+    }
+  }
+  return result;
+}
