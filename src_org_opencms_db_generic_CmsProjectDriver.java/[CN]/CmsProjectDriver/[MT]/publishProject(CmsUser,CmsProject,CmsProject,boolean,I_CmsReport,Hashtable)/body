@@ -64,7 +64,7 @@
  catch (            CmsException exc) {
               throw exc;
             }
-            m_driverManager.getVfsDriver().updateOnlineResourceFromOfflineResource((CmsResource)onlineFolder,(CmsResource)currentFolder);
+            m_driverManager.getVfsDriver().publishResource((CmsResource)onlineFolder,(CmsResource)currentFolder);
           }
  else {
             throw e;
@@ -111,7 +111,7 @@
             discAccess.removeResource(onlineFolder.getResourceName(),currentExportKey);
           }
         }
-        m_driverManager.getVfsDriver().updateOnlineResourceFromOfflineResource((CmsResource)onlineFolder,(CmsResource)currentFolder);
+        m_driverManager.getVfsDriver().publishResource((CmsResource)onlineFolder,(CmsResource)currentFolder);
         m_driverManager.getUserDriver().publishAccessControlEntries(publishProject,onlineProject,currentFolder.getResourceAceId(),onlineFolder.getResourceAceId());
         Map props=(Map)new HashMap();
         try {
@@ -160,7 +160,7 @@
       }
  else       if (currentFile.getResourceName().startsWith(I_CmsConstants.C_TEMP_PREFIX)) {
         m_driverManager.getVfsDriver().deleteAllProperties(publishProjectId,currentFile);
-        m_driverManager.getVfsDriver().removeFile(publishProject,currentFile.getId());
+        m_driverManager.getVfsDriver().removeFile(publishProject,currentFile);
       }
  else       if (currentFile.getState() == I_CmsConstants.C_STATE_DELETED) {
         changedResources.addElement(currentResourceName);
@@ -186,8 +186,8 @@
           }
         }
         try {
-          m_driverManager.getVfsDriver().deleteResource(currentOnlineFile);
-          m_driverManager.getVfsDriver().deleteResource(currentFile);
+          m_driverManager.getVfsDriver().removeFile(onlineProject,currentOnlineFile);
+          m_driverManager.getVfsDriver().removeFile(publishProject,currentFile);
         }
  catch (        CmsException exc) {
           if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -234,11 +234,13 @@
  catch (        CmsException exc) {
           if (exc.getType() == CmsException.C_NOT_FOUND) {
             currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
-            onlineFile=m_driverManager.getVfsDriver().createFile(onlineProject,currentFile,currentUser.getId(),currentFile.getParentId(),currentFile.getResourceName());
+            onlineFile=m_driverManager.getVfsDriver().createFile(onlineProject,currentFile,currentUser.getId(),currentFile.getParentId(),currentFile.getResourceName(),currentFile.isHardLink());
           }
         }
-        m_driverManager.getVfsDriver().updateOnlineResourceFromOfflineResource((CmsResource)onlineFile,(CmsResource)currentFile);
-        m_driverManager.getVfsDriver().writeFileContent(onlineFile.getFileId(),currentFile.getContents(),I_CmsConstants.C_PROJECT_ONLINE_ID,false);
+        m_driverManager.getVfsDriver().publishResource((CmsResource)onlineFile,(CmsResource)currentFile);
+        if (currentFile.isHardLink()) {
+          m_driverManager.getVfsDriver().writeFileContent(onlineFile.getFileId(),currentFile.getContents(),I_CmsConstants.C_PROJECT_ONLINE_ID,false);
+        }
         Map props=(Map)new HashMap();
         try {
           m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),onlineFile);
@@ -276,7 +278,7 @@
         try {
           newFile=(CmsFile)currentFile.clone();
           newFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
-          m_driverManager.getVfsDriver().createFile(onlineProject,newFile,currentUser.getId(),newFile.getParentId(),newFile.getResourceName());
+          m_driverManager.getVfsDriver().createFile(onlineProject,newFile,currentUser.getId(),newFile.getParentId(),newFile.getResourceName(),newFile.isHardLink());
         }
  catch (        CmsException e) {
           if (e.getType() == CmsException.C_FILE_EXISTS) {
@@ -287,8 +289,10 @@
  catch (            CmsException exc) {
               throw exc;
             }
-            m_driverManager.getVfsDriver().updateOnlineResourceFromOfflineResource((CmsResource)onlineFile,(CmsResource)currentFile);
-            m_driverManager.getVfsDriver().writeFileContent(onlineFile.getFileId(),currentFile.getContents(),I_CmsConstants.C_PROJECT_ONLINE_ID,false);
+            m_driverManager.getVfsDriver().publishResource((CmsResource)onlineFile,(CmsResource)currentFile);
+            if (currentFile.isHardLink()) {
+              m_driverManager.getVfsDriver().writeFileContent(onlineFile.getFileId(),currentFile.getContents(),I_CmsConstants.C_PROJECT_ONLINE_ID,false);
+            }
           }
  else {
             throw e;

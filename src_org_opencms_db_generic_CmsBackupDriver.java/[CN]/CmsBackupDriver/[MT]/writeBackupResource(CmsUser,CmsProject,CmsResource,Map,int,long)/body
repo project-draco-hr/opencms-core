@@ -5,6 +5,7 @@
   String createdName=null;
   CmsUUID backupPkId=new CmsUUID();
   byte[] content=null;
+  int vfsLinkType=I_CmsConstants.C_UNKNOWN_ID;
   try {
     CmsUser lastModified=m_driverManager.getUserDriver().readUser(resource.getResourceLastModifiedBy());
     lastModifiedName=lastModified.getName() + " " + lastModified.getFirstname()+ " "+ lastModified.getLastname();
@@ -17,34 +18,40 @@
   }
   try {
     conn=m_sqlManager.getConnectionForBackup();
-    if (resource.getType() != I_CmsConstants.C_TYPE_FOLDER) {
-      content=((CmsFile)resource).getContents();
-      writeBackupFileContent(backupPkId,resource.getFileId(),content,versionId);
+    if (resource.isHardLink()) {
+      if (resource.getType() != I_CmsConstants.C_TYPE_FOLDER) {
+        content=((CmsFile)resource).getContents();
+        writeBackupFileContent(backupPkId,resource.getFileId(),content,versionId);
+      }
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_WRITE_BACKUP");
+      stmt.setString(1,resource.getResourceId().toString());
+      stmt.setInt(2,resource.getType());
+      stmt.setInt(3,resource.getFlags());
+      stmt.setString(4,resource.getFileId().toString());
+      stmt.setInt(5,resource.getLauncherType());
+      stmt.setString(6,resource.getLauncherClassname());
+      stmt.setTimestamp(7,new Timestamp(publishDate));
+      stmt.setString(8,resource.getOwnerId().toString());
+      stmt.setTimestamp(9,new Timestamp(resource.getDateLastModified()));
+      stmt.setString(10,resource.getResourceLastModifiedBy().toString());
+      stmt.setInt(11,resource.getState());
+      stmt.setInt(12,resource.getLength());
+      stmt.setInt(13,versionId);
+      stmt.setString(14,backupPkId.toString());
+      stmt.executeUpdate();
+      m_sqlManager.closeAll(null,stmt,null);
+      vfsLinkType=I_CmsConstants.C_VFS_LINK_TYPE_MASTER;
     }
-    stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_WRITE_BACKUP");
-    stmt.setString(1,resource.getResourceId().toString());
-    stmt.setInt(2,resource.getType());
-    stmt.setInt(3,resource.getFlags());
-    stmt.setString(4,resource.getFileId().toString());
-    stmt.setInt(5,resource.getLauncherType());
-    stmt.setString(6,resource.getLauncherClassname());
-    stmt.setTimestamp(7,new Timestamp(publishDate));
-    stmt.setString(8,resource.getOwnerId().toString());
-    stmt.setTimestamp(9,new Timestamp(resource.getDateLastModified()));
-    stmt.setString(10,resource.getResourceLastModifiedBy().toString());
-    stmt.setInt(11,resource.getState());
-    stmt.setInt(12,resource.getLength());
-    stmt.setInt(13,versionId);
-    stmt.setString(14,backupPkId.toString());
-    stmt.executeUpdate();
-    m_sqlManager.closeAll(null,stmt,null);
+ else {
+      vfsLinkType=I_CmsConstants.C_VFS_LINK_TYPE_SLAVE;
+    }
     stmt=m_sqlManager.getPreparedStatement(conn,"C_STRUCTURE_WRITE_BACKUP");
     stmt.setString(1,resource.getId().toString());
     stmt.setString(2,resource.getParentId().toString());
     stmt.setString(3,resource.getResourceId().toString());
     stmt.setInt(4,publishProject.getId());
     stmt.setString(5,resource.getResourceName());
-    stmt.setInt(6,0);
+    stmt.setInt(6,vfsLinkType);
     stmt.setInt(7,resource.getState());
     stmt.setString(8,resource.isLockedBy().toString());
     stmt.setString(9,resource.getResourceLastModifiedBy().toString());
