@@ -1,5 +1,6 @@
 {
-  PreparedStatement stmt=null;
+  CmsUUID fileId=resource.getFileId();
+  PreparedStatement stmt=null, stmt2=null;
   PreparedStatement commit=null;
   PreparedStatement rollback=null;
   Connection conn=null;
@@ -22,23 +23,45 @@
   try {
     conn=m_sqlManager.getConnectionForBackup();
     conn.setAutoCommit(false);
-    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILES_UPDATEBACKUP");
-    stmt.setString(1,fileId.toString());
-    stmt.setString(2,backupId.toString());
-    res=((DelegatingResultSet)stmt.executeQuery()).getInnermostDelegate();
-    if (!res.next())     throw new CmsException("internalWriteBackupFileContent backupId=" + backupId.toString() + " fileId="+ fileId.toString()+ " content not found",CmsException.C_NOT_FOUND);
-    Blob content=res.getBlob("FILE_CONTENT");
-    ((oracle.sql.BLOB)content).trim(0);
-    OutputStream output=((oracle.sql.BLOB)content).getBinaryOutputStream();
-    output.write(fileContent);
-    output.close();
+    if (m_enableServerCopy) {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILES_READCONTENT");
+      stmt.setString(1,fileId.toString());
+      res=stmt.executeQuery();
+      if (res.next()) {
+        Blob content=res.getBlob(1);
+        stmt2=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILES_BACKUPCONTENT");
+        stmt2.setBlob(1,content);
+        stmt2.setString(2,fileId.toString());
+        stmt2.setString(3,backupId.toString());
+        stmt2.executeUpdate();
+        stmt2.close();
+        stmt2=null;
+      }
+ else {
+      }
+      res.close();
+      res=null;
+    }
+ else {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILES_UPDATEBACKUP");
+      stmt.setString(1,fileId.toString());
+      stmt.setString(2,backupId.toString());
+      res=((DelegatingResultSet)stmt.executeQuery()).getInnermostDelegate();
+      if (!res.next())       throw new CmsException("internalWriteBackupFileContent backupId=" + backupId.toString() + " fileId="+ fileId.toString()+ " content not found",CmsException.C_NOT_FOUND);
+      Blob content=res.getBlob("FILE_CONTENT");
+      ((oracle.sql.BLOB)content).trim(0);
+      OutputStream output=((oracle.sql.BLOB)content).getBinaryOutputStream();
+      output.write(fileContent);
+      output.close();
+      res.close();
+      res=null;
+    }
     commit=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
     commit.execute();
     commit.close();
     commit=null;
     stmt.close();
     stmt=null;
-    res=null;
     conn.setAutoCommit(true);
   }
  catch (  IOException e) {
@@ -58,6 +81,13 @@ catch (  SQLException e) {
     if (commit != null) {
       try {
         commit.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (stmt2 != null) {
+      try {
+        stmt2.close();
       }
  catch (      SQLException exc) {
       }

@@ -1,0 +1,42 @@
+{
+  CmsFile newFile=null;
+  PreparedStatement stmt=null, stmt2=null;
+  Connection conn=null;
+  ResultSet res=null;
+  if (!m_enableServerCopy)   return super.publishFileContent(offlineProject,onlineProject,offlineFileHeader,publishedContentIds);
+  try {
+    if (!offlineFileHeader.getFileId().isNullUUID() && !publishedContentIds.contains(offlineFileHeader.getFileId())) {
+      newFile=new CmsFile(offlineFileHeader.getStructureId(),offlineFileHeader.getResourceId(),offlineFileHeader.getParentStructureId(),offlineFileHeader.getFileId(),offlineFileHeader.getName(),offlineFileHeader.getType(),offlineFileHeader.getFlags(),offlineFileHeader.getProjectLastModified(),I_CmsConstants.C_STATE_UNCHANGED,offlineFileHeader.getLoaderId(),offlineFileHeader.getDateCreated(),offlineFileHeader.getUserCreated(),offlineFileHeader.getDateLastModified(),offlineFileHeader.getUserLastModified(),offlineFileHeader.getLength(),offlineFileHeader.getLinkCount(),new byte[0]);
+      newFile.setFullResourceName(offlineFileHeader.getRootPath());
+      m_driverManager.getVfsDriver().createFile(onlineProject,newFile,offlineFileHeader.getUserCreated(),newFile.getParentStructureId(),newFile.getName());
+      conn=m_sqlManager.getConnection();
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILES_READCONTENT");
+      stmt.setString(1,offlineFileHeader.getFileId().toString());
+      res=stmt.executeQuery();
+      if (res.next()) {
+        Blob content=res.getBlob(1);
+        stmt2=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILES_PUBLISHCONTENT");
+        stmt2.setBlob(1,content);
+        stmt2.setString(2,offlineFileHeader.getFileId().toString());
+        stmt2.executeUpdate();
+        stmt2.close();
+        stmt2=null;
+      }
+      stmt.close();
+      stmt=null;
+      publishedContentIds.add(offlineFileHeader.getFileId());
+    }
+ else {
+      m_driverManager.getVfsDriver().createSibling(onlineProject,offlineFileHeader,offlineFileHeader.getUserCreated(),offlineFileHeader.getParentStructureId(),offlineFileHeader.getName());
+      newFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),false,offlineFileHeader.getStructureId());
+      newFile.setFullResourceName(offlineFileHeader.getRootPath());
+    }
+  }
+ catch (  Exception e) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error creating file content " + offlineFileHeader.toString(),e);
+    }
+    throw e;
+  }
+  return newFile;
+}
