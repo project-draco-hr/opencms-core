@@ -1,0 +1,56 @@
+{
+  File sfsFile=null;
+  CmsFile updVfsFile=null;
+  int action=C_SYNC_NONE;
+  String path=m_synchronizePath + vfsFile.getAbsolutePath().substring(0,vfsFile.getAbsolutePath().lastIndexOf("/") + 1);
+  String fileName=vfsFile.getAbsolutePath().substring(vfsFile.getAbsolutePath().lastIndexOf("/") + 1);
+  sfsFile=new File(path,fileName);
+  if (!sfsFile.exists()) {
+    createNewLocalFile(sfsFile);
+    sfsFile=new File(m_synchronizePath + vfsFile.getAbsolutePath());
+    action=C_SYNC_SFS;
+  }
+ else {
+    action=compareDate(vfsFile.getAbsolutePath(),vfsFile.getDateLastModified(),sfsFile.lastModified());
+  }
+switch (action) {
+case 1:
+    try {
+      writeFileByte(vfsFile.getContents(),sfsFile);
+      m_synchronizeList.putDates(vfsFile.getAbsolutePath(),vfsFile.getDateLastModified(),(long)System.currentTimeMillis());
+    }
+ catch (    Exception e) {
+      throw new CmsException("[" + this.getClass().getName() + "]"+ " Error while updating server filesystem",e);
+    }
+  break;
+case 2:
+try {
+  byte[] content=getFileBytes(sfsFile);
+  updVfsFile=vfsFile;
+  updVfsFile.setContents(content);
+  m_cms.writeFile(updVfsFile);
+  m_synchronizeList.putDates(vfsFile.getAbsolutePath(),(long)System.currentTimeMillis(),sfsFile.lastModified());
+}
+ catch (Exception e) {
+  throw new CmsException("[" + this.getClass().getName() + "]"+ " Error while updating virtual filesystem",e);
+}
+break;
+case 3:
+File backupFile=new File(path,"$" + fileName);
+if (copyServerFile(sfsFile,backupFile)) {
+try {
+writeFileByte(vfsFile.getContents(),sfsFile);
+m_synchronizeList.putDates(vfsFile.getAbsolutePath(),vfsFile.getDateLastModified(),(long)System.currentTimeMillis());
+}
+ catch (Exception e) {
+throw new CmsException("[" + this.getClass().getName() + "]"+ " Error while updating server filesystem",e);
+}
+}
+ else {
+throw new CmsException("[" + this.getClass().getName() + "]"+ " The file "+ sfsFile.getName()+ " could not be copied");
+}
+break;
+default :
+break;
+}
+}

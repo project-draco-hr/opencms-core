@@ -1,0 +1,70 @@
+{
+  Vector filesInFolder=null;
+  Vector foldersInFolder=null;
+  CmsResource startResource=null;
+  CmsFile syncFile=null;
+  CmsFolder syncFolder=null;
+  int onlineProject=m_cms.onlineProject().getId();
+  startResource=m_cms.readFileHeader(resourceName);
+  if (startResource == null || startResource.getProjectId() == onlineProject) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ resourceName,CmsException.C_NOT_FOUND);
+  }
+  if (startResource.getAbsolutePath().endsWith("/")) {
+    File startFolder=new File(m_synchronizePath + startResource.getAbsolutePath());
+    createDirectories(startFolder);
+    m_vfsFolders.put(m_synchronizePath + startResource.getAbsolutePath(),startResource);
+    filesInFolder=m_cms.getFilesInFolder(resourceName);
+    for (int i=0; i < filesInFolder.size(); i++) {
+      syncFile=((CmsFile)filesInFolder.elementAt(i));
+      if (syncFile.getProjectId() != onlineProject) {
+        if (syncFile.getState() == C_STATE_DELETED) {
+          File sfsFile=new File(m_synchronizePath + syncFile.getAbsolutePath());
+          if (sfsFile.exists()) {
+            sfsFile.delete();
+          }
+          m_synchronizeList.remove(syncFile.getAbsolutePath());
+        }
+ else {
+          syncFile=m_cms.readFile(syncFile.getAbsolutePath());
+          synchronizeFile(syncFile);
+          m_vfsFiles.put(m_synchronizePath + syncFile.getAbsolutePath(),syncFile);
+        }
+      }
+    }
+    foldersInFolder=m_cms.getSubFolders(resourceName);
+    for (int i=0; i < foldersInFolder.size(); i++) {
+      syncFolder=((CmsFolder)foldersInFolder.elementAt(i));
+      if (syncFolder.getProjectId() != onlineProject) {
+        if (syncFolder.getState() == C_STATE_DELETED) {
+          File sfsFile=new File(m_synchronizePath + syncFolder.getAbsolutePath());
+          if (sfsFile.exists()) {
+            if (!deleteDirectory(sfsFile)) {
+              throw new CmsException("[" + this.getClass().getName() + "] "+ "Could not delete "+ sfsFile.getPath());
+            }
+          }
+        }
+ else {
+          File sfsFile=new File(m_synchronizePath + syncFolder.getAbsolutePath());
+          sfsFile.mkdir();
+          m_vfsFolders.put(m_synchronizePath + syncFolder.getAbsolutePath(),syncFolder);
+          synchronizeServer(syncFolder.getAbsolutePath());
+        }
+      }
+    }
+  }
+ else {
+    if (startResource.getProjectId() != onlineProject) {
+      if (startResource.getState() == C_STATE_DELETED) {
+        File sfsFile=new File(m_synchronizePath + startResource.getAbsolutePath());
+        if (sfsFile.exists()) {
+          sfsFile.delete();
+        }
+        m_synchronizeList.remove(startResource.getAbsolutePath());
+      }
+ else {
+        syncFile=m_cms.readFile(resourceName);
+        synchronizeFile(syncFile);
+      }
+    }
+  }
+}
