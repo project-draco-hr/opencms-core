@@ -1,8 +1,14 @@
 {
-  if ((warning && m_warningLoggedSinceLastLog) || ((m_intervalLog <= 0) && (System.currentTimeMillis() < (m_lastLogWarning + m_intervalWarning)))) {
+  if (!OpenCms.getLog(this).isWarnEnabled()) {
     return;
   }
- else   if ((!OpenCms.getLog(this).isDebugEnabled()) || ((!warning) && (m_intervalLog <= 0))) {
+ else   if ((!warning) && (!OpenCms.getLog(this).isDebugEnabled())) {
+    return;
+  }
+ else   if (warning && (m_warningLoggedSinceLastStatus && !(((m_intervalLog <= 0) && (System.currentTimeMillis() < (m_lastLogWarning + m_intervalWarning)))))) {
+    return;
+  }
+ else   if ((!warning) && (m_intervalLog <= 0)) {
     return;
   }
   long maxMemory=Runtime.getRuntime().maxMemory() / 1048576;
@@ -12,11 +18,11 @@
   long usage=usedMemory * 100 / maxMemory;
   if (warning) {
     m_lastLogWarning=System.currentTimeMillis();
-    m_warningLoggedSinceLastLog=true;
+    m_warningLoggedSinceLastStatus=true;
     OpenCms.getLog(this).warn(", W A R N I N G Memory consumption of " + usage + "% has reached a critical level"+ " ("+ m_maxUsagePercent+ "% configured)");
   }
  else {
-    m_warningLoggedSinceLastLog=false;
+    m_warningLoggedSinceLastStatus=false;
     m_lastLogStatus=System.currentTimeMillis();
   }
   String memStatus=", Memory max: " + maxMemory + " mb "+ "total: "+ totalMemory+ " mb "+ "free: "+ freeMemory+ " mb "+ "used: "+ usedMemory+ " mb";
@@ -33,7 +39,7 @@
       Object obj=m_monitoredObjects.get(key);
       long size=getKeySize(obj) + getValueSize(obj) + getCosts(obj);
       totalSize+=size;
-      PrintfFormat name1=new PrintfFormat("%-100s");
+      PrintfFormat name1=new PrintfFormat("%-80s");
       PrintfFormat name2=new PrintfFormat("%-50s");
       PrintfFormat form=new PrintfFormat("%9s");
       OpenCms.getLog(this).debug(",, " + "Monitored:, " + name1.sprintf(key) + ", "+ "Type:, "+ name2.sprintf(obj.getClass().getName())+ ", "+ "Entries:, "+ form.sprintf(getItems(obj))+ ", "+ "Limit:, "+ form.sprintf(getLimit(obj))+ ", "+ "Size:, "+ form.sprintf(Long.toString(size)));
