@@ -1,0 +1,35 @@
+{
+  CmsFile file=m_cms.readFile(m_exportUri);
+  int loaderId=file.getLoaderId();
+  I_CmsResourceLoader loader=A_OpenCms.getLoaderManager().getLoader(loaderId);
+  if ((loader == null) || ((loaderId != CmsDumpLoader.C_RESOURCE_LOADER_ID) && (loaderId != CmsJspLoader.C_RESOURCE_LOADER_ID) && (loaderId != CmsPageLoader.C_RESOURCE_LOADER_ID))) {
+    throw new CmsException("Unable to export file " + m_exportUri + ", invalid loader id "+ loaderId);
+  }
+  String exportFolderName=A_OpenCms.getStaticExportProperties().getExportPath() + CmsResource.getPath(m_exportUri).substring(1);
+  File exportFolder=new File(exportFolderName);
+  if (!exportFolder.exists()) {
+    if (!exportFolder.mkdirs()) {
+      throw new CmsException("Creation of export folder failed for file " + m_exportUri);
+    }
+  }
+  String exportFileName=A_OpenCms.getStaticExportProperties().getExportPath() + m_exportUri.substring(1);
+  File exportFile=new File(exportFileName);
+  FileOutputStream exportStream;
+  try {
+    exportStream=new FileOutputStream(exportFile);
+  }
+ catch (  Throwable t) {
+    throw new CmsException("Creation of export output stream failed for file " + m_exportUri);
+  }
+  String mimetype=A_OpenCms.getMimeType(file.getResourceName(),m_cms.getRequestContext().getEncoding());
+  res.setContentType(mimetype);
+  int oldMode=m_cms.getMode();
+  String oldUri=m_cms.getRequestContext().getUri();
+  m_cms.setMode(I_CmsConstants.C_MODUS_EXPORT);
+  m_cms.getRequestContext().setUri(m_exportUri);
+  byte[] content=loader.export(m_cms,file,req,res);
+  m_cms.setMode(oldMode);
+  m_cms.getRequestContext().setUri(oldUri);
+  exportStream.write(content);
+  exportStream.close();
+}
