@@ -3,6 +3,7 @@
   CmsElementCache elementCache=null;
   boolean elementCacheEnabled=cms.getRequestContext().isElementCacheEnabled();
   String uri=cms.getRequestContext().getUri();
+  CmsUri cmsUri=null;
   String templateClass=startTemplateClass;
   if (templateClass == null || "".equals(templateClass) || (startTemplateClass.equals(C_UNKNOWN_LAUNCHER))) {
     templateClass="com.opencms.template.CmsDumpTemplate";
@@ -11,10 +12,10 @@
     elementCache=cms.getRequestContext().getElementCache();
     CmsUriDescriptor uriDesc=new CmsUriDescriptor(uri);
     CmsUriLocator uriLoc=elementCache.getUriLocator();
-    CmsUri cmsUri=uriLoc.get(uriDesc);
+    cmsUri=uriLoc.get(uriDesc);
     if (cmsUri == null) {
       CmsElementDescriptor elemDesc=new CmsElementDescriptor(templateClass,file.getAbsolutePath());
-      cmsUri=new CmsUri(elemDesc,cms.getReadingpermittedGroup(cms.getRequestContext().currentProject().getId(),file.getAbsolutePath()),(CmsElementDefinitionCollection)null);
+      cmsUri=new CmsUri(elemDesc,cms.getReadingpermittedGroup(cms.getRequestContext().currentProject().getId(),file.getAbsolutePath()),(CmsElementDefinitionCollection)null,Utils.isHttpsResource(cms,file));
       elementCache.getUriLocator().put(uriDesc,cmsUri);
     }
   }
@@ -45,6 +46,16 @@
     }
   }
   if (elementCacheEnabled) {
+    String scheme=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getScheme();
+    boolean httpsReq="https".equalsIgnoreCase(scheme);
+    if (cmsUri.isHttpsResource() != httpsReq) {
+      if (httpsReq) {
+        throw new CmsException(" " + file.getAbsolutePath() + " needs a http request",CmsException.C_HTTPS_PAGE_ERROR);
+      }
+ else {
+        throw new CmsException(" " + file.getAbsolutePath() + " needs a https request",CmsException.C_HTTPS_REQUEST_ERROR);
+      }
+    }
     result=elementCache.callCanonicalRoot(cms,newParameters);
   }
  else {

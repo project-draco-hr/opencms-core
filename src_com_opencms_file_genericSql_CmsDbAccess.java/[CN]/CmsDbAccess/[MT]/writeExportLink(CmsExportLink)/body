@@ -1,0 +1,53 @@
+{
+  deleteExportLink(link);
+  int id=link.getId();
+  if (id == 0) {
+    id=nextId(m_cq.get("C_TABLE_EXPORT_LINKS"));
+  }
+  Connection con=null;
+  PreparedStatement statement=null;
+  try {
+    con=DriverManager.getConnection(m_poolName);
+    statement=con.prepareStatement(m_cq.get("C_EXPORT_LINK_WRITE"));
+    statement.setInt(1,id);
+    statement.setString(2,link.getLink());
+    statement.setLong(3,link.getLastExportDate());
+    statement.setBoolean(4,link.getProcessedState());
+    statement.executeUpdate();
+    try {
+      statement.close();
+    }
+ catch (    SQLException ex) {
+    }
+    statement=con.prepareStatement(m_cq.get("C_EXPORT_DEPENDENCIES_WRITE"));
+    statement.setInt(1,id);
+    Vector deps=link.getDependencies();
+    for (int i=0; i < deps.size(); i++) {
+      try {
+        statement.setString(2,(String)deps.elementAt(i));
+        statement.executeUpdate();
+      }
+ catch (      SQLException e) {
+      }
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+  }
+}
