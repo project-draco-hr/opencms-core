@@ -2,12 +2,40 @@
   com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
   com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
   CallableStatement statement=null;
+  ResultSet res=null;
+  CmsResource resource=null;
+  Vector resources=new Vector();
   try {
     statement=(CallableStatement)pool.getPreparedStatement(cq.C_PLSQL_RESOURCES_UNLOCKRESOURCE_KEY);
     statement.setInt(1,currentUser.getId());
     statement.setInt(2,currentProject.getId());
     statement.setString(3,resourcename);
     statement.execute();
+    res=(ResultSet)statement.getObject(4);
+    while (res.next()) {
+      int resId=res.getInt(m_cq.C_RESOURCES_RESOURCE_ID);
+      int parentId=res.getInt(m_cq.C_RESOURCES_PARENT_ID);
+      String resName=res.getString(m_cq.C_RESOURCES_RESOURCE_NAME);
+      int resType=res.getInt(m_cq.C_RESOURCES_RESOURCE_TYPE);
+      int resFlags=res.getInt(m_cq.C_RESOURCES_RESOURCE_FLAGS);
+      int userId=res.getInt(m_cq.C_RESOURCES_USER_ID);
+      int groupId=res.getInt(m_cq.C_RESOURCES_GROUP_ID);
+      int projectId=res.getInt(m_cq.C_RESOURCES_PROJECT_ID);
+      int fileId=res.getInt(m_cq.C_RESOURCES_FILE_ID);
+      int accessFlags=res.getInt(m_cq.C_RESOURCES_ACCESS_FLAGS);
+      int state=res.getInt(m_cq.C_RESOURCES_STATE);
+      int lockedBy=res.getInt(m_cq.C_RESOURCES_LOCKED_BY);
+      int launcherType=res.getInt(m_cq.C_RESOURCES_LAUNCHER_TYPE);
+      String launcherClass=res.getString(m_cq.C_RESOURCES_LAUNCHER_CLASSNAME);
+      long created=SqlHelper.getTimestamp(res,m_cq.C_RESOURCES_DATE_CREATED).getTime();
+      long modified=SqlHelper.getTimestamp(res,m_cq.C_RESOURCES_DATE_LASTMODIFIED).getTime();
+      int modifiedBy=res.getInt(m_cq.C_RESOURCES_LASTMODIFIED_BY);
+      int resSize=res.getInt(m_cq.C_RESOURCES_SIZE);
+      resource=new CmsResource(resId,parentId,fileId,resName,resType,resFlags,userId,groupId,projectId,accessFlags,state,lockedBy,launcherType,launcherClass,created,modified,modifiedBy,resSize);
+      resources.addElement(resource);
+    }
+    res.close();
+    return resources;
   }
  catch (  SQLException sqlexc) {
     CmsException cmsException=getCmsException("[" + this.getClass().getName() + "] ",sqlexc);
