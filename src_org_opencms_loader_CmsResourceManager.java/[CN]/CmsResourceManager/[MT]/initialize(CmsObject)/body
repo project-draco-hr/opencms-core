@@ -1,0 +1,40 @@
+{
+  if (((adminCms == null) && (OpenCms.getRunLevel() > 1)) || ((adminCms != null) && !adminCms.isAdmin())) {
+    throw new RuntimeException("Admin permissions are required to initialize the module manager");
+  }
+  if (m_frozen) {
+    m_frozen=false;
+    Iterator i=new ArrayList(m_resourceTypeList).iterator();
+    m_resourceTypeList=new ArrayList();
+    while (i.hasNext()) {
+      I_CmsResourceType res=(I_CmsResourceType)i.next();
+      if (!res.isAdditionalModuleResourceType()) {
+        m_resourceTypeList.add(res);
+      }
+    }
+  }
+  CmsModuleManager moduleManager=OpenCms.getModuleManager();
+  Iterator i=moduleManager.getModuleNames().iterator();
+  while (i.hasNext()) {
+    CmsModule module=moduleManager.getModule((String)i.next());
+    List resTypes=module.getResourceTypes();
+    Iterator j=resTypes.iterator();
+    while (j.hasNext()) {
+      I_CmsResourceType resourceType=(I_CmsResourceType)j.next();
+      try {
+        addResourceType(resourceType);
+      }
+ catch (      CmsConfigurationException e) {
+        if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isErrorEnabled()) {
+          OpenCms.getLog(CmsLog.CHANNEL_INIT).error(e);
+        }
+      }
+    }
+  }
+  m_frozen=true;
+  m_resourceTypeList=Collections.unmodifiableList(m_resourceTypeList);
+  m_loaderList=Collections.unmodifiableList(m_loaderList);
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Loader configuration : finished");
+  }
+}
