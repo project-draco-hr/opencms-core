@@ -1,0 +1,35 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing publish permissions for a user");
+  String resource="/folder1/page1.html";
+  cms.lockResource(resource);
+  cms.chacc(resource,I_CmsPrincipal.C_PRINCIPAL_GROUP,OpenCms.getDefaultUsers().getGroupUsers(),0,0,I_CmsConstants.C_ACCESSFLAGS_OVERWRITE);
+  cms.chacc(resource,I_CmsPrincipal.C_PRINCIPAL_USER,"test1",CmsPermissionSet.PERMISSION_READ + CmsPermissionSet.PERMISSION_WRITE,0,I_CmsConstants.C_ACCESSFLAGS_OVERWRITE);
+  cms.chacc(resource,I_CmsPrincipal.C_PRINCIPAL_USER,"test2",CmsPermissionSet.PERMISSION_READ + CmsPermissionSet.PERMISSION_WRITE + CmsPermissionSet.PERMISSION_DIRECT_PUBLISH,0,I_CmsConstants.C_ACCESSFLAGS_OVERWRITE);
+  cms.unlockResource(resource);
+  cms.loginUser("test1","test1");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  if (cms.hasPublishPermissions(resource)) {
+    fail("Publish permissions available but should not be available for user test1");
+  }
+  cms.loginUser("test2","test2");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  if (!cms.hasPublishPermissions(resource)) {
+    fail("Publish permissions unavailable but should be available for user test2");
+  }
+  cms.loginUser("Admin","admin");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  if (!cms.hasPublishPermissions(resource)) {
+    fail("Publish permissions unavailable but should be available for user Admin");
+  }
+  cms.addUserToGroup("test1",OpenCms.getDefaultUsers().getGroupProjectmanagers());
+  cms.loginUser("test1","test1");
+  assertEquals(I_CmsConstants.C_PROJECT_ONLINE_ID,cms.getRequestContext().currentProject().getId());
+  if (cms.hasPublishPermissions(resource)) {
+    fail("Publish permissions available but should not be available for user test1 in online project");
+  }
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  if (!cms.hasPublishPermissions(resource)) {
+    fail("Publish permissions unavailable but should be available for user test1 because he is a project manager");
+  }
+}
