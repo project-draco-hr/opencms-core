@@ -1,0 +1,41 @@
+{
+  CmsFlexRequest f_req=controller.getCurrentRequest();
+  CmsFlexResponse f_res=controller.getCurrentResponse();
+  try {
+    f_req.getRequestDispatcher(controller.getCmsObject().readAbsolutePath(controller.getCmsResource())).include(f_req,f_res);
+  }
+ catch (  SocketException e) {
+    OpenCms.getLog(this).debug("Ignoring SocketException" + e);
+  }
+  byte[] result=null;
+  HttpServletResponse res=controller.getTopResponse();
+  if (!controller.isStreaming() && !f_res.isSuspended()) {
+    try {
+      if (!res.isCommitted() || m_errorPagesAreNotCommited) {
+        if (controller.isTop() && CmsFlexController.isNotModifiedSince(f_req,controller.getDateLastModified())) {
+          res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+          return null;
+        }
+        result=f_res.getWriterBytes();
+        result=CmsEncoder.changeEncoding(result,OpenCms.getSystemInfo().getDefaultEncoding(),controller.getCmsObject().getRequestContext().getEncoding());
+        if (controller.getTopRequest().getHeader(I_CmsConstants.C_HEADER_OPENCMS_EXPORT) != null) {
+          controller.getTopRequest().setAttribute(I_CmsConstants.C_HEADER_OPENCMS_EXPORT,new Long(controller.getDateLastModified()));
+        }
+ else         if (controller.isTop()) {
+          res.setContentLength(result.length);
+          CmsFlexController.setDateLastModifiedHeader(res,controller.getDateLastModified());
+          CmsFlexResponse.processHeaders(f_res.getHeaders(),res);
+          res.getOutputStream().write(result);
+          res.getOutputStream().flush();
+        }
+      }
+    }
+ catch (    IllegalStateException e) {
+      OpenCms.getLog(this).debug("Ignoring IllegalStateException" + e);
+    }
+catch (    SocketException e) {
+      OpenCms.getLog(this).debug("Ignoring SocketException",e);
+    }
+  }
+  return result;
+}
