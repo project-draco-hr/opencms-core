@@ -1,44 +1,47 @@
 {
+  Document contentXml=null;
+  CmsFile bodyfile=null;
   String mastertemplate="";
   String bodyname="";
   String bodyclass="";
-  HashMap bodyparams=null;
+  Map bodyparams=null;
   CmsFile pagefile=m_cms.readFile(resname);
-  InputStream in=new ByteArrayInputStream(pagefile.getContents());
-  Document contentXml;
-  CmsFile bodyfile;
-  contentXml=A_CmsXmlContent.getXmlParser().parse(in);
-  NodeList masterTemplateNode=contentXml.getElementsByTagName("masterTemplate");
-  if (masterTemplateNode.getLength() == 1) {
-    mastertemplate=masterTemplateNode.item(0).getFirstChild().getNodeValue();
+  contentXml=CmsImport.getXmlDocument(pagefile.getContents());
+  List masterTemplateNode=contentXml.selectNodes("//masterTemplate");
+  if (masterTemplateNode.size() == 1) {
+    mastertemplate=((Element)masterTemplateNode.get(0)).getTextTrim();
   }
-  NodeList bodyNode=contentXml.getElementsByTagName("ELEMENTDEF");
-  if (bodyNode.getLength() == 1) {
-    Node bodyElement=bodyNode.item(0);
-    NodeList nodes=bodyElement.getChildNodes();
+  List bodyNode=contentXml.selectNodes("//ELEMENTDEF");
+  if (bodyNode.size() == 1) {
+    Element bodyElement=(Element)bodyNode.get(0);
+    List nodes=bodyElement.elements();
     int i;
-    for (i=0; i < nodes.getLength(); i++) {
-      if ("CLASS".equals(nodes.item(i).getNodeName())) {
-        bodyclass=nodes.item(i).getFirstChild().getNodeValue();
+    Node node=null;
+    for (i=0; i < nodes.size(); i++) {
+      node=(Node)nodes.get(i);
+      if ("CLASS".equals(node.getName())) {
+        bodyclass=((Element)node).getTextTrim();
         break;
       }
     }
-    for (i=0; i < nodes.getLength(); i++) {
-      if ("TEMPLATE".equals(nodes.item(i).getNodeName())) {
-        bodyname=nodes.item(i).getFirstChild().getNodeValue();
+    for (i=0; i < nodes.size(); i++) {
+      node=(Node)nodes.get(i);
+      if ("TEMPLATE".equals(node.getName())) {
+        bodyname=((Element)node).getTextTrim();
         if (!bodyname.startsWith("/")) {
           bodyname=CmsResource.getFolderPath(resname) + bodyname;
         }
         break;
       }
     }
-    for (i=0; i < nodes.getLength(); i++) {
-      if ("PARAMETER".equals(nodes.item(i).getNodeName())) {
-        Node paramElement=nodes.item(i);
+    for (i=0; i < nodes.size(); i++) {
+      node=(Node)nodes.get(i);
+      if ("PARAMETER".equals(node.getName())) {
+        Element paramElement=(Element)node;
         if (bodyparams == null) {
-          bodyparams=new HashMap();
+          bodyparams=(Map)new HashMap();
         }
-        bodyparams.put(paramElement.getAttributes().getNamedItem("name").getNodeValue(),paramElement.getFirstChild().getNodeValue());
+        bodyparams.put((paramElement.attribute("name")).getText(),paramElement.getTextTrim());
       }
     }
     m_cms.lockResource(resname);

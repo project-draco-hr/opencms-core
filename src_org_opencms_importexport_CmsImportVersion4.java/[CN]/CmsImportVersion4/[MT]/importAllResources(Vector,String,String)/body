@@ -2,7 +2,7 @@
   String source, destination, type, uuidresource, uuidcontent, userlastmodified, usercreated, flags, timestamp;
   long datelastmodified, datecreated;
   int resType;
-  NodeList fileNodes, acentryNodes;
+  List fileNodes, acentryNodes;
   Element currentElement, currentEntry;
   Map properties=null;
   if (m_importingChannelData) {
@@ -22,39 +22,39 @@
   }
   m_convertToXmlPage=OpenCms.getImportExportManager().convertToXmlPage();
   try {
-    fileNodes=m_docXml.getElementsByTagName(I_CmsConstants.C_EXPORT_TAG_FILE);
-    int importSize=fileNodes.getLength();
-    for (int i=0; i < fileNodes.getLength(); i++) {
+    fileNodes=m_docXml.selectNodes("//" + I_CmsConstants.C_EXPORT_TAG_FILE);
+    int importSize=fileNodes.size();
+    for (int i=0; i < fileNodes.size(); i++) {
       m_report.print(" ( " + (i + 1) + " / "+ importSize+ " ) ",I_CmsReport.C_FORMAT_NOTE);
-      currentElement=(Element)fileNodes.item(i);
-      source=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_SOURCE);
-      destination=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DESTINATION);
-      type=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_TYPE);
+      currentElement=(Element)fileNodes.get(i);
+      source=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_SOURCE);
+      destination=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DESTINATION);
+      type=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_TYPE);
       if (C_RESOURCE_TYPE_NEWPAGE_NAME.equals(type)) {
         resType=C_RESOURCE_TYPE_NEWPAGE_ID;
       }
  else {
         resType=m_cms.getResourceTypeId(type);
       }
-      uuidresource=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDRESOURCE);
-      uuidcontent=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDCONTENT);
-      if ((timestamp=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DATELASTMODIFIED)) != null) {
+      uuidresource=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDRESOURCE);
+      uuidcontent=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDCONTENT);
+      if ((timestamp=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DATELASTMODIFIED)) != null) {
         datelastmodified=Long.parseLong(timestamp);
       }
  else {
         datelastmodified=System.currentTimeMillis();
       }
-      userlastmodified=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_USERLASTMODIFIED);
+      userlastmodified=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_USERLASTMODIFIED);
       userlastmodified=OpenCms.getDefaultUsers().translateUser(userlastmodified);
-      if ((timestamp=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DATECREATED)) != null) {
+      if ((timestamp=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DATECREATED)) != null) {
         datecreated=Long.parseLong(timestamp);
       }
  else {
         datecreated=System.currentTimeMillis();
       }
-      usercreated=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_USERCREATED);
+      usercreated=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_USERCREATED);
       usercreated=OpenCms.getDefaultUsers().translateUser(usercreated);
-      flags=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_FLAGS);
+      flags=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_FLAGS);
       String translatedName=m_cms.getRequestContext().addSiteRoot(m_importPath + destination);
       if (CmsResourceTypeFolder.C_RESOURCE_TYPE_NAME.equals(type)) {
         translatedName+=I_CmsConstants.C_FOLDER_SEPARATOR;
@@ -69,10 +69,10 @@
         properties=getPropertiesFromXml(currentElement,resType,propertyName,propertyValue,deleteProperties);
         CmsResource res=importResource(source,destination,resType,uuidresource,uuidcontent,datelastmodified,userlastmodified,datecreated,usercreated,flags,properties);
         if (res != null) {
-          acentryNodes=currentElement.getElementsByTagName(I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_ENTRY);
-          for (int j=0; j < acentryNodes.getLength(); j++) {
-            currentEntry=(Element)acentryNodes.item(j);
-            String id=getTextNodeValue(currentEntry,I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_PRINCIPAL);
+          acentryNodes=currentElement.selectNodes("*/" + I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_ENTRY);
+          for (int j=0; j < acentryNodes.size(); j++) {
+            currentEntry=(Element)acentryNodes.get(j);
+            String id=CmsImport.getChildElementTextValue(currentEntry,I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_PRINCIPAL);
             String principalId=new CmsUUID().toString();
             String principal=id.substring(id.indexOf(".") + 1,id.length());
             if (id.startsWith(I_CmsConstants.C_EXPORT_ACEPRINCIPAL_GROUP)) {
@@ -83,9 +83,9 @@
               principal=OpenCms.getDefaultUsers().translateUser(principal);
               principalId=m_cms.readUser(principal).getId().toString();
             }
-            String acflags=getTextNodeValue(currentEntry,I_CmsConstants.C_EXPORT_TAG_FLAGS);
-            String allowed=getTextNodeValue(currentEntry,I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_ALLOWEDPERMISSIONS);
-            String denied=getTextNodeValue(currentEntry,I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_DENIEDPERMISSIONS);
+            String acflags=CmsImport.getChildElementTextValue(currentEntry,I_CmsConstants.C_EXPORT_TAG_FLAGS);
+            String allowed=((Element)currentEntry.selectNodes("./" + I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_PERMISSIONSET + "/"+ I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_ALLOWEDPERMISSIONS).get(0)).getTextTrim();
+            String denied=((Element)currentEntry.selectNodes("./" + I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_PERMISSIONSET + "/"+ I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_DENIEDPERMISSIONS).get(0)).getTextTrim();
             addImportAccessControlEntry(res,principalId,allowed,denied,acflags);
           }
           importAccessControlEntries(res);
