@@ -33,8 +33,19 @@
   boolean saveRequested=((action != null) && (C_EDIT_ACTION_SAVE.equals(action) || C_EDIT_ACTION_SAVEEXIT.equals(action)));
   boolean exitRequested=((action != null) && (C_EDIT_ACTION_EXIT.equals(action) || C_EDIT_ACTION_SAVEEXIT.equals(action)));
   CmsFile editFile=null;
+  CmsLock lock=null;
   if (existsFileParam && (content == null || saveRequested)) {
     editFile=readFile(cms,file);
+    lock=cms.getLock(file);
+    if (lock.isNullLock()) {
+      throw new CmsLockException("Resource is unlocked",CmsLockException.C_RESOURCE_UNLOCKED);
+    }
+    if (lock.getType() != CmsLock.C_TYPE_EXCLUSIVE || lock.getType() != CmsLock.C_TYPE_SHARED_EXCLUSIVE) {
+      throw new CmsLockException("Insufficient lock to edit content of resource",CmsLockException.C_RESOURCE_LOCKED_NON_EXCLUSIVE);
+    }
+    if (!lock.getUserId().equals(cms.getRequestContext().currentUser().getId())) {
+      throw new CmsLockException("Resource locked by another user",CmsLockException.C_RESOURCE_LOCKED_BY_OTHER_USER);
+    }
     checkit=true;
     String encoding=cms.getRequestContext().getEncoding();
     encoding=cms.readProperty(file,C_PROPERTY_CONTENT_ENCODING,true,encoding);
