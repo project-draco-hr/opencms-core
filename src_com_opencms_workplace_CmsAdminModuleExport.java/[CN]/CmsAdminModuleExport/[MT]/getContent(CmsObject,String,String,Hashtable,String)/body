@@ -11,12 +11,43 @@
   String moduleName=(String)parameters.get(C_MODULE);
   if ((step != null) && ("ok".equals(step))) {
     String exportName=(String)parameters.get("modulename");
-    String[] resourcen=new String[4];
-    resourcen[0]="/system/modules/" + exportName + "/";
-    resourcen[1]="/system/classes/" + exportName.replace('.','/') + "/";
-    resourcen[2]=C_MODULEDEMOPATH + exportName + "/";
-    resourcen[3]=C_CONTENTBODYPATH.substring(0,C_CONTENTBODYPATH.length() - 1) + C_MODULEDEMOPATH + exportName+ "/";
-    for (int i=1; i < 4; i++) {
+    String[] resourcen=null;
+    int resourceCount=0;
+    int i=0;
+    if (reg.getModuleType(exportName).equals(CmsRegistry.C_MODULE_TYPE_ADVANCED)) {
+      String additionalResources=OpenCms.getRegistry().getModuleParameterString(exportName,I_CmsConstants.C_MODULE_PROPERTY_ADDITIONAL_RESOURCES);
+      int additionalResourceCount=0;
+      StringTokenizer additionalResourceTokens=null;
+      if (additionalResources != null && !additionalResources.equals("")) {
+        additionalResourceTokens=new StringTokenizer(additionalResources,I_CmsConstants.C_MODULE_PROPERTY_ADDITIONAL_RESOURCES_SEPARATOR);
+        resourceCount=(additionalResourceTokens.countTokens() * 2) + 4;
+        resourcen=new String[resourceCount];
+        while (additionalResourceTokens.hasMoreTokens()) {
+          String currentResource=additionalResourceTokens.nextToken();
+          if (DEBUG > 0) {
+            System.err.println("Adding resource: " + currentResource);
+            System.err.println("Adding resource: " + C_CONTENTBODYPATH.substring(0,C_CONTENTBODYPATH.length() - 1) + currentResource);
+          }
+          resourcen[i++]=currentResource;
+          resourcen[i++]=C_CONTENTBODYPATH.substring(0,C_CONTENTBODYPATH.length() - 1) + currentResource;
+        }
+      }
+ else {
+        resourceCount=4;
+        resourcen=new String[resourceCount];
+        i=0;
+      }
+    }
+ else {
+      resourceCount=4;
+      resourcen=new String[resourceCount];
+      i=0;
+    }
+    resourcen[i++]=I_CmsConstants.C_MODULES_PATH + exportName + "/";
+    resourcen[i++]="/system/classes/" + exportName.replace('.','/') + "/";
+    resourcen[i++]=C_MODULEDEMOPATH + exportName + "/";
+    resourcen[i++]=C_CONTENTBODYPATH.substring(0,C_CONTENTBODYPATH.length() - 1) + C_MODULEDEMOPATH + exportName+ "/";
+    for (i=0; i < resourceCount; i++) {
       try {
         cms.readFileHeader(resourcen[i]);
       }
@@ -24,15 +55,15 @@
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
           A_OpenCms.log(I_CmsLogChannels.C_MODULE_DEBUG,"error exporting module: couldn't add " + resourcen[i] + " to Module\n"+ Utils.getStackTrace(e));
         }
-        resourcen[i]=resourcen[0];
+        resourcen[i]=resourcen[resourceCount - 4];
       }
     }
     try {
-      cms.readFileHeader(resourcen[0]);
+      cms.readFileHeader(resourcen[resourceCount - 4]);
     }
  catch (    CmsException e) {
       if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-        A_OpenCms.log(I_CmsLogChannels.C_MODULE_DEBUG,"error exporting module: couldn't add " + resourcen[0] + " to Module\n"+ "You dont have this module in this project!");
+        A_OpenCms.log(I_CmsLogChannels.C_MODULE_DEBUG,"error exporting module: couldn't add " + resourcen[resourceCount - 4] + " to Module\n"+ "You dont have this module in this project!");
       }
       return startProcessing(cms,templateDocument,elementName,parameters,"done");
     }
