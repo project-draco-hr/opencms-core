@@ -1,4 +1,5 @@
 {
+  Vector deletedFolders=new Vector();
   CmsProject deleteProject=readProject(currentUser,currentProject,id);
   if (isAdmin(currentUser,currentProject) || isManagerOfProject(currentUser,deleteProject)) {
     Vector allFiles=m_dbAccess.readFiles(deleteProject.getId(),false,true);
@@ -27,7 +28,7 @@
       CmsFolder currentFolder=(CmsFolder)allFolders.elementAt(i);
       if (currentFolder.getState() == C_STATE_NEW) {
         m_dbAccess.deleteAllProperties(id,currentFolder.getResourceId());
-        m_dbAccess.deleteFolder(deleteProject,currentFolder,true);
+        deletedFolders.addElement(currentFolder);
       }
  else       if (currentFolder.getState() == C_STATE_CHANGED) {
         if (!currentFolder.isLocked()) {
@@ -42,6 +43,10 @@
         }
         undoChanges(currentUser,deleteProject,currentFolder.getAbsolutePath());
       }
+    }
+    for (int i=deletedFolders.size() - 1; i > -1; i--) {
+      CmsFolder delFolder=((CmsFolder)deletedFolders.elementAt(i));
+      m_dbAccess.deleteFolder(deleteProject,delFolder,true);
     }
     m_dbAccess.unlockProject(deleteProject);
     m_resourceCache.clear();
