@@ -1,0 +1,47 @@
+{
+  CmsFile file=null;
+  int projectId;
+  ResultSet res=null;
+  try {
+    if (project.equals(onlineProject)) {
+synchronized (m_statementFileReadOnline) {
+        m_statementFileReadOnline.setString(1,absoluteName(filename));
+        m_statementFileReadOnline.setInt(2,onlineProject.getId());
+        res=m_statementFileReadOnline.executeQuery();
+        if (res.next()) {
+          file=new CmsFile(filename,res.getInt(C_RESOURCE_TYPE),res.getInt(C_RESOURCE_FLAGS),res.getInt(C_USER_ID),res.getInt(C_GROUP_ID),onlineProject.getId(),res.getInt(C_ACCESS_FLAGS),res.getInt(C_STATE),res.getInt(C_LOCKED_BY),res.getInt(C_LAUNCHER_TYPE),res.getString(C_LAUNCHER_CLASSNAME),res.getLong(C_DATE_CREATED),res.getLong(C_DATE_LASTMODIFIED),res.getBytes(C_FILE_CONTENT),res.getInt(C_SIZE));
+        }
+ else {
+          throw new CmsException(CmsException.C_NOT_FOUND);
+        }
+      }
+    }
+ else {
+      file=readFileHeader(project,filename);
+      if (file.getState() == C_STATE_DELETED) {
+        throw new CmsException(CmsException.C_NOT_FOUND);
+      }
+      if (file.getState() == C_STATE_UNCHANGED) {
+        projectId=onlineProject.getId();
+      }
+ else {
+        projectId=project.getId();
+      }
+synchronized (m_statementFileRead) {
+        m_statementFileRead.setString(1,absoluteName(filename));
+        m_statementFileRead.setInt(2,projectId);
+        res=m_statementFileRead.executeQuery();
+        if (res.next()) {
+          file.setContents(res.getBytes(C_FILE_CONTENT));
+        }
+ else {
+          throw new CmsException(CmsException.C_NOT_FOUND);
+        }
+      }
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsException(e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+  return file;
+}
