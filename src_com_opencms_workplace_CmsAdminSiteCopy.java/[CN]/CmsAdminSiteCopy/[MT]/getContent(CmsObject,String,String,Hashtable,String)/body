@@ -1,4 +1,27 @@
 {
   CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  if (parameters.get("initial") != null)   session.removeValue("SITECOPY_PROJECT_ID");
+  if (parameters.get("submitform") != null && parameters.get("submitform").equals("true")) {
+    int projectId=Integer.parseInt((String)parameters.get("project"));
+    if (projectId == cms.getRequestContext().currentProject().getId() || cms.getRequestContext().currentProject().getId() == cms.onlineProject().getId()) {
+      templateSelector="error";
+      xmlTemplateDocument.setData("details","");
+      return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+    }
+    session.putValue("SITECOPY_PROJECT_ID","" + projectId);
+    templateSelector="wait";
+  }
+  if (parameters.get("action") != null && parameters.get("action").equals("start")) {
+    try {
+      cms.copyProjectToProject(cms.readProject(Integer.parseInt((String)session.getValue("SITECOPY_PROJECT_ID"))));
+      session.removeValue("SITECOPY_PROJECT_ID");
+      templateSelector="done";
+    }
+ catch (    CmsException e) {
+      xmlTemplateDocument.setData("details",Utils.getStackTrace(e));
+      templateSelector="error";
+    }
+  }
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }
