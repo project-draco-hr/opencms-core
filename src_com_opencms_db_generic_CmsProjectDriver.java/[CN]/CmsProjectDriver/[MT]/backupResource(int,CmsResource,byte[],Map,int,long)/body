@@ -5,20 +5,20 @@
   String groupName=new String();
   String lastModifiedName=null;
   try {
-    CmsUser owner=m_driverManager.getUserAccess().readUser(resource.getOwnerId());
+    CmsUser owner=m_driverManager.getUserDriver().readUser(resource.getOwnerId());
     ownerName=owner.getName() + " " + owner.getFirstname()+ " "+ owner.getLastname();
   }
  catch (  CmsException e) {
     ownerName="";
   }
   try {
-    groupName=m_driverManager.getUserAccess().readGroup(resource.getGroupId()).getName();
+    groupName=m_driverManager.getUserDriver().readGroup(resource.getGroupId()).getName();
   }
  catch (  CmsException e) {
     groupName="";
   }
   try {
-    CmsUser lastModified=m_driverManager.getUserAccess().readUser(resource.getResourceLastModifiedBy());
+    CmsUser lastModified=m_driverManager.getUserDriver().readUser(resource.getResourceLastModifiedBy());
     lastModifiedName=lastModified.getName() + " " + lastModified.getFirstname()+ " "+ lastModified.getLastname();
   }
  catch (  CmsException e) {
@@ -31,7 +31,7 @@
     stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_WRITE_BACKUP");
     if (resource.getType() != C_TYPE_FOLDER) {
       fileId=new CmsUUID();
-      m_driverManager.getVfsAccess().createFileContent(fileId,content,versionId,projectId,true);
+      m_driverManager.getVfsDriver().createFileContent(fileId,content,versionId,projectId,true);
     }
     stmt.setString(1,resourceId.toString());
     stmt.setString(2,CmsUUID.getNullUUID().toString());
@@ -60,17 +60,17 @@
     String key;
     while (keys.hasNext()) {
       key=(String)keys.next();
-      CmsPropertydefinition propdef=m_driverManager.getVfsAccess().readPropertydefinition(key,resource.getType());
+      CmsPropertydefinition propdef=m_driverManager.getVfsDriver().readPropertydefinition(key,resource.getType());
       String value=(String)properties.get(key);
       if (propdef == null) {
         throw new CmsException("[" + this.getClass().getName() + "] "+ key,CmsException.C_NOT_FOUND);
       }
  else {
         stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_CREATE_BACKUP");
-        stmt.setInt(1,nextId(m_sqlManager.get("C_TABLE_PROPERTIES_BACKUP")));
+        stmt.setInt(1,m_sqlManager.nextId(m_sqlManager.get("C_TABLE_PROPERTIES_BACKUP")));
         stmt.setInt(2,propdef.getId());
         stmt.setString(3,resourceId.toString());
-        stmt.setString(4,checkNull(value));
+        stmt.setString(4,m_sqlManager.validateNull(value));
         stmt.setInt(5,versionId);
         stmt.executeUpdate();
         stmt.close();
