@@ -8,18 +8,44 @@
   cms.writeTaskLog(taskid,comment,C_TASKLOGTYPE_FORWARDED);
   A_CmsTask task=cms.readTask(taskid);
   if (cms.getTaskPar(task.getId(),C_TASKPARA_DELIVERY) != null) {
-    String content=lang.getLanguageValue("task.email.forward.content");
+    StringBuffer contentBuf=new StringBuffer(lang.getLanguageValue("task.email.forward.content"));
+    contentBuf.append("\n");
+    contentBuf.append(lang.getLanguageValue("task.label.project"));
+    contentBuf.append(": ");
+    String projectname="?";
+    try {
+      projectname=cms.readTask(task.getRoot()).getName();
+    }
+ catch (    Exception exc) {
+    }
+    contentBuf.append(projectname);
+    contentBuf.append("\n");
+    contentBuf.append(lang.getLanguageValue("task.label.task"));
+    contentBuf.append(": ");
+    contentBuf.append(task.getName());
+    contentBuf.append("\n");
+    contentBuf.append(lang.getLanguageValue("task.label.actuator"));
+    contentBuf.append(": ");
+    contentBuf.append(Utils.getFullName(cms.readOwner(task)));
+    contentBuf.append("\n");
+    contentBuf.append(lang.getLanguageValue("task.label.taskfor"));
+    contentBuf.append(": ");
+    contentBuf.append(Utils.getFullName(cms.readOriginalAgent(task)));
+    contentBuf.append("\n");
+    contentBuf.append(lang.getLanguageValue("task.label.editor"));
+    contentBuf.append(": ");
+    contentBuf.append(Utils.getFullName(cms.readAgent(task)));
     String subject=lang.getLanguageValue("task.email.forward.subject");
     if (cms.getTaskPar(task.getId(),C_TASKPARA_ALL) != null) {
-      CmsMail mail=new CmsMail(cms,cms.getRequestContext().currentUser(),cms.readGroup(task),subject,content);
+      CmsMail mail=new CmsMail(cms,cms.getRequestContext().currentUser(),cms.readGroup(task),subject,contentBuf.toString());
       mail.start();
     }
  else {
       A_CmsUser[] user={cms.readAgent(task)};
-      CmsMail mail1=new CmsMail(cms,cms.getRequestContext().currentUser(),user,subject,content);
+      CmsMail mail1=new CmsMail(cms,cms.getRequestContext().currentUser(),user,subject,contentBuf.toString());
       mail1.start();
       A_CmsUser[] owner={cms.readOwner(task)};
-      CmsMail mail2=new CmsMail(cms,cms.getRequestContext().currentUser(),owner,subject,content);
+      CmsMail mail2=new CmsMail(cms,cms.getRequestContext().currentUser(),owner,subject,contentBuf.toString());
       mail2.start();
     }
   }
