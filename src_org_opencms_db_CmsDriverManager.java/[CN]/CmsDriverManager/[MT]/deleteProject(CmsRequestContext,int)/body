@@ -13,14 +13,16 @@
         m_userDriver.removeAllAccessControlEntries(context.currentProject(),currentFile.getResourceAceId());
       }
  else       if (currentFile.getState() == I_CmsConstants.C_STATE_CHANGED) {
-        if (!currentFile.isLocked()) {
+        CmsLock lock=getLock(context,currentFile);
+        if (lock.isNullLock()) {
           lockResource(context,currentResourceName,true);
         }
         undoChanges(context,currentResourceName);
       }
  else       if (currentFile.getState() == I_CmsConstants.C_STATE_DELETED) {
         undeleteResource(context,currentResourceName);
-        if (!currentFile.isLocked()) {
+        CmsLock lock=getLock(context,currentFile);
+        if (lock.isNullLock()) {
           lockResource(context,currentResourceName,true);
         }
         undoChanges(context,currentResourceName);
@@ -29,19 +31,20 @@
     for (int i=0; i < allFolders.size(); i++) {
       CmsFolder currentFolder=(CmsFolder)allFolders.get(i);
       String currentResourceName=readPath(context,currentFolder,true);
+      CmsLock lock=getLock(context,currentFolder);
       if (currentFolder.getState() == I_CmsConstants.C_STATE_NEW) {
         m_vfsDriver.deleteAllProperties(projectId,currentFolder.getId());
         deletedFolders.addElement(currentFolder);
       }
  else       if (currentFolder.getState() == I_CmsConstants.C_STATE_CHANGED) {
-        if (!currentFolder.isLocked()) {
+        if (lock.isNullLock()) {
           lockResource(context,currentResourceName,true);
         }
         undoChanges(context,currentResourceName);
       }
  else       if (currentFolder.getState() == I_CmsConstants.C_STATE_DELETED) {
         undeleteResource(context,currentResourceName);
-        if (!currentFolder.isLocked()) {
+        if (lock.isNullLock()) {
           lockResource(context,currentResourceName,true);
         }
         undoChanges(context,currentResourceName);
@@ -53,6 +56,7 @@
       m_userDriver.removeAllAccessControlEntries(context.currentProject(),delFolder.getResourceAceId());
     }
     m_projectDriver.unlockProject(deleteProject);
+    m_lockDispatcher.removeResourcesInProject(deleteProject.getId());
     clearAccessControlListCache();
     clearResourceCache();
     m_projectDriver.deleteProject(deleteProject);

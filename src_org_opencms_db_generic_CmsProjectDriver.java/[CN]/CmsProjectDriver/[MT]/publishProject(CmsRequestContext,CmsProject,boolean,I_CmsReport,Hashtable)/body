@@ -2,6 +2,7 @@
   CmsExportPointDriver discAccess=new CmsExportPointDriver(exportpoints);
   CmsFolder currentFolder=null;
   CmsFile currentFile=null;
+  CmsLock currentLock=null;
   CmsFolder newFolder=null;
   CmsFile newFile=null;
   List offlineFolders=null;
@@ -26,6 +27,7 @@
   while (i.hasNext()) {
     currentFolder=(CmsFolder)i.next();
     currentResourceName=m_driverManager.readPath(context,currentFolder,true);
+    currentLock=m_driverManager.getLock(context,currentResourceName);
     publishCurrentResource=false;
     for (count=0; count < projectResources.size(); count++) {
       if (currentResourceName.startsWith((String)projectResources.get(count))) {
@@ -33,14 +35,12 @@
         break;
       }
     }
-    if (publishCurrentResource) {
+    if (publishCurrentResource && currentLock.isNullLock()) {
       currentResourceName=context.removeSiteRoot(m_driverManager.readPath(context,currentFolder,true));
       currentExportKey=checkExport(currentResourceName,exportpoints);
       report.print(report.key("report.publishing"),I_CmsReport.C_FORMAT_NOTE);
       report.println(currentResourceName);
-      if (currentFolder.isLocked()) {
-      }
- else       if (currentFolder.getState() == I_CmsConstants.C_STATE_DELETED) {
+      if (currentFolder.getState() == I_CmsConstants.C_STATE_DELETED) {
         deletedFolders.add(currentFolder);
         changedResources.addElement(currentResourceName);
       }
@@ -140,6 +140,7 @@
   while (i.hasNext()) {
     currentFile=(CmsFile)i.next();
     currentResourceName=m_driverManager.readPath(context,currentFile,true);
+    currentLock=m_driverManager.getLock(context,currentResourceName);
     publishCurrentResource=false;
     for (count=0; count < projectResources.size(); count++) {
       if (currentResourceName.startsWith((String)projectResources.get(count))) {
@@ -152,10 +153,10 @@
       currentExportKey=checkExport(currentResourceName,exportpoints);
       report.print(report.key("report.publishing"),I_CmsReport.C_FORMAT_NOTE);
       report.println(currentResourceName);
-      if (!currentFile.isLocked()) {
+      if (currentLock.isNullLock()) {
         m_driverManager.getVfsDriver().removeTemporaryFile(currentFile);
       }
-      if (currentFile.isLocked()) {
+      if (!currentLock.isNullLock()) {
       }
  else       if (currentFile.getResourceName().startsWith(I_CmsConstants.C_TEMP_PREFIX)) {
         m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),currentFile);
