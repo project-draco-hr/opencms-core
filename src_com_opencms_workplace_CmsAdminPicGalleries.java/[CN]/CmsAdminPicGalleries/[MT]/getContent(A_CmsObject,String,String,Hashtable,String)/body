@@ -1,0 +1,106 @@
+{
+  HttpServletRequest orgReq=(HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest();
+  HttpSession session=orgReq.getSession(true);
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  String initial=(String)parameters.get(C_PARA_INITIAL);
+  if (initial != null) {
+    session.removeValue(C_PARA_FOLDER);
+  }
+  String lasturl=getLastUrl(cms,parameters);
+  String foldername=(String)parameters.get(C_PARA_FOLDER);
+  if (foldername != null) {
+    session.putValue(C_PARA_FOLDER,foldername);
+  }
+ else {
+    foldername=(String)session.getValue(C_PARA_FOLDER);
+  }
+  String action=(String)parameters.get("action");
+  String newname=(String)parameters.get(C_PARA_NAME);
+  String title=(String)parameters.get("TITLE");
+  String step=(String)parameters.get("step");
+  if (foldername == null) {
+    foldername="";
+  }
+  if ("new".equals(action)) {
+    String galleryname=(String)parameters.get("NAME");
+    String group=(String)parameters.get("GROUP");
+    boolean read=parameters.get("READ") != null;
+    boolean write=parameters.get("WRITE") != null;
+    try {
+      String superfolder=getConfigFile(cms).getPicGalleryPath();
+      CmsFolder folder=cms.createFolder(superfolder,galleryname);
+      cms.lockResource(folder.getAbsolutePath());
+      cms.writeProperty(folder.getAbsolutePath(),C_PROPERTY_TITLE,title);
+      cms.chgrp(folder.getAbsolutePath(),group);
+      int flag=folder.getAccessFlags();
+      if (read != ((flag & C_ACCESS_PUBLIC_READ) != 0)) {
+        flag^=C_ACCESS_PUBLIC_READ;
+      }
+      if (write != ((flag & C_ACCESS_PUBLIC_WRITE) != 0)) {
+        flag^=C_ACCESS_PUBLIC_WRITE;
+      }
+      cms.chmod(folder.getAbsolutePath(),flag);
+    }
+ catch (    CmsException ex) {
+      xmlTemplateDocument.setData("ERRORDETAILS",Utils.getStackTrace(ex));
+      templateSelector="error";
+    }
+  }
+ else   if ("upload".equals(action)) {
+    String filename=null;
+    byte[] filecontent=new byte[0];
+    Enumeration files=cms.getRequestContext().getRequest().getFileNames();
+    while (files.hasMoreElements()) {
+      filename=(String)files.nextElement();
+    }
+    if (filename != null) {
+      session.putValue(C_PARA_FILE,filename);
+    }
+    filename=(String)session.getValue(C_PARA_FILE);
+    if (filename != null) {
+      filecontent=cms.getRequestContext().getRequest().getFile(filename);
+    }
+    if (filecontent != null) {
+      session.putValue(C_PARA_FILECONTENT,filecontent);
+    }
+    filecontent=(byte[])session.getValue(C_PARA_FILECONTENT);
+    if ("0".equals(step)) {
+      templateSelector="";
+    }
+ else     if ("1".equals(step)) {
+      if (filename != null) {
+        if (filecontent.length == 0) {
+          templateSelector="error";
+          xmlTemplateDocument.setData("details",filename);
+        }
+ else {
+          xmlTemplateDocument.setData("MIME",filename);
+          xmlTemplateDocument.setData("SIZE","Not yet available");
+          xmlTemplateDocument.setData("FILESIZE",new Integer(filecontent.length).toString() + " Bytes");
+          xmlTemplateDocument.setData("FILENAME",filename);
+          templateSelector="step1";
+        }
+      }
+    }
+ else     if ("2".equals(step)) {
+      if (newname != null) {
+        filename=newname;
+      }
+      CmsFile file=cms.createFile(foldername,filename,filecontent,C_TYPE_IMAGE_NAME);
+      if (title != null) {
+        String filepath=file.getAbsolutePath();
+        cms.lockResource(filepath);
+        cms.writeProperty(filepath,C_PROPERTY_TITLE,title);
+      }
+      try {
+        cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + lasturl);
+      }
+ catch (      Exception ex) {
+        throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + lasturl,CmsException.C_UNKNOWN_EXCEPTION,ex);
+      }
+    }
+  }
+  xmlTemplateDocument.setData("link_value",foldername);
+  xmlTemplateDocument.setData("lasturl",lasturl);
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
