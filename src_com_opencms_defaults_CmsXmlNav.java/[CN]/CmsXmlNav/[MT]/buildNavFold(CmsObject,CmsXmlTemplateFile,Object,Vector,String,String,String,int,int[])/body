@@ -8,8 +8,9 @@
   if (max > 0) {
     result.append(template.getProcessedDataValue("navstart",this,userObject));
     for (int i=0; i < max; i++) {
+      count[0]++;
       template.setData("navtext",navText[i]);
-      template.setData("navcount",new Integer(i + 1).toString());
+      template.setData("navcount",new Integer(count[0]).toString());
       int extractedLevel=extractLevel(cms,navLink[i]);
       int rightLevel=extractedLevel;
       if (level != 0) {
@@ -19,51 +20,43 @@
         }
       }
       template.setData("navlevel",new Integer(rightLevel).toString());
-      String link="";
       if (navLink[i].endsWith("/")) {
         String navIndex=cms.readProperty(navLink[i],C_PROPERTY_NAVINDEX);
-        if (navIndex == null || (navIndex != null && navIndex.equals(""))) {
+        if (navIndex == null) {
           navIndex=C_NAVINDEX;
         }
         try {
           cms.readFile(navLink[i] + navIndex);
-          link=navLink[i] + navIndex;
           template.setData("navlink",servletPath + navLink[i] + navIndex);
         }
  catch (        CmsException e) {
-          link=requestedUri;
           template.setData("navlink",servletPath + requestedUri);
         }
       }
  else {
         try {
           cms.readFile(navLink[i]);
-          link=navLink[i];
           template.setData("navlink",servletPath + navLink[i]);
         }
  catch (        CmsException e) {
-          link=requestedUri;
           template.setData("navlink",servletPath + requestedUri);
         }
       }
-      if (link.equals(requestedUri)) {
+      if (navLink[i].equals(currentFolder) || navLink[i].equals(requestedUri)) {
         result.append(template.getProcessedDataValue("navcurrent",this,userObject));
       }
  else {
         result.append(template.getProcessedDataValue("naventry",this,userObject));
       }
-      depth--;
-      if (depthIsNull || (depthIsNull == false && depth >= 0)) {
-        if (navLink[i].endsWith("/")) {
-          Vector all=cms.getSubFolders(navLink[i]);
-          Vector files=cms.getFilesInFolder(navLink[i]);
-          all.ensureCapacity(all.size() + files.size());
-          Enumeration e=files.elements();
-          while (e.hasMoreElements()) {
-            all.addElement(e.nextElement());
-          }
-          result.append(buildNavTree(cms,template,userObject,all,requestedUri,currentFolder,servletPath,level,depth,depthIsNull));
+      if (requestedUri.indexOf(navLink[i]) != -1) {
+        Vector all=cms.getSubFolders(navLink[i]);
+        Vector files=cms.getFilesInFolder(navLink[i]);
+        all.ensureCapacity(all.size() + files.size());
+        Enumeration e=files.elements();
+        while (e.hasMoreElements()) {
+          all.addElement(e.nextElement());
         }
+        result.append(buildNavFold(cms,template,userObject,all,requestedUri,currentFolder,servletPath,level,count));
       }
     }
     result.append(template.getProcessedDataValue("navend",this,userObject));
