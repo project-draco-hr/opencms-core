@@ -1,50 +1,39 @@
 {
   PreparedStatement stmt=null;
   Connection conn=null;
-  try {
-    conn=m_sqlManager.getConnection();
-    stmt=m_sqlManager.getPreparedStatement(conn,"insert_channel_offline");
-    for (int i=0; i < channelToAdd.size(); i++) {
-      try {
-        stmt.setString(1,masterId.toString());
-        cms.getRequestContext().saveSiteRoot();
-        cms.setContextToCos();
-        stmt.setInt(2,Integer.parseInt(cms.readProperty(channelToAdd.get(i) + "",I_CmsConstants.C_PROPERTY_CHANNELID)));
-        cms.getRequestContext().restoreSiteRoot();
-        stmt.executeUpdate();
-      }
- catch (      CmsException exc) {
-        if (OpenCms.getLog(this).isWarnEnabled()) {
-          OpenCms.getLog(this).warn("Couldn't find channel " + channelToAdd.get(i),exc);
-        }
+  cms.getRequestContext().saveSiteRoot();
+  cms.setContextToCos();
+  conn=m_sqlManager.getConnection();
+  stmt=m_sqlManager.getPreparedStatement(conn,"insert_channel_offline");
+  for (int i=0; i < channelToAdd.size(); i++) {
+    try {
+      stmt.setString(1,masterId.toString());
+      CmsResource channel=cms.readFolder((String)channelToAdd.get(i));
+      String id=channel.getResourceId().toString();
+      stmt.setString(2,id);
+      stmt.setString(3,(String)channelToAdd.get(i));
+      stmt.executeUpdate();
+    }
+ catch (    CmsException exc) {
+      if (OpenCms.getLog(this).isWarnEnabled()) {
+        OpenCms.getLog(this).warn("Couldn't find channel " + channelToAdd.get(i),exc);
       }
     }
   }
-  finally {
-    m_sqlManager.closeAll(conn,stmt,null);
-  }
+  m_sqlManager.closeAll(conn,stmt,null);
   stmt=null;
   conn=null;
   try {
     conn=m_sqlManager.getConnection();
     stmt=m_sqlManager.getPreparedStatement(conn,"delete_channel_offline");
     for (int i=0; i < channelToDelete.size(); i++) {
-      try {
-        stmt.setString(1,masterId.toString());
-        cms.getRequestContext().saveSiteRoot();
-        cms.setContextToCos();
-        stmt.setInt(2,Integer.parseInt(cms.readProperty(channelToDelete.get(i) + "",I_CmsConstants.C_PROPERTY_CHANNELID)));
-        cms.getRequestContext().restoreSiteRoot();
-        stmt.executeUpdate();
-      }
- catch (      CmsException exc) {
-        if (OpenCms.getLog(this).isWarnEnabled()) {
-          OpenCms.getLog(this).warn("Couldn't find channel " + channelToAdd.get(i),exc);
-        }
-      }
+      stmt.setString(1,masterId.toString());
+      stmt.setString(2,(String)channelToDelete.get(i));
+      stmt.executeUpdate();
     }
   }
   finally {
     m_sqlManager.closeAll(conn,stmt,null);
+    cms.getRequestContext().restoreSiteRoot();
   }
 }
