@@ -7,6 +7,7 @@
   String isLockedBy=null;
   int lockedInProject=-1;
   int curProjectId=cms.getRequestContext().currentProject().getId();
+  boolean hasWriteAccess=false;
   try {
     Method laMethod=cdClass.getMethod("isLockable",new Class[]{});
     laObject=laMethod.invoke(null,null);
@@ -41,6 +42,7 @@ catch (  Exception e) {
  else {
     try {
       lockedByUserId=((A_CmsContentDefinition)entryObject).getLockstate();
+      hasWriteAccess=((A_CmsContentDefinition)entryObject).hasWriteAccess(cms);
     }
  catch (    Exception e) {
       if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -48,7 +50,7 @@ catch (  Exception e) {
       }
     }
     try {
-      if (lockedByUserId == actUserId) {
+      if (lockedByUserId.equals(actUserId)) {
         isLockedBy=cms.getRequestContext().currentUser().getName();
         template.setData("isLockedBy",isLockedBy);
         try {
@@ -69,10 +71,16 @@ catch (  Exception e) {
       }
  else {
         if (!lockedByUserId.isNullUUID()) {
-          isLockedBy=readSaveUserName(cms,lockedByUserId);
-          template.setData("isLockedBy",isLockedBy);
-          lockString=template.getProcessedDataValue("lock",this,parameters);
-          template.setData("lockedby",lockString);
+          if (!hasWriteAccess) {
+            lockString=template.getProcessedDataValue("noaccess",this,parameters);
+            template.setData("lockedby",lockString);
+          }
+ else {
+            isLockedBy=readSaveUserName(cms,lockedByUserId);
+            template.setData("isLockedBy",isLockedBy);
+            lockString=template.getProcessedDataValue("lock",this,parameters);
+            template.setData("lockedby",lockString);
+          }
         }
  else {
           lockString=template.getProcessedDataValue("nolock",this,parameters);
