@@ -78,6 +78,7 @@
       getLog(CmsLog.CHANNEL_INIT).warn(". Request handler class: " + handler.getClass().getName() + " activated");
     }
   }
+  m_siteManager=systemConfiguration.getSiteManager();
   CmsVfsConfiguration vfsConfiguation=(CmsVfsConfiguration)m_configurationManager.getConfiguration(CmsVfsConfiguration.class);
   m_resourceManager=vfsConfiguation.getResourceManager();
   m_xmlContentTypeManager=vfsConfiguation.getXmlContentTypeManager();
@@ -126,42 +127,16 @@
   if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
     getLog(CmsLog.CHANNEL_INIT).info(". Password validation  : " + m_passwordValidatingClass);
   }
-  Boolean supportOldLocales=configuration.getBoolean("compatibility.support.oldlocales",new Boolean(false));
-  setRuntimeProperty("compatibility.support.oldlocales",supportOldLocales);
-  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(". Old locale support   : " + (supportOldLocales.booleanValue() ? "enabled" : "disabled"));
+  if (m_runtimeProperties == null) {
+    m_runtimeProperties=Collections.synchronizedMap(new HashMap());
   }
-  String[] appNames=configuration.getStringArray("compatibility.support.webAppNames");
-  if (appNames == null) {
-    appNames=new String[0];
-  }
-  List webAppNamesOri=java.util.Arrays.asList(appNames);
-  ArrayList webAppNames=new ArrayList();
-  for (int i=0; i < webAppNamesOri.size(); i++) {
-    String name=((String)webAppNamesOri.get(i)).trim();
-    if (name != null && !"".equals(name)) {
-      webAppNames.add(name);
-      if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-        getLog(CmsLog.CHANNEL_INIT).info(". Old context path     : " + (i + 1) + " - "+ name);
-      }
-    }
-  }
-  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(". Old context support  : " + ((webAppNames.size() > 0) ? "enabled" : "disabled"));
-  }
-  if (webAppNames == null) {
-    webAppNames=new ArrayList();
-  }
-  if (!webAppNames.contains(getSystemInfo().getOpenCmsContext())) {
-    webAppNames.add(getSystemInfo().getOpenCmsContext());
-  }
-  setRuntimeProperty("compatibility.support.webAppNames",webAppNames);
+  m_runtimeProperties.putAll(systemConfiguration.getRuntimeProperties());
   CmsObject adminCms=initCmsObject(null,null,getDefaultUsers().getUserAdmin(),null);
   m_scheduleManager.initialize(adminCms);
   m_workplaceManager.initialize(adminCms);
   m_localeManager=systemConfiguration.getLocaleManager();
   m_localeManager.initialize(adminCms);
-  m_siteManager=CmsSiteManager.initialize(configuration,adminCms);
+  m_siteManager.initialize(adminCms);
   m_searchManager.initialize(adminCms);
   m_staticExportManager.initialize(adminCms);
   m_xmlContentTypeManager.initialize(adminCms);
