@@ -1,0 +1,109 @@
+{
+  StringBuffer result=new StringBuffer(64);
+  try {
+    boolean nested=!contentDefinition.equals(m_content.getContentDefinition());
+    result.append("<table class=\"xmlTable");
+    if (nested) {
+      result.append("Nested");
+    }
+    result.append("\">\n");
+    if (!nested && getErrorHandler().hasErrors()) {
+      result.append("<tr><td colspan=\"5\">&nbsp;</td></tr>\n");
+      result.append("<tr><td colspan=\"2\">&nbsp;</td>");
+      result.append("<td class=\"xmlTdErrorHeader\">");
+      result.append(key("editor.xmlcontent.validation.error"));
+      result.append("</td><td colspan=\"2\">&nbsp;");
+      result.append("</td></tr>\n");
+    }
+    Iterator i=contentDefinition.getTypeSequence().iterator();
+    while (i.hasNext()) {
+      I_CmsXmlSchemaType type=(I_CmsXmlSchemaType)i.next();
+      CmsXmlContentDefinition nestedContentDefinition=contentDefinition;
+      if (!type.isSimpleType()) {
+        CmsXmlNestedContentDefinition nestedSchema=(CmsXmlNestedContentDefinition)type;
+        nestedContentDefinition=nestedSchema.getNestedContentDefinition();
+      }
+      String name=pathPrefix + type.getElementName();
+      CmsXmlContentValueSequence elementSequence=m_content.getValueSequence(name,getElementLocale());
+      int elementCount=elementSequence.getElementCount();
+      boolean addValue=false;
+      if (elementCount < type.getMaxOccurs()) {
+        addValue=true;
+      }
+      boolean removeValue=false;
+      if (elementCount > type.getMinOccurs()) {
+        removeValue=true;
+      }
+      boolean disabledElement=false;
+      if (elementCount < 1) {
+        elementCount=1;
+        elementSequence.addValue(getCms(),0);
+        disabledElement=true;
+      }
+      for (int j=0; j < elementCount; j++) {
+        I_CmsXmlContentValue value=elementSequence.getValue(j);
+        I_CmsXmlWidget widget=contentDefinition.getContentHandler().getWidget(value);
+        result.append("<tr>");
+        result.append("<td class=\"xmlLabel");
+        if (disabledElement) {
+          result.append("Disabled");
+        }
+        result.append("\">");
+        result.append(A_CmsXmlWidget.getMessage(this,nestedContentDefinition,value.getElementName()));
+        result.append(": </td>");
+        if (!disabledElement && showHelpBubble && value.getIndex() == 0) {
+          result.append(A_CmsXmlWidget.getHelpBubble(getCms(),this,nestedContentDefinition,value.getElementName()));
+        }
+ else {
+          result.append(buttonBarSpacer(16));
+        }
+        if (!disabledElement) {
+          if (!type.isSimpleType()) {
+            String newPath=CmsXmlUtils.createXpathElement(value.getElementName(),value.getIndex() + 1);
+            result.append("<td>");
+            boolean showHelp=(j == 0);
+            result.append(getXmlEditorForm(nestedContentDefinition,pathPrefix + newPath + "/",showHelp));
+            result.append("</td>");
+          }
+ else {
+            result.append(widget.getDialogWidget(getCms(),this,value));
+          }
+        }
+ else {
+          result.append("<td class=\"xmlTdDisabled\">");
+          result.append(key("editor.xmlcontent.optionalelement"));
+          result.append("</td>");
+        }
+        result.append("<td style=\"vertical-align: top;\"><table border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr>");
+        result.append(buildAddElement(name,value.getIndex(),addValue));
+        result.append(buildRemoveElement(name,value.getIndex(),removeValue));
+        result.append("</tr></table></td>");
+        result.append("</tr>\n");
+        if (getErrorHandler().hasErrors() || getErrorHandler().hasWarnings()) {
+          String key=value.getPath();
+          if (getErrorHandler().getErrors().containsKey(key)) {
+            result.append("<tr><td></td><td><img src=\"");
+            result.append(getEditorResourceUri());
+            result.append("error.gif");
+            result.append("\" border=\"0\" alt=\"\"></td><td class=\"xmlTdError\">");
+            result.append(getErrorHandler().getErrors().get(key));
+            result.append("</td><td></td></tr>\n");
+          }
+          if (getErrorHandler().getWarnings().containsKey(key)) {
+            result.append("<tr><td></td><td><img src=\"");
+            result.append(getEditorResourceUri());
+            result.append("warning.gif");
+            result.append("\" border=\"0\" alt=\"\"></td><td class=\"xmlTdWarning\">");
+            result.append(getErrorHandler().getWarnings().get(key));
+            result.append("</td><td></td></tr>\n");
+          }
+        }
+      }
+    }
+    result.append("</table>\n");
+  }
+ catch (  Throwable t) {
+    OpenCms.getLog(this).error("Error in XML editor",t);
+  }
+  return result.toString();
+}
