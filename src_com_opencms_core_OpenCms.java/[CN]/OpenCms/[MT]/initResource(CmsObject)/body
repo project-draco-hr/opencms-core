@@ -1,26 +1,50 @@
 {
   CmsFile file=null;
   String resourceName=cms.getRequestContext().getUri();
-  if (resourceName.endsWith("/")) {
-    resourceName+=C_INDEX;
-    cms.getRequestContext().getResponse().sendCmsRedirect(resourceName);
-    return null;
-  }
   try {
-    file=cms.readFile(cms.getRequestContext().getUri());
+    file=cms.readFile(resourceName);
   }
  catch (  CmsException e) {
     if (e.getType() == CmsException.C_NOT_FOUND) {
-      resourceName=cms.getRequestContext().getUri();
-      if (!resourceName.endsWith(C_INDEX)) {
-        if (!resourceName.endsWith("/")) {
-          resourceName+="/";
+      try {
+        CmsFolder folder=cms.readFolder(resourceName);
+        String defaultFileName=cms.readProperty(folder.getPath(),I_CmsConstants.C_PROPERTY_DEFAULT_FILE);
+        if (defaultFileName != null) {
+          String tmpResourceName=folder.getPath() + defaultFileName;
+          try {
+            file=cms.readFile(tmpResourceName);
+            cms.getRequestContext().getRequest().setRequestedResource(tmpResourceName);
+          }
+ catch (          CmsException exc) {
+            if (exc.getType() == CmsException.C_NO_ACCESS) {
+              throw exc;
+            }
+          }
         }
-        resourceName+=C_INDEX;
-        cms.getRequestContext().getResponse().sendCmsRedirect(resourceName);
+        if (file == null) {
+          for (int i=0; i < m_defaultFilenames.length; i++) {
+            String tmpResourceName=folder.getPath() + m_defaultFilenames[i];
+            try {
+              file=cms.readFile(tmpResourceName);
+              cms.getRequestContext().getRequest().setRequestedResource(tmpResourceName);
+              break;
+            }
+ catch (            CmsException exc) {
+              if (exc.getType() == CmsException.C_NO_ACCESS) {
+                throw exc;
+              }
+            }
+          }
+        }
+        if (file == null) {
+          throw e;
+        }
       }
- else {
-        throw e;
+ catch (      CmsException ex) {
+        if (ex.getType() == CmsException.C_NOT_FOUND) {
+          throw e;
+        }
+        throw ex;
       }
     }
  else {

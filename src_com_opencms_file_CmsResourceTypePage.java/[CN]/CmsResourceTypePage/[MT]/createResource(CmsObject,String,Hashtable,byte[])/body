@@ -1,0 +1,31 @@
+{
+  String folderName=newPageName.substring(0,newPageName.lastIndexOf(C_FOLDER_SEPERATOR,newPageName.length() - 2) + 1);
+  String pageName=newPageName.substring(folderName.length(),newPageName.length() - 1);
+  Vector allMasterTemplates=cms.getFilesInFolder(C_CONTENTTEMPLATEPATH);
+  String masterTemplate="";
+  if (allMasterTemplates.size() > 0) {
+    masterTemplate=((CmsFile)allMasterTemplates.elementAt(0)).getAbsolutePath();
+  }
+  String bodyFolder=(C_CONTENTBODYPATH.substring(0,C_CONTENTBODYPATH.lastIndexOf("/"))) + folderName;
+  CmsFile file=cms.doCreateFile(newPageName,"".getBytes(),m_resourceTypeName,properties);
+  cms.doLockResource(newPageName,true);
+  CmsXmlControlFile pageXml=new CmsXmlControlFile(cms,file);
+  pageXml.setTemplateClass(C_CLASSNAME);
+  pageXml.setMasterTemplate(masterTemplate);
+  pageXml.setElementClass("body",C_CLASSNAME);
+  pageXml.setElementTemplate("body",bodyFolder + pageName);
+  pageXml.write();
+  checkFolders(cms,folderName);
+  CmsFile bodyFile=cms.doCreateFile(bodyFolder + pageName,(C_DEFAULTBODY_START + new String(contents) + C_DEFAULTBODY_END).getBytes(),I_CmsConstants.C_TYPE_PLAIN_NAME,new Hashtable());
+  cms.doLockResource(bodyFolder + pageName,true);
+  int flags=bodyFile.getAccessFlags();
+  if ((flags & C_ACCESS_INTERNAL_READ) == 0) {
+    flags+=C_ACCESS_INTERNAL_READ;
+  }
+  cms.chmod(bodyFile.getAbsolutePath(),flags);
+  if (contents.length > 1) {
+    CmsPageLinks linkObject=cms.getPageLinks(newPageName);
+    cms.createLinkEntrys(linkObject.getResourceId(),linkObject.getLinkTargets());
+  }
+  return file;
+}
