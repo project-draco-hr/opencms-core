@@ -1,0 +1,32 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,"[CmsEditor] getting content of element " + elementName);
+    A_OpenCms.log(C_OPENCMS_DEBUG,"[CmsEditor] template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,"[CmsEditor] selected template section is: " + ((templateSelector == null) ? "<root>" : templateSelector));
+  }
+  String result=null;
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile();
+  String fullFileName=CmsXmlWpTemplateFile.lookupAbsoluteFilename(cms,templateFile,xmlTemplateDocument);
+  CmsFile file=cms.readFile(fullFileName);
+  xmlTemplateDocument.init(cms,file);
+  try {
+    result=xmlTemplateDocument.getProcessedTemplateContent(this,parameters);
+  }
+ catch (  Throwable e) {
+    xmlTemplateDocument.clearFileCache(xmlTemplateDocument);
+    if (isCacheable(cms,templateFile,parameters)) {
+      m_cache.clearCache(getKey(cms,templateFile,parameters));
+    }
+    if (e instanceof CmsException) {
+      throw (CmsException)e;
+    }
+ else {
+      String errorMessage="Exception while getting content for (sub)template " + elementName + ". "+ e;
+      if (A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_CRITICAL,"[CmsXmlTemplate] " + errorMessage);
+      }
+      throw new CmsException(errorMessage);
+    }
+  }
+  return result.getBytes();
+}
