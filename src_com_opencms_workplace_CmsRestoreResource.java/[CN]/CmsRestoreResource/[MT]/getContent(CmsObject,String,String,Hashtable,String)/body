@@ -1,0 +1,61 @@
+{
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  String template=null;
+  String initial=(String)parameters.get(C_PARA_INITIAL);
+  if (initial != null) {
+    session.removeValue(C_PARA_FILE);
+    session.removeValue("restore");
+    session.removeValue("lasturl");
+  }
+  String lasturl=getLastUrl(cms,parameters);
+  String restore=(String)parameters.get("restore");
+  if (restore != null) {
+    session.putValue("restore",restore);
+  }
+  restore=(String)session.getValue("restore");
+  String filename=(String)parameters.get(C_PARA_FILE);
+  if (filename != null) {
+    session.putValue(C_PARA_FILE,filename);
+  }
+  filename=(String)session.getValue(C_PARA_FILE);
+  A_OpenCms.log(A_OpenCms.C_OPENCMS_DEBUG,"get versionid " + (String)session.getValue("versionid"));
+  String versionid=(String)parameters.get("versionid");
+  if (versionid != null) {
+    session.putValue("versionid",versionid);
+  }
+  versionid=(String)session.getValue("versionid");
+  A_OpenCms.log(A_OpenCms.C_OPENCMS_DEBUG,"versionid: " + versionid + ", filename: "+ filename);
+  String action=(String)parameters.get("action");
+  CmsResource file=null;
+  if (filename.endsWith("/")) {
+    file=(CmsResource)cms.readFolder(filename);
+  }
+ else {
+    file=(CmsResource)cms.readFileHeader(filename);
+  }
+  if ((restore != null)) {
+    if (action != null) {
+      try {
+        cms.restoreResource(Integer.parseInt(versionid),file.getAbsolutePath());
+        session.removeValue(C_PARA_FILE);
+        template="done";
+      }
+ catch (      CmsException e) {
+        session.removeValue(C_PARA_FILE);
+        xmlTemplateDocument.setData("details",Utils.getStackTrace(e));
+        return startProcessing(cms,xmlTemplateDocument,"",parameters,"error");
+      }
+    }
+ else {
+      template="wait";
+    }
+  }
+  if (action == null) {
+    CmsXmlLanguageFile lang=xmlTemplateDocument.getLanguageFile();
+    xmlTemplateDocument.setData("CHANGEDATE",Utils.getNiceDate(file.getDateLastModified()));
+    xmlTemplateDocument.setData("USER",cms.readUser(file.getResourceLastModifiedBy()).getName());
+    xmlTemplateDocument.setData("FILENAME",file.getName());
+  }
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}
