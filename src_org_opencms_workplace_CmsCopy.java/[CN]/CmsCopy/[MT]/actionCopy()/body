@@ -1,10 +1,14 @@
 {
   getJsp().getRequest().setAttribute(C_SESSION_WORKPLACE_CLASS,this);
-  CmsResource res=null;
+  CmsResource resource=null;
   try {
-    res=getCms().readFileHeader(getParamResource());
+    resource=getCms().readFileHeader(getParamResource());
     if (performCopyOperation()) {
-      getJsp().include(C_FILE_EXPLORER_FILELIST);
+      if (resource.isFolder() && (!getParamTarget().startsWith("/") || CmsResource.getParentFolder(getParamResource()).equals(CmsResource.getParentFolder(getParamTarget())))) {
+        setParamOkLink(C_FILE_EXPLORER_FILELIST);
+        setParamOkFunctions("top.reloadTreeFolder(\"" + CmsResource.getParentFolder(getParamResource()) + "\");");
+      }
+      closeDialog();
     }
  else {
       getJsp().include(C_FILE_DIALOG_SCREEN_WAIT);
@@ -12,7 +16,7 @@
   }
  catch (  CmsException e) {
     String message="<p>\n" + key("source") + ": "+ getParamResource()+ "<br>\n"+ key("target")+ ": "+ getParamTarget()+ "\n</p>\n";
-    if ((e.getType() == CmsException.C_FILE_EXISTS) && !(res.isFolder())) {
+    if ((e.getType() == CmsException.C_FILE_EXISTS) && !(resource.isFolder())) {
       int targetType=-1;
       boolean restoreSiteRoot=false;
       try {
@@ -31,7 +35,7 @@
           getCms().getRequestContext().restoreSiteRoot();
         }
       }
-      if (res.getType() == targetType) {
+      if (resource.getType() == targetType) {
         setParamMessage(message + key("confirm.message." + getParamDialogtype()));
         getJsp().include(C_FILE_DIALOG_SCREEN_CONFIRM);
       }
