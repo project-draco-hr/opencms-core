@@ -1,0 +1,39 @@
+{
+  CmsFile file=CmsFile.upgrade(resource,cms);
+  CmsFlexController controller=(CmsFlexController)req.getAttribute(CmsFlexController.ATTRIBUTE_NAME);
+  CmsFlexRequest f_req;
+  CmsFlexResponse f_res;
+  if (controller != null) {
+    f_req=controller.getCurrentRequest();
+    f_res=controller.getCurrentResponse();
+  }
+ else {
+    controller=new CmsFlexController(cms,file,m_cache,req,res);
+    req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,controller);
+    f_req=new CmsFlexRequest(req,controller);
+    f_res=new CmsFlexResponse(res,controller,false,true);
+    controller.pushRequest(f_req);
+    controller.pushResponse(f_res);
+  }
+  byte[] result=null;
+  try {
+    f_req.getRequestDispatcher(cms.readAbsolutePath(file)).include(f_req,f_res);
+  }
+ catch (  java.net.SocketException e) {
+  }
+  if (!f_res.isSuspended()) {
+    if (!res.isCommitted() || m_errorPagesAreNotCommited) {
+      result=f_res.getWriterBytes();
+      result=CmsEncoder.changeEncoding(result,OpenCms.getSystemInfo().getDefaultEncoding(),cms.getRequestContext().getEncoding());
+      res.setContentLength(result.length);
+      CmsFlexResponse.processHeaders(f_res.getHeaders(),res);
+      res.getOutputStream().write(result);
+      res.getOutputStream().flush();
+    }
+  }
+  result=null;
+  CmsFlexController.removeController(req);
+  if (exportStream != null) {
+    exportStream.write(file.getContents());
+  }
+}
