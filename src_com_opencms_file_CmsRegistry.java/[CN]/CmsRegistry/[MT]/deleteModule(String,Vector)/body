@@ -1,4 +1,5 @@
 {
+  if (DEBUG > 2)   System.err.println("[" + this.getClass().getName() + ".deleteModule()] Starting to delete module "+ module);
   if (!moduleExists(module)) {
     throw new CmsException("Module '" + module + "' does not exist",CmsException.C_REGISTRY_ERROR);
   }
@@ -18,27 +19,59 @@
   }
  catch (  Exception exc) {
   }
-  Vector resourceNames=new Vector();
-  Vector missingFiles=new Vector();
-  Vector wrongChecksum=new Vector();
-  Vector filesInUse=new Vector();
-  Vector resourceCodes=new Vector();
-  deleteGetConflictingFileNames(module,resourceNames,missingFiles,wrongChecksum,filesInUse,new Vector());
-  getModuleFiles(module,resourceNames,resourceCodes);
-  for (int i=resourceNames.size() - 1; i >= 0; i--) {
-    try {
-      String currentResource=(String)resourceNames.elementAt(i);
-      if ((!exclusion.contains(currentResource)) && (!filesInUse.contains(currentResource))) {
-        m_cms.lockResource(currentResource,true);
-        if (currentResource.endsWith("/")) {
-          m_cms.deleteEmptyFolder(currentResource);
+  if (this.getModuleType(module).equals(CmsRegistry.C_MODULE_TYPE_SIMPLE)) {
+    String additionalResources=this.getModuleParameterString(module,I_CmsConstants.C_MODULE_PROPERTY_ADDITIONAL_RESOURCES);
+    Vector resources=new Vector();
+    if (additionalResources != null && !additionalResources.equals("")) {
+      StringTokenizer additionalResourceTokens=null;
+      additionalResourceTokens=new StringTokenizer(additionalResources,I_CmsConstants.C_MODULE_PROPERTY_ADDITIONAL_RESOURCES_SEPARATOR);
+      while (additionalResourceTokens.hasMoreTokens()) {
+        String currentResource=additionalResourceTokens.nextToken();
+        if (DEBUG > 0) {
+          System.err.println("Adding resource: " + currentResource);
+          System.err.println("Adding resource: " + C_VFS_PATH_BODIES.substring(0,C_VFS_PATH_BODIES.length() - 1) + currentResource);
         }
- else {
-          m_cms.deleteResource(currentResource);
-        }
+        resources.add(currentResource);
+        resources.add(C_VFS_PATH_BODIES.substring(0,C_VFS_PATH_BODIES.length() - 1) + currentResource);
       }
     }
- catch (    CmsException exc) {
+    resources.add(I_CmsWpConstants.C_VFS_PATH_MODULES + module + "/");
+    for (int i=resources.size() - 1; i >= 0; i--) {
+      String currentResource=null;
+      try {
+        currentResource=(String)resources.elementAt(i);
+        if (DEBUG > 1)         System.err.println("[" + this.getClass().getName() + ".deleteModule()] Deleting resource "+ currentResource);
+        m_cms.lockResource(currentResource,true);
+        m_cms.deleteResource(currentResource);
+      }
+ catch (      CmsException exc) {
+        if (DEBUG > 0)         System.err.println("[" + this.getClass().getName() + ".deleteModule()] Exception "+ exc+ " deleting resource "+ currentResource);
+      }
+    }
+  }
+ else {
+    Vector resourceNames=new Vector();
+    Vector missingFiles=new Vector();
+    Vector wrongChecksum=new Vector();
+    Vector filesInUse=new Vector();
+    Vector resourceCodes=new Vector();
+    deleteGetConflictingFileNames(module,resourceNames,missingFiles,wrongChecksum,filesInUse,new Vector());
+    getModuleFiles(module,resourceNames,resourceCodes);
+    for (int i=resourceNames.size() - 1; i >= 0; i--) {
+      try {
+        String currentResource=(String)resourceNames.elementAt(i);
+        if ((!exclusion.contains(currentResource)) && (!filesInUse.contains(currentResource))) {
+          m_cms.lockResource(currentResource,true);
+          if (currentResource.endsWith("/")) {
+            m_cms.deleteEmptyFolder(currentResource);
+          }
+ else {
+            m_cms.deleteResource(currentResource);
+          }
+        }
+      }
+ catch (      CmsException exc) {
+      }
     }
   }
   Element moduleElement=getModuleElement(module);
@@ -50,4 +83,5 @@
  catch (  Exception exc) {
     throw new CmsException("couldn't init registry",CmsException.C_REGISTRY_ERROR,exc);
   }
+  if (DEBUG > 2)   System.err.println("[" + this.getClass().getName() + ".deleteModule()] Finished for module "+ module);
 }
