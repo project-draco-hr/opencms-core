@@ -1,0 +1,57 @@
+{
+  if (isOnlineProject(cms)) {
+    throw new CmsException("Can't delete from the online project",CmsException.C_NO_ACCESS);
+  }
+  if (dataset.m_versionId != I_CmsConstants.C_UNKNOWN_ID) {
+    throw new CmsException("Can't delete a backup cd ",CmsException.C_NO_ACCESS);
+  }
+  readLockstate(dataset,content.getSubId());
+  if ((dataset.m_lockedBy != cms.getRequestContext().currentUser().getId())) {
+    throw new CmsException("Not locked by this user",CmsException.C_NO_ACCESS);
+  }
+  if (dataset.m_lockedInProject != dataset.m_projectId) {
+    throw new CmsException("Not locked in this project",CmsException.C_NO_ACCESS);
+  }
+  if (!content.isWriteable()) {
+    throw new CmsException("Not writeable",CmsException.C_NO_ACCESS);
+  }
+  if (dataset.m_state == I_CmsConstants.C_STATE_NEW) {
+    String statement_key="delete_offline";
+    PreparedStatement stmnt=null;
+    try {
+      stmnt=sqlPrepare(m_poolName,statement_key);
+      stmnt.setInt(1,dataset.m_masterId);
+      stmnt.setInt(2,content.getSubId());
+      if (stmnt.executeUpdate() != 1) {
+        throw new CmsException("Row not found: " + dataset.m_masterId + " "+ content.getSubId(),CmsException.C_NOT_FOUND);
+      }
+      deleteAllMedia(dataset.m_masterId);
+      deleteAllChannels(dataset.m_masterId);
+    }
+ catch (    SQLException exc) {
+      throw new CmsException(CmsException.C_SQL_ERROR,exc);
+    }
+ finally {
+      sqlClose(stmnt,null);
+    }
+  }
+ else {
+    String statement_key="update_offline";
+    dataset.m_state=I_CmsConstants.C_STATE_DELETED;
+    dataset.m_lockedBy=I_CmsConstants.C_UNKNOWN_ID;
+    PreparedStatement stmnt=null;
+    try {
+      stmnt=sqlPrepare(m_poolName,"update_offline");
+      int rowcounter=sqlFillValues(stmnt,content.getSubId(),dataset);
+      stmnt.setInt(rowcounter++,dataset.m_masterId);
+      stmnt.setInt(rowcounter++,content.getSubId());
+      stmnt.executeUpdate();
+    }
+ catch (    SQLException exc) {
+      throw new CmsException(CmsException.C_SQL_ERROR,exc);
+    }
+ finally {
+      sqlClose(stmnt,null);
+    }
+  }
+}

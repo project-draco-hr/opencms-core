@@ -1,0 +1,51 @@
+{
+  CmsResource newChannel=null;
+  cms.setContextToCos();
+  try {
+    if ((I_CmsConstants.C_UNKNOWN_ID + "").equals(m_channelId)) {
+      setNewChannelId();
+      newChannel=cms.createResource(m_parentchannel,m_channelname,I_CmsConstants.C_TYPE_FOLDER_NAME,m_properties);
+      cms.lockResource(newChannel.getAbsolutePath(),true);
+    }
+ else {
+      newChannel=cms.readFolder(m_channel.getAbsolutePath());
+      if (!newChannel.getAbsolutePath().equals(m_parentchannel + m_channelname)) {
+        if (!newChannel.getParent().equals(m_parentchannel)) {
+          cms.moveResource(newChannel.getAbsolutePath(),m_parentchannel + m_channelname);
+        }
+ else         if (!newChannel.getName().equals(m_channelname)) {
+          cms.renameResource(newChannel.getAbsolutePath(),m_channelname);
+        }
+        newChannel=cms.readFolder(m_parentchannel + m_channelname + "/");
+      }
+    }
+    if (newChannel.isLockedBy() != this.getLockstate() || newChannel.getLockedInProject() != cms.getRequestContext().currentProject().getId()) {
+      if (this.getLockstate() == I_CmsConstants.C_UNKNOWN_ID) {
+        cms.unlockResource(newChannel.getAbsolutePath());
+      }
+ else {
+        cms.lockResource(newChannel.getAbsolutePath(),true);
+      }
+    }
+    ;
+    if (newChannel.getOwnerId() != this.getOwner()) {
+      cms.chown(newChannel.getAbsolutePath(),this.getOwnerName());
+    }
+    ;
+    if (newChannel.getGroupId() != this.getGroupId()) {
+      cms.chgrp(newChannel.getAbsolutePath(),this.getGroup());
+    }
+    ;
+    if (newChannel.getAccessFlags() != this.getAccessFlags()) {
+      cms.chmod(newChannel.getAbsolutePath(),this.getAccessFlags());
+    }
+    ;
+    m_channel=cms.readFolder(newChannel.getAbsolutePath());
+  }
+ catch (  CmsException exc) {
+    throw exc;
+  }
+ finally {
+    cms.setContextToVfs();
+  }
+}

@@ -1,0 +1,82 @@
+{
+  PreparedStatement stmnt=null;
+  PreparedStatement stmnt2=null;
+  ResultSet res=null;
+  CmsMasterDataSet backup=getVersionFromHistory(cms,dataset.m_masterId,content.getSubId(),versionId);
+  dataset.m_accessFlags=backup.m_accessFlags;
+  dataset.m_dataBig=backup.m_dataBig;
+  dataset.m_dataInt=backup.m_dataInt;
+  dataset.m_dataLong=backup.m_dataLong;
+  dataset.m_dataMedium=backup.m_dataMedium;
+  dataset.m_dataReference=backup.m_dataReference;
+  dataset.m_dataSmall=backup.m_dataSmall;
+  dataset.m_feedFilename=backup.m_feedFilename;
+  dataset.m_feedId=backup.m_feedId;
+  dataset.m_feedReference=backup.m_feedReference;
+  dataset.m_flags=backup.m_flags;
+  dataset.m_title=backup.m_title;
+  dataset.m_publicationDate=backup.m_publicationDate;
+  dataset.m_purgeDate=backup.m_purgeDate;
+  dataset.m_channel=new Vector();
+  dataset.m_channelToAdd=new Vector();
+  dataset.m_channelToDelete=new Vector();
+  dataset.m_media=new Vector();
+  dataset.m_mediaToAdd=new Vector();
+  dataset.m_mediaToUpdate=new Vector();
+  dataset.m_mediaToDelete=new Vector();
+  dataset.m_lastModifiedBy=cms.getRequestContext().currentUser().getId();
+  if (dataset.m_state != I_CmsConstants.C_STATE_NEW) {
+    dataset.m_state=I_CmsConstants.C_STATE_CHANGED;
+  }
+  int groupId=0;
+  try {
+    groupId=cms.readGroup(backup.m_groupId).getId();
+  }
+ catch (  CmsException exc) {
+    groupId=dataset.m_groupId;
+  }
+  dataset.m_groupId=groupId;
+  int userId=0;
+  try {
+    userId=cms.readUser(backup.m_userId).getId();
+  }
+ catch (  CmsException exc) {
+    userId=dataset.m_userId;
+  }
+  dataset.m_userId=userId;
+  this.write(cms,content,dataset);
+  try {
+    deleteAllMedia(dataset.m_masterId);
+  }
+ catch (  SQLException exc) {
+    throw new CmsException(CmsException.C_SQL_ERROR,exc);
+  }
+  try {
+    stmnt=sqlPrepare(m_backupPoolName,"read_media_backup");
+    stmnt.setInt(1,dataset.m_masterId);
+    stmnt.setInt(2,versionId);
+    res=stmnt.executeQuery();
+    while (res.next()) {
+      int i=1;
+      CmsMasterMedia media=new CmsMasterMedia(res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getString(i++),res.getInt(i++),res.getString(i++),res.getString(i++),res.getString(i++),res.getBytes(i++));
+      try {
+        stmnt2=null;
+        stmnt2=sqlPrepare(m_poolName,"insert_media_offline");
+        sqlFillValues(stmnt2,media);
+        stmnt2.executeUpdate();
+      }
+ catch (      SQLException ex) {
+        throw new CmsException(CmsException.C_SQL_ERROR,ex);
+      }
+ finally {
+        sqlClose(stmnt2,null);
+      }
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsException(CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    sqlClose(stmnt,res);
+  }
+}

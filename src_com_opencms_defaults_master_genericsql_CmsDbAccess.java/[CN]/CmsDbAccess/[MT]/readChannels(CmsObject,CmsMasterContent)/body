@@ -1,0 +1,40 @@
+{
+  if (!content.isReadable()) {
+    throw new CmsException("Not readable",CmsException.C_NO_ACCESS);
+  }
+  Vector retValue=new Vector();
+  String statement_key="read_channel_offline";
+  String poolToUse=m_poolName;
+  if (isOnlineProject(cms)) {
+    statement_key="read_channel_online";
+    poolToUse=m_onlinePoolName;
+  }
+  PreparedStatement stmnt=null;
+  ResultSet res=null;
+  try {
+    stmnt=sqlPrepare(poolToUse,statement_key);
+    stmnt.setInt(1,content.getId());
+    res=stmnt.executeQuery();
+    while (res.next()) {
+      int channeldId=res.getInt(1);
+      cms.setContextToCos();
+      Vector resources=new Vector();
+      try {
+        resources=cms.getResourcesWithProperty(I_CmsConstants.C_PROPERTY_CHANNELID,channeldId + "",I_CmsConstants.C_TYPE_FOLDER);
+      }
+ catch (      CmsException exc) {
+      }
+      cms.setContextToVfs();
+      if (resources.size() >= 1) {
+        retValue.add(((CmsResource)resources.get(0)).getAbsolutePath());
+      }
+    }
+  }
+ catch (  SQLException exc) {
+    throw new CmsException(CmsException.C_SQL_ERROR,exc);
+  }
+ finally {
+    sqlClose(stmnt,res);
+  }
+  return retValue;
+}

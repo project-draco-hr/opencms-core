@@ -1,0 +1,41 @@
+{
+  if (isOnlineProject(cms)) {
+    throw new CmsException("Can't write to the online project",CmsException.C_NO_ACCESS);
+  }
+  if (dataset.m_versionId != I_CmsConstants.C_UNKNOWN_ID) {
+    throw new CmsException("Can't update a cd with a backup cd ",CmsException.C_NO_ACCESS);
+  }
+  readLockstate(dataset,content.getSubId());
+  if ((dataset.m_lockedBy != cms.getRequestContext().currentUser().getId())) {
+    throw new CmsException("Not locked by this user",CmsException.C_NO_ACCESS);
+  }
+  if (dataset.m_lockedInProject != dataset.m_projectId) {
+    throw new CmsException("Not locked in this project",CmsException.C_NO_ACCESS);
+  }
+  if (!content.isWriteable()) {
+    throw new CmsException("Not writeable",CmsException.C_NO_ACCESS);
+  }
+  long currentTime=new java.util.Date().getTime();
+  int currentUserId=cms.getRequestContext().currentUser().getId();
+  if (dataset.m_state != I_CmsConstants.C_STATE_NEW) {
+    dataset.m_state=I_CmsConstants.C_STATE_CHANGED;
+  }
+  dataset.m_lastModifiedBy=currentUserId;
+  dataset.m_dateLastModified=currentTime;
+  PreparedStatement stmnt=null;
+  try {
+    stmnt=sqlPrepare(m_poolName,"update_offline");
+    int rowcounter=sqlFillValues(stmnt,content.getSubId(),dataset);
+    stmnt.setInt(rowcounter++,dataset.m_masterId);
+    stmnt.setInt(rowcounter++,content.getSubId());
+    stmnt.executeUpdate();
+    updateMedia(dataset.m_masterId,dataset.m_mediaToAdd,dataset.m_mediaToUpdate,dataset.m_mediaToDelete);
+    updateChannels(cms,dataset.m_masterId,dataset.m_channelToAdd,dataset.m_channelToDelete);
+  }
+ catch (  SQLException exc) {
+    throw new CmsException(CmsException.C_SQL_ERROR,exc);
+  }
+ finally {
+    sqlClose(stmnt,null);
+  }
+}

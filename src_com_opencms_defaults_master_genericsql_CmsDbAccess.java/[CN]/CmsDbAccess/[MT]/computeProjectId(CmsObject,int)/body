@@ -1,0 +1,44 @@
+{
+  int onlineProjectId=I_CmsConstants.C_UNKNOWN_ID;
+  int offlineProjectId=I_CmsConstants.C_UNKNOWN_ID;
+  try {
+    offlineProjectId=cms.getRequestContext().currentProject().getId();
+    onlineProjectId=cms.onlineProject().getId();
+  }
+ catch (  CmsException exc) {
+  }
+  if (isOnlineProject(cms)) {
+  }
+ else {
+    String statement_key="read_channel_offline";
+    String poolToUse=m_poolName;
+    PreparedStatement stmnt=null;
+    ResultSet res=null;
+    try {
+      cms.setContextToCos();
+      stmnt=sqlPrepare(poolToUse,statement_key);
+      stmnt.setInt(1,masterId);
+      res=stmnt.executeQuery();
+      while (res.next()) {
+        int channeldId=res.getInt(1);
+        Vector resources=new Vector();
+        try {
+          resources=cms.getResourcesWithProperty(I_CmsConstants.C_PROPERTY_CHANNELID,channeldId + "",I_CmsConstants.C_TYPE_FOLDER);
+        }
+ catch (        CmsException exc) {
+        }
+        if (resources.size() >= 1) {
+          int resProjectId=((CmsResource)resources.get(0)).getProjectId();
+          if (resProjectId == offlineProjectId) {
+            return offlineProjectId;
+          }
+        }
+      }
+    }
+  finally {
+      cms.setContextToVfs();
+      sqlClose(stmnt,res);
+    }
+  }
+  return onlineProjectId;
+}

@@ -1,0 +1,170 @@
+{
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  String moduleName="channelbackoffice";
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  String error="";
+  String action=(String)parameters.get("action");
+  if (action == null) {
+    action="";
+  }
+ else   if (action.equals("exit")) {
+    clearSession(session);
+    templateSelector="done";
+    return startProcessing(cms,template,"",parameters,templateSelector);
+  }
+  String id=(String)parameters.get("id");
+  String channelid=(String)parameters.get("channelId");
+  String parentName=(String)parameters.get("parentName");
+  if (parentName == null || parentName.equals("")) {
+    parentName="/";
+  }
+  String channelname=(String)parameters.get("channelName");
+  if (channelname == null) {
+    channelname="";
+  }
+  if (!action.equals("") && channelname.trim().equals("")) {
+    error=lang.getLanguageValue(moduleName + ".error.message2");
+  }
+  String owner=(String)parameters.get("owner");
+  owner=(owner != null ? owner.trim() : "");
+  String group=(String)parameters.get("groupId");
+  group=(group != null ? group.trim() : "");
+  int accessFlags=this.getAccessValue(parameters);
+  if (id == null || id.equals("")) {
+    id="new";
+  }
+  if (channelid == null || channelid.trim().equals("")) {
+    channelid="-1";
+  }
+  if (id.equals("new")) {
+    if (channelid.equals("-1")) {
+      cd=null;
+    }
+ else {
+      id=channelid;
+    }
+  }
+  if (action.equals("") && !id.equals("new")) {
+    try {
+      Integer.parseInt(id);
+    }
+ catch (    Exception err) {
+      throw new CmsException(err.getMessage());
+    }
+    cd=new CmsChannelContent(cms,new Integer(id));
+    parentName=cd.getParentName();
+    idvalue=cd.getChannelId();
+    channelname=cd.getChannelName();
+    owner=new Integer(cd.getOwner()).toString();
+    group=new Integer(cd.getGroupId()).toString();
+    accessFlags=cd.getAccessFlags();
+  }
+ else   if (cd == null) {
+    cd=new CmsChannelContent(cms);
+    idvalue=C_UNKNOWN_ID + "";
+  }
+  session.putValue("parentName",parentName);
+  session.putValue("id",idvalue + "");
+  if (error.equals("") && !action.equals("")) {
+    cd.setChannelId(idvalue);
+    cd.setParentName(parentName);
+    cd.setChannelName(channelname);
+    cd.setGroup(new Integer(group).intValue());
+    cd.setOwner(new Integer(owner).intValue());
+    cd.setAccessFlags(accessFlags);
+  }
+  String defaultGroup=cms.getRequestContext().currentGroup().getName();
+  String defaultUser=cms.getRequestContext().currentUser().getName();
+  Vector cmsGroups=cms.getGroups();
+  String groupOptions="";
+  for (int i=0; i < cmsGroups.size(); i++) {
+    String groupName=((CmsGroup)cmsGroups.elementAt(i)).getName();
+    int groupId=((CmsGroup)cmsGroups.elementAt(i)).getId();
+    template.setData("name",groupName);
+    template.setData("value",(new Integer(groupId)).toString());
+    if (!group.equals("") && (cms.readGroup(Integer.parseInt(group)).getName()).equals(groupName)) {
+      template.setData("check","selected");
+    }
+ else     if (idvalue.equals(C_UNKNOWN_ID + "") && groupName.equals(defaultGroup)) {
+      template.setData("check","selected");
+    }
+ else {
+      template.setData("check","");
+    }
+    groupOptions=groupOptions + template.getProcessedDataValue("selectoption",this);
+  }
+  template.setData("groups",groupOptions);
+  String userOptions="";
+  Vector cmsUsers=cms.getUsers();
+  for (int i=0; i < cmsUsers.size(); i++) {
+    String userName=((CmsUser)cmsUsers.elementAt(i)).getName();
+    int userId=((CmsUser)cmsUsers.elementAt(i)).getId();
+    template.setData("name",userName);
+    template.setData("value",(new Integer(userId)).toString());
+    if (!owner.equals("") && (cms.readUser(Integer.parseInt(owner)).getName()).equals(userName)) {
+      template.setData("check","selected");
+    }
+ else     if (idvalue.equals(C_UNKNOWN_ID + "") && userName.equals(defaultUser)) {
+      template.setData("check","selected");
+    }
+ else {
+      template.setData("check","");
+    }
+    userOptions=userOptions + template.getProcessedDataValue("selectoption",this);
+  }
+  template.setData("users",userOptions);
+  this.setAccessValue(template,cd.getAccessFlags());
+  template.setData("channelId","" + cd.getChannelId());
+  template.setData("channelName",cd.getChannelName());
+  template.setData("parentName",cd.getParentName());
+  template.setData("error",error);
+  if (action.equals("saveexit") && error.equals("")) {
+    try {
+      cd.write(cms);
+      clearSession(session);
+      templateSelector="done";
+      return startProcessing(cms,template,"",parameters,templateSelector);
+    }
+ catch (    CmsException exc) {
+      template.setData("channelId",idvalue);
+      template.setData("channelName",channelname);
+      template.setData("parentName",parentName);
+      error=lang.getLanguageValue(moduleName + ".error.message3") + " " + exc.getShortException();
+      template.setData("error",error);
+      exc.printStackTrace(System.err);
+    }
+catch (    Exception e) {
+      template.setData("channelId",idvalue);
+      template.setData("channelName",channelname);
+      template.setData("parentName",parentName);
+      error=lang.getLanguageValue(moduleName + ".error.message3") + " " + e.getMessage();
+      template.setData("error",error);
+      e.printStackTrace(System.err);
+    }
+  }
+  if (action.equals("save") && error.equals("")) {
+    try {
+      cd.write(cms);
+      idvalue=cd.getChannelId();
+      template.setData("channelId",idvalue);
+      template.setData("newChannelId",idvalue);
+    }
+ catch (    CmsException exc) {
+      template.setData("channelId",idvalue);
+      template.setData("channelName",channelname);
+      template.setData("parentName",parentName);
+      error=lang.getLanguageValue(moduleName + ".error.message3") + " " + exc.getShortException();
+      template.setData("error",error);
+      exc.printStackTrace(System.err);
+    }
+catch (    Exception e) {
+      e.printStackTrace(System.err);
+      template.setData("channelId",idvalue);
+      template.setData("channelName",channelname);
+      template.setData("parentName",parentName);
+      error=lang.getLanguageValue(moduleName + ".error.message3") + " " + e.getMessage();
+      template.setData("error",error);
+    }
+  }
+  return startProcessing(cms,template,elementName,parameters,templateSelector);
+}

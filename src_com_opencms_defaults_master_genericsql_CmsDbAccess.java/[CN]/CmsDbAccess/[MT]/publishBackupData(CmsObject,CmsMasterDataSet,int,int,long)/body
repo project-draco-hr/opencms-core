@@ -1,0 +1,78 @@
+{
+  PreparedStatement stmnt=null;
+  PreparedStatement stmnt2=null;
+  ResultSet res=null;
+  int masterId=dataset.m_masterId;
+  try {
+    stmnt=null;
+    stmnt=sqlPrepare(m_backupPoolName,"insert_backup");
+    dataset.m_lockedBy=I_CmsConstants.C_UNKNOWN_ID;
+    dataset.m_dateCreated=publishDate;
+    String ownerName="";
+    try {
+      CmsUser owner=cms.readUser(dataset.m_userId);
+      ownerName=owner.getName() + " " + owner.getFirstname()+ " "+ owner.getLastname();
+    }
+ catch (    CmsException ex) {
+      ownerName="";
+    }
+    String groupName="";
+    try {
+      CmsGroup group=cms.readGroup(dataset.m_groupId);
+      groupName=group.getName();
+    }
+ catch (    CmsException ex) {
+      groupName="";
+    }
+    String userName="";
+    try {
+      CmsUser user=cms.readUser(dataset.m_lastModifiedBy);
+      userName=user.getName() + " " + user.getFirstname()+ " "+ user.getLastname();
+    }
+ catch (    CmsException ex) {
+      userName="";
+    }
+    int lastId=sqlFillValues(stmnt,subId,dataset);
+    stmnt.setInt(lastId++,versionId);
+    stmnt.setString(lastId++,ownerName);
+    stmnt.setString(lastId++,groupName);
+    stmnt.setString(lastId++,userName);
+    stmnt.executeUpdate();
+  }
+ catch (  SQLException exc) {
+    throw new CmsException(CmsException.C_SQL_ERROR,exc);
+  }
+ finally {
+    sqlClose(stmnt,null);
+  }
+  try {
+    stmnt=null;
+    res=null;
+    stmnt=sqlPrepare(m_poolName,"read_media_offline");
+    stmnt.setInt(1,masterId);
+    res=stmnt.executeQuery();
+    while (res.next()) {
+      int i=1;
+      CmsMasterMedia mediaset=new CmsMasterMedia(res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getInt(i++),res.getString(i++),res.getInt(i++),res.getString(i++),res.getString(i++),res.getString(i++),res.getBytes(i++));
+      try {
+        stmnt2=null;
+        stmnt2=sqlPrepare(m_backupPoolName,"insert_media_backup");
+        int lastId=sqlFillValues(stmnt2,mediaset);
+        stmnt2.setInt(lastId,versionId);
+        stmnt2.executeUpdate();
+      }
+ catch (      SQLException ex) {
+        throw ex;
+      }
+ finally {
+        sqlClose(stmnt2,null);
+      }
+    }
+  }
+ catch (  SQLException exc) {
+    throw new CmsException(CmsException.C_SQL_ERROR,exc);
+  }
+ finally {
+    sqlClose(stmnt,res);
+  }
+}

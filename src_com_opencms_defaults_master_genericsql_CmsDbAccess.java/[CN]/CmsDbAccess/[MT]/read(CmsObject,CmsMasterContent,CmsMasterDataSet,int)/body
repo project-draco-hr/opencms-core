@@ -1,0 +1,34 @@
+{
+  if (!content.isReadable()) {
+    throw new CmsException("Not readable",CmsException.C_NO_ACCESS);
+  }
+  String statement_key="read_offline";
+  String poolToUse=m_poolName;
+  if (isOnlineProject(cms)) {
+    statement_key="read_online";
+    poolToUse=m_onlinePoolName;
+  }
+  PreparedStatement stmnt=null;
+  ResultSet res=null;
+  try {
+    stmnt=sqlPrepare(poolToUse,statement_key);
+    stmnt.setInt(1,masterId);
+    stmnt.setInt(2,content.getSubId());
+    res=stmnt.executeQuery();
+    if (res.next()) {
+      sqlFillValues(res,cms,dataset);
+    }
+ else {
+      throw new CmsException("Row not found: " + masterId + " "+ content.getSubId(),CmsException.C_NOT_FOUND);
+    }
+    if (!checkAccess(cms,content,false)) {
+      throw new CmsException("Not readable",CmsException.C_NO_ACCESS);
+    }
+  }
+ catch (  SQLException exc) {
+    throw new CmsException(CmsException.C_SQL_ERROR,exc);
+  }
+ finally {
+    sqlClose(stmnt,res);
+  }
+}
