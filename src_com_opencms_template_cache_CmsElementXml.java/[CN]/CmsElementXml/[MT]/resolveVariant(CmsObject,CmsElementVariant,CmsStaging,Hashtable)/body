@@ -1,44 +1,21 @@
 {
-  byte[] result=null;
-  I_CmsTemplate templateClass=this.getTemplateClass(cms,m_className);
-  CmsCacheDirectives cd=templateClass.collectCacheDirectives(cms,m_templateName,m_elementName,parameters,null);
-  boolean streamable=false;
-  CmsElementVariant variant=null;
-  Object cacheKey=templateClass.getKey(cms,m_templateName,parameters,null);
-  boolean cacheable=cd.isInternalCacheable();
-  if (cacheable && !templateClass.shouldReload(cms,m_templateName,m_elementName,parameters,null)) {
-    variant=getVariant(cacheKey);
-  }
-  if (variant == null) {
-    try {
-      System.err.println(toString() + " : Variante muss generiert werden.");
-      result=templateClass.getContent(cms,m_templateName,m_elementName,parameters);
-      variant=new CmsElementVariant();
-      variant.add(result);
-      addVariant(cacheKey,variant);
-      System.err.println(toString() + " : New variant is: " + variant);
-    }
- catch (    CmsException e) {
-      throw e;
-    }
-    if (cacheable) {
-    }
-    if (streamable) {
-      result=null;
-    }
-  }
+  System.err.println("= Start resolving variant " + variant);
+  int len=variant.size();
+  ByteArrayOutputStream baos=new ByteArrayOutputStream();
   try {
-    int len=variant.size();
-    ByteArrayOutputStream baos=new ByteArrayOutputStream();
     for (int i=0; i < len; i++) {
+      System.err.print("= Part " + i + " is a ");
       Object o=variant.get(i);
       if (o instanceof String) {
+        System.err.println("String");
         baos.write(((String)o).getBytes());
       }
  else       if (o instanceof byte[]) {
+        System.err.println("byte array");
         baos.write((byte[])o);
       }
  else       if (o instanceof CmsElementLink) {
+        System.err.println("Link");
         String lookupName=((CmsElementLink)o).getElementName();
         System.err.println("= Trying to resolve link \"" + lookupName + "\".");
         CmsElementDefinition elDef=getElementDefinition(lookupName);
@@ -49,7 +26,10 @@
           System.err.println("= -> Template : " + elDef.getTemplateName());
           if (subEl != null) {
             System.err.println("= Element object found for \"" + lookupName + "\". Calling getContent on this object. ");
-            baos.write(subEl.getContent(staging,cms,parameters));
+            byte[] buffer=subEl.getContent(staging,cms,parameters);
+            if (buffer != null) {
+              baos.write(buffer);
+            }
           }
  else {
             System.err.println("= Cannot find Element object for \"" + lookupName + "\". Ignoring this link. ");
@@ -60,11 +40,10 @@
         }
       }
     }
-    result=baos.toByteArray();
   }
  catch (  Exception e) {
     System.err.println("Error while resolving element variant");
     e.printStackTrace();
   }
-  return result;
+  return baos.toByteArray();
 }
