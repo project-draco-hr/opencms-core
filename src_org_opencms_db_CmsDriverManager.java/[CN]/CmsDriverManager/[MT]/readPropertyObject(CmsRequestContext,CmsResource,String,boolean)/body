@@ -1,0 +1,45 @@
+{
+  String cacheKey=getCacheKey(key + search,context.currentProject().getId(),resource.getRootPath());
+  CmsProperty value=(CmsProperty)m_propertyCache.get(cacheKey);
+  if (value == null) {
+    String cacheKey2=getCacheKey(C_CACHE_ALL_PROPERTIES + search,context.currentProject().getId(),resource.getRootPath());
+    List allProperties=(List)m_propertyCache.get(cacheKey2);
+    if (allProperties != null) {
+      for (int i=0; i < allProperties.size(); i++) {
+        CmsProperty property=(CmsProperty)allProperties.get(i);
+        if (property.getKey().equals(key)) {
+          value=property;
+          break;
+        }
+      }
+    }
+ else     if (search) {
+      String cacheKey3=getCacheKey(key + false,context.currentProject().getId(),resource.getRootPath());
+      value=(CmsProperty)m_propertyCache.get(cacheKey3);
+      if ((value == null) || value.isNullProperty()) {
+        boolean cont;
+        do {
+          try {
+            value=readPropertyObject(context,resource,key,false);
+            cont=(value.isNullProperty() && (!"/".equals(resource.getRootPath())));
+          }
+ catch (          CmsSecurityException se) {
+            cont=false;
+          }
+          if (cont) {
+            resource=readResource(context,null,CmsResource.getParentFolder(resource.getRootPath()),CmsResourceFilter.ALL);
+          }
+        }
+ while (cont);
+      }
+    }
+ else {
+      value=m_vfsDriver.readPropertyObject(null,key,context.currentProject(),resource);
+    }
+    if (value == null) {
+      value=CmsProperty.getNullProperty();
+    }
+    m_propertyCache.put(cacheKey,value);
+  }
+  return value;
+}

@@ -1,5 +1,17 @@
 {
-  m_driverManager=CmsDriverManager.newInstance(configurationManager,runtimeInfoFactory);
+  ExtendedProperties config=configurationManager.getConfiguration();
+  try {
+    m_keyGenerator=(I_CmsCacheKey)Class.forName(config.getString(I_CmsConstants.C_CONFIGURATION_CACHE + ".keygenerator")).newInstance();
+  }
+ catch (  Exception e) {
+    throw new CmsException("Unable to create security manager classes",e);
+  }
+  LRUMap hashMap=new LRUMap(config.getInteger(I_CmsConstants.C_CONFIGURATION_CACHE + ".permissions",1000));
+  m_permissionCache=Collections.synchronizedMap(hashMap);
+  if (OpenCms.getMemoryMonitor().enabled()) {
+    OpenCms.getMemoryMonitor().register(this.getClass().getName() + "." + "m_permissionCache",hashMap);
+  }
+  m_driverManager=CmsDriverManager.newInstance(configurationManager,this,runtimeInfoFactory);
   if (runtimeInfoFactory == null) {
     String message="Critical error while loading security manager: runtime info factory is null";
     if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isFatalEnabled()) {
