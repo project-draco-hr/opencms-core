@@ -1,0 +1,51 @@
+{
+  List viewFolders=new ArrayList();
+  try {
+    viewFolders=cms.getSubFolders(I_CmsWpConstants.C_VFS_PATH_VIEWS);
+  }
+ catch (  CmsException e) {
+    OpenCms.getLog(this).error("Workplace init: Unable to read views folder '" + I_CmsWpConstants.C_VFS_PATH_VIEWS + "', no views available!");
+    viewFolders=new ArrayList();
+  }
+  m_views=new ArrayList(viewFolders.size());
+  for (int i=0; i < viewFolders.size(); i++) {
+    CmsFolder folder=(CmsFolder)viewFolders.get(i);
+    String folderPath=cms.getSitePath(folder);
+    try {
+      String order=cms.readPropertyObject(folderPath,I_CmsConstants.C_PROPERTY_NAVPOS,false).getValue();
+      String key=cms.readPropertyObject(folderPath,I_CmsConstants.C_PROPERTY_NAVTEXT,false).getValue();
+      String viewUri=cms.readPropertyObject(folderPath,I_CmsConstants.C_PROPERTY_DEFAULT_FILE,false).getValue();
+      if (viewUri == null) {
+        viewUri=folderPath;
+      }
+ else       if (!viewUri.startsWith("/")) {
+        viewUri=folderPath + viewUri;
+      }
+      if (order == null) {
+        order="" + i;
+      }
+      Float orderValue;
+      try {
+        orderValue=Float.valueOf(order);
+      }
+ catch (      NumberFormatException e) {
+        orderValue=Float.valueOf("" + i);
+      }
+      if (key == null) {
+        key="View " + i;
+      }
+      CmsWorkplaceView view=new CmsWorkplaceView(key,viewUri,orderValue);
+      m_views.add(view);
+      if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+        OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Workplace view       : " + view.getUri());
+      }
+    }
+ catch (    CmsException e) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Error reading view folder: " + folderPath);
+      }
+    }
+  }
+  Collections.sort(m_views);
+  return m_views;
+}
