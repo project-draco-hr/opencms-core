@@ -15,12 +15,18 @@
     int resourceCount=0;
     int i=0;
     if (reg.getModuleType(exportName).equals(CmsRegistry.C_MODULE_TYPE_SIMPLE)) {
+      if (DEBUG > 0) {
+        System.out.println(exportName + " is a simple module");
+      }
       String additionalResources=OpenCms.getRegistry().getModuleParameterString(exportName,I_CmsConstants.C_MODULE_PROPERTY_ADDITIONAL_RESOURCES);
       int additionalResourceCount=0;
       StringTokenizer additionalResourceTokens=null;
       if (additionalResources != null && !additionalResources.equals("")) {
         additionalResourceTokens=new StringTokenizer(additionalResources,I_CmsConstants.C_MODULE_PROPERTY_ADDITIONAL_RESOURCES_SEPARATOR);
-        resourceCount=(additionalResourceTokens.countTokens() * 2) + 4;
+        resourceCount=(additionalResourceTokens.countTokens() * 2) + CmsAdminModuleExport.C_MINIMUM_MODULE_RESOURCE_COUNT;
+        if (C_VFS_NEW_STRUCTURE) {
+          resourceCount-=2;
+        }
         resourcen=new String[resourceCount];
         while (additionalResourceTokens.hasMoreTokens()) {
           String currentResource=additionalResourceTokens.nextToken();
@@ -33,36 +39,56 @@
         }
       }
  else {
-        resourceCount=4;
+        if (!C_VFS_NEW_STRUCTURE) {
+          resourceCount=CmsAdminModuleExport.C_MINIMUM_MODULE_RESOURCE_COUNT;
+        }
+ else {
+          resourceCount=CmsAdminModuleExport.C_MINIMUM_MODULE_RESOURCE_COUNT - 2;
+        }
         resourcen=new String[resourceCount];
         i=0;
       }
     }
  else {
-      resourceCount=4;
+      if (DEBUG > 0) {
+        System.out.println(exportName + " is a traditional module");
+      }
+      if (!C_VFS_NEW_STRUCTURE) {
+        resourceCount=CmsAdminModuleExport.C_MINIMUM_MODULE_RESOURCE_COUNT;
+      }
+ else {
+        resourceCount=CmsAdminModuleExport.C_MINIMUM_MODULE_RESOURCE_COUNT - 2;
+      }
       resourcen=new String[resourceCount];
       i=0;
     }
     resourcen[i++]=C_VFS_PATH_MODULES + exportName + "/";
-    resourcen[i++]=C_VFS_PATH_MODULEDEMOS + exportName + "/";
-    resourcen[i++]=C_VFS_PATH_BODIES.substring(0,C_VFS_PATH_BODIES.length() - 1) + C_VFS_PATH_MODULEDEMOS + exportName+ "/";
+    if (!C_VFS_NEW_STRUCTURE) {
+      resourcen[i++]=C_VFS_PATH_MODULEDEMOS + exportName + "/";
+      resourcen[i++]=C_VFS_PATH_BODIES.substring(0,C_VFS_PATH_BODIES.length() - 1) + C_VFS_PATH_MODULEDEMOS + exportName+ "/";
+    }
     for (i=0; i < resourceCount; i++) {
       try {
-        cms.readFileHeader(resourcen[i]);
+        if (resourcen[i] != null) {
+          if (DEBUG > 0) {
+            System.err.println("reading file header of: " + resourcen[i]);
+          }
+          cms.readFileHeader(resourcen[i]);
+        }
       }
  catch (      CmsException e) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
           A_OpenCms.log(I_CmsLogChannels.C_MODULE_DEBUG,"error exporting module: couldn't add " + resourcen[i] + " to Module\n"+ Utils.getStackTrace(e));
         }
-        resourcen[i]=resourcen[resourceCount - 4];
+        resourcen[i]=resourcen[resourceCount - CmsAdminModuleExport.C_MINIMUM_MODULE_RESOURCE_COUNT];
       }
     }
     try {
-      cms.readFileHeader(resourcen[resourceCount - 4]);
+      cms.readFileHeader(resourcen[resourceCount - CmsAdminModuleExport.C_MINIMUM_MODULE_RESOURCE_COUNT]);
     }
  catch (    CmsException e) {
       if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
-        A_OpenCms.log(I_CmsLogChannels.C_MODULE_DEBUG,"error exporting module: couldn't add " + resourcen[resourceCount - 4] + " to Module\n"+ "You dont have this module in this project!");
+        A_OpenCms.log(I_CmsLogChannels.C_MODULE_DEBUG,"error exporting module: couldn't add " + resourcen[resourceCount - CmsAdminModuleExport.C_MINIMUM_MODULE_RESOURCE_COUNT] + " to Module\n"+ "You dont have this module in this project!");
       }
       return startProcessing(cms,templateDocument,elementName,parameters,"done");
     }
