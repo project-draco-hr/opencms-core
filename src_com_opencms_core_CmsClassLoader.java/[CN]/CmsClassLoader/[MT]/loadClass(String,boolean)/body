@@ -3,7 +3,6 @@
     A_OpenCms.log(C_OPENCMS_DEBUG,"[CmsClassLoader] Class " + name + " requested.");
   }
   Class c=null;
-  CmsFile classFile=null;
   try {
     ClassLoader sysClassLoader=this.getSystemClassLoader();
     c=sysClassLoader.loadClass(name);
@@ -13,6 +12,13 @@
   }
   if (c != null) {
     return c;
+  }
+  String heyItsMe="com.opencms.core.CmsClassLoader";
+  if (heyItsMe.equals(name)) {
+    c=Class.forName(name);
+    if (c != null) {
+      return c;
+    }
   }
   try {
     ClassLoader apClassLoader=this.getClass().getClassLoader();
@@ -37,7 +43,7 @@ catch (      Error e) {
       if (resolve) {
         resolveClass(c);
       }
-      if (A_OpenCms.isLogging()) {
+      if (C_DEBUG && A_OpenCms.isLogging()) {
         A_OpenCms.log(C_OPENCMS_DEBUG,"Classloader returned class " + name + " successfully!");
       }
       return c;
@@ -54,7 +60,7 @@ catch (  IOException e) {
   }
   c=(Class)cache.get(name);
   if (c != null) {
-    if (A_OpenCms.isLogging()) {
+    if (C_DEBUG && A_OpenCms.isLogging()) {
       A_OpenCms.log(C_OPENCMS_DEBUG,"BINGO! Class " + name + "was found in cache.");
     }
     if (resolve) {
@@ -62,41 +68,28 @@ catch (  IOException e) {
     }
     return c;
   }
-  if (A_OpenCms.isLogging()) {
+  if (C_DEBUG && A_OpenCms.isLogging()) {
     A_OpenCms.log(C_OPENCMS_DEBUG,"Class " + name + "was NOT found in cache.");
   }
   Enumeration allRepositories=repository.elements();
   String filename=null;
   byte[] myClassData=null;
-  while ((allRepositories.hasMoreElements()) && (classFile == null)) {
+  while ((allRepositories.hasMoreElements()) && (myClassData == null)) {
     filename=(String)allRepositories.nextElement();
-    if (isZipOrJarArchive(filename)) {
-      try {
-        if (A_OpenCms.isLogging()) {
-          A_OpenCms.log(C_OPENCMS_DEBUG,"Try to load archive file " + filename + ".");
-        }
-        myClassData=loadClassFromZipFile(m_cms.readFile(filename),name);
-      }
- catch (      Exception e) {
-        myClassData=null;
-      }
-    }
- else {
+{
       if (filename.endsWith("/")) {
         String classname=name.replace('.','/');
         filename=filename + classname + ".class";
       }
       try {
-        classFile=m_cms.readFile(filename);
-        myClassData=classFile.getContents();
+        myClassData=readFileContent(filename);
       }
  catch (      Exception e) {
-        classFile=null;
         myClassData=null;
       }
     }
   }
-  if (classFile == null) {
+  if (myClassData == null) {
     throw new ClassNotFoundException(name);
   }
   if (myClassData != null) {
@@ -116,7 +109,7 @@ catch (    Error e) {
     if (resolve) {
       resolveClass(c);
     }
-    if (A_OpenCms.isLogging()) {
+    if (C_DEBUG && A_OpenCms.isLogging()) {
       A_OpenCms.log(C_OPENCMS_DEBUG,"Classloader returned class " + name + " successfully!");
     }
     return c;
