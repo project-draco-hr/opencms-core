@@ -6,6 +6,8 @@
     session.removeValue(C_PARA_FILE);
     session.removeValue(C_PARA_FILECONTENT);
     session.removeValue(C_PARA_NEWTYPE);
+    session.removeValue(C_PARA_TITLE);
+    session.removeValue(CmsNewResourceUpload.C_PARAM_OVERWRITE);
     session.removeValue("lasturl");
   }
   String lastUrl=getLastUrl(cms,parameters);
@@ -21,6 +23,12 @@
     currentFolder=cms.rootFolder().getAbsolutePath();
   }
   String title=(String)parameters.get(C_PARA_TITLE);
+  if (title != null && !"".equals(title.trim())) {
+    session.putValue(C_PARA_TITLE,title);
+  }
+ else {
+    title=(String)session.getValue(C_PARA_TITLE);
+  }
   String newname=(String)parameters.get(C_PARA_NAME);
   String filename=null;
   byte[] filecontent=new byte[0];
@@ -46,6 +54,32 @@
   newtype=(String)session.getValue(C_PARA_NEWTYPE);
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
   xmlTemplateDocument.setData("lasturl",lastUrl);
+  String dummy=(String)parameters.get(CmsNewResourceUpload.C_PARAM_OVERWRITE);
+  boolean replaceResource=false;
+  if (dummy != null) {
+    replaceResource="yes".equals(dummy);
+    session.putValue(CmsNewResourceUpload.C_PARAM_OVERWRITE,dummy);
+  }
+ else {
+    replaceResource="yes".equals((String)session.getValue(CmsNewResourceUpload.C_PARAM_OVERWRITE));
+  }
+  boolean cancelUpload="yes".equals((String)parameters.get(CmsNewResourceUpload.C_PARAM_CANCEL));
+  if (cancelUpload) {
+    session.removeValue(C_PARA_FILE);
+    session.removeValue(C_PARA_FILECONTENT);
+    session.removeValue(C_PARA_NEWTYPE);
+    session.removeValue(C_PARA_TITLE);
+    session.removeValue(CmsNewResourceUpload.C_PARAM_OVERWRITE);
+  }
+  if (DEBUG > 0) {
+    System.out.println("\nstep: " + step);
+    System.out.println("filename: " + filename);
+    System.out.println("currentFolder: " + currentFolder);
+    System.out.println("title: " + title);
+    System.out.println("newtype: " + newtype);
+    System.out.println("overwrite: " + replaceResource);
+    System.out.println("cancel: " + cancelUpload);
+  }
   if (step != null) {
     if (step.equals("1")) {
       if (filename != null) {
@@ -61,6 +95,8 @@
               session.removeValue(C_PARA_FILE);
               session.removeValue(C_PARA_FILECONTENT);
               session.removeValue(C_PARA_NEWTYPE);
+              session.removeValue(C_PARA_TITLE);
+              session.removeValue(CmsNewResourceUpload.C_PARAM_OVERWRITE);
               try {
                 if ((lastUrl != null) && (lastUrl != "")) {
                   cms.getRequestContext().getResponse().sendRedirect(lastUrl);
@@ -83,6 +119,15 @@
       if (step.equals("2")) {
         I_CmsResourceType type=cms.getResourceType(newtype);
         if (newtype.equals(C_TYPE_IMAGE_NAME)) {
+          try {
+            String oldTitle=cms.readProperty(currentFolder + filename,I_CmsConstants.C_PROPERTY_TITLE);
+            if (oldTitle != null) {
+              xmlTemplateDocument.setData("TITLE",oldTitle);
+            }
+          }
+ catch (          CmsException e) {
+            xmlTemplateDocument.setData("TITLE","");
+          }
           template="image";
           xmlTemplateDocument.setData("MIME",filename);
           xmlTemplateDocument.setData("SIZE","Not yet available");
@@ -90,18 +135,25 @@
         }
  else {
           try {
-            cms.createResource(currentFolder,filename,type.getResourceTypeName(),new Hashtable(),filecontent);
+            cms.createResource(currentFolder + filename,type.getResourceTypeName(),new Hashtable(),filecontent,null);
           }
  catch (          CmsException e) {
-            session.removeValue(C_PARA_FILE);
-            session.removeValue(C_PARA_FILECONTENT);
-            session.removeValue(C_PARA_NEWTYPE);
-            xmlTemplateDocument.setData("details",Utils.getStackTrace(e));
-            return startProcessing(cms,xmlTemplateDocument,"",parameters,"error2");
+            if (replaceResource) {
+              cms.lockResource(currentFolder + filename,true);
+              cms.replaceResource(currentFolder + filename,type.getResourceTypeName(),null,filecontent);
+              session.putValue(CmsNewResourceUpload.C_PARAM_OVERWRITE,"no");
+            }
+ else {
+              xmlTemplateDocument.setData("LAST_STEP",step);
+              xmlTemplateDocument.setData("FILENAME",filename);
+              return startProcessing(cms,xmlTemplateDocument,"",parameters,"overwrite");
+            }
           }
           session.removeValue(C_PARA_FILE);
           session.removeValue(C_PARA_FILECONTENT);
           session.removeValue(C_PARA_NEWTYPE);
+          session.removeValue(C_PARA_TITLE);
+          session.removeValue(CmsNewResourceUpload.C_PARAM_OVERWRITE);
           try {
             if ((lastUrl != null) && (lastUrl != "")) {
               cms.getRequestContext().getResponse().sendRedirect(lastUrl);
@@ -126,10 +178,26 @@
           if (title != null) {
             prop.put(C_PROPERTY_TITLE,title);
           }
-          CmsResource file=cms.createResource(currentFolder,filename,type.getResourceTypeName(),prop,filecontent);
+          try {
+            cms.createResource(currentFolder + filename,type.getResourceTypeName(),prop,filecontent,null);
+          }
+ catch (          CmsException e) {
+            if (replaceResource) {
+              cms.lockResource(currentFolder + filename,true);
+              cms.replaceResource(currentFolder + filename,type.getResourceTypeName(),prop,filecontent);
+              session.putValue(CmsNewResourceUpload.C_PARAM_OVERWRITE,"no");
+            }
+ else {
+              xmlTemplateDocument.setData("LAST_STEP",step);
+              xmlTemplateDocument.setData("FILENAME",filename);
+              return startProcessing(cms,xmlTemplateDocument,"",parameters,"overwrite");
+            }
+          }
           session.removeValue(C_PARA_FILE);
           session.removeValue(C_PARA_FILECONTENT);
           session.removeValue(C_PARA_NEWTYPE);
+          session.removeValue(C_PARA_TITLE);
+          session.removeValue(CmsNewResourceUpload.C_PARAM_OVERWRITE);
           session.removeValue("lasturl");
           try {
             if ((lastUrl != null) && (lastUrl != "")) {
