@@ -5,23 +5,30 @@
     A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
   }
   CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
-  String folder=(String)parameters.get("selectallfolders");
   String fileName=(String)parameters.get("filename");
   String existingFile=(String)parameters.get("existingfile");
   String action=(String)parameters.get("action");
-  if (folder != null) {
-    CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
-    if (folder.equals(lang.getLanguageValue("title.rootfolder"))) {
-      folder="/";
-    }
-  }
+  String allResources=(String)parameters.get("ALLRES");
   try {
     if ("export".equals(action)) {
-      cms.exportResources(cms.readExportPath() + fileName,folder);
+      Vector resourceNames=parseResources(allResources);
+      String[] exportPaths=new String[resourceNames.size()];
+      CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+      for (int i=0; i < resourceNames.size(); i++) {
+        if (lang.getLanguageValue("title.rootfolder").equals(resourceNames.elementAt(i))) {
+          resourceNames.setElementAt("/",i);
+        }
+        exportPaths[i]=(String)resourceNames.elementAt(i);
+      }
+      boolean includeSystem=false;
+      if (parameters.get("workplace") != null) {
+        includeSystem=true;
+      }
+      cms.exportResources(cms.readExportPath() + fileName,exportPaths,includeSystem);
       templateSelector="done";
     }
  else     if ("import".equals(action)) {
-      cms.importResources(cms.readExportPath() + existingFile,folder);
+      cms.importResources(cms.readExportPath() + existingFile,C_ROOT);
       templateSelector="done";
     }
   }
