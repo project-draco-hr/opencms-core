@@ -1,6 +1,50 @@
 {
   CmsProject deleteProject=readProject(currentUser,currentProject,id);
   if (isAdmin(currentUser,currentProject) || isManagerOfProject(currentUser,deleteProject)) {
+    Vector allFiles=m_dbAccess.readFiles(deleteProject.getId(),false,true);
+    Vector allFolders=m_dbAccess.readFolders(deleteProject.getId(),false,true);
+    for (int i=0; i < allFiles.size(); i++) {
+      CmsFile currentFile=(CmsFile)allFiles.elementAt(i);
+      if (currentFile.getState() == C_STATE_NEW) {
+        m_dbAccess.deleteAllProperties(id,currentFile.getResourceId());
+        m_dbAccess.deleteFile(deleteProject,currentFile.getAbsolutePath());
+      }
+ else       if (currentFile.getState() == C_STATE_CHANGED) {
+        if (!currentFile.isLocked()) {
+          lockResource(currentUser,deleteProject,currentFile.getAbsolutePath(),true);
+        }
+        undoChanges(currentUser,deleteProject,currentFile.getAbsolutePath());
+      }
+ else       if (currentFile.getState() == C_STATE_DELETED) {
+        undeleteResource(currentUser,deleteProject,currentFile.getAbsolutePath());
+        if (!currentFile.isLocked()) {
+          lockResource(currentUser,deleteProject,currentFile.getAbsolutePath(),true);
+        }
+        undoChanges(currentUser,deleteProject,currentFile.getAbsolutePath());
+      }
+    }
+    for (int i=0; i < allFolders.size(); i++) {
+      CmsFolder currentFolder=(CmsFolder)allFolders.elementAt(i);
+      if (currentFolder.getState() == C_STATE_NEW) {
+        m_dbAccess.deleteAllProperties(id,currentFolder.getResourceId());
+        m_dbAccess.deleteFolder(deleteProject,currentFolder,true);
+      }
+ else       if (currentFolder.getState() == C_STATE_CHANGED) {
+        if (!currentFolder.isLocked()) {
+          lockResource(currentUser,deleteProject,currentFolder.getAbsolutePath(),true);
+        }
+        undoChanges(currentUser,deleteProject,currentFolder.getAbsolutePath());
+      }
+ else       if (currentFolder.getState() == C_STATE_DELETED) {
+        undeleteResource(currentUser,deleteProject,currentFolder.getAbsolutePath());
+        if (!currentFolder.isLocked()) {
+          lockResource(currentUser,deleteProject,currentFolder.getAbsolutePath(),true);
+        }
+        undoChanges(currentUser,deleteProject,currentFolder.getAbsolutePath());
+      }
+    }
+    m_dbAccess.unlockProject(deleteProject);
+    m_resourceCache.clear();
     m_dbAccess.deleteProject(deleteProject);
     m_projectCache.remove(id);
   }
