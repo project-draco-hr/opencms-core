@@ -24,7 +24,7 @@
   }
  else {
     if ("OK".equals(step) || "Ok".equals(step)) {
-      String packetname=(String)parameters.get(C_PACKETNAME);
+      String packagename=(String)parameters.get(C_PACKETNAME);
       String modulename=(String)parameters.get(C_MODULENAME);
       String version=(String)parameters.get(C_VERSION);
       String description=(String)parameters.get(C_DESCRIPTION);
@@ -35,14 +35,14 @@
       String email=(String)parameters.get(C_EMAIL);
       String createDate=(String)parameters.get(C_DATE);
       String moduleType=(String)parameters.get(C_MODULE_TYPE);
-      boolean moduleExists=reg.moduleExists(packetname);
+      boolean moduleExists=reg.moduleExists(packagename);
       int v=-1;
       try {
         v=Integer.parseInt(version);
       }
  catch (      Exception e) {
       }
-      if ((!checkName(packetname)) || (version == null) || ("".equals(version))|| moduleExists|| (v < 0)) {
+      if ((!checkName(packagename)) || (version == null) || ("".equals(version))|| moduleExists|| (v < 0)) {
         Hashtable sessionData=new Hashtable();
         sessionData.put(C_MODULENAME,getStringValue(modulename));
         sessionData.put(C_VERSION,getStringValue(version));
@@ -65,7 +65,7 @@
  else {
         tryToCreateFolder(cms,"/system/","modules");
         try {
-          cms.createResource("/system/modules/",packetname,C_TYPE_FOLDER_NAME);
+          cms.createResource(C_VFS_PATH_MODULES,packagename,C_TYPE_FOLDER_NAME);
         }
  catch (        CmsException e) {
           if (e.getType() != e.C_FILE_EXISTS) {
@@ -74,7 +74,7 @@
           }
  else {
             try {
-              cms.readFolder("/system/modules/" + packetname + "/");
+              cms.readFolder(C_VFS_PATH_MODULES + packagename + "/");
             }
  catch (            CmsException ex) {
               templateDocument.setData("details","Sorry, you have to publish this Project and create a new one.\n" + Utils.getStackTrace(e));
@@ -89,21 +89,22 @@
  catch (        Exception exc) {
           createDateLong=(new Date()).getTime();
         }
-        reg.createModule(packetname,getStringValue(modulename),getStringValue(description),getStringValue(author),createDateLong,v);
-        reg.setModuleAuthorEmail(packetname,getStringValue(email));
-        reg.setModuleMaintenanceEventClass(packetname,getStringValue(maintenance));
+        reg.createModule(packagename,getStringValue(modulename),getStringValue(description),getStringValue(author),createDateLong,v);
+        reg.setModuleAuthorEmail(packagename,getStringValue(email));
+        reg.setModuleMaintenanceEventClass(packagename,getStringValue(maintenance));
+        boolean isSimpleModule=false;
         if (moduleType != null && moduleType.equals("checked")) {
-          reg.setModuleType(packetname,CmsRegistry.C_MODULE_TYPE_SIMPLE);
+          reg.setModuleType(packagename,CmsRegistry.C_MODULE_TYPE_SIMPLE);
+          isSimpleModule=true;
         }
  else {
-          reg.setModuleType(packetname,CmsRegistry.C_MODULE_TYPE_TRADITIONAL);
+          reg.setModuleType(packagename,CmsRegistry.C_MODULE_TYPE_TRADITIONAL);
         }
-        tryToCreateFolder(cms,"/","moduledemos");
-        tryToCreateFolder(cms,"/moduledemos/",packetname);
-        String modulePath="/system/modules/" + packetname + "/";
+        String modulePath=C_VFS_PATH_MODULES + packagename + "/";
+        cms.writeProperty(modulePath,C_PROPERTY_EXPORT,"false");
         tryToCreateFolder(cms,modulePath,"classes");
         Vector cFolders=new Vector();
-        String workString=packetname;
+        String workString=packagename;
         while (workString.lastIndexOf('.') > -1) {
           cFolders.addElement(workString.substring(workString.lastIndexOf('.') + 1));
           workString=workString.substring(0,workString.lastIndexOf('.'));
@@ -115,22 +116,32 @@
           workString=workString + (String)cFolders.elementAt(i) + "/";
         }
         tryToCreateFolder(cms,modulePath,"lib");
-        tryToCreateFolder(cms,modulePath,I_CmsWpConstants.C_TEMPLATEDIR);
-        tryToCreateFolder(cms,modulePath,"contenttemplates");
-        tryToCreateFolder(cms,modulePath,"frametemplates");
-        tryToCreateFolder(cms,modulePath,I_CmsWpConstants.C_DEFAULTBODIESDIR);
+        tryToCreateFolder(cms,modulePath,I_CmsWpConstants.C_VFS_DIR_TEMPLATES);
+        tryToCreateFolder(cms,modulePath,I_CmsWpConstants.C_VFS_DIR_DEFAULTBODIES);
         tryToCreateFolder(cms,modulePath,"elements");
-        tryToCreateFolder(cms,modulePath,"language");
-        tryToCreateFolder(cms,modulePath + "language/",I_CmsWpConstants.C_DEFAULT_LANGUAGE);
-        tryToCreateFolder(cms,modulePath,"doc");
-        reg.setModuleDocumentPath(packetname,modulePath + "doc/index.html");
+        if (isSimpleModule) {
+          reg.setModuleDocumentPath(packagename,modulePath + "index.html");
+        }
+ else {
+          tryToCreateFolder(cms,modulePath,"contenttemplates");
+          tryToCreateFolder(cms,modulePath,"frametemplates");
+          tryToCreateFolder(cms,modulePath,"doc");
+          reg.setModuleDocumentPath(packagename,modulePath + "doc/index.html");
+        }
+        boolean needsLocaleDir=!isSimpleModule;
         if ("checked".equals(view)) {
-          reg.setModuleView(packetname,packetname.replace('.','_') + ".view",modulePath + "view/index.html");
+          reg.setModuleView(packagename,packagename.replace('.','_') + ".view",modulePath + "view/index.html");
           tryToCreateFolder(cms,modulePath,"view");
+          needsLocaleDir=true;
         }
         if ("checked".equals(adminpoint)) {
           tryToCreateFolder(cms,modulePath,"administration");
           tryToCreateFolder(cms,modulePath,"pics");
+          needsLocaleDir=true;
+        }
+        if (needsLocaleDir) {
+          tryToCreateFolder(cms,modulePath,I_CmsWpConstants.C_VFS_DIR_LOCALES);
+          tryToCreateFolder(cms,modulePath + I_CmsWpConstants.C_VFS_DIR_LOCALES,I_CmsWpConstants.C_DEFAULT_LANGUAGE);
         }
         try {
           cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceAdministrationPath() + "module/index.html");
