@@ -1,0 +1,45 @@
+{
+  String mappedConfigFile=(String)m_userMappings.get(jsp.getRequestContext().currentUser().getName());
+  Properties displayOptions=null;
+  if (mappedConfigFile == null) {
+    List items=jsp.getNavigation().getNavigationForFolder(C_FOLDER_EDITORCONFIGURATION);
+    if (items.size() > 0) {
+      CmsJspNavElement nav=(CmsJspNavElement)items.get(0);
+      mappedConfigFile=nav.getFileName();
+      displayOptions=(Properties)m_loadedConfigurations.get(nav.getFileName());
+      if (displayOptions == null) {
+        try {
+          CmsFile optionFile=jsp.getCmsObject().readFile(nav.getResourceName(),CmsResourceFilter.IGNORE_EXPIRATION);
+          InputStream in=new ByteArrayInputStream(optionFile.getContents());
+          displayOptions=new Properties();
+          displayOptions.load(in);
+          m_loadedConfigurations.put(nav.getFileName(),displayOptions);
+        }
+ catch (        CmsException e) {
+          if (OpenCms.getLog(this).isInfoEnabled()) {
+            OpenCms.getLog(this).info(e);
+          }
+          mappedConfigFile=C_NO_MAPPING_FOR_USER;
+        }
+catch (        IOException e) {
+          if (OpenCms.getLog(this).isInfoEnabled()) {
+            OpenCms.getLog(this).info(e);
+          }
+          mappedConfigFile=C_NO_MAPPING_FOR_USER;
+          displayOptions=null;
+        }
+      }
+    }
+ else {
+      mappedConfigFile=C_NO_MAPPING_FOR_USER;
+    }
+    m_userMappings.put(jsp.getRequestContext().currentUser().getName(),mappedConfigFile);
+    if (OpenCms.getLog(this).isDebugEnabled()) {
+      OpenCms.getLog(this).debug("Mapping editor configuration file \"" + mappedConfigFile + "\" to user \""+ jsp.getRequestContext().currentUser().getName()+ "\".");
+    }
+  }
+ else {
+    displayOptions=(Properties)m_loadedConfigurations.get(mappedConfigFile);
+  }
+  return displayOptions;
+}
