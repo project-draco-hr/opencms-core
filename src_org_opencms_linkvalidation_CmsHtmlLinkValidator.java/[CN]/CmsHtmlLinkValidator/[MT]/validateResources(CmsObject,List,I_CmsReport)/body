@@ -1,0 +1,50 @@
+{
+  CmsResource resource=null;
+  int resourceType=I_CmsConstants.C_UNKNOWN_ID;
+  List brokenLinks=null;
+  Map offlineFilesLookup=null;
+  List links=null;
+  Map invalidResources=(Map)new HashMap();
+  String resourceName=null;
+  int index=I_CmsConstants.C_UNKNOWN_ID;
+  report.println(report.key("report.linkvalidation.begin"),I_CmsReport.C_FORMAT_HEADLINE);
+  offlineFilesLookup=(Map)new HashMap();
+  for (index=0; index < offlineFiles.size(); index++) {
+    resource=(CmsResource)offlineFiles.get(index);
+    offlineFilesLookup.put(resource.getRootPath(),resource);
+  }
+  Iterator i=offlineFiles.iterator();
+  while (i.hasNext()) {
+    brokenLinks=null;
+    resource=(CmsResource)i.next();
+    resourceType=resource.getType();
+    resourceName=resource.getRootPath();
+    if (resource.getState() == I_CmsConstants.C_STATE_DELETED) {
+      continue;
+    }
+    if (resourceType != CmsResourceTypePlain.C_RESOURCE_TYPE_ID && resourceType != CmsResourceTypeXmlPage.C_RESOURCE_TYPE_ID) {
+      continue;
+    }
+    report.print(report.key("report.linkvalidation.file"),I_CmsReport.C_FORMAT_NOTE);
+    report.print(resourceName);
+    report.print(report.key("report.dots"));
+    if (resourceType == CmsResourceTypePlain.C_RESOURCE_TYPE_ID) {
+      links=findPlainLinks(cms,resource);
+    }
+ else     if (resourceType == CmsResourceTypeXmlPage.C_RESOURCE_TYPE_ID) {
+      links=findXmlPageLinks(cms,resource);
+    }
+    if (links.size() > 0) {
+      brokenLinks=validateLinks(links,offlineFilesLookup);
+    }
+    if (brokenLinks != null && brokenLinks.size() > 0) {
+      invalidResources.put(resourceName,brokenLinks);
+      report.println(report.key("report.linkvalidation.file.has_broken_links"),I_CmsReport.C_FORMAT_WARNING);
+    }
+ else {
+      report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+    }
+  }
+  report.println(report.key("report.linkvalidation.end"),I_CmsReport.C_FORMAT_HEADLINE);
+  return invalidResources;
+}
