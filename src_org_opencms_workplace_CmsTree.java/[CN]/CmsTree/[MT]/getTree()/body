@@ -1,35 +1,93 @@
 {
+  StringBuffer result=new StringBuffer(2048);
   String targetFolder=getTargetFolder();
   String startFolder=getStartFolder();
-  boolean restoreSiteRoot=false;
+  List targetFolderList=new ArrayList();
+  boolean grey;
+  List resources=new ArrayList();
+  CmsFolder folder=null;
   String oldSiteRoot=getCms().getRequestContext().getSiteRoot();
-  if ("channelselector".equals(getTreeType())) {
-    restoreSiteRoot=true;
-    getCms().getRequestContext().saveSiteRoot();
-    getCms().getRequestContext().setSiteRoot(I_CmsConstants.VFS_FOLDER_COS);
-  }
- else   if (getSettings().getTreeSite(getTreeType()) != null) {
-    restoreSiteRoot=true;
-    getCms().getRequestContext().saveSiteRoot();
-    if (newTree() && targetFolder == null) {
-      targetFolder="/";
-    }
-    getCms().getRequestContext().setSiteRoot(getSettings().getTreeSite(getTreeType()));
-    try {
-      getCms().readFolder(targetFolder);
-    }
- catch (    CmsException e) {
-      targetFolder="/";
+  boolean restoreSiteRoot=false;
+  if (targetFolder != null) {
+    StringTokenizer T=new StringTokenizer(targetFolder,"|");
+    while (T.hasMoreTokens()) {
+      String currentFolder=T.nextToken().trim();
+      targetFolderList.add(currentFolder);
     }
   }
-  StringBuffer result=new StringBuffer(2048);
+ else {
+    targetFolderList.add(null);
+  }
+  Iterator targets=targetFolderList.iterator();
   try {
-    CmsFolder folder;
-    try {
-      folder=getCms().readFolder(targetFolder);
+    while (targets.hasNext()) {
+      String currentTargetFolder=(String)targets.next();
+      if ("channelselector".equals(getTreeType())) {
+        restoreSiteRoot=true;
+        getCms().getRequestContext().saveSiteRoot();
+        getCms().getRequestContext().setSiteRoot(I_CmsConstants.VFS_FOLDER_COS);
+      }
+ else       if (getSettings().getTreeSite(getTreeType()) != null) {
+        restoreSiteRoot=true;
+        getCms().getRequestContext().saveSiteRoot();
+        if (newTree() && currentTargetFolder == null) {
+          currentTargetFolder="/";
+        }
+        getCms().getRequestContext().setSiteRoot(getSettings().getTreeSite(getTreeType()));
+        try {
+          getCms().readFolder(currentTargetFolder);
+        }
+ catch (        CmsException e) {
+          currentTargetFolder="/";
+        }
+      }
+      try {
+        folder=getCms().readFolder(currentTargetFolder);
+      }
+ catch (      CmsException e) {
+        return printError(e);
+      }
+      if ((startFolder == null) || (!currentTargetFolder.startsWith(startFolder))) {
+        try {
+          if (includeFiles()) {
+            resources.addAll(getCms().getResourcesInFolder(currentTargetFolder));
+          }
+ else {
+            resources.addAll(getCms().getSubFolders(currentTargetFolder));
+          }
+        }
+ catch (        CmsException e) {
+          return printError(e);
+        }
+      }
+ else {
+        try {
+          if (includeFiles()) {
+            resources.addAll(getCms().getResourcesInFolder(startFolder));
+          }
+ else {
+            resources.addAll(getCms().getSubFolders(startFolder));
+          }
+          StringTokenizer tok=new StringTokenizer(currentTargetFolder.substring(startFolder.length()),"/");
+          while (tok.hasMoreTokens()) {
+            startFolder+=tok.nextToken() + "/";
+            if (includeFiles()) {
+              resources.addAll(getCms().getResourcesInFolder(startFolder));
+            }
+ else {
+              resources.addAll(getCms().getSubFolders(startFolder));
+            }
+          }
+        }
+ catch (        CmsException e) {
+          return printError(e);
+        }
+      }
     }
- catch (    CmsException e) {
-      return printError(e);
+    result.append("function init() {\n");
+    if (newTree()) {
+      result.append("parent.initTree();\n");
+      result.append(getRootNode());
     }
     List projectResources;
     try {
@@ -37,51 +95,6 @@
     }
  catch (    CmsException e) {
       projectResources=new ArrayList();
-    }
-    boolean grey;
-    List resources;
-    if ((startFolder == null) || (!targetFolder.startsWith(startFolder))) {
-      try {
-        if (includeFiles()) {
-          resources=new ArrayList();
-          resources.addAll(getCms().getResourcesInFolder(targetFolder));
-        }
- else {
-          resources=getCms().getSubFolders(targetFolder);
-        }
-      }
- catch (      CmsException e) {
-        return printError(e);
-      }
-    }
- else {
-      resources=new ArrayList();
-      try {
-        if (includeFiles()) {
-          resources.addAll(getCms().getResourcesInFolder(startFolder));
-        }
- else {
-          resources.addAll(getCms().getSubFolders(startFolder));
-        }
-        StringTokenizer tok=new StringTokenizer(targetFolder.substring(startFolder.length()),"/");
-        while (tok.hasMoreTokens()) {
-          startFolder+=tok.nextToken() + "/";
-          if (includeFiles()) {
-            resources.addAll(getCms().getResourcesInFolder(startFolder));
-          }
- else {
-            resources.addAll(getCms().getSubFolders(startFolder));
-          }
-        }
-      }
- catch (      CmsException e) {
-        return printError(e);
-      }
-    }
-    result.append("function init() {\n");
-    if (newTree()) {
-      result.append("parent.initTree();\n");
-      result.append(getRootNode());
     }
     Iterator i=resources.iterator();
     while (i.hasNext()) {

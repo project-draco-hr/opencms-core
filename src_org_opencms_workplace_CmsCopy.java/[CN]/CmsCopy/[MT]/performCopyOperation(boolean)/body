@@ -1,6 +1,12 @@
 {
-  if (sourceRes.isFolder() && !DIALOG_WAIT.equals(getParamAction())) {
+  if (isFolder && !DIALOG_WAIT.equals(getParamAction())) {
     return false;
+  }
+  int copyMode=I_CmsConstants.C_COPY_PRESERVE_LINK;
+  try {
+    copyMode=Integer.parseInt(getParamCopymode());
+  }
+ catch (  Exception e) {
   }
   String target=getParamTarget();
   if (target == null) {
@@ -19,9 +25,6 @@
       getCms().getRequestContext().setSiteRoot("/");
       restoreSiteRoot=true;
     }
-    if (target.equals(getParamResource())) {
-      throw new CmsException("Can't move resource onto itself.",CmsException.C_FILESYSTEM_ERROR);
-    }
     if (!target.startsWith("/")) {
       target=CmsResource.getParentFolder(getParamResource()) + target;
     }
@@ -32,29 +35,15 @@
           target+="/";
         }
         target=target + CmsResource.getName(getParamResource());
-        if (target.endsWith("/")) {
-          target=target.substring(0,target.length() - 1);
-        }
       }
     }
- catch (    CmsException e) {
+ catch (    CmsException exc) {
     }
     setParamTarget(target);
-    CmsResource targetRes=null;
-    try {
-      targetRes=getCms().readFileHeader(target);
+    if (DIALOG_CONFIRMED.equals(getParamAction())) {
+      getCms().deleteResource(target,I_CmsConstants.C_DELETE_OPTION_IGNORE_VFS_LINKS);
     }
- catch (    CmsException e) {
-    }
-    if (targetRes != null) {
-      if (DIALOG_CONFIRMED.equals(getParamAction())) {
-        getCms().deleteResource(target,I_CmsConstants.C_DELETE_OPTION_IGNORE_VFS_LINKS);
-      }
- else {
-        throw new CmsException("The target already exists",CmsException.C_FILE_EXISTS);
-      }
-    }
-    getCms().moveResource(sitePrefix + getParamResource(),target);
+    getCms().copyResource(sitePrefix + getParamResource(),target,"true".equals(getParamKeeprights()),true,copyMode);
   }
   finally {
     if (restoreSiteRoot) {
