@@ -1,0 +1,134 @@
+{
+  CmsPublishList publishList=null;
+  List offlineFiles=null;
+  List siblings=null;
+  Iterator i=null;
+  Iterator j=null;
+  CmsResource currentSibling=null;
+  CmsResource currentFileHeader=null;
+  boolean directPublish=false;
+  boolean directPublishFile=false;
+  boolean publishCurrentResource=false;
+  String currentResourceName=null;
+  String currentSiblingName=null;
+  CmsLock currentLock=null;
+  CmsProperty property=null;
+  try {
+    report.println(report.key("report.publish_prepare_resources"),I_CmsReport.C_FORMAT_HEADLINE);
+    report.print(report.key("report.publish_read_projectresources") + report.key("report.dots"));
+    List projectResources=readProjectResources(context.currentProject());
+    report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+    directPublish=directPublishResource != null;
+    directPublishFile=directPublish && directPublishResource.isFile();
+    publishList=preparePublishList(context,directPublishResource,projectResources,report);
+    report.println(report.key("report.publish_prepare_files"),I_CmsReport.C_FORMAT_HEADLINE);
+    report.print(report.key("report.publish_read_projectfiles") + report.key("report.dots"));
+    if (directPublishFile) {
+      offlineFiles=new ArrayList();
+      offlineFiles.add(directPublishResource);
+      if (directPublishSiblings) {
+        siblings=readSiblings(context,directPublishResource.getRootPath(),CmsResourceFilter.ALL);
+        for (int loop1=0; loop1 < siblings.size(); loop1++) {
+          currentSibling=(CmsResource)siblings.get(loop1);
+          if (!directPublishResource.getStructureId().equals(currentSibling.getStructureId())) {
+            try {
+              getVfsDriver().readFolder(I_CmsConstants.C_PROJECT_ONLINE_ID,CmsResource.getParentFolder(currentSibling.getRootPath()));
+              offlineFiles.add(currentSibling);
+            }
+ catch (            CmsException e) {
+            }
+          }
+        }
+      }
+    }
+ else {
+      offlineFiles=getVfsDriver().readFiles(context.currentProject().getId());
+    }
+    report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+    report.print(report.key("report.publish_filter_files") + report.key("report.dots"));
+    i=offlineFiles.iterator();
+    while (i.hasNext()) {
+      publishCurrentResource=false;
+      currentFileHeader=(CmsResource)i.next();
+      currentResourceName=currentFileHeader.getRootPath();
+      currentLock=getLock(context,currentResourceName);
+switch (currentFileHeader.getState()) {
+case I_CmsConstants.C_STATE_DELETED:
+        property=getVfsDriver().readPropertyObject(I_CmsConstants.C_PROPERTY_INTERNAL,context.currentProject(),currentFileHeader);
+      String delProject=(property != null) ? property.getValue() : null;
+    if (delProject != null && delProject.equals("" + context.currentProject().getId())) {
+      publishCurrentResource=true;
+    }
+ else {
+      publishCurrentResource=false;
+    }
+  break;
+case I_CmsConstants.C_STATE_NEW:
+publishCurrentResource=currentFileHeader.getProjectLastModified() == context.currentProject().getId() || currentFileHeader.getProjectLastModified() == 0;
+break;
+case I_CmsConstants.C_STATE_CHANGED:
+publishCurrentResource=currentFileHeader.getProjectLastModified() == context.currentProject().getId();
+break;
+case I_CmsConstants.C_STATE_UNCHANGED:
+default :
+publishCurrentResource=false;
+break;
+}
+if (directPublish) {
+if (directPublishResource.isFolder()) {
+if (directPublishSiblings) {
+if (currentFileHeader.getSiblingCount() == 1) {
+publishCurrentResource=publishCurrentResource && currentResourceName.startsWith(directPublishResource.getRootPath());
+}
+ else {
+siblings=readSiblings(context,currentResourceName,CmsResourceFilter.ALL);
+j=siblings.iterator();
+boolean siblingInside=false;
+while (j.hasNext()) {
+currentSibling=(CmsResource)j.next();
+currentSiblingName=currentSibling.getRootPath();
+if (currentSiblingName.startsWith(directPublishResource.getRootPath())) {
+siblingInside=true;
+break;
+}
+}
+publishCurrentResource=publishCurrentResource && siblingInside;
+}
+}
+ else {
+publishCurrentResource=publishCurrentResource && currentResourceName.startsWith(directPublishResource.getRootPath());
+}
+}
+}
+ else {
+publishCurrentResource=publishCurrentResource && CmsProject.isInsideProject(projectResources,currentFileHeader);
+}
+publishCurrentResource=publishCurrentResource && currentLock.isNullLock();
+if (currentFileHeader.getName().startsWith(I_CmsConstants.C_TEMP_PREFIX)) {
+getVfsDriver().deleteProperties(context.currentProject().getId(),currentFileHeader,CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+getVfsDriver().removeFile(context.currentProject(),currentFileHeader,true);
+}
+if (!publishCurrentResource) {
+i.remove();
+}
+}
+publishList.addFiles(offlineFiles);
+offlineFiles.clear();
+offlineFiles=null;
+report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+report.println(report.key("report.publish_prepare_files_finished"),I_CmsReport.C_FORMAT_HEADLINE);
+report.println(report.key("report.publish_prepare_resources_finished"),I_CmsReport.C_FORMAT_HEADLINE);
+}
+ catch (OutOfMemoryError o) {
+if (OpenCms.getLog(this).isFatalEnabled()) {
+OpenCms.getLog(this).fatal("Out of memory error while publish list is built",o);
+}
+OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_CLEAR_CACHES,Collections.EMPTY_MAP));
+System.runFinalization();
+Runtime.getRuntime().runFinalization();
+System.gc();
+Runtime.getRuntime().gc();
+throw new CmsException("Out of memory error while publish list is built",o);
+}
+return publishList;
+}
