@@ -1,0 +1,56 @@
+{
+  CmsFile file=null;
+  int projectId;
+  PreparedStatement statement=null;
+  ResultSet res=null;
+  try {
+    if (project.equals(onlineProject)) {
+      statement=m_pool.getPreparedStatement(C_FILE_READ_ONLINE_KEY);
+      statement.setString(1,filename);
+      statement.setInt(2,onlineProject.getId());
+      res=statement.executeQuery();
+      if (res.next()) {
+        file=new CmsFile(res.getInt(C_RESOURCES_RESOURCE_ID),res.getInt(C_RESOURCES_PARENT_ID),res.getInt(C_RESOURCES_FILE_ID),filename,res.getInt(C_RESOURCES_RESOURCE_TYPE),res.getInt(C_RESOURCES_RESOURCE_FLAGS),res.getInt(C_RESOURCES_USER_ID),res.getInt(C_RESOURCES_GROUP_ID),onlineProject.getId(),res.getInt(C_RESOURCES_ACCESS_FLAGS),res.getInt(C_RESOURCES_STATE),res.getInt(C_RESOURCES_LOCKED_BY),res.getInt(C_RESOURCES_LAUNCHER_TYPE),res.getString(C_RESOURCES_LAUNCHER_CLASSNAME),res.getTimestamp(C_RESOURCES_DATE_CREATED).getTime(),res.getTimestamp(C_RESOURCES_DATE_LASTMODIFIED).getTime(),res.getInt(C_RESOURCES_LASTMODIFIED_BY),res.getBytes(C_RESOURCES_FILE_CONTENT),res.getInt(C_RESOURCES_SIZE));
+        res.close();
+      }
+ else {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ filename,CmsException.C_NOT_FOUND);
+      }
+    }
+ else {
+      file=readFileHeader(project,filename);
+      if (file.getState() == C_STATE_DELETED) {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ CmsException.C_NOT_FOUND);
+      }
+      statement=m_pool.getPreparedStatement(C_FILE_READ_KEY);
+      statement.setInt(1,file.getFileId());
+      res=statement.executeQuery();
+      if (res.next()) {
+        file.setContents(res.getBytes(C_FILE_CONTENT));
+      }
+ else {
+        throw new CmsException("[" + this.getClass().getName() + "]"+ filename,CmsException.C_NOT_FOUND);
+      }
+      res.close();
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+catch (  Exception exc) {
+    throw new CmsException("readFile " + exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+ finally {
+    if (project.equals(onlineProject)) {
+      if (statement != null) {
+        m_pool.putPreparedStatement(C_FILE_READ_ONLINE_KEY,statement);
+      }
+    }
+ else {
+      if (statement != null) {
+        m_pool.putPreparedStatement(C_FILE_READ_KEY,statement);
+      }
+    }
+  }
+  return file;
+}
