@@ -9,6 +9,15 @@
   A_CmsTask task;
   int taskid=-1;
   HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String lastUrl;
+  String lastRelUrl=(String)parameters.get("lastrelurl");
+  if (lastRelUrl != null) {
+    lastUrl=getConfigFile(cms).getWorkplaceActionPath() + lastRelUrl;
+    session.putValue("lasturl",lastUrl);
+  }
+ else {
+    lastUrl=this.getLastUrl(cms,parameters);
+  }
   try {
     Integer sessionTaskid=(Integer)session.getValue("taskid");
     if (sessionTaskid != null) {
@@ -295,5 +304,19 @@
   xmlTemplateDocument.setData("button4",button4);
   xmlTemplateDocument.setData("button5",button5);
   xmlTemplateDocument.setData("button6",button6);
+  if ((templateSelector == null || templateSelector == "") && lastUrl != null) {
+    try {
+      if (lastUrl.startsWith("http:")) {
+        ((HttpServletResponse)context.getResponse().getOriginalResponse()).sendRedirect(lastUrl);
+      }
+ else {
+        context.getResponse().sendCmsRedirect(lastUrl);
+      }
+      session.removeValue("lasturl");
+    }
+ catch (    IOException exc) {
+      throw new CmsException("Could not redirect to " + lastUrl,exc);
+    }
+  }
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }
