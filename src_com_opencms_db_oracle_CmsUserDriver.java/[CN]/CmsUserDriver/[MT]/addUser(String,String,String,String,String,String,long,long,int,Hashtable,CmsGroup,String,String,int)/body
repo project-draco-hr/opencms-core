@@ -1,0 +1,77 @@
+{
+  CmsUUID id=new CmsUUID();
+  byte[] value=null;
+  PreparedStatement stmt=null;
+  PreparedStatement stmt2=null;
+  PreparedStatement nextStmt=null;
+  Connection conn=null;
+  ResultSet res=null;
+  try {
+    value=serializeAdditionalUserInfo(additionalInfos);
+    conn=m_sqlManager.getConnection();
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERSFORINSERT");
+    stmt.setString(1,id.toString());
+    stmt.setString(2,name);
+    stmt.setString(3,digest(password));
+    stmt.setString(4,digest(""));
+    stmt.setString(5,m_sqlManager.validateNull(description));
+    stmt.setString(6,m_sqlManager.validateNull(firstname));
+    stmt.setString(7,m_sqlManager.validateNull(lastname));
+    stmt.setString(8,m_sqlManager.validateNull(email));
+    stmt.setTimestamp(9,new Timestamp(lastlogin));
+    stmt.setTimestamp(10,new Timestamp(lastused));
+    stmt.setInt(11,flags);
+    stmt.setString(12,defaultGroup.getId().toString());
+    stmt.setString(13,m_sqlManager.validateNull(address));
+    stmt.setString(14,m_sqlManager.validateNull(section));
+    stmt.setInt(15,type);
+    stmt.executeUpdate();
+    stmt.close();
+    stmt2=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERSFORUPDATE");
+    stmt2.setString(1,id.toString());
+    conn.setAutoCommit(false);
+    res=stmt2.executeQuery();
+    while (res.next()) {
+      oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("USER_INFO");
+      ByteArrayInputStream instream=new ByteArrayInputStream(value);
+      OutputStream outstream=blob.getBinaryOutputStream();
+      byte[] chunk=new byte[blob.getChunkSize()];
+      int i=-1;
+      while ((i=instream.read(chunk)) != -1) {
+        outstream.write(chunk,0,i);
+      }
+      instream.close();
+      outstream.close();
+    }
+    stmt2.close();
+    res.close();
+    nextStmt=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
+    nextStmt.execute();
+    nextStmt.close();
+    conn.setAutoCommit(true);
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
+  }
+catch (  IOException e) {
+    throw m_sqlManager.getCmsException(this,"[CmsAccessUserInfoMySql/addUserInformation(id,object)]:",CmsException.C_SERIALIZATION,e);
+  }
+ finally {
+    if (stmt2 != null) {
+      try {
+        stmt2.close();
+      }
+ catch (      SQLException exc) {
+      }
+      try {
+        nextStmt=m_sqlManager.getPreparedStatement(conn,"C_ROLLBACK");
+        nextStmt.execute();
+      }
+ catch (      SQLException se) {
+      }
+    }
+    m_sqlManager.closeAll(null,nextStmt,null);
+    m_sqlManager.closeAll(conn,stmt,res);
+  }
+  return readUser(id);
+}

@@ -1,0 +1,43 @@
+{
+  PreparedStatement stmt=null;
+  ResultSet res=null;
+  Hashtable sessionData=new Hashtable();
+  Hashtable data=null;
+  Connection conn=null;
+  try {
+    conn=m_sqlManager.getConnection();
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_SESSION_READ");
+    stmt.setString(1,sessionId);
+    stmt.setTimestamp(2,new java.sql.Timestamp(System.currentTimeMillis() - C_SESSION_TIMEOUT));
+    res=stmt.executeQuery();
+    if (res.next()) {
+      byte[] value=m_sqlManager.getBytes(res,"SESSION_DATA");
+      ByteArrayInputStream bin=new ByteArrayInputStream(value);
+      ObjectInputStream oin=new ObjectInputStream(bin);
+      data=(Hashtable)oin.readObject();
+      try {
+        for (; ; ) {
+          Object key=oin.readObject();
+          Object sessionValue=oin.readObject();
+          sessionData.put(key,sessionValue);
+        }
+      }
+ catch (      EOFException exc) {
+      }
+      data.put(C_SESSION_DATA,sessionData);
+    }
+ else {
+      deleteSessions();
+    }
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
+  }
+catch (  Exception e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_UNKNOWN_EXCEPTION,e);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,res);
+  }
+  return data;
+}

@@ -1,0 +1,43 @@
+{
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  CmsUUID modifiedByUserId=userId;
+  long dateModified=file.isTouched() ? file.getDateLastModified() : System.currentTimeMillis();
+  try {
+    conn=m_sqlManager.getConnection(project);
+    stmt=m_sqlManager.getPreparedStatement(conn,project,"C_RESOURCES_UPDATE");
+    stmt.setInt(1,file.getType());
+    stmt.setInt(2,file.getFlags());
+    stmt.setString(3,file.getOwnerId().toString());
+    stmt.setString(4,file.getGroupId().toString());
+    stmt.setInt(5,file.getProjectId());
+    stmt.setInt(6,file.getAccessFlags());
+    int state=file.getState();
+    if ((state == com.opencms.core.I_CmsConstants.C_STATE_NEW) || (state == com.opencms.core.I_CmsConstants.C_STATE_CHANGED)) {
+      stmt.setInt(7,state);
+    }
+ else {
+      if (changed == true) {
+        stmt.setInt(7,com.opencms.core.I_CmsConstants.C_STATE_CHANGED);
+      }
+ else {
+        stmt.setInt(7,file.getState());
+      }
+    }
+    stmt.setString(8,file.isLockedBy().toString());
+    stmt.setInt(9,file.getLauncherType());
+    stmt.setString(10,file.getLauncherClassname());
+    stmt.setTimestamp(11,new Timestamp(dateModified));
+    stmt.setString(12,modifiedByUserId.toString());
+    stmt.setInt(13,file.getLength());
+    stmt.setString(14,file.getFileId().toString());
+    stmt.setString(15,file.getResourceId().toString());
+    stmt.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,null);
+  }
+}

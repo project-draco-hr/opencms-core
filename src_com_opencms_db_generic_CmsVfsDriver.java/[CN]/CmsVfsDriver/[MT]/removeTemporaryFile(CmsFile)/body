@@ -1,0 +1,39 @@
+{
+  PreparedStatement stmt=null;
+  PreparedStatement stmtCont=null;
+  PreparedStatement stmtProp=null;
+  Connection conn=null;
+  ResultSet res=null;
+  String tempFilename=file.getRootName() + file.getPath() + com.opencms.core.I_CmsConstants.C_TEMP_PREFIX+ file.getName()+ "%";
+  try {
+    conn=m_sqlManager.getConnection();
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_GETTEMPFILES");
+    stmt.setString(1,tempFilename);
+    res=stmt.executeQuery();
+    while (res.next()) {
+      int fileId=res.getInt("FILE_ID");
+      int resourceId=res.getInt("RESOURCE_ID");
+      stmtProp=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_DELETEALL");
+      stmtProp.setInt(1,resourceId);
+      stmtProp.executeQuery();
+      stmtProp.close();
+      stmtCont=m_sqlManager.getPreparedStatement(conn,"C_FILE_DELETE");
+      stmtCont.setInt(1,fileId);
+      stmtCont.executeUpdate();
+      stmtCont.close();
+    }
+    res.close();
+    stmt.close();
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_DELETETEMPFILES");
+    stmt.setString(1,tempFilename);
+    stmt.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,res);
+    m_sqlManager.closeAll(null,stmtProp,null);
+    m_sqlManager.closeAll(null,stmtCont,null);
+  }
+}

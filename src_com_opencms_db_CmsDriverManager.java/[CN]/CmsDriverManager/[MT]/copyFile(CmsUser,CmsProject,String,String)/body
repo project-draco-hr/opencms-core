@@ -1,0 +1,31 @@
+{
+  String filename;
+  String foldername;
+  validFilename(destination.replace('/','a'));
+  CmsResource file=readFileHeader(currentUser,currentProject,source);
+  if (destination.endsWith("/")) {
+    filename=file.getName();
+    foldername=destination;
+  }
+ else {
+    foldername=destination.substring(0,destination.lastIndexOf("/") + 1);
+    filename=destination.substring(destination.lastIndexOf("/") + 1,destination.length());
+  }
+  CmsFolder cmsFolder=readFolder(currentUser,currentProject,foldername);
+  if (accessCreate(currentUser,currentProject,(CmsResource)cmsFolder)) {
+    if ((accessOther(file,C_ACCESS_PUBLIC_WRITE) || accessOwner(currentUser,currentProject,file,C_ACCESS_OWNER_WRITE) || accessGroup(currentUser,currentProject,file,C_ACCESS_GROUP_WRITE))) {
+      m_VfsAccess.copyFile(currentProject,onlineProject(currentUser,currentProject),currentUser.getId(),source,cmsFolder.getResourceId(),foldername + filename);
+      this.clearResourceCache(foldername + filename,currentProject,currentUser);
+      lockResource(currentUser,currentProject,destination,true);
+      writeProperties(currentUser,currentProject,destination,readProperties(currentUser,currentProject,file.getResourceName(),null,false));
+      m_accessCache.clear();
+      fileSystemChanged(file.isFolder());
+    }
+ else {
+      throw new CmsException("[" + getClass().getName() + "] "+ source,CmsException.C_NO_ACCESS);
+    }
+  }
+ else {
+    throw new CmsException("[" + getClass().getName() + "] "+ destination,CmsException.C_NO_ACCESS);
+  }
+}

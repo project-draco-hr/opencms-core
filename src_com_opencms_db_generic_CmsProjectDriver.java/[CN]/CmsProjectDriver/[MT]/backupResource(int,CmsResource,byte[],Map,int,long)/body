@@ -1,0 +1,86 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  String ownerName=null;
+  String groupName=new String();
+  String lastModifiedName=null;
+  try {
+    CmsUser owner=m_driverManager.getUserAccess().readUser(resource.getOwnerId());
+    ownerName=owner.getName() + " " + owner.getFirstname()+ " "+ owner.getLastname();
+  }
+ catch (  CmsException e) {
+    ownerName="";
+  }
+  try {
+    groupName=m_driverManager.getUserAccess().readGroup(resource.getGroupId()).getName();
+  }
+ catch (  CmsException e) {
+    groupName="";
+  }
+  try {
+    CmsUser lastModified=m_driverManager.getUserAccess().readUser(resource.getResourceLastModifiedBy());
+    lastModifiedName=lastModified.getName() + " " + lastModified.getFirstname()+ " "+ lastModified.getLastname();
+  }
+ catch (  CmsException e) {
+    lastModifiedName="";
+  }
+  CmsUUID resourceId=new CmsUUID();
+  CmsUUID fileId=CmsUUID.getNullUUID();
+  try {
+    conn=m_sqlManager.getConnectionForBackup();
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_WRITE_BACKUP");
+    if (resource.getType() != C_TYPE_FOLDER) {
+      fileId=new CmsUUID();
+      m_driverManager.getVfsAccess().createFileContent(fileId,content,versionId,projectId,true);
+    }
+    stmt.setString(1,resourceId.toString());
+    stmt.setString(2,CmsUUID.getNullUUID().toString());
+    stmt.setString(3,resource.getResourceName());
+    stmt.setInt(4,resource.getType());
+    stmt.setInt(5,resource.getFlags());
+    stmt.setString(6,resource.getOwnerId().toString());
+    stmt.setString(7,ownerName);
+    stmt.setString(8,resource.getGroupId().toString());
+    stmt.setString(9,groupName);
+    stmt.setInt(10,projectId);
+    stmt.setString(11,fileId.toString());
+    stmt.setInt(12,resource.getAccessFlags());
+    stmt.setInt(13,resource.getState());
+    stmt.setInt(14,resource.getLauncherType());
+    stmt.setString(15,resource.getLauncherClassname());
+    stmt.setTimestamp(16,new Timestamp(publishDate));
+    stmt.setTimestamp(17,new Timestamp(resource.getDateLastModified()));
+    stmt.setInt(18,content.length);
+    stmt.setString(19,resource.getResourceLastModifiedBy().toString());
+    stmt.setString(20,lastModifiedName);
+    stmt.setInt(21,versionId);
+    stmt.executeUpdate();
+    stmt.close();
+    Iterator keys=properties.keySet().iterator();
+    String key;
+    while (keys.hasNext()) {
+      key=(String)keys.next();
+      CmsPropertydefinition propdef=m_driverManager.getVfsAccess().readPropertydefinition(key,resource.getType());
+      String value=(String)properties.get(key);
+      if (propdef == null) {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ key,CmsException.C_NOT_FOUND);
+      }
+ else {
+        stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_CREATE_BACKUP");
+        stmt.setInt(1,nextId(m_sqlManager.get("C_TABLE_PROPERTIES_BACKUP")));
+        stmt.setInt(2,propdef.getId());
+        stmt.setString(3,resourceId.toString());
+        stmt.setString(4,checkNull(value));
+        stmt.setInt(5,versionId);
+        stmt.executeUpdate();
+        stmt.close();
+      }
+    }
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,null);
+  }
+}

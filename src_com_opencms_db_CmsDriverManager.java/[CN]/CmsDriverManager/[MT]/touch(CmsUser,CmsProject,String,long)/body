@@ -1,0 +1,31 @@
+{
+  CmsResource resource=null;
+  boolean isFolder=false;
+  if (resourceName.endsWith("/")) {
+    resource=(CmsFolder)readFolder(currentUser,currentProject,resourceName);
+    isFolder=true;
+  }
+ else {
+    resource=(CmsFile)readFileHeader(currentUser,currentProject,resourceName);
+  }
+  if (accessWrite(currentUser,currentProject,resource)) {
+    resource.setDateLastModified(timestamp);
+    if (isFolder) {
+      if (resource.getState() == C_STATE_UNCHANGED) {
+        resource.setState(C_STATE_CHANGED);
+      }
+      m_VfsAccess.writeFolder(currentProject,(CmsFolder)resource,true,currentUser.getId());
+    }
+ else {
+      if (resource.getState() == C_STATE_UNCHANGED) {
+        resource.setState(C_STATE_CHANGED);
+      }
+      m_VfsAccess.writeFileHeader(currentProject,(CmsFile)resource,true,currentUser.getId());
+    }
+    clearResourceCache(resource.getName(),currentProject,currentUser);
+    fileSystemChanged(isFolder);
+  }
+ else {
+    throw new CmsException("[" + getClass().getName() + "] "+ resourceName,CmsException.C_NO_ACCESS);
+  }
+}

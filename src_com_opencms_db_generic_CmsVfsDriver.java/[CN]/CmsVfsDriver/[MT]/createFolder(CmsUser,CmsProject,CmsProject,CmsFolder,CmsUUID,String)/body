@@ -1,0 +1,89 @@
+{
+  if (foldername.length() > C_MAX_LENGTH_RESOURCE_NAME) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ "Resourcename too long(>"+ C_MAX_LENGTH_RESOURCE_NAME+ ") ",CmsException.C_BAD_NAME);
+  }
+  CmsFolder oldFolder=null;
+  int state=0;
+  CmsUUID modifiedByUserId=user.getId();
+  long dateModified=System.currentTimeMillis();
+  if (project.equals(onlineProject)) {
+    state=folder.getState();
+    modifiedByUserId=folder.getResourceLastModifiedBy();
+    dateModified=folder.getDateLastModified();
+  }
+ else {
+    state=C_STATE_NEW;
+  }
+  try {
+    oldFolder=readFolder(project.getId(),foldername);
+    if (oldFolder.getState() == C_STATE_DELETED) {
+      throw new CmsException("[" + this.getClass().getName() + "] ",CmsException.C_FILE_EXISTS);
+    }
+ else {
+      if (oldFolder != null) {
+        throw new CmsException("[" + this.getClass().getName() + "] ",CmsException.C_FILE_EXISTS);
+      }
+    }
+  }
+ catch (  CmsException e) {
+    if (e.getType() == CmsException.C_FILE_EXISTS) {
+      throw e;
+    }
+  }
+  CmsUUID resourceId=new CmsUUID();
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  try {
+    conn=m_sqlManager.getConnection(project);
+    stmt=m_sqlManager.getPreparedStatement(conn,project,"C_RESOURCES_WRITE");
+    stmt.setString(1,resourceId.toString());
+    stmt.setString(2,parentId.toString());
+    stmt.setString(3,foldername);
+    stmt.setInt(4,folder.getType());
+    stmt.setInt(5,folder.getFlags());
+    stmt.setString(6,folder.getOwnerId().toString());
+    stmt.setString(7,folder.getGroupId().toString());
+    stmt.setInt(8,project.getId());
+    stmt.setString(9,CmsUUID.getNullUUID().toString());
+    stmt.setInt(10,folder.getAccessFlags());
+    stmt.setInt(11,state);
+    stmt.setString(12,folder.isLockedBy().toString());
+    stmt.setInt(13,folder.getLauncherType());
+    stmt.setString(14,folder.getLauncherClassname());
+    stmt.setTimestamp(15,new Timestamp(folder.getDateCreated()));
+    stmt.setTimestamp(16,new Timestamp(dateModified));
+    stmt.setInt(17,0);
+    stmt.setString(18,modifiedByUserId.toString());
+    stmt.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,null);
+  }
+  String parentFolderName="/";
+  if (!folder.getResourceName().equals(C_ROOT)) {
+    parentFolderName=folder.getResourceName().substring(0,folder.getResourceName().length() - 1);
+    parentFolderName=parentFolderName.substring(0,parentFolderName.lastIndexOf("/") + 1);
+  }
+  if (parentId.isNullUUID() || parentFolderName.equals(C_ROOT)) {
+    try {
+      String rootFolder=null;
+      try {
+        rootFolder=readProjectResource(project.getId(),C_ROOT);
+      }
+ catch (      CmsException exc) {
+      }
+      if (rootFolder == null) {
+        createProjectResource(project.getId(),foldername);
+      }
+    }
+ catch (    CmsException e) {
+      if (e.getType() != CmsException.C_FILE_EXISTS) {
+        throw e;
+      }
+    }
+  }
+  return readFolder(project.getId(),foldername);
+}
