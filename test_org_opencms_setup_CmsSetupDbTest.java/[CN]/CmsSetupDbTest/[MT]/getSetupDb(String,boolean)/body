@@ -1,0 +1,36 @@
+{
+  URL basePathUrl=ClassLoader.getSystemResource("./");
+  File setupDataFolder=new File(basePathUrl.getFile() + "../webapp/setup/");
+  if (!setupDataFolder.exists()) {
+    fail("DB setup scripts not available at " + setupDataFolder.getAbsolutePath());
+  }
+  String basePath=new File(basePathUrl.getFile() + "../webapp/").getAbsolutePath() + File.separator;
+  ExtendedProperties dbConfiguration;
+  ExtendedProperties configuration;
+  try {
+    String dbConfigFile=basePath + "setup" + File.separator+ "database"+ File.separator+ dbProduct+ File.separator+ "database.properties";
+    dbConfiguration=CmsPropertyUtils.loadProperties(dbConfigFile);
+    String propertyFile=basePathUrl.getFile() + "org/opencms/setup/opencms.properties";
+    configuration=CmsPropertyUtils.loadProperties(propertyFile);
+    configuration.setProperty("DATABASE_NAME",C_DATABASE_NAME);
+  }
+ catch (  IOException e) {
+    fail(e.toString());
+    return null;
+  }
+  String key="default";
+  String jdbcDriver=configuration.getString(CmsDbPool.C_KEY_DATABASE_POOL + "." + key+ "."+ CmsDbPool.C_KEY_JDBC_DRIVER);
+  String username=configuration.getString(CmsDbPool.C_KEY_DATABASE_POOL + "." + key+ "."+ CmsDbPool.C_KEY_USERNAME);
+  String password=configuration.getString(CmsDbPool.C_KEY_DATABASE_POOL + "." + key+ "."+ CmsDbPool.C_KEY_PASSWORD);
+  String jdbcUrl;
+  if (create) {
+    jdbcUrl=dbConfiguration.getString(dbProduct + ".constr");
+  }
+ else {
+    jdbcUrl=configuration.getString(CmsDbPool.C_KEY_DATABASE_POOL + "." + key+ "."+ CmsDbPool.C_KEY_JDBC_URL);
+  }
+  CmsSetupDb setupDb=new CmsSetupDb(basePath);
+  setupDb.setConnection(jdbcDriver,jdbcUrl,username,password);
+  checkErrors(setupDb);
+  return setupDb;
+}
