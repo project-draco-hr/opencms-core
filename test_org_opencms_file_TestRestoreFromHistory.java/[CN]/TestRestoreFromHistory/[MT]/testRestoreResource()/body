@@ -1,0 +1,34 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing create resource");
+  String resourcename="/test-restore1.txt";
+  String contentStr1="Hello this is content version 1";
+  String contentStr2="Hello this is content version 2";
+  cms.createResource(resourcename,CmsResourceTypePlain.C_RESOURCE_TYPE_ID,contentStr1.getBytes(),null);
+  assertContent(cms,resourcename,contentStr1.getBytes());
+  List allFiles=cms.readAllBackupFileHeaders(resourcename);
+  if (!allFiles.isEmpty()) {
+    fail("Unexpected backup files for new created resource found.");
+  }
+  cms.unlockProject(cms.getRequestContext().currentProject().getId());
+  cms.publishProject();
+  allFiles=cms.readAllBackupFileHeaders(resourcename);
+  if (allFiles.size() != 1) {
+    fail("Unexpected number of backup files for published resource found (one expected)");
+  }
+  cms.lockResource(resourcename);
+  CmsFile update=cms.readFile(resourcename);
+  update.setContents(contentStr2.getBytes());
+  cms.writeFile(update);
+  assertContent(cms,resourcename,contentStr2.getBytes());
+  cms.unlockProject(cms.getRequestContext().currentProject().getId());
+  cms.publishProject();
+  allFiles=cms.readAllBackupFileHeaders(resourcename);
+  if (allFiles.size() != 2) {
+    fail("Unexpected number of backup files for published resource found (two expected)");
+  }
+  CmsBackupResource backup=(CmsBackupResource)allFiles.get(1);
+  cms.lockResource(resourcename);
+  cms.restoreResourceBackup(resourcename,backup.getTagId());
+  assertContent(cms,resourcename,contentStr1.getBytes());
+}
