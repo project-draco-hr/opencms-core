@@ -1,21 +1,22 @@
 {
   if (m_resourceTypes == null) {
 synchronized (this) {
-      m_resourceTypes=new Hashtable();
-      Vector resTypeNames=new Vector();
-      Vector launcherTypes=new Vector();
-      Vector launcherClass=new Vector();
-      Vector resourceClass=new Vector();
-      int resTypeCount=m_registry.getResourceTypes(resTypeNames,launcherTypes,launcherClass,resourceClass);
-      for (int i=0; i < resTypeCount; i++) {
+      List resTypes=m_registry.getResourceTypes();
+      m_resourceTypes=new I_CmsResourceType[resTypes.size() * 2];
+      for (int i=0; i < resTypes.size(); i++) {
         try {
-          Class c=Class.forName((String)resourceClass.elementAt(i));
-          I_CmsResourceType resTypeClass=(I_CmsResourceType)c.newInstance();
-          m_resourceTypes.put(resTypeClass.getResourceTypeName(),resTypeClass);
+          I_CmsResourceType resTypeClass=(I_CmsResourceType)Class.forName((String)resTypes.get(i)).newInstance();
+          int pos=resTypeClass.getResourceType();
+          if (pos > m_resourceTypes.length) {
+            I_CmsResourceType[] buffer=new I_CmsResourceType[pos * 2];
+            System.arraycopy(m_resourceTypes,0,buffer,0,m_resourceTypes.length);
+            m_resourceTypes=buffer;
+          }
+          m_resourceTypes[pos]=resTypeClass;
         }
  catch (        Exception e) {
           e.printStackTrace();
-          throw new CmsException("[" + getClass().getName() + "] Error while getting ResourceType: "+ (String)resTypeNames.elementAt(i)+ " from registry ",CmsException.C_UNKNOWN_EXCEPTION);
+          throw new CmsException("[" + getClass().getName() + "] Error while getting ResourceType: "+ resTypes.get(i)+ " from registry ",CmsException.C_UNKNOWN_EXCEPTION);
         }
       }
     }
