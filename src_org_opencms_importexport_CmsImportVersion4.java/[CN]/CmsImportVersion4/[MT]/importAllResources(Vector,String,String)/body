@@ -83,18 +83,24 @@
             String id=CmsImport.getChildElementTextValue(currentEntry,I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_PRINCIPAL);
             String principalId=new CmsUUID().toString();
             String principal=id.substring(id.indexOf(".") + 1,id.length());
-            if (id.startsWith(CmsImportExportConfiguration.C_PRINCIPAL_GROUP)) {
-              principal=OpenCms.getImportExportManager().translateGroup(principal);
-              principalId=m_cms.readGroup(principal).getId().toString();
-            }
+            try {
+              if (id.startsWith(CmsImportExportConfiguration.C_PRINCIPAL_GROUP)) {
+                principal=OpenCms.getImportExportManager().translateGroup(principal);
+                principalId=m_cms.readGroup(principal).getId().toString();
+              }
  else {
-              principal=OpenCms.getImportExportManager().translateUser(principal);
-              principalId=m_cms.readUser(principal).getId().toString();
+                principal=OpenCms.getImportExportManager().translateUser(principal);
+                principalId=m_cms.readUser(principal).getId().toString();
+              }
+              String acflags=CmsImport.getChildElementTextValue(currentEntry,I_CmsConstants.C_EXPORT_TAG_FLAGS);
+              String allowed=((Element)currentEntry.selectNodes("./" + I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_PERMISSIONSET + "/"+ I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_ALLOWEDPERMISSIONS).get(0)).getTextTrim();
+              String denied=((Element)currentEntry.selectNodes("./" + I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_PERMISSIONSET + "/"+ I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_DENIEDPERMISSIONS).get(0)).getTextTrim();
+              addImportAccessControlEntry(res,principalId,allowed,denied,acflags);
             }
-            String acflags=CmsImport.getChildElementTextValue(currentEntry,I_CmsConstants.C_EXPORT_TAG_FLAGS);
-            String allowed=((Element)currentEntry.selectNodes("./" + I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_PERMISSIONSET + "/"+ I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_ALLOWEDPERMISSIONS).get(0)).getTextTrim();
-            String denied=((Element)currentEntry.selectNodes("./" + I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_PERMISSIONSET + "/"+ I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_DENIEDPERMISSIONS).get(0)).getTextTrim();
-            addImportAccessControlEntry(res,principalId,allowed,denied,acflags);
+ catch (            CmsException e) {
+              OpenCms.getLog(this).warn("Could not import ACE for resource " + translatedName,e);
+              m_report.println(e);
+            }
           }
           importAccessControlEntries(res);
         }
