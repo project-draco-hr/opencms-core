@@ -1,32 +1,33 @@
 {
-  boolean alive=false;
-  try {
-    if (!con.isClosed()) {
-      con.clearWarnings();
-      alive=true;
-    }
-  }
- catch (  SQLException exc) {
-  }
-  if (alive) {
-    m_availableConnections.push(con);
-  }
- else {
-    if (A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_POOL,"[" + getClass().getName() + "] "+ m_poolname+ ": connection was broken");
-    }
-    con.closeOriginalConnection();
-    m_connectionAmount--;
+synchronized (m_availableConnections) {
+    boolean alive=false;
+    System.out.println("put back");
     try {
-      createConnections(1);
-    }
- catch (    SQLException exc) {
-      if (A_OpenCms.isLogging()) {
-        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_POOL,"[" + getClass().getName() + "] "+ m_poolname+ ": unable to create new connection for broken one");
+      if (!con.isClosed()) {
+        con.clearWarnings();
+        alive=true;
       }
     }
-  }
-synchronized (m_availableConnections) {
+ catch (    SQLException exc) {
+    }
+    if (alive) {
+      m_availableConnections.push(con);
+    }
+ else {
+      if (A_OpenCms.isLogging()) {
+        A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_POOL,"[" + getClass().getName() + "] "+ m_poolname+ ": connection was broken");
+      }
+      con.closeOriginalConnection();
+      m_connectionAmount--;
+      try {
+        createConnections(1);
+      }
+ catch (      SQLException exc) {
+        if (A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_POOL,"[" + getClass().getName() + "] "+ m_poolname+ ": unable to create new connection for broken one");
+        }
+      }
+    }
     m_availableConnections.notifyAll();
   }
 }
