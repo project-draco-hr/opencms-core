@@ -1,0 +1,46 @@
+{
+  Vector allFolders=new Vector();
+  Vector allFiles=new Vector();
+  Vector unvisited=new Vector();
+  CmsFolder currentFolder=cms.readFolder(resourceName);
+  CmsFile currentFile=null;
+  if ((cms.getRequestContext().currentUser().equals(cms.readOwner(currentFolder))) || (cms.userInGroup(cms.getRequestContext().currentUser().getName(),C_GROUP_ADMIN))) {
+    if (touchRecursive) {
+      unvisited.add(currentFolder);
+      while (unvisited.size() > 0) {
+        Enumeration unvisitedFolders=unvisited.elements();
+        while (unvisitedFolders.hasMoreElements()) {
+          currentFolder=(CmsFolder)unvisitedFolders.nextElement();
+          unvisited.remove((CmsFolder)currentFolder);
+          allFolders.add((CmsFolder)currentFolder);
+          allFiles.addAll(cms.getFilesInFolder(currentFolder.getAbsolutePath(),true));
+          unvisited.addAll(cms.getSubFolders(currentFolder.getAbsolutePath(),true));
+        }
+      }
+    }
+ else {
+      allFolders.add((CmsFolder)currentFolder);
+    }
+    Enumeration touchFolders=allFolders.elements();
+    while (touchFolders.hasMoreElements()) {
+      currentFolder=(CmsFolder)touchFolders.nextElement();
+      if (DEBUG > 0)       System.out.println("touching: " + currentFolder.getAbsolutePath());
+      cms.doTouch(currentFolder.getAbsolutePath(),timestamp);
+      String bodyFolder=C_CONTENTBODYPATH.substring(0,C_CONTENTBODYPATH.lastIndexOf("/")) + currentFolder.getAbsolutePath();
+      try {
+        cms.readFolder(bodyFolder);
+        cms.doTouch(bodyFolder,timestamp);
+      }
+ catch (      CmsException e) {
+      }
+    }
+    Enumeration touchFiles=allFiles.elements();
+    while (touchFiles.hasMoreElements()) {
+      currentFile=(CmsFile)touchFiles.nextElement();
+      if (DEBUG > 0)       System.out.println("touching: " + currentFile.getAbsolutePath());
+      if (currentFile.getState() != I_CmsConstants.C_STATE_DELETED) {
+        cms.touch(currentFile.getAbsolutePath(),timestamp,false);
+      }
+    }
+  }
+}
