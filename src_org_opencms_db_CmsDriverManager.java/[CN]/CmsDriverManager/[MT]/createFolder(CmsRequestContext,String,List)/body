@@ -1,19 +1,18 @@
 {
-  if (!newFolderName.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
-    newFolderName+=I_CmsConstants.C_FOLDER_SEPARATOR;
-  }
-  String parentFolderName=newFolderName.substring(0,newFolderName.lastIndexOf(I_CmsConstants.C_FOLDER_SEPARATOR,newFolderName.length() - 2) + 1);
-  String newFolderFullName=newFolderName.substring(parentFolderName.length(),newFolderName.length() - 1);
-  validFilename(newFolderFullName);
-  CmsFolder parentFolder=readFolder(context,parentFolderName);
+  String folderName=CmsResource.getParentFolder(resourcename);
+  String targetName=CmsResource.getName(resourcename);
+  targetName=targetName.substring(0,targetName.length() - 1);
+  validFilename(targetName);
+  CmsFolder parentFolder=(CmsFolder)readFileHeader(context,folderName,CmsResourceFilter.IGNORE_EXPIRATION);
   checkPermissions(context,parentFolder,I_CmsConstants.C_WRITE_ACCESS,CmsResourceFilter.ALL,-1);
-  CmsFolder newFolder=new CmsFolder(new CmsUUID(),new CmsUUID(),parentFolder.getStructureId(),CmsUUID.getNullUUID(),newFolderFullName,CmsResourceTypeFolder.C_RESOURCE_TYPE_ID,0,context.currentProject().getId(),org.opencms.main.I_CmsConstants.C_STATE_NEW,0,context.currentUser().getId(),0,context.currentUser().getId(),1,CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT);
+  CmsFolder newFolder=new CmsFolder(new CmsUUID(),new CmsUUID(),parentFolder.getStructureId(),CmsUUID.getNullUUID(),targetName,CmsResourceTypeFolder.C_RESOURCE_TYPE_ID,0,context.currentProject().getId(),I_CmsConstants.C_STATE_NEW,0,context.currentUser().getId(),0,context.currentUser().getId(),1,CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT);
   m_vfsDriver.createFolder(context.currentProject(),newFolder,parentFolder.getStructureId());
-  newFolder.setFullResourceName(newFolderName);
+  newFolder.setFullResourceName(resourcename);
   if (properties != null && properties != Collections.EMPTY_LIST) {
     m_vfsDriver.writePropertyObjects(context.currentProject(),newFolder,properties);
     m_propertyCache.clear();
   }
+  lockResource(context,resourcename);
   clearResourceCache();
   OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_RESOURCE_CREATED,Collections.singletonMap("resource",newFolder)));
   OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_PROJECT_MODIFIED,Collections.singletonMap("project",context.currentProject())));

@@ -1,0 +1,20 @@
+{
+  CmsResource resource=null;
+  clearResourceCache();
+  resource=readFileHeader(context,resourcename,CmsResourceFilter.IGNORE_EXPIRATION);
+  checkPermissions(context,resource,I_CmsConstants.C_WRITE_ACCESS,CmsResourceFilter.ALL,-1);
+  m_vfsDriver.replaceResource(context.currentUser(),context.currentProject(),resource,content,type,OpenCms.getLoaderManager().getResourceType(type).getLoaderId());
+  if ((properties != null) && (properties != Collections.EMPTY_LIST)) {
+    m_vfsDriver.writePropertyObjects(context.currentProject(),resource,properties);
+    m_propertyCache.clear();
+  }
+  if (resource.getState() == I_CmsConstants.C_STATE_UNCHANGED) {
+    resource.setState(I_CmsConstants.C_STATE_CHANGED);
+  }
+  resource.setUserLastModified(context.currentUser().getId());
+  touch(context,resourcename,System.currentTimeMillis(),I_CmsConstants.C_DATE_UNCHANGED,I_CmsConstants.C_DATE_UNCHANGED,context.currentUser().getId());
+  m_vfsDriver.writeResourceState(context.currentProject(),resource,C_UPDATE_RESOURCE);
+  clearResourceCache();
+  content=null;
+  OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_RESOURCE_MODIFIED,Collections.singletonMap("resource",resource)));
+}

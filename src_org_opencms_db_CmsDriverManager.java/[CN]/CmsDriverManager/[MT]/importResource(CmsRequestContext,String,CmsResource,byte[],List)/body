@@ -1,34 +1,28 @@
 {
-  String folderName=null;
-  String resourceName=null;
-  if (resource.isFolder()) {
-    if (!newResourceName.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
-      newResourceName+=I_CmsConstants.C_FOLDER_SEPARATOR;
-    }
-    folderName=newResourceName.substring(0,newResourceName.lastIndexOf(I_CmsConstants.C_FOLDER_SEPARATOR,newResourceName.length() - 2) + 1);
-    resourceName=newResourceName.substring(folderName.length(),newResourceName.length() - 1);
-  }
- else {
-    folderName=newResourceName.substring(0,newResourceName.lastIndexOf(I_CmsConstants.C_FOLDER_SEPARATOR,newResourceName.length()) + 1);
-    resourceName=newResourceName.substring(folderName.length(),newResourceName.length());
-    if (labelResource(context,resource,newResourceName,2)) {
+  String folderName=CmsResource.getParentFolder(resourcename);
+  String targetName=CmsResource.getName(resourcename);
+  if (resource.isFile()) {
+    if (labelResource(context,resource,resourcename,2)) {
       int flags=resource.getFlags();
       flags|=I_CmsConstants.C_RESOURCEFLAG_LABELLINK;
       resource.setFlags(flags);
     }
   }
-  validFilename(resourceName);
+ else {
+    targetName=targetName.substring(0,targetName.length() - 1);
+  }
+  validFilename(targetName);
   CmsFolder parentFolder=readFolder(context,folderName,CmsResourceFilter.IGNORE_EXPIRATION);
   checkPermissions(context,parentFolder,I_CmsConstants.C_WRITE_ACCESS,CmsResourceFilter.ALL,-1);
-  if (filecontent == null) {
-    filecontent=new byte[0];
+  if (content == null) {
+    content=new byte[0];
   }
   resource.setParentId(parentFolder.getStructureId());
-  CmsResource newResource=m_vfsDriver.importResource(context.currentProject(),parentFolder.getStructureId(),resource,filecontent,context.currentUser().getId(),resource.isFolder());
-  newResource.setFullResourceName(newResourceName);
-  filecontent=null;
+  CmsResource newResource=m_vfsDriver.importResource(context.currentProject(),parentFolder.getStructureId(),resource,content,context.currentUser().getId(),resource.isFolder());
+  newResource.setFullResourceName(resourcename);
+  content=null;
   clearResourceCache();
-  m_vfsDriver.writePropertyObjects(context.currentProject(),newResource,propertyinfos);
+  m_vfsDriver.writePropertyObjects(context.currentProject(),newResource,properties);
   OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_RESOURCE_LIST_MODIFIED,Collections.singletonMap("resource",parentFolder)));
   return newResource;
 }

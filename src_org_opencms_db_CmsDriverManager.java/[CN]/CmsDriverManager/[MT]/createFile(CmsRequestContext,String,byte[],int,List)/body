@@ -1,0 +1,20 @@
+{
+  String folderName=CmsResource.getParentFolder(resourcename);
+  String targetName=CmsResource.getName(resourcename);
+  validFilename(targetName);
+  if (!isAdmin(context) && (CmsResourceTypeJsp.C_RESOURCE_TYPE_ID == type)) {
+    throw new CmsSecurityException("[" + this.getClass().getName() + "] createFile() "+ targetName,CmsSecurityException.C_SECURITY_NO_PERMISSIONS);
+  }
+  CmsFolder parentFolder=(CmsFolder)readFileHeader(context,folderName,CmsResourceFilter.IGNORE_EXPIRATION);
+  checkPermissions(context,parentFolder,I_CmsConstants.C_WRITE_ACCESS,CmsResourceFilter.ALL,-1);
+  CmsFile newFile=m_vfsDriver.createFile(context.currentUser(),context.currentProject(),targetName,0,parentFolder,content,OpenCms.getLoaderManager().getResourceType(type),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT);
+  newFile.setFullResourceName(resourcename);
+  if (properties != null && properties != Collections.EMPTY_LIST) {
+    m_vfsDriver.writePropertyObjects(context.currentProject(),newFile,properties);
+    m_propertyCache.clear();
+  }
+  lockResource(context,resourcename);
+  clearResourceCache();
+  OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_RESOURCE_CREATED,Collections.singletonMap("resource",newFile)));
+  return newFile;
+}

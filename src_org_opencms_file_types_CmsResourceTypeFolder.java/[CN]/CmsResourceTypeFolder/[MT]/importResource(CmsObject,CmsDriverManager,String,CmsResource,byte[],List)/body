@@ -1,0 +1,54 @@
+{
+  resourcename=validateFoldername(resourcename);
+  CmsResource importedResource=null;
+  CmsProperty property=null, oldProperty=null;
+  int found=0;
+  boolean changed=true;
+  try {
+    importedResource=driverManager.importResource(cms.getRequestContext(),cms.getRequestContext().addSiteRoot(resourcename),resource,null,properties);
+    if (importedResource != null) {
+      changed=false;
+    }
+  }
+ catch (  CmsException e) {
+  }
+  if (changed) {
+    changed=false;
+    importedResource=cms.readFolder(resourcename);
+    String importedResourcename=cms.readAbsolutePath(importedResource);
+    List oldProperties=cms.readPropertyObjects(importedResourcename,false);
+    if (oldProperties == null) {
+      oldProperties=Collections.EMPTY_LIST;
+    }
+    if (properties == null) {
+      properties=Collections.EMPTY_LIST;
+    }
+    if (properties.size() > 0) {
+      if (oldProperties.size() != properties.size()) {
+        changed=true;
+      }
+ else {
+        for (int i=0, n=properties.size(); i < n; i++) {
+          found=-1;
+          property=(CmsProperty)properties.get(i);
+          if ((found=oldProperties.indexOf(property)) == -1 || (oldProperty=(CmsProperty)oldProperties.get(found)) == null) {
+            changed=true;
+            break;
+          }
+          if (!oldProperty.isIdentical(property)) {
+            changed=true;
+            break;
+          }
+        }
+      }
+    }
+    if (importedResource.getTypeId() != getTypeId()) {
+      changed=true;
+    }
+    if (changed) {
+      lockResource(cms,driverManager,importedResourcename,CmsLock.C_MODE_COMMON);
+      driverManager.importResourceUpdate(cms.getRequestContext(),cms.getRequestContext().addSiteRoot(importedResourcename),null,properties);
+    }
+  }
+  return importedResource;
+}
