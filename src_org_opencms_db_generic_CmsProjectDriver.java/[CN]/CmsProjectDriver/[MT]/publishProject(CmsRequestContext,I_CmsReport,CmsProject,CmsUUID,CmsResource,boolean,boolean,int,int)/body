@@ -18,6 +18,8 @@
   int publishedFileCount=0;
   Set publishedContentIds=(Set)new HashSet();
   boolean directPublishFile=context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_DIRECT_PUBLISH && directPublishResource != null && directPublishResource.isFile();
+  List siblings=null;
+  CmsResource currentSibling=null;
   try {
     if (backupEnabled) {
       m_driverManager.backupProject(context,context.currentProject(),backupTagId,publishDate);
@@ -100,6 +102,19 @@
     if (directPublishFile) {
       offlineFiles=(List)new ArrayList();
       offlineFiles.add(directPublishResource);
+      if (directPublishSiblings) {
+        siblings=m_driverManager.readSiblings(context,directPublishResource.getRootPath(),false,true);
+        i=siblings.iterator();
+        while (i.hasNext()) {
+          currentSibling=(CmsResource)i.next();
+          try {
+            m_driverManager.getVfsDriver().readFolder(I_CmsConstants.C_PROJECT_ONLINE_ID,currentSibling.getParentStructureId());
+            offlineFiles.add(currentSibling);
+          }
+ catch (          CmsException e) {
+          }
+        }
+      }
     }
  else {
       offlineFiles=m_driverManager.getVfsDriver().readFiles(context.currentProject().getId());
@@ -135,7 +150,9 @@ publishCurrentResource=false;
 break;
 }
 if (context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_DIRECT_PUBLISH && directPublishResource != null) {
+if (directPublishResource.isFolder()) {
 publishCurrentResource=publishCurrentResource && currentResourceName.startsWith(directPublishResource.getRootPath());
+}
 }
  else {
 publishCurrentResource=publishCurrentResource && CmsProject.isInsideProject(projectResources,currentFileHeader);
@@ -254,6 +271,10 @@ deletedFolders=null;
 if (offlineFiles != null) {
 offlineFiles.clear();
 offlineFiles=null;
+}
+if (siblings != null) {
+siblings.clear();
+siblings=null;
 }
 currentFileHeader=null;
 currentFolder=null;
