@@ -178,11 +178,17 @@
       currentLock=m_driverManager.getLock(context,currentResourceName);
 switch (currentFileHeader.getState()) {
 case I_CmsConstants.C_STATE_DELETED:
-        publishCurrentResource=currentFileHeader.getProjectId() == context.currentProject().getId();
-      break;
+        String delProject=m_driverManager.getVfsDriver().readProperty(I_CmsConstants.C_PROPERTY_INTERNAL,context.currentProject().getId(),currentFileHeader,currentFileHeader.getType());
+      if (delProject != null && delProject.equals("" + context.currentProject().getId())) {
+        publishCurrentResource=true;
+      }
+ else {
+        publishCurrentResource=false;
+      }
+    break;
 case I_CmsConstants.C_STATE_NEW:
-    publishCurrentResource=currentFileHeader.getProjectId() == context.currentProject().getId() || currentFileHeader.getProjectId() == 0;
-  break;
+  publishCurrentResource=currentFileHeader.getProjectId() == context.currentProject().getId() || currentFileHeader.getProjectId() == 0;
+break;
 case I_CmsConstants.C_STATE_CHANGED:
 publishCurrentResource=currentFileHeader.getProjectId() == context.currentProject().getId();
 break;
@@ -300,6 +306,7 @@ if (currentFile.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
 currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
 m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFile,CmsDriverManager.C_UPDATE_ALL);
 }
+m_driverManager.getVfsDriver().resetProjectId(context.currentProject(),currentFile);
 }
  else if (currentFile.getState() == I_CmsConstants.C_STATE_NEW) {
 changedResources.addElement(currentResourceName);
@@ -355,8 +362,8 @@ if (currentFile.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
 currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
 m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFile,CmsDriverManager.C_UPDATE_ALL);
 }
-}
 m_driverManager.getVfsDriver().resetProjectId(context.currentProject(),currentFile);
+}
 OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_RESOURCE_MODIFIED,Collections.singletonMap("resource",currentFile)));
 i.remove();
 properties=null;
