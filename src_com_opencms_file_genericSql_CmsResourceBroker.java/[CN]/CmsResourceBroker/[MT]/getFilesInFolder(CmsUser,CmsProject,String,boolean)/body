@@ -1,25 +1,30 @@
 {
   Vector files;
-  try {
-    files=helperGetFilesInFolder(currentUser,currentProject,foldername,includeDeleted);
-  }
- catch (  CmsException e) {
-    if (e.getType() == CmsException.C_ACCESS_DENIED)     return new Vector();
- else     throw e;
-  }
-  if (files == null) {
-    return new Vector();
-  }
-  Vector onlineFiles=null;
-  if (!currentProject.equals(onlineProject(currentUser,currentProject))) {
+  files=(Vector)m_subresCache.get("FILES" + foldername,currentProject.getId());
+  if ((files == null) || (files.size() == 0)) {
     try {
-      onlineFiles=helperGetFilesInFolder(currentUser,onlineProject(currentUser,currentProject),foldername,includeDeleted);
+      files=helperGetFilesInFolder(currentUser,currentProject,foldername,includeDeleted);
     }
- catch (    CmsException exc) {
-      if (exc.getType() != CmsException.C_ACCESS_DENIED)       throw exc;
- else       return files;
+ catch (    CmsException e) {
+      if (e.getType() == CmsException.C_ACCESS_DENIED)       return new Vector();
+ else       throw e;
     }
+    if (files == null) {
+      return new Vector();
+    }
+    Vector onlineFiles=null;
+    if (!currentProject.equals(onlineProject(currentUser,currentProject))) {
+      try {
+        onlineFiles=helperGetFilesInFolder(currentUser,onlineProject(currentUser,currentProject),foldername,includeDeleted);
+      }
+ catch (      CmsException exc) {
+        if (exc.getType() != CmsException.C_ACCESS_DENIED)         throw exc;
+      }
+    }
+    if (onlineFiles != null) {
+      files=mergeResources(files,onlineFiles);
+    }
+    m_subresCache.put("FILES" + foldername,currentProject.getId(),files);
   }
-  if (onlineFiles == null)   return files;
-  return files=mergeResources(files,onlineFiles);
+  return files;
 }

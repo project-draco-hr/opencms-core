@@ -1,6 +1,7 @@
 {
   CmsFolder offlineFolder=null;
   Vector resources=new Vector();
+  Vector retValue=new Vector();
   try {
     offlineFolder=readFolder(currentUser,currentProject,folder);
     if (offlineFolder.getState() == C_STATE_DELETED) {
@@ -12,12 +13,18 @@
   if (offlineFolder == null) {
     throw new CmsException("[" + this.getClass().getName() + "] "+ folder,CmsException.C_NOT_FOUND);
   }
- else   resources=m_dbAccess.getResourcesInFolder(currentProject.getId(),offlineFolder);
-  Vector retValue=new Vector(resources.size());
-  for (Enumeration e=resources.elements(); e.hasMoreElements(); ) {
-    CmsResource res=(CmsResource)e.nextElement();
-    if (accessOther(currentUser,currentProject,res,C_ACCESS_PUBLIC_READ + C_ACCESS_PUBLIC_VISIBLE) || accessOwner(currentUser,currentProject,res,C_ACCESS_OWNER_READ + C_ACCESS_OWNER_VISIBLE) || accessGroup(currentUser,currentProject,res,C_ACCESS_GROUP_READ + C_ACCESS_GROUP_VISIBLE)) {
-      retValue.addElement(res);
+ else {
+    retValue=(Vector)m_subresCache.get("RESOURCES" + folder,currentProject.getId());
+    if (retValue == null || retValue.size() == 0) {
+      resources=m_dbAccess.getResourcesInFolder(currentProject.getId(),offlineFolder);
+      retValue=new Vector(resources.size());
+      for (Enumeration e=resources.elements(); e.hasMoreElements(); ) {
+        CmsResource res=(CmsResource)e.nextElement();
+        if (accessOther(currentUser,currentProject,res,C_ACCESS_PUBLIC_READ + C_ACCESS_PUBLIC_VISIBLE) || accessOwner(currentUser,currentProject,res,C_ACCESS_OWNER_READ + C_ACCESS_OWNER_VISIBLE) || accessGroup(currentUser,currentProject,res,C_ACCESS_GROUP_READ + C_ACCESS_GROUP_VISIBLE)) {
+          retValue.addElement(res);
+        }
+      }
+      m_subresCache.put("RESOURCES" + folder,currentProject.getId(),retValue);
     }
   }
   return retValue;
