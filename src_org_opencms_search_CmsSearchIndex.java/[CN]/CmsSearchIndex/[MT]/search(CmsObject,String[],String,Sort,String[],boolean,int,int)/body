@@ -16,10 +16,9 @@
   }
   CmsRequestContext context=cms.getRequestContext();
   CmsProject currentProject=context.currentProject();
-  Searcher searcher=null;
-  IndexReader reader=null;
+  IndexSearcher searcher=null;
   Hits hits;
-  List searchResults=new ArrayList();
+  CmsSearchResultList searchResults=new CmsSearchResultList();
   int previousPriority=Thread.currentThread().getPriority();
   try {
     if (m_priority > 0) {
@@ -59,26 +58,24 @@
     }
     searcher=new IndexSearcher(m_path);
     Query finalQuery;
-    if (OpenCms.getLog(this).isDebugEnabled()) {
-      OpenCms.getLog(this).debug("Base query: " + query);
-    }
     if (m_createExcerpt || OpenCms.getLog(this).isDebugEnabled()) {
-      reader=IndexReader.open(m_path);
-      finalQuery=query.rewrite(reader);
+      finalQuery=searcher.rewrite(query);
     }
  else {
       finalQuery=query;
     }
     if (OpenCms.getLog(this).isDebugEnabled()) {
+      OpenCms.getLog(this).debug("Base query: " + query);
       OpenCms.getLog(this).debug("Rewritten query: " + finalQuery);
-      reader.close();
     }
-    if ((sortOrder != null) && (sortOrder != Sort.RELEVANCE)) {
-      hits=searcher.search(finalQuery,sortOrder);
+    CmsSearchCategoryCollector categoryCollector;
+    if (countCategories) {
+      categoryCollector=new CmsSearchCategoryCollector(searcher);
+      searcher.search(finalQuery,categoryCollector);
+      searchResults.setCategories(categoryCollector.getCategoryCountResult());
     }
- else {
-      hits=searcher.search(finalQuery);
-    }
+    hits=searcher.search(finalQuery,sortOrder);
+    int hitCount=hits.length();
     timeLucene+=System.currentTimeMillis();
     timeResultProcessing=-System.currentTimeMillis();
     Document doc;
@@ -86,17 +83,17 @@
     String excerpt=null;
     if (hits != null) {
       int start=-1, end=-1;
-      if (matchesPerPage > 0 && page > 0 && hits.length() > 0) {
+      if (matchesPerPage > 0 && page > 0 && hitCount > 0) {
         start=matchesPerPage * (page - 1);
         end=start + matchesPerPage;
-        start=(start > hits.length()) ? hits.length() : start;
-        end=(end > hits.length()) ? hits.length() : end;
+        start=(start > hitCount) ? hitCount : start;
+        end=(end > hitCount) ? hitCount : end;
       }
  else {
         start=0;
-        end=hits.length();
+        end=hitCount;
       }
-      for (int i=0, cnt=0; i < hits.length() && cnt < end; i++) {
+      for (int i=0, cnt=0; i < hitCount && cnt < end; i++) {
         try {
           doc=hits.doc(i);
           if (hasReadPermission(cms,doc)) {
@@ -114,15 +111,15 @@
           OpenCms.getLog(this).warn("Error during search result iteration",e);
         }
       }
-      searchResults.add(new Integer(hits.length()));
+      searchResults.setHitCount(hitCount);
     }
  else {
-      searchResults.add(new Integer(0));
+      searchResults.setHitCount(0);
     }
     timeResultProcessing+=System.currentTimeMillis();
   }
  catch (  Exception exc) {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ "Search on "+ m_path+ " failed. ",exc);
+    throw new CmsException("Searching for \"" + searchQuery + "\" failed",exc);
   }
  finally {
     Thread.currentThread().setPriority(previousPriority);

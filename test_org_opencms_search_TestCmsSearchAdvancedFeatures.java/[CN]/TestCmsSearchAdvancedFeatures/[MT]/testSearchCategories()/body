@@ -1,0 +1,43 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing searching for categories");
+  CmsSearch searchBean=new CmsSearch();
+  List searchResult;
+  String query="OpenCms";
+  CmsProperty cat1=new CmsProperty(I_CmsConstants.C_PROPERTY_SEARCH_CATEGORY,"category_1",null,true);
+  CmsProperty cat2=new CmsProperty(I_CmsConstants.C_PROPERTY_SEARCH_CATEGORY,"category_2",null,true);
+  CmsProperty cat3=new CmsProperty(I_CmsConstants.C_PROPERTY_SEARCH_CATEGORY,"category_3",null,true);
+  cms.lockResource("/folder1/");
+  cms.writePropertyObject("/folder1/",cat1);
+  cms.unlockResource("/folder1/");
+  cms.lockResource("/folder2/");
+  cms.writePropertyObject("/folder2/",cat2);
+  cms.unlockResource("/folder2/");
+  cms.lockResource("/types/");
+  cms.writePropertyObject("/types/",cat3);
+  cms.unlockResource("/types/");
+  OpenCms.getSearchManager().updateIndex(INDEX_OFFLINE,new CmsShellReport());
+  searchBean.init(cms);
+  searchBean.setIndex(INDEX_OFFLINE);
+  searchBean.setQuery(query);
+  searchBean.setCalculateCategories(true);
+  searchResult=searchBean.getSearchResult();
+  Iterator i=searchResult.iterator();
+  System.out.println("Result sorted by relevance:");
+  while (i.hasNext()) {
+    CmsSearchResult res=(CmsSearchResult)i.next();
+    System.out.print(CmsStringUtil.padRight(cms.getRequestContext().removeSiteRoot(res.getPath()),50));
+    System.out.print(CmsStringUtil.padRight(res.getTitle(),40));
+    System.out.println("  score: " + res.getScore());
+  }
+  Map categories=searchBean.getSearchResultCategories();
+  assertNotNull(categories);
+  System.out.println(CmsSearchCategoryCollector.formatCategoryMap(categories));
+  assertTrue(categories.containsKey(cat1.getValue()));
+  assertTrue(categories.containsKey(cat2.getValue()));
+  assertTrue(categories.containsKey(cat3.getValue()));
+  assertTrue(categories.containsKey(CmsSearchCategoryCollector.UNKNOWN_CATEGORY));
+  assertEquals(4,categories.size());
+  assertEquals(new Integer(1),categories.get(cat3.getValue()));
+  assertEquals(new Integer(1),categories.get(CmsSearchCategoryCollector.UNKNOWN_CATEGORY));
+}

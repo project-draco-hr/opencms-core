@@ -2,27 +2,60 @@
   Document document=new Document();
   CmsResource res=(CmsResource)resource.getData();
   String path=cms.getRequestContext().removeSiteRoot(resource.getRootPath());
-  String value;
   I_CmsExtractionResult content=extractContent(cms,resource,language);
   if (content != null) {
     document.add(Field.Text(I_CmsDocumentFactory.DOC_CONTENT,content.getContent()));
   }
   StringBuffer meta=new StringBuffer(512);
-  if ((value=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_TITLE,false).getValue()) != null) {
-    document.add(Field.Keyword(I_CmsDocumentFactory.DOC_TITLE,value));
-    meta.append(value);
-    meta.append(" ");
+  String value;
+  Field field;
+  value=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_TITLE,false).getValue();
+  if (CmsStringUtil.isNotEmpty(value)) {
+    value=value.trim();
+    if (value.length() > 0) {
+      field=Field.Keyword(I_CmsDocumentFactory.DOC_TITLE_KEY,value);
+      field.setBoost(0);
+      document.add(field);
+      document.add(Field.UnStored(I_CmsDocumentFactory.DOC_TITLE_INDEXED,value));
+      meta.append(value);
+      meta.append(" ");
+    }
   }
-  if ((value=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_KEYWORDS,false).getValue()) != null) {
+  value=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_KEYWORDS,false).getValue();
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(value)) {
     document.add(Field.Text(I_CmsDocumentFactory.DOC_KEYWORDS,value));
     meta.append(value);
     meta.append(" ");
   }
-  if ((value=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_DESCRIPTION,false).getValue()) != null) {
+  value=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_DESCRIPTION,false).getValue();
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(value)) {
     document.add(Field.Text(I_CmsDocumentFactory.DOC_DESCRIPTION,value));
     meta.append(value);
     meta.append(" ");
   }
+  String metaInf=meta.toString();
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(metaInf)) {
+    document.add(Field.UnStored(I_CmsDocumentFactory.DOC_META,metaInf));
+  }
+  value=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_SEARCH_CATEGORY,true).getValue();
+  if (CmsStringUtil.isNotEmpty(value)) {
+    value=value.trim().toLowerCase();
+    if (value.length() > 0) {
+      document.add(Field.Keyword(I_CmsDocumentFactory.DOC_CATEGORY,value));
+    }
+  }
+  String rootPath=CmsSearchIndex.rewriteResourcePath(resource.getRootPath(),false);
+  field=Field.UnStored(I_CmsDocumentFactory.DOC_ROOT,rootPath);
+  field.setBoost(0);
+  document.add(field);
+  document.add(Field.UnIndexed(I_CmsDocumentFactory.DOC_PATH,resource.getRootPath()));
+  field=Field.Keyword(I_CmsDocumentFactory.DOC_DATE_CREATED,new Date(res.getDateCreated()));
+  field.setBoost(0);
+  document.add(field);
+  field=Field.Keyword(I_CmsDocumentFactory.DOC_DATE_LASTMODIFIED,new Date(res.getDateLastModified()));
+  field.setBoost(0);
+  document.add(field);
+  document.add(Field.UnIndexed(I_CmsDocumentFactory.DOC_TYPE,C_VFS_DOCUMENT_KEY_PREFIX));
   float boost=1.0f;
   if ((value=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_SEARCH_PRIORITY,true).getValue()) != null) {
     value=value.trim().toLowerCase();
@@ -37,17 +70,5 @@
     }
   }
   document.setBoost(boost);
-  String rootPath=CmsSearchIndex.rewriteResourcePath(resource.getRootPath(),false);
-  Field rootPathField=Field.UnStored(I_CmsDocumentFactory.DOC_ROOT,rootPath);
-  rootPathField.setBoost(0);
-  document.add(rootPathField);
-  document.add(Field.UnIndexed(I_CmsDocumentFactory.DOC_PATH,resource.getRootPath()));
-  String metaInf=meta.toString();
-  if (!CmsStringUtil.isEmptyOrWhitespaceOnly(metaInf)) {
-    document.add(Field.UnStored(I_CmsDocumentFactory.DOC_META,metaInf));
-  }
-  document.add(Field.Keyword(I_CmsDocumentFactory.DOC_DATE_CREATED,DateField.timeToString(res.getDateCreated())));
-  document.add(Field.Keyword(I_CmsDocumentFactory.DOC_DATE_LASTMODIFIED,DateField.timeToString(res.getDateLastModified())));
-  document.add(Field.UnIndexed(I_CmsDocumentFactory.DOC_TYPE,C_VFS_DOCUMENT_KEY_PREFIX));
   return document;
 }
