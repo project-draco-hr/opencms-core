@@ -1,5 +1,6 @@
 {
-  String template=null;
+  String error="";
+  boolean checkurl=true;
   String filename=null;
   String link=null;
   String foldername=null;
@@ -12,95 +13,153 @@
     session.removeValue(C_PARA_FILE);
     session.removeValue(C_PARA_LINK);
     session.removeValue(C_PARA_VIEWFILE);
+    session.removeValue(C_PARA_NAVPOS);
+    session.removeValue(C_PARA_NAVTEXT);
     session.removeValue("lasturl");
   }
-  getLastUrl(cms,parameters);
-  link=cms.getRequestContext().getRequest().getParameter(C_PARA_LINK);
-  if (link != null) {
-    session.putValue(C_PARA_LINK,link);
-  }
-  String navtitle=(String)parameters.get(C_PARA_NAVTEXT);
-  String navpos=(String)parameters.get(C_PARA_NAVPOS);
-  String notChange=(String)parameters.get("newlink");
-  String linkName=null;
-  CmsFile editFile=null;
-  CmsResource linkResource=null;
-  String content=null;
-  String step=cms.getRequestContext().getRequest().getParameter("step");
-  if (notChange != null && notChange.equals("false") && step == null) {
-    linkName=(String)parameters.get("file");
-    editFile=cms.readFile(linkName);
-    content=new String(editFile.getContents());
-    xmlTemplateDocument.setData("LINKNAME",editFile.getName());
-    xmlTemplateDocument.setData("LINK",editFile.getAbsolutePath());
-    xmlTemplateDocument.setData("LINKVALUE",content);
-    template="change";
+  String lastUrl=getLastUrl(cms,parameters);
+  if (lastUrl != null) {
+    session.putValue("lasturl",lastUrl);
   }
   filename=cms.getRequestContext().getRequest().getParameter(C_PARA_FILE);
   if (filename != null) {
     session.putValue(C_PARA_FILE,filename);
   }
+ else {
+    filename=(String)session.getValue(C_PARA_FILE) != null ? (String)session.getValue(C_PARA_FILE) : "";
+  }
   link=cms.getRequestContext().getRequest().getParameter(C_PARA_LINK);
   if (link != null) {
     session.putValue(C_PARA_LINK,link);
   }
+ else {
+    link=(String)session.getValue(C_PARA_LINK) != null ? (String)session.getValue(C_PARA_LINK) : "";
+  }
+  String navtitle=(String)parameters.get(C_PARA_NAVTEXT);
+  if (navtitle != null) {
+    session.putValue(C_PARA_NAVTEXT,navtitle);
+  }
+ else {
+    navtitle=(String)session.getValue(C_PARA_NAVTEXT) != null ? (String)session.getValue(C_PARA_NAVTEXT) : "";
+  }
+  String navpos=(String)parameters.get(C_PARA_NAVPOS);
+  if (navpos != null) {
+    session.putValue(C_PARA_NAVPOS,navpos);
+  }
+ else {
+    navpos=(String)session.getValue(C_PARA_NAVPOS) != null ? (String)session.getValue(C_PARA_NAVPOS) : "";
+  }
+  String notChange=(String)parameters.get("newlink");
+  CmsResource linkResource=null;
+  String step=cms.getRequestContext().getRequest().getParameter("step");
+  xmlTemplateDocument.setData("LINKNAME",filename);
+  xmlTemplateDocument.setData("LINKVALUE",link);
+  xmlTemplateDocument.setData("NAVTITLE",navtitle);
+  if (notChange != null && notChange.equals("false") && step == null) {
+    try {
+      CmsFile currentFile=cms.readFile(filename);
+      String content=new String(currentFile.getContents());
+      xmlTemplateDocument.setData("LINKNAME",currentFile.getName());
+      xmlTemplateDocument.setData("LINK",currentFile.getAbsolutePath());
+      xmlTemplateDocument.setData("LINKVALUE",content);
+      templateSelector="change";
+    }
+ catch (    CmsException e) {
+      error=e.getShortException();
+    }
+  }
   if (step != null) {
-    if (step.equals("1")) {
-      foldername=(String)session.getValue(C_PARA_FILELIST);
-      if (foldername == null) {
-        foldername=cms.rootFolder().getAbsolutePath();
-      }
-      filename=(String)session.getValue(C_PARA_FILE);
-      link=(String)session.getValue(C_PARA_LINK);
-      String title=lang.getLanguageValue("explorer.linkto") + " " + link;
-      type="link";
-      if (notChange != null && notChange.equals("false")) {
-        linkName=(String)parameters.get("file");
-        editFile=cms.readFile(linkName);
-        editFile.setContents(link.getBytes());
-        cms.writeFile(editFile);
-        cms.writeProperty(linkName,C_PROPERTY_TITLE,title);
-        linkResource=(CmsResource)editFile;
-      }
- else {
-        Hashtable prop=new Hashtable();
-        prop.put(C_PROPERTY_TITLE,title);
-        linkResource=cms.createResource(foldername,filename,type,prop,link.getBytes());
-      }
-      if (navtitle != null) {
-        cms.writeProperty(linkResource.getAbsolutePath(),C_PROPERTY_NAVTEXT,navtitle);
-        if (navpos != null) {
-          updateNavPos(cms,linkResource,navpos);
-        }
-      }
-      session.removeValue(C_PARA_FILE);
-      session.removeValue(C_PARA_VIEWFILE);
-      session.removeValue(C_PARA_LINK);
+    if (step.equals("1") || step.equals("2")) {
       try {
-        String lastUrl=(String)session.getValue("lasturl");
-        String redirectUrl;
-        if (lastUrl != null) {
-          cms.getRequestContext().getResponse().sendRedirect(lastUrl);
+        foldername=(String)session.getValue(C_PARA_FILELIST);
+        if (foldername == null) {
+          foldername=cms.rootFolder().getAbsolutePath();
+        }
+        String title=lang.getLanguageValue("explorer.linkto") + " " + link;
+        type="link";
+        if (notChange != null && notChange.equals("false")) {
+          CmsFile editFile=cms.readFile(filename);
+          editFile.setContents(link.getBytes());
+          if (step.equals("1")) {
+            if (!link.startsWith("/")) {
+              checkurl=CmsLinkCheck.checkUrl(link);
+            }
+          }
+          if (checkurl) {
+            cms.writeFile(editFile);
+            cms.writeProperty(filename,C_PROPERTY_TITLE,title);
+          }
+          linkResource=(CmsResource)editFile;
         }
  else {
-          cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+          Hashtable prop=new Hashtable();
+          prop.put(C_PROPERTY_TITLE,title);
+          if (step.equals("1")) {
+            if (!link.startsWith("/")) {
+              checkurl=CmsLinkCheck.checkUrl(link);
+            }
+          }
+          if (checkurl) {
+            linkResource=cms.createResource(foldername,filename,type,prop,link.getBytes());
+          }
         }
+        if ((navtitle != null) && checkurl) {
+          cms.writeProperty(linkResource.getAbsolutePath(),C_PROPERTY_NAVTEXT,navtitle);
+          if (navpos != null) {
+            updateNavPos(cms,linkResource,navpos);
+          }
+        }
+        session.removeValue(C_PARA_FILE);
+        session.removeValue(C_PARA_VIEWFILE);
+        session.removeValue(C_PARA_LINK);
+        session.removeValue(C_PARA_NAVTEXT);
+        session.removeValue(C_PARA_NAVPOS);
       }
- catch (      Exception e) {
-        throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+ catch (      CmsException e) {
+        error=e.getShortException();
       }
-      return null;
+      if (checkurl && ("".equals(error.trim()))) {
+        try {
+          if (lastUrl != null) {
+            cms.getRequestContext().getResponse().sendRedirect(lastUrl);
+          }
+ else {
+            cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+          }
+        }
+ catch (        Exception e) {
+          throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+        }
+        return null;
+      }
     }
   }
  else {
     session.removeValue(C_PARA_FILE);
     session.removeValue(C_PARA_VIEWFILE);
+    session.removeValue(C_PARA_LINK);
+    session.removeValue(C_PARA_NAVTEXT);
   }
-  String cancelUrl;
-  cancelUrl=(String)session.getValue("lasturl");
-  if (cancelUrl == null) {
-    cancelUrl=C_WP_EXPLORER_FILELIST;
+  if (lastUrl == null) {
+    lastUrl=C_WP_EXPLORER_FILELIST;
   }
-  xmlTemplateDocument.setData("lasturl",cancelUrl);
-  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,template);
+  xmlTemplateDocument.setData("lasturl",lastUrl);
+  if (!checkurl) {
+    xmlTemplateDocument.setData("folder",foldername);
+    xmlTemplateDocument.setData("newlink",notChange);
+    session.putValue(C_PARA_LINK,link);
+    session.putValue(C_PARA_FILE,filename);
+    session.putValue(C_PARA_NAVTEXT,navtitle);
+    session.putValue(C_PARA_NAVPOS,navpos);
+    templateSelector="errorcheckurl";
+  }
+  if (!"".equals(error.trim())) {
+    xmlTemplateDocument.setData("errordetails",error);
+    session.putValue(C_PARA_LINK,link);
+    session.putValue(C_PARA_FILE,filename);
+    session.putValue(C_PARA_NAVTEXT,navtitle);
+    session.putValue(C_PARA_NAVPOS,navpos);
+    templateSelector="error";
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }
