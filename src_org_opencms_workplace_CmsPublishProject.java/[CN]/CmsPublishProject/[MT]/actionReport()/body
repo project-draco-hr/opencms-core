@@ -12,8 +12,10 @@ case ACTION_REPORT_BEGIN:
 case ACTION_CONFIRMED:
 default :
 try {
+CmsResource publishResource=null;
 if ("true".equals(getParamDirectpublish())) {
-org.opencms.lock.CmsLock lock=getCms().getLock(getParamResource());
+publishResource=getCms().readFileHeader(getParamResource());
+org.opencms.lock.CmsLock lock=getCms().getLock(publishResource);
 if (!lock.isNullLock()) {
 getCms().unlockResource(getParamResource(),false);
 }
@@ -31,6 +33,12 @@ getCms().unlockResource(folderName,false);
 getCms().unlockProject(Integer.parseInt(getParamProjectid()));
 }
 }
+CmsHtmlLinkValidatorThread thread=new CmsHtmlLinkValidatorThread(getCms(),publishResource,"true".equals(getParamPublishsiblings()));
+setParamAction(REPORT_BEGIN);
+setParamThread(thread.getId().toString());
+setParamThreadHasNext("true");
+setParamReportContinueKey("label.button.continue.brokenlinks");
+getJsp().include(C_FILE_REPORT_OUTPUT);
 }
  catch (CmsException e) {
 setParamErrorstack(e.getStackTraceAsString());
@@ -38,20 +46,5 @@ setParamMessage(key("error.message.projectlockchange"));
 setParamReasonSuggestion(key("error.reason.projectlockchange") + "<br>\n" + key("error.suggestion.projectlockchange"));
 getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
 }
-CmsResource publishResource=null;
-if ("true".equals(getParamDirectpublish())) {
-try {
-publishResource=getCms().readFileHeader(getParamResource());
-}
- catch (CmsException e) {
-}
-}
-CmsHtmlLinkValidatorThread thread=new CmsHtmlLinkValidatorThread(getCms(),publishResource,"true".equals(getParamPublishsiblings()));
-setParamAction(REPORT_BEGIN);
-setParamThread(thread.getId().toString());
-setParamThreadHasNext("true");
-setParamReportContinueKey("label.button.continue.brokenlinks");
-getJsp().include(C_FILE_REPORT_OUTPUT);
-break;
 }
 }
