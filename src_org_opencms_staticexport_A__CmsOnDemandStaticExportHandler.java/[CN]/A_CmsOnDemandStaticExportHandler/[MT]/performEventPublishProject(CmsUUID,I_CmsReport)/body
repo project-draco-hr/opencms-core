@@ -1,10 +1,35 @@
 {
-  final CmsUUID id=publishHistoryId;
-  Thread t=new Thread(new Runnable(){
-    public void run(){
-      scrubExportFolders(id);
+  int count=0;
+  while ((count < CmsStaticExportManager.C_HANDLER_FINISH_TIME) && isBusy()) {
+    count++;
+    try {
+      if (OpenCms.getLog(this).isInfoEnabled()) {
+        OpenCms.getLog(this).info(". Waiting for static export handler " + getClass().getName() + " to finish ("+ count+ "/"+ CmsStaticExportManager.C_HANDLER_FINISH_TIME+ ")");
+      }
+      Thread.sleep(1000);
+    }
+ catch (    InterruptedException e) {
+      count=CmsStaticExportManager.C_HANDLER_FINISH_TIME;
     }
   }
+  if (isBusy()) {
+    OpenCms.getLog(this).error("Unable to perform scrubbing of export folder for publish history id " + publishHistoryId + " since previous handler call would not terminate after "+ CmsStaticExportManager.C_HANDLER_FINISH_TIME+ " seconds.");
+    return;
+  }
+  final CmsUUID id=publishHistoryId;
+  if (OpenCms.getRunLevel() > 0) {
+    m_busy=true;
+    Thread t=new Thread(new Runnable(){
+      public void run(){
+        try {
+          scrubExportFolders(id);
+        }
+  finally {
+          m_busy=false;
+        }
+      }
+    }
 );
-  t.start();
+    t.start();
+  }
 }
