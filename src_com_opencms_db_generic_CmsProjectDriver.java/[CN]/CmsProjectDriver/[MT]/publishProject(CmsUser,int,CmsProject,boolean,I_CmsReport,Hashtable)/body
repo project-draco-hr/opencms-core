@@ -88,7 +88,7 @@
         }
       }
       folderIdIndex.put(currentFolder.getResourceId(),newFolder.getResourceId());
-      m_driverManager.getUserDriver().publishAccessControlEntries(currentProject,onlineProject,currentFolder.getResourceId(),newFolder.getResourceId());
+      m_driverManager.getUserDriver().publishAccessControlEntries(currentProject,onlineProject,currentFolder.getResourceAceId(),newFolder.getResourceAceId());
       Map props=new HashMap();
       try {
         props=m_driverManager.getVfsDriver().readProperties(projectId,currentFolder,currentFolder.getType());
@@ -160,6 +160,7 @@
         m_sqlManager.closeAll(conn,stmt,null);
       }
       folderIdIndex.put(currentFolder.getResourceId(),onlineFolder.getResourceId());
+      m_driverManager.getUserDriver().publishAccessControlEntries(currentProject,onlineProject,currentFolder.getResourceAceId(),newFolder.getResourceAceId());
       Map props=new HashMap();
       try {
         m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),onlineFolder);
@@ -219,6 +220,15 @@
       try {
         m_driverManager.getVfsDriver().deleteResource(currentOnlineFile);
         m_driverManager.getVfsDriver().deleteResource(currentFile);
+      }
+ catch (      CmsException exc) {
+        if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsProjectDriver] error publishing, deleting resource for " + currentOnlineFile.toString() + " Message= "+ exc.getMessage());
+        }
+      }
+      try {
+        m_driverManager.getUserDriver().removeAllAccessControlEntries(onlineProject,currentOnlineFile.getResourceAceId());
+        m_driverManager.getUserDriver().removeAllAccessControlEntries(currentProject,currentFile.getResourceAceId());
       }
  catch (      CmsException exc) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -417,6 +427,8 @@
     }
     m_driverManager.getVfsDriver().removeFolderForPublish(onlineProject.getId(),currentFolder.getResourceName());
     m_driverManager.getVfsDriver().removeFolderForPublish(projectId,currentFolder.getResourceName());
+    m_driverManager.getUserDriver().removeAllAccessControlEntries(onlineProject,delOnlineFolder.getResourceAceId());
+    m_driverManager.getUserDriver().removeAllAccessControlEntries(currentProject,currentFolder.getResourceAceId());
   }
   return changedResources;
 }
