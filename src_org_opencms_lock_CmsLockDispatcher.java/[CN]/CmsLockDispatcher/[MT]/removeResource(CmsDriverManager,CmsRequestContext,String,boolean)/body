@@ -1,0 +1,28 @@
+{
+  CmsLock lock=getLock(driverManager,context,resourcename);
+  CmsResource sibling=null;
+  if (lock.isNullLock()) {
+    return null;
+  }
+ else   if (!forceUnlock && (lock.getUserId() != context.currentUser().getId() || lock.getProjectId() != context.currentProject().getId())) {
+    throw new CmsLockException("Unable to unlock resource, resource is locked by another user and/or in another project",CmsLockException.C_RESOURCE_LOCKED_BY_OTHER_USER);
+  }
+ else   if (lock.getType() == CmsLock.C_TYPE_EXCLUSIVE) {
+    return (CmsLock)m_exclusiveLocks.remove(resourcename);
+  }
+ else   if (lock.getType() == CmsLock.C_TYPE_SHARED_EXCLUSIVE) {
+    List siblings=driverManager.getAllSiblings(context,resourcename);
+    for (int i=0; i < siblings.size(); i++) {
+      sibling=(CmsResource)siblings.get(i);
+      if (m_exclusiveLocks.containsKey(sibling.getFullResourceName())) {
+        m_exclusiveLocks.remove(sibling.getFullResourceName());
+        break;
+      }
+    }
+    return lock;
+  }
+ else   if (lock.getType() == CmsLock.C_TYPE_INHERITED || lock.getType() == CmsLock.C_TYPE_SHARED_INHERITED) {
+    throw new CmsLockException("Unable to unlock resource due to an inherited lock of a parent folder",CmsLockException.C_RESOURCE_LOCKED_INHERITED);
+  }
+  return null;
+}
