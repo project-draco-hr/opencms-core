@@ -1,17 +1,17 @@
 {
   CmsUUID id=new CmsUUID();
-  byte[] value=null;
   PreparedStatement stmt=null;
   PreparedStatement stmt2=null;
   PreparedStatement nextStmt=null;
   Connection conn=null;
   ResultSet res=null;
   try {
-    value=internalSerializeAdditionalUserInfo(additionalInfos);
     conn=m_sqlManager.getConnection();
-    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERSFORINSERT");
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERS_ADD");
     stmt.setString(1,id.toString());
     stmt.setString(2,name);
+    stmt.setString(3,encryptPassword(password));
+    stmt.setString(4,encryptPassword(""));
     stmt.setString(3,encryptPassword(password));
     stmt.setString(4,encryptPassword(""));
     stmt.setString(5,m_sqlManager.validateNull(description));
@@ -27,51 +27,14 @@
     stmt.setInt(15,type);
     stmt.executeUpdate();
     stmt.close();
-    stmt2=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERSFORUPDATE");
-    stmt2.setString(1,id.toString());
-    conn.setAutoCommit(false);
-    res=((DelegatingResultSet)stmt2.executeQuery()).getInnermostDelegate();
-    while (res.next()) {
-      oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("USER_INFO");
-      ByteArrayInputStream instream=new ByteArrayInputStream(value);
-      OutputStream outstream=blob.getBinaryOutputStream();
-      byte[] chunk=new byte[blob.getChunkSize()];
-      int i=-1;
-      while ((i=instream.read(chunk)) != -1) {
-        outstream.write(chunk,0,i);
-      }
-      instream.close();
-      outstream.close();
-    }
-    stmt2.close();
-    res.close();
-    nextStmt=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
-    nextStmt.execute();
-    nextStmt.close();
-    conn.setAutoCommit(true);
+    stmt=null;
+    internalWriteUserInfo(id,additionalInfos);
   }
  catch (  SQLException e) {
-    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
-  }
-catch (  IOException e) {
-    throw m_sqlManager.getCmsException(this,"[CmsAccessUserInfoMySql/addUserInformation(id,object)]:",CmsException.C_SERIALIZATION,e,false);
+    throw m_sqlManager.getCmsException(this,"[createUser]:",CmsException.C_SQL_ERROR,e,false);
   }
  finally {
-    if (stmt2 != null) {
-      try {
-        stmt2.close();
-      }
- catch (      SQLException exc) {
-      }
-      try {
-        nextStmt=m_sqlManager.getPreparedStatement(conn,"C_ROLLBACK");
-        nextStmt.execute();
-      }
- catch (      SQLException se) {
-      }
-    }
-    m_sqlManager.closeAll(null,nextStmt,null);
-    m_sqlManager.closeAll(conn,stmt,res);
+    m_sqlManager.closeAll(conn,stmt,null);
   }
   return readUser(id);
 }
