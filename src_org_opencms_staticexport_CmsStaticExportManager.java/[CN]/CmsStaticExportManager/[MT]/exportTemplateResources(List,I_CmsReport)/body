@@ -1,0 +1,58 @@
+{
+  int size=publishedTemplateResources.size();
+  int count=1;
+  if (OpenCms.getLog(this).isDebugEnabled()) {
+    OpenCms.getLog(this).debug("Starting export of template resources with " + size + " possible canditates in list");
+  }
+  report.println(report.key("report.staticexport.templateresources_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+  Iterator i=publishedTemplateResources.iterator();
+  while (i.hasNext()) {
+    String rfsName=(String)i.next();
+    report.print("(" + count++ + " / "+ size+ ") ",I_CmsReport.C_FORMAT_NOTE);
+    report.print(report.key("report.exporting"),I_CmsReport.C_FORMAT_NOTE);
+    report.print(rfsName);
+    report.print(report.key("report.dots"));
+    String exportUrlStr=getExportUrl() + getRfsPrefix() + rfsName;
+    if (OpenCms.getLog(this).isDebugEnabled()) {
+      OpenCms.getLog(this).debug("Sending request for RFS file " + rfsName + " with url ("+ exportUrlStr+ ")");
+    }
+    try {
+      URL exportUrl=new URL(exportUrlStr);
+      HttpURLConnection.setFollowRedirects(false);
+      HttpURLConnection urlcon=(HttpURLConnection)exportUrl.openConnection();
+      urlcon.setRequestMethod("GET");
+      urlcon.setRequestProperty(I_CmsConstants.C_HEADER_OPENCMS_EXPORT,"true");
+      String exportFileName=CmsLinkManager.normalizeRfsPath(getExportPath() + rfsName.substring(1));
+      File exportFile=new File(exportFileName);
+      if (exportFile != null) {
+        long dateLastModified=exportFile.lastModified();
+        urlcon.setIfModifiedSince(dateLastModified);
+        if (OpenCms.getLog(this).isDebugEnabled()) {
+          OpenCms.getLog(this).debug("Request for RFS file " + exportFile.getName() + "' If-Modofied-Since' header set to "+ (dateLastModified / 1000) * 1000);
+        }
+      }
+      urlcon.connect();
+      int status=urlcon.getResponseCode();
+      urlcon.disconnect();
+      if (OpenCms.getLog(this).isInfoEnabled()) {
+        OpenCms.getLog(this).info("Request result for RFS file " + rfsName + " with url ("+ exportUrlStr+ ") was STATUS="+ status);
+      }
+      if (status == HttpServletResponse.SC_OK) {
+        report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+      }
+ else       if (status == HttpServletResponse.SC_NOT_MODIFIED) {
+        report.println(report.key("report.skipped"),I_CmsReport.C_FORMAT_NOTE);
+      }
+ else       if (status == HttpServletResponse.SC_SEE_OTHER) {
+        report.println(report.key("report.ignored"),I_CmsReport.C_FORMAT_NOTE);
+      }
+ else {
+        report.println(String.valueOf(status),I_CmsReport.C_FORMAT_OK);
+      }
+    }
+ catch (    IOException e) {
+      report.println(e);
+    }
+  }
+  report.println(report.key("report.staticexport.templateresources_end"),I_CmsReport.C_FORMAT_HEADLINE);
+}
