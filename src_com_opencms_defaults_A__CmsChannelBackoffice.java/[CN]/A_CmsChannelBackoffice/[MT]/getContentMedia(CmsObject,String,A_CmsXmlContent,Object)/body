@@ -11,6 +11,7 @@
   media_name=(media_name != null ? media_name.trim() : "");
   String media_title=(String)parameters.get("media_alt_text");
   media_title=(media_title != null ? media_title.trim() : "");
+  media_title=com.opencms.util.Encoder.unescape(media_title);
   String pos=(String)parameters.get("pos");
   pos=(pos != null ? pos.trim() : "");
   if (pos.equals("")) {
@@ -118,7 +119,9 @@
     session.putValue("media_position",media_position);
     templateFile.setData("media_name",selectedmediaCD.getName());
     templateFile.setData("posEdit",pos);
-    templateFile.setData("media_alt_text",com.opencms.util.Encoder.escape(selectedmediaCD.getTitle()));
+    String title=selectedmediaCD.getTitle();
+    title=com.opencms.util.Encoder.unescape(title);
+    templateFile.setData("media_alt_text",title);
     templateFile.setData("media_file",templateFile.getProcessedDataValue("media_edit",this));
   }
  else {
@@ -126,15 +129,35 @@
     templateFile.setData("media_file",templateFile.getProcessedDataValue("media_upload",this));
   }
   if (media != null) {
+    String selectBoxContent="";
+    try {
+      selectBoxContent=selectBoxContent(cms);
+    }
+ catch (    Exception e) {
+    }
     for (int i=0; i < media.size(); i++) {
       mediaCD=(CmsMasterMedia)media.elementAt(i);
       templateFile.setData("pos","" + i);
       templateFile.setData("media_row_name",mediaCD.getName());
       templateFile.setData("media_title",mediaCD.getTitle());
-      templateFile.setData("media_position","" + mediaCD.getPosition());
+      String mediapos="" + mediaCD.getPosition();
+      StringTokenizer t=new StringTokenizer(selectBoxContent,";");
+      while (t.hasMoreElements()) {
+        String s=t.nextToken();
+        if (s != null && !s.equals("")) {
+          int z=s.indexOf(":");
+          String value=s.substring(0,z);
+          String name=s.substring(z + 1);
+          if (mediapos.equals(name)) {
+            mediapos=value;
+          }
+        }
+      }
+      templateFile.setData("media_position","" + mediapos);
       templateFile.setData("media_size","" + mediaCD.getSize());
       templateFile.setData("media_type","" + mediaCD.getType());
       row+=templateFile.getProcessedDataValue("media_row",this);
+      mediapos="";
     }
     templateFile.setData("media_line",row);
   }
