@@ -25,17 +25,44 @@ catch (  Exception exc2) {
   StringBuffer result=new StringBuffer();
   String priority;
   String projectname;
+  String stateIcon;
+  long startTime;
+  long timeout;
+  long now=new Date().getTime();
   for (int i=0; i < list.size(); i++) {
     A_CmsTask task=(A_CmsTask)list.elementAt(i);
     projectname=cms.readTask(task.getRoot()).getName();
     priority=listdef.getProcessedXmlDataValue("priority" + task.getPriority(),callingObject);
+    startTime=task.getStartTime().getTime();
+    timeout=task.getTimeOut().getTime();
+    System.err.println("~~~ " + task.getName() + " "+ task.getState()+ " "+ task.getPercentage());
+    if (task.getState() == C_TASK_STATE_ENDED) {
+      if (timeout > now) {
+        stateIcon=listdef.getProcessedXmlDataValue("alertok",callingObject);
+      }
+ else {
+        stateIcon=listdef.getProcessedXmlDataValue("ok",callingObject);
+      }
+    }
+ else     if (task.getPercentage() == 0) {
+      stateIcon=listdef.getProcessedXmlDataValue("new",callingObject);
+    }
+ else {
+      if (timeout > now) {
+        stateIcon=listdef.getProcessedXmlDataValue("alert",callingObject);
+      }
+ else {
+        stateIcon=listdef.getProcessedXmlDataValue("activ",callingObject);
+      }
+    }
+    listdef.setXmlData("stateicon",stateIcon);
     listdef.setXmlData("priority",priority);
     listdef.setXmlData("task",task.getName());
     listdef.setXmlData("foruser",cms.readAgent(task).getName());
     listdef.setXmlData("forrole",cms.readGroup(task).getName());
     listdef.setXmlData("actuator",cms.readOwner(task).getName());
-    listdef.setXmlData("due",task.getTimeOut().toLocaleString());
-    listdef.setXmlData("from",task.getStartTime().toLocaleString());
+    listdef.setXmlData("due",Utils.getNiceDate(timeout));
+    listdef.setXmlData("from",Utils.getNiceDate(startTime));
     listdef.setXmlData("project",projectname);
     result.append(listdef.getProcessedXmlDataValue("defaulttasklist",callingObject,parameters));
   }
