@@ -1,43 +1,30 @@
 {
   Message msg=null;
-  try {
-    msg=buildMessage(m_mailserver);
-  }
- catch (  Exception e) {
-    if (OpenCms.getLog(this).isErrorEnabled()) {
-      OpenCms.getLog(this).error("Error while building Email object",e);
-    }
-    return;
-  }
-  try {
-    Transport.send(msg);
-  }
- catch (  Exception e) {
-    for (; e instanceof MessagingException; e=((MessagingException)e).getNextException()) {
-    }
-    if (OpenCms.getLog(this).isErrorEnabled()) {
-      OpenCms.getLog(this).error("Error while transmitting using default SMTP server",e);
-    }
-    if (m_alternativeMailserver != null && !"".equals(m_alternativeMailserver)) {
-      try {
-        msg=buildMessage(m_alternativeMailserver);
-        Transport.send(msg);
-        if (OpenCms.getLog(this).isInfoEnabled()) {
-          OpenCms.getLog(this).info("Mail send using alternative SMTP server");
-        }
-      }
- catch (      Exception e2) {
-        for (; e2 instanceof MessagingException; e2=((MessagingException)e2).getNextException()) {
-        }
-        if (OpenCms.getLog(this).isFatalEnabled()) {
-          OpenCms.getLog(this).fatal("Could not send Email, even alternative SMPT server failed",e2);
-        }
+  Iterator i=OpenCms.getSystemInfo().getMailSettings().getMailHosts().iterator();
+  boolean success=false;
+  while (i.hasNext()) {
+    CmsMailSettings.CmsMailHost host=(CmsMailSettings.CmsMailHost)i.next();
+    try {
+      msg=buildMessage(host);
+      Transport.send(msg);
+      success=true;
+      if (OpenCms.getLog(this).isInfoEnabled()) {
+        OpenCms.getLog(this).info("Success sending mail from '" + m_from + "' to '"+ getRecieverNames()+ "' with subject '"+ m_subject+ "' using host "+ host);
       }
     }
- else {
-      if (OpenCms.getLog(this).isFatalEnabled()) {
-        OpenCms.getLog(this).fatal("No alternative SMTP server given, could not send Email");
+ catch (    Exception e) {
+      while (e instanceof MessagingException) {
+        e=((MessagingException)e).getNextException();
+      }
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Error while transmitting mail using host " + host,e);
       }
     }
+    if (success) {
+      break;
+    }
+  }
+  if ((!success) && OpenCms.getLog(this).isErrorEnabled()) {
+    OpenCms.getLog(this).error("Could not send mail from '" + m_from + "' to '"+ getRecieverNames()+ "' with subject '"+ m_subject+ "' using any configred host");
   }
 }

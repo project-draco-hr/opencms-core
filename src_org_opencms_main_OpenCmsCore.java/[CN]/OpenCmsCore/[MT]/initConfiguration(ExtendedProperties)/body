@@ -72,11 +72,16 @@
     }
   }
   CmsConfigurationManager configurationManager=new CmsConfigurationManager();
-  configurationManager.loadXmlConfiguration(getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("config/opencms.xml"));
+  URL baseUrl=(new File(getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("config/"))).toURL();
+  configurationManager.loadXmlConfiguration(baseUrl);
+  CmsSystemConfiguration systemConfiguration=(CmsSystemConfiguration)configurationManager.getConfiguration(CmsSystemConfiguration.class);
+  getSystemInfo().setVersionHistorySettings(systemConfiguration.isVersionHistoryEnabled(),systemConfiguration.getVersionHistoryMaxCount());
+  getSystemInfo().setMailSettings(systemConfiguration.getMailSettings());
+  getSystemInfo().setSynchronizeSettings(new CmsSynchronizeSettings());
+  m_resourceInitHandlers=systemConfiguration.getResourceInitHandlers();
   CmsVfsConfiguration vfsConfiguation=(CmsVfsConfiguration)configurationManager.getConfiguration(CmsVfsConfiguration.class);
   m_loaderManager=vfsConfiguation.getLoaderManager();
   List resourceTypes=vfsConfiguation.getResourceTypes();
-  getSystemInfo().setVersionHistorySettings(vfsConfiguation.isVersionHistoryEnabled(),vfsConfiguation.getVersionHistoryMaxCount());
   CmsImportExportConfiguration importExportConfiguration=(CmsImportExportConfiguration)configurationManager.getConfiguration(CmsImportExportConfiguration.class);
   m_importExportManager=importExportConfiguration.getImportExportManager();
   CmsWorkplaceConfiguration workplaceConfiguration=(CmsWorkplaceConfiguration)configurationManager.getConfiguration(CmsWorkplaceConfiguration.class);
@@ -142,29 +147,6 @@
   if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
     getLog(CmsLog.CHANNEL_INIT).info(". Password validation  : " + m_passwordValidatingClass);
   }
-  try {
-    List resourceInitClasses=OpenCms.getRegistry().getResourceInit();
-    Iterator i=resourceInitClasses.iterator();
-    while (i.hasNext()) {
-      String currentClass=(String)i.next();
-      try {
-        m_checkFile.add(Class.forName(currentClass).newInstance());
-        if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-          getLog(CmsLog.CHANNEL_INIT).info(". Resource init class  : " + currentClass + " instanciated");
-        }
-      }
- catch (      Exception e1) {
-        if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
-          getLog(CmsLog.CHANNEL_INIT).warn(". Resource init class  : non-critical error " + e1.toString());
-        }
-      }
-    }
-  }
- catch (  Exception e2) {
-    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).warn(". Resource init class  : non-critical error " + e2.toString());
-    }
-  }
   Boolean supportOldLocales=configuration.getBoolean("compatibility.support.oldlocales",new Boolean(false));
   setRuntimeProperty("compatibility.support.oldlocales",supportOldLocales);
   if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
@@ -197,7 +179,8 @@
   setRuntimeProperty("compatibility.support.webAppNames",webAppNames);
   CmsObject adminCms=initCmsObject(null,null,getDefaultUsers().getUserAdmin(),null);
   m_workplaceManager.initialize(adminCms);
-  m_localeManager=CmsLocaleManager.initialize(configuration,adminCms);
+  m_localeManager=systemConfiguration.getLocaleManager();
+  m_localeManager.initialize(adminCms);
   m_siteManager=CmsSiteManager.initialize(configuration,adminCms);
   m_searchManager=CmsSearchManager.initialize(configuration,adminCms);
 }
