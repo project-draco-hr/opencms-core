@@ -1,0 +1,40 @@
+{
+  List allFolders=new ArrayList();
+  List allFiles=new ArrayList();
+  CmsFolder currentFolder=cms.readFolder(resourceName,CmsResourceFilter.IGNORE_EXPIRATION);
+  CmsFile currentFile;
+  if (!cms.hasPermissions(currentFolder,I_CmsConstants.C_WRITE_ACCESS)) {
+    return;
+  }
+  if (touchRecursive) {
+    getAllResources(cms,resourceName,allFiles,allFolders);
+  }
+  allFolders.add(currentFolder);
+  Iterator touchFolders=allFolders.iterator();
+  while (touchFolders.hasNext()) {
+    currentFolder=(CmsFolder)touchFolders.next();
+    if (DEBUG > 0) {
+      System.err.println("touching: " + cms.readAbsolutePath(currentFolder));
+    }
+    cms.doTouch(cms.readAbsolutePath(currentFolder),timestamp,releasedate,expiredate,user);
+    if (C_BODY_MIRROR) {
+      String bodyFolder=I_CmsWpConstants.C_VFS_PATH_BODIES.substring(0,I_CmsWpConstants.C_VFS_PATH_BODIES.lastIndexOf("/")) + cms.readAbsolutePath(currentFolder);
+      try {
+        cms.readFolder(bodyFolder);
+        cms.doTouch(bodyFolder,timestamp,releasedate,expiredate,user);
+      }
+ catch (      CmsException e) {
+      }
+    }
+  }
+  Iterator touchFiles=allFiles.iterator();
+  while (touchFiles.hasNext()) {
+    currentFile=(CmsFile)touchFiles.next();
+    if (DEBUG > 0) {
+      System.err.println("touching: " + cms.readAbsolutePath(currentFile));
+    }
+    if (currentFile.getState() != I_CmsConstants.C_STATE_DELETED) {
+      cms.touch(cms.readAbsolutePath(currentFile),timestamp,releasedate,expiredate,false);
+    }
+  }
+}
