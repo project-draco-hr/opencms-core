@@ -1,14 +1,22 @@
 {
   if (!hasAccess()) {
-    throw new CmsException("No access to perform the action 'importModule'",CmsException.C_REGISTRY_ERROR);
+    throw new CmsException("No access to perform the action 'deleteModule'",CmsException.C_REGISTRY_ERROR);
+  }
+  Vector deps=deleteCheckDependencies(module);
+  if (deps.size() != 0) {
+    throw new CmsException("There are dependencies for the module " + module + ": deletion is not allowed.",CmsException.C_REGISTRY_ERROR);
   }
   Vector resourceNames=new Vector();
+  Vector missingFiles=new Vector();
+  Vector wrongChecksum=new Vector();
+  Vector filesInUse=new Vector();
   Vector resourceCodes=new Vector();
+  deleteGetConflictingFileNames(module,resourceNames,missingFiles,wrongChecksum,filesInUse,new Vector());
   getModuleFiles(module,resourceNames,resourceCodes);
   for (int i=resourceNames.size() - 1; i >= 0; i--) {
     try {
       String currentResource=(String)resourceNames.elementAt(i);
-      if (!exclusion.contains(currentResource)) {
+      if ((!exclusion.contains(currentResource)) && (!filesInUse.contains(filesInUse))) {
         m_cms.lockResource(currentResource,true);
         if (currentResource.endsWith("/")) {
           m_cms.deleteFolder(currentResource);
@@ -19,7 +27,6 @@
       }
     }
  catch (    CmsException exc) {
-      exc.printStackTrace();
     }
   }
   Element moduleElement=getModuleElement(module);
