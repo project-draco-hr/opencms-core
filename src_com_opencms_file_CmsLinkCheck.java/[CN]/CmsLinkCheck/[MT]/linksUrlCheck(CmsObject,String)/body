@@ -1,12 +1,13 @@
 {
-  Vector inList=null;
   Hashtable notAvailable=new Hashtable();
   Vector linkList=new Vector();
+  Hashtable ownerLinkList=new Hashtable();
   Hashtable linkckecktable=cms.readLinkCheckTable();
   Hashtable newLinkchecktable=new Hashtable();
-  CmsXmlTemplateFile template=getOwnTemplateFile(cms,C_MAIL_TEMPLATE,"",null,"");
+  Hashtable emailValues=cms.getRegistry().getSystemValues("checklink");
+  CmsXmlTemplateFile template=getOwnTemplateFile(cms,(String)emailValues.get("mailtemplate"),"",null,"");
   GregorianCalendar actDate=new GregorianCalendar();
-  String actDateString=actDate.get(GregorianCalendar.DATE) + "." + (actDate.get(GregorianCalendar.MONTH) + 1)+ "."+ actDate.get(GregorianCalendar.YEAR)+ " "+ actDate.get(GregorianCalendar.HOUR_OF_DAY)+ ":"+ actDate.get(GregorianCalendar.MINUTE)+ ":"+ actDate.get(GregorianCalendar.SECOND);
+  String actDateString=getDateString(actDate);
   template.setData("actdate",actDateString);
   newLinkchecktable.put(C_LINKCHECKTABLE_DATE,actDateString);
   StringBuffer mailContent=new StringBuffer(template.getProcessedDataValue("single_message"));
@@ -22,46 +23,89 @@
         failedCheck=Integer.parseInt(numFromTable);
       }
       if (!checkUrl(linkUrl)) {
+        Vector inList=null;
         inList=(Vector)notAvailable.get(linkUrl);
         if (inList == null) {
           inList=new Vector();
         }
         inList.addElement(linkName);
         notAvailable.put(linkUrl,inList);
+        if ((parameter != null) && ("owneremail".equals(parameter.trim()))) {
+          String ownerEmail=null;
+          try {
+            CmsUser owner=cms.readUser(linkElement.getOwnerId());
+            ownerEmail=owner.getEmail();
+          }
+ catch (          Exception e) {
+          }
+          if ((ownerEmail == null) || ("".equals(ownerEmail.trim()))) {
+            ownerEmail=(String)emailValues.get("mailto");
+          }
+          Vector ownerLinks=null;
+          ownerLinks=(Vector)ownerLinkList.get(ownerEmail);
+          if (ownerLinks == null) {
+            ownerLinks=new Vector();
+          }
+          ownerLinks.addElement(linkName + ", " + linkUrl);
+          ownerLinkList.put(ownerEmail,ownerLinks);
+        }
         newLinkchecktable.put(linkName + ", " + linkUrl,"" + (failedCheck + 1));
       }
     }
   }
   cms.writeLinkCheckTable(newLinkchecktable);
   if ((parameter != null) && (!"".equals(parameter.trim()))) {
-    if (notAvailable.size() > 0) {
-      Enumeration linkKeys=notAvailable.keys();
-      StringBuffer mailUrls=new StringBuffer();
-      while (linkKeys.hasMoreElements()) {
-        String url=(String)linkKeys.nextElement();
-        template.setData("url",url);
-        Vector linknames=(Vector)notAvailable.get(url);
-        StringBuffer mailLinks=new StringBuffer();
-        for (int j=0; j < linknames.size(); j++) {
-          String nextLink=(String)linknames.elementAt(j);
-          template.setData("linkname",nextLink);
-          mailLinks.append(template.getProcessedDataValue("single_link"));
+    if ("owneremail".equals(parameter.trim())) {
+      if (ownerLinkList.size() > 0) {
+        Enumeration ownerKeys=ownerLinkList.keys();
+        while (ownerKeys.hasMoreElements()) {
+          StringBuffer ownerContent=new StringBuffer();
+          ownerContent.append(mailContent.toString());
+          String mailTo=(String)ownerKeys.nextElement();
+          Vector linknames=(Vector)ownerLinkList.get(mailTo);
+          for (int i=0; i < linknames.size(); i++) {
+            template.setData("linkname",(String)linknames.elementAt(i));
+            ownerContent.append(template.getProcessedDataValue("single_link"));
+          }
+          String mailSubject=template.getProcessedDataValue("emailsubject");
+          String mailFrom=(String)emailValues.get("mailfrom");
+          String[] mailCc=getReceiverArray(template.getDataValue("emailcc"));
+          String[] mailBcc=getReceiverArray(template.getDataValue("emailbcc"));
+          String mailType=template.getDataValue("emailtype");
+          generateEmail(mailFrom,getReceiverArray(mailTo),mailCc,mailBcc,mailSubject,ownerContent.toString(),mailType);
         }
-        template.setData("links",mailLinks.toString());
-        mailUrls.append(template.getProcessedDataValue("single_url"));
       }
-      mailContent.append(mailUrls.toString());
-      if ("email".equals(parameter.trim())) {
-        String mailSubject=template.getProcessedDataValue("emailsubject");
-        String mailFrom=template.getDataValue("emailfrom");
-        String[] mailTo=getReceiverArray(template.getDataValue("emailto"));
-        String[] mailCc=getReceiverArray(template.getDataValue("emailcc"));
-        String[] mailBcc=getReceiverArray(template.getDataValue("emailbcc"));
-        String mailType=template.getDataValue("emailtype");
-        generateEmail(mailFrom,mailTo,mailCc,mailBcc,mailSubject,mailContent.toString(),mailType);
-      }
+    }
  else {
-        generateFile(mailContent.toString(),parameter,actDate);
+      if (notAvailable.size() > 0) {
+        Enumeration linkKeys=notAvailable.keys();
+        StringBuffer mailUrls=new StringBuffer();
+        while (linkKeys.hasMoreElements()) {
+          String url=(String)linkKeys.nextElement();
+          template.setData("url",url);
+          Vector linknames=(Vector)notAvailable.get(url);
+          StringBuffer mailLinks=new StringBuffer();
+          for (int j=0; j < linknames.size(); j++) {
+            String nextLink=(String)linknames.elementAt(j);
+            template.setData("linkname",nextLink);
+            mailLinks.append(template.getProcessedDataValue("single_link"));
+          }
+          template.setData("links",mailLinks.toString());
+          mailUrls.append(template.getProcessedDataValue("single_url"));
+        }
+        mailContent.append(mailUrls.toString());
+        if ("email".equals(parameter.trim())) {
+          String mailSubject=template.getProcessedDataValue("emailsubject");
+          String mailFrom=(String)emailValues.get("mailfrom");
+          String[] mailTo=getReceiverArray((String)emailValues.get("mailto"));
+          String[] mailCc=getReceiverArray(template.getDataValue("emailcc"));
+          String[] mailBcc=getReceiverArray(template.getDataValue("emailbcc"));
+          String mailType=template.getDataValue("emailtype");
+          generateEmail(mailFrom,mailTo,mailCc,mailBcc,mailSubject,mailContent.toString(),mailType);
+        }
+ else {
+          generateFile(mailContent.toString(),parameter,actDate);
+        }
       }
     }
   }
