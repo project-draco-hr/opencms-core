@@ -5,18 +5,19 @@
     setParamAction(EDITOR_ACTION_NEW);
   }
  else {
-    try {
-      checkLock(getParamResource());
-      m_file=getCms().readFile(getParamResource(),CmsResourceFilter.ALL);
-      m_content=CmsXmlContentFactory.unmarshal(getCms(),m_file);
-    }
- catch (    CmsException e) {
+    if (getParamTempfile() != null && !"null".equals(getParamTempfile())) {
       try {
-        showErrorPage(this,e,"read");
+        m_file=getCms().readFile(this.getParamTempfile(),CmsResourceFilter.ALL);
+        m_content=CmsXmlContentFactory.unmarshal(getCms(),m_file);
       }
- catch (      JspException exc) {
-        if (OpenCms.getLog(this).isInfoEnabled()) {
-          OpenCms.getLog(this).info(exc);
+ catch (      CmsException e) {
+        try {
+          showErrorPage(this,e,"read");
+        }
+ catch (        JspException exc) {
+          if (OpenCms.getLog(this).isInfoEnabled()) {
+            OpenCms.getLog(this).info(exc);
+          }
         }
       }
     }
@@ -61,7 +62,7 @@
         OpenCms.getLog(this).error("Failed to include the common error page");
       }
     }
-    if (getAction() != ACTION_CANCEL) {
+    if (getAction() != ACTION_CANCEL && getAction() != ACTION_SHOW_ERRORMESSAGE) {
       setAction(ACTION_SHOW);
     }
   }
@@ -74,7 +75,7 @@
         OpenCms.getLog(this).error("Failed to include the common error page");
       }
     }
-    if (getAction() != ACTION_CANCEL) {
+    if (getAction() != ACTION_CANCEL && getAction() != ACTION_SHOW_ERRORMESSAGE) {
       setAction(ACTION_SHOW);
     }
   }
@@ -84,6 +85,27 @@
   }
  else {
     setAction(ACTION_DEFAULT);
+    try {
+      if ("true".equals(getParamDirectedit())) {
+        checkLock(getParamResource(),CmsLock.C_MODE_TEMP);
+      }
+ else {
+        checkLock(getParamResource());
+      }
+      setParamTempfile(createTempFile());
+      m_file=getCms().readFile(this.getParamTempfile(),CmsResourceFilter.ALL);
+      m_content=CmsXmlContentFactory.unmarshal(getCms(),m_file);
+    }
+ catch (    CmsException e) {
+      try {
+        showErrorPage(this,e,"read");
+      }
+ catch (      JspException exc) {
+        if (OpenCms.getLog(this).isInfoEnabled()) {
+          OpenCms.getLog(this).info(exc);
+        }
+      }
+    }
     if (getParamElementlanguage() == null) {
       initElementLanguage();
     }
