@@ -5,13 +5,38 @@
       return m_result;
     }
     try {
-      m_result=m_index.search(m_cms,m_searchRoot,m_query,m_fields);
+      List result=m_index.search(m_cms,m_searchRoot,m_query,m_fields,m_page,m_matchesPerPage);
+      if (result.size() > 1) {
+        Integer searchResultCount=(Integer)result.get(result.size() - 1);
+        m_searchResultCount=searchResultCount.intValue();
+        m_result=result.subList(0,result.size() - 1);
+        m_pageCount=m_searchResultCount / m_matchesPerPage;
+        if ((m_searchResultCount % m_matchesPerPage) != 0) {
+          m_pageCount++;
+        }
+        String url=m_cms.getRequestContext().getUri() + getSearchParameters() + "&page=";
+        if (m_page > 1) {
+          m_prevUrl=url + (m_page - 1);
+        }
+        if (m_page < m_pageCount) {
+          m_nextUrl=url + (m_page + 1);
+        }
+      }
+ else {
+        m_result=Collections.EMPTY_LIST;
+        m_searchResultCount=0;
+        m_pageCount=0;
+        m_prevUrl=null;
+        m_nextUrl=null;
+      }
     }
  catch (    Exception exc) {
       if (OpenCms.getLog(this).isDebugEnabled()) {
         OpenCms.getLog(this).debug("[" + this.getClass().getName() + "] "+ "Searching failed",exc);
       }
       m_result=null;
+      m_searchResultCount=0;
+      m_pageCount=0;
       m_lastException=exc;
     }
   }

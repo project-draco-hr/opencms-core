@@ -15,9 +15,9 @@
   Field field=null;
   String path=null;
   Map searchCache=OpenCms.getSearchManager().getResultCache();
-  String key=cms.getRequestContext().currentUser().getName() + "_" + cms.getRequestContext().getRemoteAddress()+ "_"+ m_name+ "_"+ searchQuery+ "_"+ searchRoot+ "_"+ fields;
+  String cacheKey=cms.getRequestContext().currentUser().getName() + "_" + cms.getRequestContext().getRemoteAddress()+ "_"+ m_name+ "_"+ searchQuery+ "_"+ searchRoot+ "_"+ fields+ "_"+ page+ "_"+ matchesPerPage;
   if (cms.getRequestContext().currentProject().getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
-    searchResults=(ArrayList)searchCache.get(key);
+    searchResults=(ArrayList)searchCache.get(cacheKey);
     if (searchResults != null) {
       return searchResults;
     }
@@ -37,6 +37,7 @@
   try {
     if (!C_SEARCH_QUERY_RETURN_ALL.equals(searchQuery)) {
       searchQuery="(" + searchQuery + ")"+ " AND "+ I_CmsDocumentFactory.DOC_PATH+ ":"+ searchRoot+ "*";
+      BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
       if (fields != null) {
         BooleanQuery fieldsQuery=new BooleanQuery();
         BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
@@ -51,8 +52,8 @@
       }
       searcher=new IndexSearcher(m_path);
       hits=searcher.search(query);
-      foundDocuments=new ArrayList();
-      scores=new ArrayList();
+      foundDocuments=new ArrayList(hits.length());
+      scores=new ArrayList(hits.length());
       for (int i=0, n=hits.length(); i < n; i++) {
         luceneDocument=hits.doc(i);
         foundDocuments.add(luceneDocument);
@@ -83,7 +84,18 @@
         }
       }
     }
+    int start=-1, end=-1;
     searchResults=new ArrayList();
+    if (matchesPerPage > 0 && page > 0 && foundDocuments.size() > 0) {
+      start=matchesPerPage * (page - 1);
+      end=start + matchesPerPage;
+      start=(start > foundDocuments.size()) ? foundDocuments.size() : start;
+      end=(end > foundDocuments.size()) ? foundDocuments.size() : end;
+    }
+ else {
+      start=0;
+      end=foundDocuments.size();
+    }
     for (int i=0, n=foundDocuments.size(); i < n; i++) {
       try {
         luceneDocument=(Document)foundDocuments.get(i);
@@ -92,9 +104,11 @@
           score=((Double)scores.get(i)).doubleValue();
           maxScore=(maxScore < score) ? score : maxScore;
           score=(score / maxScore) * 100.0;
-          excerpt=getExcerpt(indexResource,searchQuery);
-          searchResult=new CmsSearchResult((int)score,luceneDocument,excerpt);
-          searchResults.add(searchResult);
+          if (i >= start && i < end && indexResource.getRootPath().startsWith(searchRoot)) {
+            excerpt=getExcerpt(indexResource,searchQuery);
+            searchResult=new CmsSearchResult((int)score,luceneDocument,excerpt);
+            searchResults.add(searchResult);
+          }
         }
       }
  catch (      Exception exc) {
@@ -115,6 +129,7 @@
     context.setCurrentProject(currentProject);
   }
   Collections.sort(searchResults);
-  searchCache.put(key,searchResults);
+  searchResults.add(new Integer(foundDocuments.size()));
+  searchCache.put(cacheKey,searchResults);
   return searchResults;
 }
