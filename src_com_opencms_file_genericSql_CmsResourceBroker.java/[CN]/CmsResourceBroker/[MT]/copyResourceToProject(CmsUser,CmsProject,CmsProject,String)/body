@@ -1,0 +1,27 @@
+{
+  if (currentProject.equals(fromProject))   throw new CmsException("[" + this.getClass().getName() + "] "+ currentProject.getName()+ " Cannot copy from same project",CmsException.C_NO_ACCESS);
+  if (currentProject.getOwnerId() != currentUser.getId())   throw new CmsException("[" + this.getClass().getName() + "] "+ currentProject.getName(),CmsException.C_NO_ACCESS);
+  if (currentProject.getFlags() != C_PROJECT_STATE_UNLOCKED)   throw new CmsException("[" + this.getClass().getName() + "] "+ currentProject.getName(),CmsException.C_NO_ACCESS);
+  CmsResource fromResource=readFileHeader(currentUser,fromProject,resource);
+  CmsResource offlineRes=null;
+  String parent=fromResource.getParent();
+  Stack resources=new Stack();
+  while (parent != null) {
+    fromResource=readFileHeader(currentUser,fromProject,parent);
+    resources.push(fromResource);
+    parent=fromResource.getParent();
+  }
+  while (resources.size() > 0) {
+    fromResource=(CmsResource)resources.pop();
+    parent=fromResource.getAbsolutePath();
+    try {
+      m_dbAccess.copyResourceToProject(currentProject,fromProject,fromResource);
+      offlineRes=readFileHeader(currentUser,currentProject,parent);
+      writeProperties(currentUser,currentProject,offlineRes.getAbsolutePath(),readAllProperties(currentUser,currentProject,fromResource.getAbsolutePath()));
+      chstate(currentUser,currentProject,offlineRes.getAbsolutePath(),C_STATE_UNCHANGED);
+    }
+ catch (    CmsException exc) {
+    }
+  }
+  helperCopyResourceToProject(currentUser,fromProject,currentProject,resource);
+}
