@@ -9,22 +9,35 @@
   try {
     String path=m_importPath + destination.substring(0,destination.lastIndexOf("/") + 1);
     String name=destination.substring((destination.lastIndexOf("/") + 1),destination.length());
-    String fullname;
+    String fullname=null;
+    ;
+    int state=C_STATE_NEW;
     if (source == null) {
-      CmsFolder cmsfolder=m_cms.createFolder(path,name,properties);
-      fullname=cmsfolder.getAbsolutePath();
+      try {
+        CmsFolder cmsfolder=m_cms.createFolder(path,name,properties);
+        fullname=cmsfolder.getAbsolutePath();
+        state=C_STATE_NEW;
+      }
+ catch (      CmsException e) {
+        state=C_STATE_CHANGED;
+      }
     }
  else {
       try {
         m_cms.deleteFile(path + name);
+        state=C_STATE_CHANGED;
       }
  catch (      CmsException exc) {
+        state=C_STATE_NEW;
       }
       fullname=m_cms.createFile(path,name,getFileBytes(source),type,properties).getAbsolutePath();
     }
-    m_cms.chmod(fullname,Integer.parseInt(access));
-    m_cms.chgrp(fullname,group);
-    m_cms.chown(fullname,user);
+    if (fullname != null) {
+      m_cms.chmod(fullname,Integer.parseInt(access));
+      m_cms.chgrp(fullname,group);
+      m_cms.chown(fullname,user);
+      m_cms.chstate(fullname,state);
+    }
     System.out.println("OK");
   }
  catch (  Exception exc) {
