@@ -1,0 +1,145 @@
+{
+  CmsFolder newFolder=null;
+  CmsFolder onlineFolder=null;
+  Map offlineProperties=null;
+  try {
+    report.print("( " + m + " / "+ n+ " ) "+ report.key("report.publishing.folder"),I_CmsReport.C_FORMAT_NOTE);
+    report.println(context.removeSiteRoot(offlineFolder.getFullResourceName()));
+    if (offlineFolder.getState() == I_CmsConstants.C_STATE_NEW) {
+      try {
+        newFolder=(CmsFolder)offlineFolder.clone();
+        newFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+        newFolder.setFullResourceName(offlineFolder.getFullResourceName());
+        m_driverManager.getVfsDriver().createFolder(onlineProject,newFolder,newFolder.getParentId());
+      }
+ catch (      CmsException e) {
+        if (e.getType() == CmsException.C_FILE_EXISTS) {
+          try {
+            onlineFolder=m_driverManager.getVfsDriver().readFolder(onlineProject.getId(),newFolder.getId());
+            onlineFolder.setFullResourceName(offlineFolder.getFullResourceName());
+            m_driverManager.getVfsDriver().updateResource(onlineFolder,offlineFolder);
+          }
+ catch (          CmsException e1) {
+            if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+              OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error reading resource, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+            }
+            throw e1;
+          }
+        }
+ else         if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+          OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error creating resource, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+        }
+        throw e;
+      }
+      try {
+        m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,offlineFolder.getResourceAceId(),newFolder.getResourceAceId());
+      }
+ catch (      CmsException e) {
+        if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+          OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error writing ACLs, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+        }
+        throw e;
+      }
+      try {
+        offlineProperties=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),offlineFolder,offlineFolder.getType());
+        m_driverManager.getVfsDriver().writeProperties(offlineProperties,onlineProject.getId(),newFolder,newFolder.getType(),false);
+      }
+ catch (      CmsException e) {
+        if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+          OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error writing properties, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+        }
+        throw e;
+      }
+    }
+ else     if (offlineFolder.getState() == I_CmsConstants.C_STATE_CHANGED) {
+      try {
+        onlineFolder=m_driverManager.getVfsDriver().readFolder(onlineProject.getId(),offlineFolder.getId());
+        onlineFolder.setFullResourceName(offlineFolder.getFullResourceName());
+      }
+ catch (      CmsException e) {
+        if (e.getType() == CmsException.C_NOT_FOUND) {
+          try {
+            onlineFolder=m_driverManager.getVfsDriver().createFolder(onlineProject,offlineFolder,offlineFolder.getParentId());
+            onlineFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+            onlineFolder.setFullResourceName(offlineFolder.getFullResourceName());
+            m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),onlineFolder,CmsDriverManager.C_UPDATE_ALL);
+          }
+ catch (          CmsException e1) {
+            if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+              OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error creating resource, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+            }
+            throw e1;
+          }
+        }
+ else         if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+          OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error reading resource, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+        }
+        throw e;
+      }
+      try {
+        m_driverManager.getVfsDriver().updateResource(onlineFolder,offlineFolder);
+      }
+ catch (      CmsException e) {
+        if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+          OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error updating resource, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+        }
+        throw e;
+      }
+      try {
+        m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,offlineFolder.getResourceAceId(),onlineFolder.getResourceAceId());
+      }
+ catch (      CmsException e) {
+        if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+          OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error writing ACLs, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+        }
+        throw e;
+      }
+      try {
+        m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),onlineFolder);
+        offlineProperties=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),offlineFolder,offlineFolder.getType());
+        m_driverManager.getVfsDriver().writeProperties(offlineProperties,onlineProject.getId(),onlineFolder,offlineFolder.getType(),false);
+      }
+ catch (      CmsException e) {
+        if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+          OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error writing properties, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+        }
+        throw e;
+      }
+    }
+    try {
+      if (backupEnabled) {
+        m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),offlineFolder,offlineProperties,backupTagId,publishDate,maxVersions);
+      }
+      writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,offlineFolder.getFullResourceName(),offlineFolder);
+    }
+ catch (    CmsException e) {
+      if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+        OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error writing backup/publishing history, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+      }
+      throw e;
+    }
+    try {
+      if (offlineFolder.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
+        offlineFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
+        m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),offlineFolder,CmsDriverManager.C_UPDATE_ALL);
+      }
+      m_driverManager.getVfsDriver().resetProjectId(context.currentProject(),offlineFolder);
+    }
+ catch (    CmsException e) {
+      if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+        OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishFolder] error reseting resource state, type: "+ e.getTypeText()+ ",  "+ offlineFolder.toString());
+      }
+      throw e;
+    }
+  }
+ catch (  Exception e) {
+    if (C_DEBUG) {
+      System.err.println(e.getMessage());
+      e.printStackTrace(System.err);
+    }
+    throw e;
+  }
+ finally {
+    OpenCms.fireCmsEvent(new CmsEvent(new CmsObject(),I_CmsEventListener.EVENT_PROPERTIES_MODIFIED,Collections.singletonMap("resource",offlineFolder)));
+  }
+}
