@@ -3,8 +3,18 @@
     CmsResource onlineRes=readFileHeader(currentUser,onlineProject,resource);
     m_dbAccess.copyResourceToProject(offlineProject,onlineProject,onlineRes);
     CmsResource offlineRes=readFileHeader(currentUser,offlineProject,resource);
-    writeProperties(currentUser,offlineProject,offlineRes.getAbsolutePath(),readAllProperties(currentUser,onlineProject,onlineRes.getAbsolutePath()));
-    chstate(currentUser,offlineProject,offlineRes.getAbsolutePath(),C_STATE_UNCHANGED);
+    m_dbAccess.writeProperties(readAllProperties(currentUser,onlineProject,onlineRes.getAbsolutePath()),offlineRes.getResourceId(),offlineRes.getType());
+    offlineRes.setState(C_STATE_UNCHANGED);
+    if (offlineRes instanceof CmsFolder) {
+      m_dbAccess.writeFolder(offlineProject,(CmsFolder)offlineRes,false);
+      m_resourceCache.put(C_FOLDER + offlineProject.getId() + offlineRes.getName(),(CmsFolder)offlineRes);
+    }
+ else {
+      m_dbAccess.writeFileHeader(offlineProject,(CmsFile)offlineRes,false);
+      m_resourceCache.put(C_FILE + offlineProject.getId() + offlineRes.getName(),offlineRes);
+    }
+    m_subresCache.clear();
+    fileSystemChanged();
     if (onlineRes.isFolder()) {
       Vector files=getFilesInFolder(currentUser,onlineProject,resource);
       Vector folders=getSubFolders(currentUser,onlineProject,resource);
