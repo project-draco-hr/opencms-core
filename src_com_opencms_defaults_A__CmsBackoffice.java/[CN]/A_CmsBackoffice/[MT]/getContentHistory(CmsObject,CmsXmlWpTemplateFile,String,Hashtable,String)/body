@@ -1,0 +1,111 @@
+{
+  byte[] processResult=null;
+  I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  Class cdClass=getContentDefinitionClass();
+  String id=(String)parameters.get("id");
+  if (id == null) {
+    id="";
+  }
+  String action=(String)parameters.get("action");
+  if (action == null || action.equals("")) {
+    if (id != "") {
+      templateSelector="history";
+      CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+      template.setData("historytitle",lang.getLanguageValue("messagebox.title.history"));
+      template.setData("id",id);
+      template.setData("setaction","detail");
+    }
+ else {
+      templateSelector="done";
+      session.removeValue("idhistory");
+    }
+  }
+ else   if (action.equalsIgnoreCase("detail")) {
+    String versionId=(String)parameters.get("version");
+    if (versionId != null && !"".equals(versionId)) {
+      templateSelector="historydetail";
+      Object o=null;
+      o=getContentDefinition(cms,cdClass,new Integer(id));
+      try {
+        I_CmsExtendedContentDefinition curVersion=(I_CmsExtendedContentDefinition)((I_CmsExtendedContentDefinition)o).getVersionFromHistory(cms,Integer.parseInt(versionId));
+        String projectName="";
+        String projectDescription="";
+        String userName="";
+        try {
+          CmsProject theProject=cms.readBackupProject(curVersion.getLockedInProject());
+          projectName=theProject.getName();
+          projectDescription=theProject.getDescription();
+        }
+ catch (        CmsException ex) {
+          projectName="";
+        }
+        try {
+          CmsUser theUser=cms.readUser(curVersion.getLastModifiedBy());
+          userName=theUser.getName() + " " + theUser.getFirstname()+ " "+ theUser.getLastname();
+        }
+ catch (        CmsException ex) {
+          userName=curVersion.getLastModifiedByName();
+        }
+        template.setData("histproject",projectName);
+        template.setData("version",versionId);
+        template.setData("id",id);
+        template.setData("histid",Integer.toString(curVersion.getId()));
+        template.setData("histtitle",curVersion.getTitle());
+        template.setData("histlastmodified",Utils.getNiceDate(curVersion.getDateLastModified()));
+        template.setData("histpublished",Utils.getNiceDate(curVersion.getDateCreated()));
+        template.setData("histmodifiedby",userName);
+        template.setData("histdescription",projectDescription);
+        int curUser=cms.getRequestContext().currentUser().getId();
+        int curProject=cms.getRequestContext().currentProject().getId();
+        if (((A_CmsContentDefinition)o).getLockstate() == curUser && ((I_CmsExtendedContentDefinition)o).getLockedInProject() == curProject) {
+          template.setData("BUTTONRESTORE",template.getProcessedDataValue("ENABLERESTORE",this));
+          template.setData("setaction","restore");
+        }
+ else {
+          template.setData("BUTTONRESTORE",template.getProcessedDataValue("DISABLERESTORE",this));
+          template.setData("setaction","");
+        }
+      }
+ catch (      Exception e) {
+        if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+          A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice: history method throwed an exception! " + e.getMessage());
+        }
+        templateSelector="historyerror";
+        template.setData("historyerror",e.getMessage());
+        session.removeValue("idhistory");
+      }
+    }
+ else {
+      templateSelector="history";
+      CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+      template.setData("historytitle",lang.getLanguageValue("messagebox.title.history"));
+      template.setData("id",id);
+      template.setData("setaction","detail");
+    }
+  }
+ else   if (action.equalsIgnoreCase("restore")) {
+    String versionId=(String)parameters.get("version");
+    templateSelector="history";
+    CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+    template.setData("historytitle",lang.getLanguageValue("messagebox.title.history"));
+    template.setData("id",id);
+    template.setData("setaction","detail");
+    if (versionId != null && !"".equals(versionId)) {
+      Object o=null;
+      o=getContentDefinition(cms,cdClass,new Integer(id));
+      try {
+        ((I_CmsExtendedContentDefinition)o).restore(cms,Integer.parseInt(versionId));
+      }
+ catch (      Exception e) {
+        if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+          A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice: restore method throwed an exception! " + e.getMessage());
+        }
+        templateSelector="historyerror";
+        template.setData("historyerror",e.getMessage());
+        session.removeValue("idhistory");
+      }
+    }
+  }
+  processResult=startProcessing(cms,template,elementName,parameters,templateSelector);
+  return processResult;
+}
