@@ -9,66 +9,72 @@
  else {
     absoluteLink=link;
   }
-  String uri;
+  String vfsName;
+  String parameters;
   int pos=absoluteLink.indexOf('?');
   if (pos >= 0) {
-    uri=absoluteLink.substring(0,pos - 1);
+    vfsName=absoluteLink.substring(0,pos - 1);
+    parameters=absoluteLink.substring(pos);
   }
  else {
-    uri=absoluteLink;
+    vfsName=absoluteLink;
+    parameters=null;
   }
-  String exportProperty;
-  if (A_OpenCms.getStaticExportProperties().isStaticExportEnabled() && cms.getRequestContext().currentProject().isOnlineProject()) {
+  String resultLink=null;
+  boolean exportRequired=false;
+  if (OpenCms.getStaticExportProperties().isStaticExportEnabled() && cms.getRequestContext().currentProject().isOnlineProject()) {
     try {
-      exportProperty=cms.readProperty(uri,I_CmsConstants.C_PROPERTY_EXPORT,true,"false");
-    }
- catch (    Throwable t) {
-      exportProperty="false";
-    }
-  }
- else {
-    exportProperty="false";
-  }
-  String result;
-  if ("true".equalsIgnoreCase(exportProperty)) {
-    try {
-      String exportname=cms.readProperty(uri,I_CmsConstants.C_PROPERTY_EXPORTNAME,true);
-      if (exportname != null) {
-        if (!exportname.endsWith("/")) {
-          exportname=exportname + "/";
-        }
-        if (!exportname.startsWith("/")) {
-          exportname="/" + exportname;
-        }
-        String value;
-        boolean cont;
-        String resource=uri;
-        do {
-          try {
-            value=cms.readProperty(resource,I_CmsConstants.C_PROPERTY_EXPORTNAME,false);
-            cont=((value == null) && (!"/".equals(resource)));
-          }
- catch (          CmsSecurityException se) {
-            cont=false;
-          }
-          if (cont)           resource=CmsResource.getParent(resource);
-        }
- while (cont);
-        uri=exportname + uri.substring(resource.length());
-        if (pos >= 0) {
-          absoluteLink=uri + absoluteLink.substring(pos);
-        }
- else {
-          absoluteLink=uri;
-        }
+      resultLink=OpenCms.getStaticExportProperties().getCachedOnlineLink(vfsName);
+      if (resultLink == null) {
+        exportRequired="true".equalsIgnoreCase(cms.readProperty(vfsName,I_CmsConstants.C_PROPERTY_EXPORT,true,"false").trim());
       }
     }
- catch (    CmsException e) {
+ catch (    Throwable t) {
     }
-    result=A_OpenCms.getStaticExportProperties().getRfsPrefix() + absoluteLink;
+  }
+  if (resultLink == null) {
+    if (!exportRequired) {
+      resultLink=OpenCms.getStaticExportProperties().getVfsPrefix() + absoluteLink;
+    }
+ else {
+      try {
+        String exportname=cms.readProperty(vfsName,I_CmsConstants.C_PROPERTY_EXPORTNAME,true);
+        if (exportname != null) {
+          if (!exportname.endsWith("/")) {
+            exportname=exportname + "/";
+          }
+          if (!exportname.startsWith("/")) {
+            exportname="/" + exportname;
+          }
+          String value;
+          boolean cont;
+          String resource=vfsName;
+          do {
+            try {
+              value=cms.readProperty(resource,I_CmsConstants.C_PROPERTY_EXPORTNAME,false);
+              cont=((value == null) && (!"/".equals(resource)));
+            }
+ catch (            CmsSecurityException se) {
+              cont=false;
+            }
+            if (cont)             resource=CmsResource.getParent(resource);
+          }
+ while (cont);
+          absoluteLink=exportname + vfsName.substring(resource.length());
+        }
+      }
+ catch (      CmsException e) {
+      }
+      resultLink=OpenCms.getStaticExportProperties().getRfsPrefix() + absoluteLink;
+    }
+    if (cms.getRequestContext().currentProject().isOnlineProject()) {
+      OpenCms.getStaticExportProperties().cacheOnlineLink(vfsName,resultLink);
+    }
+  }
+  if (parameters != null) {
+    return resultLink + parameters;
   }
  else {
-    result=A_OpenCms.getStaticExportProperties().getVfsPrefix() + absoluteLink;
+    return resultLink;
   }
-  return result;
 }

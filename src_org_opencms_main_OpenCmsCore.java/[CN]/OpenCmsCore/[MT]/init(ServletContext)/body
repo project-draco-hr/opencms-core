@@ -1,0 +1,69 @@
+{
+  initVersion(this);
+  String base=context.getInitParameter("opencms.home");
+  if (base == null || "".equals(base)) {
+    base=CmsMain.searchBaseFolder(context.getRealPath("/"));
+    if (base == null || "".equals(base)) {
+      throwInitException(new CmsInitException(C_ERRORMSG + "OpenCms base folder could not be guessed. Please define init parameter \"opencms.home\" in servlet engine configuration.\n\n"));
+    }
+  }
+  base=CmsBase.setBasePath(base);
+  String logFile;
+  ExtendedProperties extendedProperties=null;
+  try {
+    extendedProperties=new ExtendedProperties(CmsBase.getPropertiesPath(true));
+  }
+ catch (  Exception e) {
+    throwInitException(new CmsInitException(C_ERRORMSG + "Trouble reading property file " + CmsBase.getPropertiesPath(true)+ ".\n\n",e));
+  }
+  logFile=(String)extendedProperties.get("log.file");
+  if (logFile != null) {
+    extendedProperties.put("log.file",CmsBase.getAbsolutePath(logFile));
+  }
+  String servletMapping=context.getInitParameter("OpenCmsServlet");
+  if (servletMapping == null) {
+    m_instance=null;
+    throw new CmsInitException("OpenCms servlet mapping not configures in 'web.xml'");
+  }
+  if (servletMapping.endsWith("/*")) {
+    servletMapping=servletMapping.substring(0,servletMapping.length() - 2);
+  }
+  extendedProperties.put("servlet.mapping",servletMapping);
+  m_configurations=new Configurations(extendedProperties);
+  if (m_configurations.getBoolean("wizard.enabled",true)) {
+    m_instance=null;
+    throw new CmsInitException("OpenCms setup wizard is enabled, unable to start OpenCms context");
+  }
+  initializeServletLogging(m_configurations);
+  if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,".");
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,".");
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,".");
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,".");
+    printCopyrightInformation();
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,".                      ...............................................................");
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Startup time         : " + (new Date(System.currentTimeMillis())));
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms version      : " + OpenCms.getVersionName());
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms context path : /" + CmsBase.getWebAppName());
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms servlet path : " + servletMapping);
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms base path    : " + CmsBase.getBasePath());
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms property file: " + CmsBase.getPropertiesPath(true));
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". OpenCms logfile      : " + CmsBase.getAbsolutePath(logFile));
+    OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Servlet container    : " + context.getServerInfo());
+  }
+  try {
+    initConfiguration(m_configurations);
+  }
+ catch (  CmsException cmsex) {
+    if (cmsex.getType() == CmsException.C_RB_INIT_ERROR) {
+      throwInitException(new CmsInitException(C_ERRORMSG + "Could not connect to the database. Is the database up and running?\n\n",cmsex));
+    }
+  }
+catch (  Exception exc) {
+    throwInitException(new CmsInitException(C_ERRORMSG + "Trouble creating the com.opencms.core.CmsObject. Please check the root cause for more information.\n\n",exc));
+  }
+  m_sessionStorage=new CmsCoreSession();
+  if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT))   OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Session storage      : initialized");
+  m_useBasicAuthentication=m_configurations.getBoolean("auth.basic",true);
+  m_authenticationFormURI=m_configurations.getString("auth.form_uri",I_CmsWpConstants.C_VFS_PATH_WORKPLACE + "action/authenticate.html");
+}

@@ -1,17 +1,33 @@
 {
+  StringBuffer cacheBuffer=new StringBuffer(64);
+  cacheBuffer.append(context.currentUser().getName());
+  cacheBuffer.append(context.currentProject().isOnlineProject() ? "_0_" : "_1_");
+  cacheBuffer.append(requiredPermissions.getPermissionString());
+  cacheBuffer.append("_");
+  cacheBuffer.append(strongCheck);
+  cacheBuffer.append("_");
+  cacheBuffer.append(resource.getResourceId().toString());
+  String cacheKey=cacheBuffer.toString();
+  Boolean cacheResult=(Boolean)m_permissionCache.get(cacheKey);
+  if (cacheResult != null) {
+    return cacheResult.booleanValue();
+  }
   CmsLock lock=getLock(context,resource);
   CmsPermissionSet permissions=null;
   int denied=0;
   if (context.currentProject().isOnlineProject()) {
     denied|=I_CmsConstants.C_PERMISSION_WRITE;
   }
-  if (((resource.getType() == CmsResourceTypeXMLTemplate.C_RESOURCE_TYPE_ID) || (resource.getType() == CmsResourceTypeJsp.C_RESOURCE_TYPE_ID)) && !isAdmin(context)) {
+  boolean isAdmin=isAdmin(context);
+  if (!isAdmin && ((resource.getType() == CmsResourceTypeXMLTemplate.C_RESOURCE_TYPE_ID) || (resource.getType() == CmsResourceTypeJsp.C_RESOURCE_TYPE_ID))) {
     denied|=I_CmsConstants.C_PERMISSION_WRITE;
   }
   if (!lock.isNullLock()) {
-    if (!context.currentUser().getId().equals(lock.getUserId()))     denied|=I_CmsConstants.C_PERMISSION_WRITE;
+    if (!context.currentUser().getId().equals(lock.getUserId())) {
+      denied|=I_CmsConstants.C_PERMISSION_WRITE;
+    }
   }
-  if (isAdmin(context)) {
+  if (isAdmin) {
     permissions=new CmsPermissionSet(~0);
   }
  else {
@@ -19,6 +35,13 @@
     permissions=acl.getPermissions(context.currentUser(),getGroupsOfUser(context,context.currentUser().getName()));
   }
   permissions.denyPermissions(denied);
-  if (strongCheck)   return (requiredPermissions.getPermissions() & (permissions.getPermissions())) == requiredPermissions.getPermissions();
- else   return (requiredPermissions.getPermissions() & (permissions.getPermissions())) > 0;
+  boolean result;
+  if (strongCheck) {
+    result=(requiredPermissions.getPermissions() & (permissions.getPermissions())) == requiredPermissions.getPermissions();
+  }
+ else {
+    result=(requiredPermissions.getPermissions() & (permissions.getPermissions())) > 0;
+  }
+  m_permissionCache.put(cacheKey,new Boolean(result));
+  return result;
 }
