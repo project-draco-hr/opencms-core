@@ -1,25 +1,18 @@
 {
-  if (resource == null)   return false;
-  int project=resource.getProjectId();
-  if (!accessProject(currentUser,currentProject,project))   return false;
-  if (!accessOther(currentUser,currentProject,resource,C_ACCESS_PUBLIC_READ) && !accessOwner(currentUser,currentProject,resource,C_ACCESS_OWNER_READ) && !accessGroup(currentUser,currentProject,resource,C_ACCESS_GROUP_READ))   return false;
+  if ((resource == null) || !accessProject(currentUser,currentProject,resource.getProjectId()) || (!accessOther(currentUser,currentProject,resource,C_ACCESS_PUBLIC_READ) && !accessOwner(currentUser,currentProject,resource,C_ACCESS_OWNER_READ) && !accessGroup(currentUser,currentProject,resource,C_ACCESS_GROUP_READ)))   return false;
   CmsResource res=resource;
   while (res.getParent() != null) {
-    if (!accessOther(currentUser,currentProject,resource,C_ACCESS_PUBLIC_READ) && !accessOwner(currentUser,currentProject,resource,C_ACCESS_OWNER_READ) && !accessGroup(currentUser,currentProject,resource,C_ACCESS_GROUP_READ))     return false;
-    if (res.getParent() != null) {
-      CmsResource _res=(CmsFolder)m_resourceCache.get(C_FOLDER + res.getProjectId() + res.getParent());
-      if (_res == null) {
-        try {
-          _res=m_dbAccess.readFolder(res.getProjectId(),res.getParent());
-        }
- catch (        SQLException se) {
-          throw new CmsException(CmsException.C_SQL_ERROR,se);
-        }
-        if (_res != null)         m_resourceCache.put(C_FOLDER + res.getProjectId() + res.getAbsolutePath(),_res);
-      }
-      res=_res;
-      if (res == null)       throw new CmsException(this.getClass().getName() + ".accessRead(): Cannot find \'" + resource.getName(),CmsException.C_NOT_FOUND);
+    try {
+      res=m_dbAccess.readFolder(res.getProjectId(),res.getParent());
     }
+ catch (    SQLException se) {
+      throw new CmsException(CmsException.C_SQL_ERROR,se);
+    }
+    if (res == null) {
+      A_OpenCms.log(A_OpenCms.C_OPENCMS_DEBUG,"Resource has no parent: " + resource.getAbsolutePath());
+      throw new CmsException(this.getClass().getName() + ".accessRead(): Cannot find \'" + resource.getName(),CmsException.C_NOT_FOUND);
+    }
+    if (!accessOther(currentUser,currentProject,res,C_ACCESS_PUBLIC_READ) && !accessOwner(currentUser,currentProject,res,C_ACCESS_OWNER_READ) && !accessGroup(currentUser,currentProject,res,C_ACCESS_GROUP_READ))     return false;
   }
   return true;
 }
