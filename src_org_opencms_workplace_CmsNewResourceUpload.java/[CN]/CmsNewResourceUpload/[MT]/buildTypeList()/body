@@ -1,20 +1,29 @@
 {
   StringBuffer result=new StringBuffer(512);
-  List resTypes=getCms().getAllResourceTypes();
-  Iterator i=resTypes.iterator();
-  while (i.hasNext()) {
-    I_CmsResourceType resType=(I_CmsResourceType)i.next();
-    int resTypeId=resType.getResourceType();
-    if (resTypeId == CmsResourceTypeXmlPage.C_RESOURCE_TYPE_ID) {
-      continue;
+  int currentResTypeId=-1;
+  try {
+    CmsResource res=getCms().readFileHeader(getParamResource());
+    currentResTypeId=res.getType();
+    for (int i=0; i < ALLOWED_RESOURCETYPES.length; i++) {
+      String resTypeName=ALLOWED_RESOURCETYPES[i];
+      int resTypeId=getCms().getResourceTypeId(resTypeName);
+      CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getEplorerTypeSetting(resTypeName);
+      if (settings != null) {
+        result.append("<tr><td>");
+        result.append("<input type=\"radio\" name=\"" + PARAM_NEWRESOURCETYPE + "\" value=\""+ settings.getName()+ "\"");
+        if (resTypeId == currentResTypeId) {
+          result.append(" checked=\"checked\"");
+        }
+        result.append("></td>");
+        result.append("\t<td><img src=\"" + getSkinUri() + "filetypes/"+ settings.getIcon()+ "\" border=\"0\" title=\""+ key(settings.getKey())+ "\"></td>\n");
+        result.append("<td>" + key(settings.getKey()));
+        result.append("</td></tr>\n");
+      }
     }
-    CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getEplorerTypeSetting(resType.getResourceTypeName());
-    if (settings != null) {
-      result.append("<tr><td>");
-      result.append("<input type=\"radio\" name=\"" + PARAM_NEWRESOURCETYPE + "\" value=\""+ settings.getName()+ "\"></td>");
-      result.append("\t<td><img src=\"" + getSkinUri() + "filetypes/"+ settings.getIcon()+ "\" border=\"0\" title=\""+ key(settings.getKey())+ "\"></td>\n");
-      result.append("<td>" + key(settings.getKey()));
-      result.append("</td></tr>\n");
+  }
+ catch (  CmsException e) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error building resource type list for " + getParamResource());
     }
   }
   return result.toString();

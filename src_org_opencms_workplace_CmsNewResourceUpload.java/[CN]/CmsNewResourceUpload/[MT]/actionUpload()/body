@@ -1,4 +1,64 @@
 {
-  setParamResource("test.gif");
-  setParamNewResourceName("test.gif");
+  boolean unzipFile=Boolean.valueOf(getParamUnzipFile()).booleanValue();
+  try {
+    Iterator i=getMultiPartFileItems().iterator();
+    FileItem fi=null;
+    while (i.hasNext()) {
+      fi=(FileItem)i.next();
+      if (fi.getName() != null) {
+        break;
+      }
+ else {
+        continue;
+      }
+    }
+    if (fi != null) {
+      String fileName=fi.getName();
+      String contentType=fi.getContentType();
+      long size=fi.getSize();
+      long maxFileSizeBytes=OpenCms.getWorkplaceManager().getFileBytesMaxUploadSize(getCms());
+      if (maxFileSizeBytes > 0 && size > maxFileSizeBytes) {
+        throw new CmsException("File size larger than maximum allowed upload size");
+      }
+      byte[] content=fi.get();
+      fi.delete();
+      if (unzipFile) {
+        String currentFolder=getSettings().getExplorerResource();
+        if (currentFolder == null) {
+          try {
+            currentFolder=getCms().readAbsolutePath(getCms().rootFolder());
+          }
+ catch (          CmsException e) {
+            currentFolder=I_CmsConstants.C_ROOT;
+          }
+        }
+        if (!currentFolder.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+          currentFolder+=I_CmsConstants.C_FOLDER_SEPARATOR;
+        }
+        new CmsImportFolder(content,currentFolder,getCms(),false);
+      }
+ else {
+        String newResname=fileName;
+        if (newResname.indexOf(File.separator) != -1) {
+          newResname=newResname.substring(newResname.lastIndexOf(File.separator) + 1);
+        }
+        setParamNewResourceName(newResname);
+        setParamResource(newResname);
+        setParamResource(computeFullResourceName());
+        int resTypeId=computeFileType(newResname,contentType);
+        getCms().createResource(getParamResource(),resTypeId,new Hashtable(),content,null);
+      }
+      fi.delete();
+    }
+ else {
+      throw new CmsException("Upload file not found");
+    }
+  }
+ catch (  CmsException e) {
+    getJsp().getRequest().setAttribute(C_SESSION_WORKPLACE_CLASS,this);
+    setParamErrorstack(e.getStackTraceAsString());
+    setParamMessage(key("error.message.upload"));
+    setParamReasonSuggestion(key("error.reason.upload") + "<br>\n" + key("error.suggestion.upload")+ "\n");
+    getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
+  }
 }
