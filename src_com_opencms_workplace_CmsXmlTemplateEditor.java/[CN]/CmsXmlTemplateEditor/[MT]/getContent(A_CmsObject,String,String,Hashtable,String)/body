@@ -13,8 +13,10 @@
   String save=(String)parameters.get("save");
   String body=(String)parameters.get("body");
   String bodychange=(String)parameters.get("bodychange");
+  String newbody=(String)parameters.get("newbody");
   String editor=(String)parameters.get("editor");
   String title=(String)parameters.get("title");
+  String bodytitle=(String)parameters.get("bodytitle");
   String layoutTemplateFilename=(String)parameters.get("template");
   String bodyElementClassName=(String)parameters.get("bodyclass");
   String bodyElementFilename=(String)parameters.get("bodyfile");
@@ -24,6 +26,7 @@
   String oldLayoutFilename=(String)session.getValue("te_oldlayout");
   String oldTitle=(String)session.getValue("te_title");
   String oldBody=(String)session.getValue("te_oldbody");
+  String oldBodytitle=(String)session.getValue("te_oldbodytitle");
   String layoutTemplateClassName=(String)session.getValue("te_templateclass");
   String tempPageFilename=(String)session.getValue("te_temppagefile");
   String tempBodyFilename=(String)session.getValue("te_tempbodyfile");
@@ -37,6 +40,8 @@
   boolean templatechangeRequested=(oldLayoutFilename != null && layoutTemplateFilename != null && (!(oldLayoutFilename.equals(layoutTemplateFilename))));
   boolean titlechangeRequested=(oldTitle != null && title != null && (!(oldTitle.equals(title))));
   boolean previewRequested=((preview != null) && "1".equals(preview));
+  boolean newbodyRequested=((newbody != null) && "1".equals(newbody));
+  boolean bodytitlechangeRequested=(oldBodytitle != null && bodytitle != null && (!(oldBodytitle.equals(bodytitle))));
   if (!existsFileParam) {
     throwException("No \"file\" parameter given. Don't know which file should be edited.");
   }
@@ -97,11 +102,6 @@
       }
     }
   }
-  if (bodychangeRequested) {
-    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
-    temporaryControlFile.setElementTemplSelector("body",body);
-    temporaryControlFile.write();
-  }
   Object tempObj=CmsTemplateClassManager.getClassInstance(cms,layoutTemplateClassName);
   CmsXmlTemplate layoutTemplateClassObject=(CmsXmlTemplate)tempObj;
   CmsXmlTemplateFile layoutTemplateFile=layoutTemplateClassObject.getOwnTemplateFile(cms,layoutTemplateFilename,null,parameters,null);
@@ -118,6 +118,25 @@
  else {
       body=(String)allBodys.elementAt(0);
     }
+    bodytitle=bodyTemplateFile.getSectionTitle(body);
+    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
+    temporaryControlFile.setElementTemplSelector("body",body);
+    temporaryControlFile.setElementTemplate("body",tempBodyFilename);
+    temporaryControlFile.write();
+  }
+  if (bodytitlechangeRequested) {
+    System.err.println("Changing body title to \"" + title + "\".");
+    bodyTemplateFile.setSectionTitle(oldBody,bodytitle);
+  }
+  if (bodychangeRequested) {
+    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
+    temporaryControlFile.setElementTemplSelector("body",body);
+    temporaryControlFile.write();
+    bodytitle=bodyTemplateFile.getSectionTitle(body);
+  }
+  if (newbodyRequested) {
+    int bodyNum=bodyTemplateFile.createNewSection("body");
+    body="body" + bodyNum;
     CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
     temporaryControlFile.setElementTemplSelector("body",body);
     temporaryControlFile.setElementTemplate("body",tempBodyFilename);
@@ -179,6 +198,7 @@
   Encoder encoder=new Encoder();
   content=encoder.escape(content);
   parameters.put("CONTENT",content);
+  parameters.put("body",body);
   parameters.put("bodyfile",bodyElementFilename);
   parameters.put("bodyclass",bodyElementClassName);
   parameters.put("template",layoutTemplateFilename);
@@ -194,6 +214,7 @@
   }
   session.putValue("te_oldedit",editor);
   session.putValue("te_oldbody",body);
+  session.putValue("te_oldbodytitle",bodytitle);
   session.putValue("te_oldlayout",layoutTemplateFilename);
   session.putValue("te_title",title);
   session.putValue("te_templateclass",layoutTemplateClassName);
