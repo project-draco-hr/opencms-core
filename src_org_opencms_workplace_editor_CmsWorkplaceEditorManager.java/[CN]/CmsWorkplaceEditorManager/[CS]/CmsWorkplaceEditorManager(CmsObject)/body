@@ -1,3 +1,42 @@
 {
-  cms.toString();
+  List editorFolders=new ArrayList();
+  try {
+    editorFolders=cms.getSubFolders(CmsEditor.C_PATH_EDITORS);
+  }
+ catch (  CmsException e) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error reading editor folders.",e);
+    }
+    throw e;
+  }
+  m_editorConfigurations=new ArrayList(editorFolders.size());
+  Iterator i=editorFolders.iterator();
+  while (i.hasNext()) {
+    CmsFolder currentFolder=(CmsFolder)i.next();
+    String folderName=CmsEditor.C_PATH_EDITORS + currentFolder.getName();
+    if (!folderName.endsWith("/")) {
+      folderName+="/";
+    }
+    CmsFile configFile=null;
+    try {
+      configFile=cms.readFile(folderName + C_EDITOR_CONFIGURATION_FILENAME);
+    }
+ catch (    CmsException e) {
+      continue;
+    }
+    byte[] content=configFile.getContents();
+    String encoding=getConfigurationFileEncoding(cms,configFile);
+    String xmlData;
+    try {
+      xmlData=new String(content,encoding);
+    }
+ catch (    UnsupportedEncodingException e) {
+      xmlData=new String(content);
+    }
+    CmsWorkplaceEditorConfiguration editorConfig=new CmsWorkplaceEditorConfiguration(xmlData,folderName + C_EDITOR_FILENAME);
+    if (editorConfig.isValidConfiguration()) {
+      m_editorConfigurations.add(editorConfig);
+    }
+  }
+  m_preferredEditors=new HashMap(m_editorConfigurations.size());
 }

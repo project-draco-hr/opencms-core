@@ -1,8 +1,9 @@
 {
-  String editAsText=jsp.getRequest().getParameter("editastext");
-  String noActiveX=jsp.getRequest().getParameter("noactivex");
+  boolean editAsText="true".equals(jsp.getRequest().getParameter("editastext"));
+  boolean noActiveX="true".equals(jsp.getRequest().getParameter("noactivex"));
   int resTypeId=-1;
-  if ("true".equals(editAsText)) {
+  String resourceType="";
+  if (editAsText) {
     resTypeId=CmsResourceTypePlain.C_RESOURCE_TYPE_ID;
   }
  else {
@@ -11,26 +12,30 @@
       resTypeId=res.getType();
     }
  catch (    CmsException e) {
+      return showErrorDialog(jsp,e);
     }
   }
-switch (resTypeId) {
-case CmsResourceTypeNewPage.C_RESOURCE_TYPE_ID:
-case CmsResourceTypeXmlPage.C_RESOURCE_TYPE_ID:
-    if (CmsEditor.BROWSER_NS.equals(CmsEditor.getBrowserType(jsp.getCmsObject()))) {
-      return CmsEditor.C_PATH_EDITORS + "simplehtml/editor.html";
-    }
- else {
-      return CmsEditor.C_PATH_EDITORS + "msdhtml/editor.html";
-    }
-case CmsResourceTypeJsp.C_RESOURCE_TYPE_ID:
-case CmsResourceTypePlain.C_RESOURCE_TYPE_ID:
-case CmsResourceTypeXMLTemplate.C_RESOURCE_TYPE_ID:
-default :
-  if (CmsEditor.BROWSER_IE.equals(CmsEditor.getBrowserType(jsp.getCmsObject())) && !"true".equals(noActiveX)) {
-    return CmsEditor.C_PATH_EDITORS + "ledit/editor.html";
+  try {
+    resourceType=jsp.getCmsObject().getResourceType(resTypeId).getResourceTypeName();
+  }
+ catch (  CmsException e) {
+    return showErrorDialog(jsp,e);
+  }
+  String editorUri=null;
+  if (noActiveX) {
+    editorUri=OpenCms.getWorkplaceManager().getWorkplaceEditorManager().getDefaultEditorUri(jsp.getRequestContext(),resourceType);
   }
  else {
-    return CmsEditor.C_PATH_EDITORS + "simple/editor.html";
+    editorUri=OpenCms.getWorkplaceManager().getWorkplaceEditorManager().getEditorUri(jsp.getRequestContext(),resourceType);
   }
-}
+  try {
+    jsp.getCmsObject().readFileHeader(editorUri);
+  }
+ catch (  CmsException e) {
+    editorUri=OpenCms.getWorkplaceManager().getWorkplaceEditorManager().getDefaultEditorUri(jsp.getRequestContext(),resourceType);
+  }
+  if (editorUri == null) {
+    return showErrorDialog(jsp,null);
+  }
+  return editorUri;
 }
