@@ -6,10 +6,27 @@
   ResultSet res=null;
   try {
     conn=m_sqlManager.getConnectionForBackup();
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILESFORINSERT_BACKUP");
+    stmt.setString(1,fileId.toString());
+    stmt.setInt(2,tagId);
+    stmt.setString(3,backupId.toString());
+    stmt.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,res);
+    m_sqlManager.closeAll(null,nextStatement,null);
+    m_sqlManager.closeAll(null,trimStatement,null);
+  }
+  try {
+    conn=m_sqlManager.getConnectionForBackup();
     stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILESFORUPDATE_BACKUP");
     stmt.setString(1,fileId.toString());
+    stmt.setString(2,backupId.toString());
     conn.setAutoCommit(false);
-    res=stmt.executeQuery();
+    res=((DelegatingResultSet)stmt.executeQuery()).getInnermostDelegate();
     try {
       while (res.next()) {
         oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("FILE_CONTENT");
