@@ -1,3 +1,91 @@
 {
-  return null;
+  Element searchElement=parent.addElement(N_SEARCH);
+  if (OpenCms.getRunLevel() > 1) {
+    m_searchManager=OpenCms.getSearchManager();
+  }
+  searchElement.addElement(N_CACHE).addText(m_searchManager.getResultCacheSize());
+  searchElement.addElement(N_DIRECTORY).addText(m_searchManager.getDirectory());
+  searchElement.addElement(N_TIMEOUT).addText(m_searchManager.getTimeout());
+  searchElement.addElement(N_EXCERPT).addText(String.valueOf(m_searchManager.getMaxExcerptLength()));
+  searchElement.addElement(N_HIGHLIGHTER).addText(m_searchManager.getHighlighter());
+  Element documenttypesElement=searchElement.addElement(N_DOCUMENTTYPES);
+  List docTypeKeyList=new ArrayList(m_searchManager.getDocumentTypeConfigs().keySet());
+  Collections.sort(docTypeKeyList);
+  List sortedDocTypeList=new ArrayList();
+  Iterator i=docTypeKeyList.iterator();
+  while (i.hasNext()) {
+    CmsSearchDocumentType currDocType=m_searchManager.getDocumentTypeConfig((String)i.next());
+    sortedDocTypeList.add(currDocType);
+  }
+  Iterator docTypeIterator=sortedDocTypeList.iterator();
+  while (docTypeIterator.hasNext()) {
+    CmsSearchDocumentType currSearchDocType=(CmsSearchDocumentType)docTypeIterator.next();
+    Element documenttypeElement=documenttypesElement.addElement(N_DOCUMENTTYPE);
+    documenttypeElement.addElement(N_NAME).addText(currSearchDocType.getName());
+    documenttypeElement.addElement(N_CLASS).addText(currSearchDocType.getClassName());
+    Element mimetypesElement=documenttypeElement.addElement(N_MIMETYPES);
+    Iterator mimeTypesIterator=currSearchDocType.getMimeTypes().iterator();
+    while (mimeTypesIterator.hasNext()) {
+      mimetypesElement.addElement(N_MIMETYPE).addText((String)mimeTypesIterator.next());
+    }
+    Element restypesElement=documenttypeElement.addElement(N_RESOURCETYPES);
+    Iterator resTypesIterator=currSearchDocType.getResourceTypes().iterator();
+    while (resTypesIterator.hasNext()) {
+      restypesElement.addElement(N_RESOURCETYPE).addText((String)resTypesIterator.next());
+    }
+  }
+  Element analyzersElement=searchElement.addElement(N_ANALYZERS);
+  List analyzerList=new ArrayList(m_searchManager.getAnalyzers().keySet());
+  Collections.sort(analyzerList);
+  Iterator analyzersIterator=analyzerList.iterator();
+  while (analyzersIterator.hasNext()) {
+    CmsSearchAnalyzer searchAnalyzer=m_searchManager.getCmsSearchAnalyzer((String)analyzersIterator.next());
+    Element analyzerElement=analyzersElement.addElement(N_ANALYZER);
+    analyzerElement.addElement(N_CLASS).addText(searchAnalyzer.getClassName());
+    if (searchAnalyzer.getStemmerAlgorithm() != null) {
+      analyzerElement.addElement(N_STEMMER).addText(searchAnalyzer.getStemmerAlgorithm());
+    }
+    analyzerElement.addElement(N_LOCALE).addText(searchAnalyzer.getLocale());
+  }
+  Element indexesElement=searchElement.addElement(N_INDEXES);
+  Iterator indexIterator=m_searchManager.getSearchIndexs().iterator();
+  while (indexIterator.hasNext()) {
+    CmsSearchIndex searchIndex=(CmsSearchIndex)indexIterator.next();
+    Element indexElement=indexesElement.addElement(N_INDEX);
+    indexElement.addElement(N_NAME).addText(searchIndex.getName());
+    indexElement.addElement(N_REBUILD).addText(searchIndex.getRebuildMode());
+    indexElement.addElement(N_PROJECT).addText(searchIndex.getProject());
+    indexElement.addElement(N_LOCALE).addText(searchIndex.getLocale());
+    Element sourcesElement=indexElement.addElement(N_SOURCES);
+    Iterator sourcesIterator=searchIndex.getSourceNames().iterator();
+    while (sourcesIterator.hasNext()) {
+      sourcesElement.addElement(N_SOURCE).addText((String)sourcesIterator.next());
+    }
+  }
+  Element indexsourcesElement=searchElement.addElement(N_INDEXSOURCES);
+  List indexSources=new ArrayList(m_searchManager.getSearchIndexSources().values());
+  Iterator indexsourceIterator=indexSources.iterator();
+  while (indexsourceIterator.hasNext()) {
+    CmsSearchIndexSource searchIndexSource=(CmsSearchIndexSource)indexsourceIterator.next();
+    Element indexsourceElement=indexsourcesElement.addElement(N_INDEXSOURCE);
+    indexsourceElement.addElement(N_NAME).addText(searchIndexSource.getName());
+    Element indexerElement=indexsourceElement.addElement(N_INDEXER).addAttribute(N_CLASS,searchIndexSource.getIndexerClassName());
+    Map params=searchIndexSource.getParams();
+    Iterator paramIterator=params.entrySet().iterator();
+    while (paramIterator.hasNext()) {
+      String paramKey=(String)paramIterator.next();
+      indexerElement.addElement(I_CmsXmlConfiguration.N_PARAM).addAttribute(I_CmsXmlConfiguration.A_NAME,paramKey).addText((String)params.get(paramKey));
+    }
+    Element resourcesElement=indexsourceElement.addElement(N_RESOURCES);
+    Iterator resourceIterator=searchIndexSource.getResourcesNames().iterator();
+    while (resourceIterator.hasNext()) {
+      resourcesElement.addElement(N_RESOURCE).addText((String)resourceIterator.next());
+    }
+    Element doctypes_indexedElement=indexsourceElement.addElement(N_DOCUMENTTYPES_INDEXED);
+    Iterator doctypesIterator=searchIndexSource.getDocumentTypes().iterator();
+    while (doctypesIterator.hasNext()) {
+      doctypes_indexedElement.addElement(N_NAME).addText((String)doctypesIterator.next());
+    }
+  }
+  return searchElement;
 }
