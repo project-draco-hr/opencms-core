@@ -1,16 +1,23 @@
 {
   byte[] result=null;
+  CmsStaging staging=null;
+  boolean isStaging=cms.getRequestContext().isStaging();
+  String uri=cms.getRequestContext().getUri();
   String templateClass=startTemplateClass;
   if (templateClass == null || "".equals(templateClass) || (startTemplateClass.equals(C_UNKNOWN_LAUNCHER))) {
     templateClass="com.opencms.template.CmsDumpTemplate";
   }
-  Object tmpl=getTemplateClass(cms,templateClass);
-  if (!(tmpl instanceof com.opencms.template.I_CmsDumpTemplate)) {
-    String errorMessage="Error in " + file.getAbsolutePath() + ": "+ templateClass+ " is not a Cms dump template class.";
-    if (A_OpenCms.isLogging()) {
-      A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + errorMessage);
+  if (isStaging) {
+    staging=openCms.getStaging();
+    CmsUriDescriptor uriDesc=new CmsUriDescriptor(uri);
+    CmsUriLocator uriLoc=staging.getUriLocator();
+    CmsUri cmsUri=uriLoc.get(uriDesc);
+    if (cmsUri == null) {
+      CmsElementDescriptor elemDesc=new CmsElementDescriptor(templateClass,file.getAbsolutePath());
+      cmsUri=new CmsUri(elemDesc,null,(Vector)null);
+      staging.getElementLocator().put(elemDesc,new CmsElement());
+      staging.getUriLocator().put(uriDesc,cmsUri);
     }
-    throw new CmsException(errorMessage,CmsException.C_XML_WRONG_TEMPLATE_CLASS);
   }
   Hashtable newParameters=new Hashtable();
   I_CmsRequest req=cms.getRequestContext().getRequest();
@@ -38,14 +45,27 @@
       }
     }
   }
-  try {
-    result=this.callCanonicalRoot(cms,(com.opencms.template.I_CmsTemplate)tmpl,file,newParameters);
+  if (isStaging) {
+    result=staging.callCanonicalRoot(cms,newParameters);
   }
- catch (  CmsException e) {
-    if (A_OpenCms.isLogging()) {
-      A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + "There were errors while building output for template file \"" + file.getAbsolutePath()+ "\" and template class \""+ templateClass+ "\". See above for details.");
+ else {
+    Object tmpl=getTemplateClass(cms,templateClass);
+    if (!(tmpl instanceof com.opencms.template.I_CmsDumpTemplate)) {
+      String errorMessage="Error in " + file.getAbsolutePath() + ": "+ templateClass+ " is not a Cms dump template class.";
+      if (A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + errorMessage);
+      }
+      throw new CmsException(errorMessage,CmsException.C_XML_WRONG_TEMPLATE_CLASS);
     }
-    throw e;
+    try {
+      result=this.callCanonicalRoot(cms,(com.opencms.template.I_CmsTemplate)tmpl,file,newParameters);
+    }
+ catch (    CmsException e) {
+      if (A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + "There were errors while building output for template file \"" + file.getAbsolutePath()+ "\" and template class \""+ templateClass+ "\". See above for details.");
+      }
+      throw e;
+    }
   }
   if (result != null) {
     writeBytesToResponse(cms,result);
