@@ -1,0 +1,65 @@
+{
+  if (configurations == null) {
+    return;
+  }
+ else {
+    this.configurations=configurations;
+  }
+  if (identifier == null) {
+    this.identifier=DEFAULT_IDENTIFIER;
+  }
+ else {
+    this.identifier=identifier;
+  }
+  this.active=configurations.getBoolean(identifier,false);
+  this.logChannel=configurations.getBoolean(identifier + "." + KEYWORD_CHANNEL,false);
+  this.m_channelSeperator=configurations.getString(identifier + "." + C_KEYWORD_SEPERATOR,C_DEFAULT_SEPERATOR);
+  if (m_channelSeperator == null)   m_channelSeperator="";
+  String channelStamp=configurations.getString(identifier + "." + C_KEYWORD_CHANNELFORMAT,C_DEFAULT_CHANNELFORMAT);
+  int pos;
+  if ((pos=channelStamp.indexOf(C_TOKEN_CHANNELFORMAT)) < 0) {
+    channelStamp=C_DEFAULT_CHANNELFORMAT;
+    pos=channelStamp.indexOf(C_TOKEN_CHANNELFORMAT);
+  }
+  m_channelStart=m_channelSeperator + channelStamp.substring(0,pos);
+  m_channelEnd=channelStamp.substring(pos + C_TOKEN_CHANNELFORMAT.length());
+  if (active) {
+    if ((output == null)) {
+      String logFileName=configurations.getString(identifier + "." + KEYWORD_FILE);
+      if (logFileName == null) {
+        throw new IOException("Log is active, but log file (" + identifier + "."+ KEYWORD_FILE+ ") is not specified");
+      }
+      File file=new File(logFileName);
+      if (file.exists()) {
+        if (!file.canWrite()) {
+          throw new IOException("Not writable: " + file.getAbsolutePath());
+        }
+      }
+ else {
+        try {
+          File parent=new File(file.getParent());
+          if (!parent.canWrite()) {
+            throw new IOException("Directory not writable: " + parent.getAbsolutePath());
+          }
+        }
+ catch (        NullPointerException e) {
+        }
+      }
+      this.writer=new PrintWriter(new FileWriter(file.getAbsolutePath(),true));
+    }
+ else {
+      this.writer=new PrintWriter(output);
+    }
+    this.timestamp=configurations.getBoolean(identifier + "." + KEYWORD_TIMESTAMP,false);
+    if (timestamp) {
+      String dateFormat=configurations.getString(identifier + "." + KEYWORD_DATEFORMAT,DEFAULT_DATEFORMAT);
+      formatter=new SimpleDateFormat(dateFormat);
+      formatter.setTimeZone(TimeZone.getDefault());
+    }
+    this.queue_maxage=configurations.getInteger(KEYWORD_QUEUE_MAXAGE,5000);
+    this.queue_maxsize=configurations.getInteger(KEYWORD_QUEUE_MAXSIZE,10000);
+    this.logDaemon=new Agent();
+    this.logDaemon.setDaemon(true);
+    this.logDaemon.start();
+  }
+}

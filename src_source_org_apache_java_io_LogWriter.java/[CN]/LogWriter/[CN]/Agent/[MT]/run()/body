@@ -1,0 +1,23 @@
+{
+  Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
+  while (true) {
+    try {
+      LogRecord lr=(LogRecord)logQueue.waitObject();
+      write(lr);
+      if ((System.currentTimeMillis() - lr.date) > queue_maxage) {
+        Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+        write(new LogRecord(CH_QUEUE_STATUS,"Log queue age limit exceeded",null));
+        flush();
+        Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
+      }
+    }
+ catch (    InterruptedException iex) {
+      if (!logQueue.isEmpty()) {
+        write(new LogRecord(CH_EXCEPTION_TRACING,"Logger thread interrupted, flushing...",iex));
+        flush();
+        write(new LogRecord(CH_EXCEPTION_TRACING,"Flushed, logging stopped.",null));
+      }
+      return;
+    }
+  }
+}
