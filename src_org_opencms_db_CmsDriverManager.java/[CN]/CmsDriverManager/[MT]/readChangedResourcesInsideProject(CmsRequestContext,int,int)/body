@@ -1,0 +1,37 @@
+{
+  List projectResources=m_vfsDriver.readProjectResources(readProject(projectId));
+  List result=(List)new ArrayList();
+  String currentProjectResource=null;
+  List resources=(List)new ArrayList();
+  CmsResource currentResource=null;
+  CmsLock currentLock=null;
+  for (int i=0; i < projectResources.size(); i++) {
+    currentProjectResource=(String)projectResources.get(i);
+    try {
+      currentResource=readFileHeader(context,currentProjectResource,true);
+      if (currentResource.isFolder()) {
+        resources.addAll(readAllSubResourcesInDfs(context,currentProjectResource,resourceType));
+      }
+ else {
+        resources.add(currentResource);
+      }
+    }
+ catch (    CmsException e) {
+      if (e.getType() != CmsException.C_NOT_FOUND) {
+        throw e;
+      }
+    }
+  }
+  for (int j=0; j < resources.size(); j++) {
+    currentResource=(CmsResource)resources.get(j);
+    currentLock=getLock(context,currentResource.getFullResourceName());
+    if (currentResource.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
+      if ((currentLock.isNullLock() && currentResource.getProjectId() == projectId) || (currentLock.getUserId().equals(context.currentUser().getId()) && currentLock.getProjectId() == projectId)) {
+        result.add(currentResource);
+      }
+    }
+  }
+  resources.clear();
+  resources=null;
+  return result;
+}
