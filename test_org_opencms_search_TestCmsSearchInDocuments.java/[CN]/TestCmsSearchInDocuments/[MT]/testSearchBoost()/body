@@ -1,0 +1,54 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing search boosting");
+  CmsSearch searchBean=new CmsSearch();
+  List searchResult;
+  int expected=6;
+  searchBean.init(cms);
+  searchBean.setIndex(INDEX_OFFLINE);
+  searchBean.setSearchRoot("/search/");
+  searchBean.setQuery("Alkacon Software");
+  searchResult=searchBean.getSearchResult();
+  assertEquals(expected,searchResult.size());
+  Iterator i=searchResult.iterator();
+  while (i.hasNext()) {
+    CmsSearchResult res=(CmsSearchResult)i.next();
+    System.out.println(res.getPath());
+  }
+  CmsSearchResult res1=(CmsSearchResult)searchResult.get(searchResult.size() - 1);
+  CmsSearchResult res2=(CmsSearchResult)searchResult.get(searchResult.size() - 2);
+  String path1=cms.getRequestContext().removeSiteRoot(res1.getPath());
+  String path2=cms.getRequestContext().removeSiteRoot(res2.getPath());
+  CmsProperty maxBoost=new CmsProperty(I_CmsConstants.C_PROPERTY_SEARCH_PRIORITY,CmsSearchIndex.SEARCH_BOOST_MAX_VALUE,null,true);
+  CmsProperty highBoost=new CmsProperty(I_CmsConstants.C_PROPERTY_SEARCH_PRIORITY,CmsSearchIndex.SEARCH_BOOST_HIGH_VALUE,null,true);
+  cms.lockResource(path1);
+  cms.writePropertyObject(path1,maxBoost);
+  cms.unlockResource(path1);
+  cms.lockResource(path2);
+  cms.writePropertyObject(path2,highBoost);
+  cms.unlockResource(path2);
+  OpenCms.getSearchManager().updateIndex(new CmsShellReport());
+  searchBean.setIndex(INDEX_ONLINE);
+  searchBean.setQuery("Alkacon Software");
+  searchResult=searchBean.getSearchResult();
+  assertEquals(expected,searchResult.size());
+  assertEquals(expected,searchResult.size());
+  i=searchResult.iterator();
+  while (i.hasNext()) {
+    CmsSearchResult res=(CmsSearchResult)i.next();
+    System.out.println(res.getPath());
+  }
+  assertTrue(((CmsSearchResult)searchResult.get(searchResult.size() - 1)).getPath().equals(res1.getPath()));
+  assertTrue(((CmsSearchResult)searchResult.get(searchResult.size() - 2)).getPath().equals(res2.getPath()));
+  searchBean.setIndex(INDEX_OFFLINE);
+  searchBean.setQuery("Alkacon Software");
+  searchResult=searchBean.getSearchResult();
+  assertEquals(expected,searchResult.size());
+  i=searchResult.iterator();
+  while (i.hasNext()) {
+    CmsSearchResult res=(CmsSearchResult)i.next();
+    System.out.println(res.getPath());
+  }
+  assertTrue(((CmsSearchResult)searchResult.get(0)).getPath().equals(res1.getPath()));
+  assertTrue(((CmsSearchResult)searchResult.get(1)).getPath().equals(res2.getPath()));
+}
