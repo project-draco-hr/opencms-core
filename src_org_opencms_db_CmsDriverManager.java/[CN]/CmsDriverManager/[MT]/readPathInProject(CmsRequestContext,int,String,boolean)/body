@@ -9,9 +9,6 @@
   int i=0, count=0;
   String cacheKey=null;
   CmsResource lastParent=null;
-  boolean visitedLockedFolder=false;
-  int lockedInProject=projectId;
-  CmsUUID lockedByUserId=CmsUUID.getNullUUID();
   tokens=new StringTokenizer(path,I_CmsConstants.C_FOLDER_SEPARATOR);
   count=tokens.countTokens() + 1;
   pathList=(List)new ArrayList(count);
@@ -32,11 +29,6 @@
   if (count == 1) {
     return pathList;
   }
-  if (currentResource.isLocked()) {
-    visitedLockedFolder=true;
-    lockedInProject=currentResource.getLockedInProject();
-    lockedByUserId=currentResource.isLockedBy();
-  }
   currentResourceName=tokens.nextToken();
   for (i=1; i < folderCount; i++) {
     currentPath+=currentResourceName + I_CmsConstants.C_FOLDER_SEPARATOR;
@@ -45,17 +37,6 @@
       currentResource=(CmsResource)m_vfsDriver.readFolder(projectId,lastParent.getId(),currentResourceName);
       currentResource.setFullResourceName(currentPath);
       m_resourceCache.put(cacheKey,currentResource);
-    }
-    if (visitedLockedFolder) {
-      currentResource.setLocked(lockedByUserId);
-      currentResource.setLockedInProject(lockedInProject);
-      currentResource.setProjectId(lockedInProject);
-      m_resourceCache.put(cacheKey,currentResource);
-    }
- else     if (currentResource.isLocked()) {
-      visitedLockedFolder=true;
-      lockedInProject=currentResource.getLockedInProject();
-      lockedByUserId=currentResource.isLockedBy();
     }
     pathList.add(i,currentResource);
     lastParent=currentResource;
@@ -70,12 +51,6 @@
     if ((currentResource=(CmsResource)m_resourceCache.get(cacheKey)) == null) {
       currentResource=(CmsResource)m_vfsDriver.readFileHeader(projectId,lastParent.getId(),currentResourceName,includeDeleted);
       currentResource.setFullResourceName(currentPath);
-      m_resourceCache.put(cacheKey,currentResource);
-    }
-    if (visitedLockedFolder && !currentResource.isLocked()) {
-      currentResource.setLocked(lockedByUserId);
-      currentResource.setLockedInProject(lockedInProject);
-      currentResource.setProjectId(lockedInProject);
       m_resourceCache.put(cacheKey,currentResource);
     }
     pathList.add(i,currentResource);
