@@ -116,22 +116,31 @@
     result.addType(typeManager.getContentType((Element)i.next()));
   }
   List annotations=root.elements(XSD_NODE_ANNOTATION);
+  I_CmsXmlContentHandler contentHandler=null;
+  Element appInfoElement=null;
   if (annotations.size() > 0) {
     List appinfos=((Element)annotations.get(0)).elements(XSD_NODE_APPINFO);
     if (appinfos.size() > 0) {
-      i=((Element)appinfos.get(0)).elements().iterator();
+      appInfoElement=(Element)appinfos.get(0);
+    }
+    if (appinfos.size() > 1) {
+      i=((Element)appinfos.get(1)).elements().iterator();
       while (i.hasNext()) {
         Element appinfo=(Element)i.next();
-        if (appinfo.getName().equals("mapping")) {
-          String key=appinfo.attributeValue("element");
-          String value=appinfo.attributeValue("mapto");
-          if ((key != null) && (value != null)) {
-            result.addMapping(key,value);
+        if (appinfo.getName().equals("handler")) {
+          String className=appinfo.attributeValue("class");
+          if (className != null) {
+            contentHandler=OpenCms.getXmlContentTypeManager().getContentHandler(className,name);
           }
         }
       }
     }
   }
+  if (contentHandler == null) {
+    contentHandler=OpenCms.getXmlContentTypeManager().getContentHandler(CmsDefaultXmlContentHandler.class.getName(),name);
+  }
+  contentHandler.analyzeAppInfo(appInfoElement,result);
+  result.m_contentHandler=contentHandler;
   result.freeze();
   return result;
 }
