@@ -8,20 +8,29 @@
   }
 switch (error) {
 case 404:
-    CmsObject cms=OpenCmsCore.getInstance().getGuestCmsObject(req,res);
-  CmsStaticExportData exportData=OpenCms.getStaticExportManager().getExportData(req,cms);
-if (exportData != null) {
-synchronized (this) {
-    try {
-      OpenCms.getStaticExportManager().export(req,res,cms,exportData);
-    }
- catch (    Throwable t) {
-      res.sendError(HttpServletResponse.SC_NOT_FOUND);
-    }
+    CmsObject cms=null;
+  CmsStaticExportData exportData=null;
+try {
+  cms=OpenCmsCore.getInstance().initCmsObject(req,res,null,null);
+  exportData=OpenCms.getStaticExportManager().getExportData(req,cms);
+}
+ catch (CmsException e) {
+  if (OpenCms.getLog(this).isWarnEnabled()) {
+    OpenCms.getLog(this).warn("Error initializing CmsObject in error handler for '" + path + "' code "+ error,e);
   }
 }
+if (exportData != null) {
+synchronized (this) {
+  try {
+    OpenCms.getStaticExportManager().export(req,res,cms,exportData);
+  }
+ catch (  Throwable t) {
+    res.sendError(HttpServletResponse.SC_NOT_FOUND);
+  }
+}
+}
  else {
-  res.sendError(HttpServletResponse.SC_NOT_FOUND);
+res.sendError(HttpServletResponse.SC_NOT_FOUND);
 }
 break;
 default :
