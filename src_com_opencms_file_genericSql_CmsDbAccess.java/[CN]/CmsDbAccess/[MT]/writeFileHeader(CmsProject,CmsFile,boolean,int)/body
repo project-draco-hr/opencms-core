@@ -1,0 +1,75 @@
+{
+  ResultSet res=null;
+  PreparedStatement statementResourceUpdate=null;
+  Connection con=null;
+  String usedPool;
+  String usedStatement;
+  int modifiedBy=userId;
+  int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
+  if (project.getId() == onlineProject) {
+    usedPool=m_poolNameOnline;
+    usedStatement="_ONLINE";
+    modifiedBy=file.getResourceLastModifiedBy();
+  }
+ else {
+    usedPool=m_poolName;
+    usedStatement="";
+  }
+  try {
+    con=DriverManager.getConnection(usedPool);
+    statementResourceUpdate=con.prepareStatement(m_cq.get("C_RESOURCES_UPDATE" + usedStatement));
+    statementResourceUpdate.setInt(1,file.getType());
+    statementResourceUpdate.setInt(2,file.getFlags());
+    statementResourceUpdate.setInt(3,file.getOwnerId());
+    statementResourceUpdate.setInt(4,file.getGroupId());
+    statementResourceUpdate.setInt(5,file.getProjectId());
+    statementResourceUpdate.setInt(6,file.getAccessFlags());
+    int state=file.getState();
+    if ((state == C_STATE_NEW) || (state == C_STATE_CHANGED)) {
+      statementResourceUpdate.setInt(7,state);
+    }
+ else {
+      if (changed == true) {
+        statementResourceUpdate.setInt(7,C_STATE_CHANGED);
+      }
+ else {
+        statementResourceUpdate.setInt(7,file.getState());
+      }
+    }
+    statementResourceUpdate.setInt(8,file.isLockedBy());
+    statementResourceUpdate.setInt(9,file.getLauncherType());
+    statementResourceUpdate.setString(10,file.getLauncherClassname());
+    statementResourceUpdate.setTimestamp(11,new Timestamp(System.currentTimeMillis()));
+    statementResourceUpdate.setInt(12,modifiedBy);
+    statementResourceUpdate.setInt(13,file.getLength());
+    statementResourceUpdate.setInt(14,file.getFileId());
+    statementResourceUpdate.setInt(15,file.getResourceId());
+    statementResourceUpdate.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (statementResourceUpdate != null) {
+      try {
+        statementResourceUpdate.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+  }
+}

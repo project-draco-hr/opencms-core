@@ -1,13 +1,13 @@
 {
-  PreparedStatement statement=null;
   Connection con=null;
+  PreparedStatement statement=null;
   String usedPool;
   String usedStatement;
-  CmsResource resource=readFileHeader(projectId,filename,true);
-  int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
-  if (projectId == onlineProject) {
+  int modifiedBy=userId;
+  if (project.getId() == onlineProject.getId()) {
     usedPool=m_poolNameOnline;
     usedStatement="_ONLINE";
+    modifiedBy=file.getResourceLastModifiedBy();
   }
  else {
     usedPool=m_poolName;
@@ -15,12 +15,10 @@
   }
   try {
     con=DriverManager.getConnection(usedPool);
-    statement=con.prepareStatement(m_cq.get("C_RESOURCES_DELETE" + usedStatement));
-    statement.setString(1,filename);
-    statement.executeUpdate();
-    statement.close();
-    statement=con.prepareStatement(m_cq.get("C_FILE_DELETE" + usedStatement));
-    statement.setInt(1,resource.getFileId());
+    writeFileHeader(project,file,changed,userId);
+    statement=con.prepareStatement(m_cq.get("C_FILES_UPDATE" + usedStatement));
+    statement.setBytes(1,file.getContents());
+    statement.setInt(2,file.getFileId());
     statement.executeUpdate();
   }
  catch (  SQLException e) {
