@@ -5,9 +5,48 @@
   Class c=null;
   CmsFile classFile=null;
   try {
-    c=Class.forName(name);
+    ClassLoader sysClassLoader=this.getSystemClassLoader();
+    c=sysClassLoader.loadClass(name);
+  }
+ catch (  ClassNotFoundException exc) {
+    c=null;
+  }
+  if (c != null) {
+    return c;
+  }
+  try {
+    ClassLoader apClassLoader=this.getClass().getClassLoader();
+    InputStream fromAp=apClassLoader.getResourceAsStream(name.replace('.','/') + ".class");
+    byte[] myClassData=null;
+    ByteArrayOutputStream outStream=new ByteArrayOutputStream();
+    if (fromAp != null) {
+      copyStream(fromAp,outStream);
+      myClassData=outStream.toByteArray();
+    }
+    if (myClassData != null) {
+      try {
+        c=defineClass(null,myClassData,0,myClassData.length);
+      }
+ catch (      Exception e) {
+        throw new ClassNotFoundException(e.toString());
+      }
+catch (      Error e) {
+        throw new ClassNotFoundException("Something really bad happened while loading class " + name);
+      }
+      cache.put(name,c);
+      if (resolve) {
+        resolveClass(c);
+      }
+      if (A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_DEBUG,"Classloader returned class " + name + " successfully!");
+      }
+      return c;
+    }
   }
  catch (  ClassNotFoundException e) {
+    c=null;
+  }
+catch (  IOException e) {
     c=null;
   }
   if (c != null) {

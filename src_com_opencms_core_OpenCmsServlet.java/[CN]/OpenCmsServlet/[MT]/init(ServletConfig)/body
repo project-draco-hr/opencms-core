@@ -1,42 +1,29 @@
 {
-  super.init(config);
+  String classname="com.opencms.core.OpenCmsHttpServlet";
   try {
-    m_configurations=new Configurations(new ExtendedProperties(config.getInitParameter("properties")));
+    ClassLoader loader=new CmsClassLoader();
+    Class c=loader.loadClass(classname);
+    m_servlet=(HttpServlet)c.newInstance();
   }
  catch (  Exception e) {
-    throw new ServletException(e.getMessage() + ".  Properties file is: " + config.getInitParameter("properties"));
-  }
-  A_OpenCms.initializeServletLogging(m_configurations);
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] logging started");
-  }
-  int count=0;
-  String redirect;
-  String redirectlocation;
-  while ((redirect=(String)m_configurations.getString(C_PROPERTY_REDIRECT + "." + count)) != null) {
-    redirectlocation=(String)m_configurations.getString(C_PROPERTY_REDIRECTLOCATION + "." + count);
-    m_redirect.addElement(redirect);
-    m_redirectlocation.addElement(redirectlocation);
-    count++;
-    if (A_OpenCms.isLogging()) {
-      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] redirect-rule: " + redirect + " -> "+ redirectlocation);
+    String errorMessage=null;
+    if (e instanceof ClassNotFoundException) {
+      errorMessage="XXXCould not load template class " + classname + ". "+ e.getMessage();
     }
+ else {
+      if (e instanceof InstantiationException) {
+        errorMessage="XXXCould not instantiate template class " + classname;
+      }
+ else {
+        if (e instanceof NoSuchMethodException) {
+          errorMessage="XXXCould not find constructor of template class " + classname;
+        }
+ else {
+          errorMessage="XXXUnknown error while getting instance of template class " + classname;
+        }
+      }
+    }
+    throw new ServletException(e);
   }
-  m_clusterurl=(String)m_configurations.getString(C_CLUSTERURL,"");
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] Clusterurl: " + m_clusterurl);
-  }
-  try {
-    m_opencms=new OpenCms(m_configurations);
-  }
- catch (  Exception exc) {
-    throw new ServletException(exc.getMessage());
-  }
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] initializing session storage");
-  }
-  m_sessionStorage=new CmsCoreSession();
-  if (A_OpenCms.isLogging()) {
-    A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,"[OpenCmsServlet] initializing... DONE");
-  }
+  m_servlet.init(config);
 }
