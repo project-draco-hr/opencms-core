@@ -270,6 +270,9 @@ writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,curren
 try {
 m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),onlineFile);
 m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),currentFile);
+if (!onlineFile.getResourceId().equals(currentFile.getResourceId())) {
+m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),onlineFile);
+}
 }
  catch (CmsException exc) {
 if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INFO)) {
@@ -312,20 +315,33 @@ contents=(new String(contents,encoding)).getBytes();
 discAccess.writeFile(currentResourceName,currentExportKey,contents);
 }
 try {
-onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),false,currentFile.getId());
+onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),true,currentFile.getId());
 onlineFile.setFullResourceName(currentResourceName);
-}
- catch (CmsException exc) {
-if (exc.getType() == CmsException.C_NOT_FOUND) {
-currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
-onlineFile=m_driverManager.getVfsDriver().createFile(onlineProject,currentFile,context.currentUser().getId(),currentFile.getParentId(),currentFile.getResourceName());
-}
-}
-m_driverManager.getVfsDriver().publishResource(onlineFile,currentFile);
-try {
 m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),onlineFile);
+if (!onlineFile.getResourceId().equals(currentFile.getResourceId())) {
+m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),onlineFile);
+}
+m_driverManager.getVfsDriver().removeFile(onlineProject,onlineFile);
+}
+ catch (CmsException e) {
+if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INFO)) {
+OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, removing resource online"+ currentFile.toString()+ " Message= "+ e.getMessage());
+}
+}
+try {
+newFile=(CmsFile)currentFile.clone();
+newFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
+newFile.setFullResourceName(currentResourceName);
+m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentUser().getId(),newFile.getParentId(),newFile.getResourceName());
+}
+ catch (CmsException e) {
+if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INFO)) {
+OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "] error publishing, re-creating resource online "+ currentFile.toString()+ " Message= "+ e.getMessage());
+}
+}
+try {
 properties=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFile,currentFile.getType());
-m_driverManager.getVfsDriver().writeProperties(properties,onlineProject.getId(),onlineFile,currentFile.getType());
+m_driverManager.getVfsDriver().writeProperties(properties,onlineProject.getId(),newFile,newFile.getType());
 }
  catch (CmsException exc) {
 if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INFO)) {
@@ -367,14 +383,8 @@ m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentU
 }
  catch (CmsException e) {
 if (e.getType() == CmsException.C_FILE_EXISTS) {
-try {
-onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),false,currentFile.getId());
-onlineFile.setFullResourceName(currentResourceName);
-}
- catch (CmsException exc) {
-throw exc;
-}
-m_driverManager.getVfsDriver().publishResource(onlineFile,currentFile);
+m_driverManager.getVfsDriver().removeFile(onlineProject,currentFile);
+m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentUser().getId(),newFile.getParentId(),newFile.getResourceName());
 }
  else {
 throw e;
