@@ -1,11 +1,11 @@
 {
   String entries=(String)m_generatedScripts.get(cms.getRequestContext().getLocale());
   if (entries == null) {
-    StringBuffer result=new StringBuffer(4096);
+    StringBuffer result=new StringBuffer(3072);
     String jspWorkplaceUri=OpenCms.getLinkManager().substituteLink(cms,CmsWorkplace.C_PATH_WORKPLACE);
     String xmlWorkplaceUri=OpenCms.getLinkManager().substituteLink(cms,CmsWorkplaceAction.C_PATH_XML_WORKPLACE);
-    result.append("\nvi.resource[" + resTypeId + "]=new res(\""+ settings.getName()+ "\",");
-    result.append("\"" + messages.key(settings.getKey()) + "\",vi.skinPath+\"filetypes/"+ settings.getIcon()+ "\",\""+ settings.getNewResourceUri()+ "\",true);\n");
+    result.append("\nvi.resource[" + resTypeId + "]=new res(\""+ settings.getName()+ "\", ");
+    result.append("\"" + messages.key(settings.getKey()) + "\", vi.skinPath + \"filetypes/"+ settings.getIcon()+ "\", \""+ settings.getNewResourceUri()+ "\", true);\n");
     Iterator i=getAllEntries().iterator();
     while (i.hasNext()) {
       CmsExplorerContextMenuItem item=(CmsExplorerContextMenuItem)i.next();
@@ -39,6 +39,19 @@
     }
     entries=result.toString();
     m_generatedScripts.put(cms.getRequestContext().getLocale(),entries);
+  }
+  CmsPermissionSet permissions;
+  try {
+    permissions=settings.getAccessControlList().getPermissions(cms.getRequestContext().currentUser(),cms.getGroupsOfUser(cms.getRequestContext().currentUser().getName()));
+  }
+ catch (  CmsException e) {
+    permissions=settings.getAccessControlList().getPermissions(cms.getRequestContext().currentUser());
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error reading groups of user " + cms.getRequestContext().currentUser().getName());
+    }
+  }
+  if (permissions.getPermissionString().indexOf("+w") == -1) {
+    entries+="vi.resource[" + resTypeId + "].editable = false;\n";
   }
   return entries;
 }
