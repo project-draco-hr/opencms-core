@@ -1,0 +1,176 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsXmlTemplateFile templateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  I_CmsRegistry reg=cms.getRegistry();
+  CmsRequestContext reqCont=cms.getRequestContext();
+  I_CmsSession session=reqCont.getSession(true);
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  String projectName=new String();
+  String syncPath=new String();
+  String allResources=new String();
+  Vector folders=new Vector();
+  String projectId=new String();
+  int numRes=0;
+  String step=(String)parameters.get(C_STEP);
+  projectId=(String)parameters.get(C_SYNCPROJECT);
+  syncPath=(String)parameters.get(C_SYNCPATH);
+  allResources=(String)parameters.get(C_SYNCRESOURCES);
+  if (step == null) {
+    if (session.getValue(C_STEP) == null) {
+      session.removeValue(C_SYNCPROJECT);
+      session.removeValue(C_SYNCPATH);
+      session.removeValue(C_SYNCRESOURCES);
+      session.removeValue(C_ADDFOLDER);
+      session.removeValue("lasturl");
+      session.putValue(C_CURPROJECT,valueOf(reqCont.currentProject().getId()));
+      session.putValue(C_STEP,"nextstep");
+    }
+  }
+ else {
+    if ("OK".equalsIgnoreCase(step)) {
+      projectId=(String)parameters.get(C_SYNCPROJECT);
+      syncPath=(String)parameters.get(C_SYNCPATH);
+      allResources=(String)parameters.get(C_SYNCRESOURCES);
+      if (((projectId == null) || projectId.equals("")) || ((syncPath == null) || syncPath.equals("")) || ((allResources == null) || allResources.equals(""))) {
+        templateSelector="datamissing";
+      }
+ else {
+        session.putValue(C_SYNCPROJECT,projectId);
+        session.putValue(C_SYNCPATH,syncPath);
+        session.putValue(C_SYNCRESOURCES,allResources);
+        folders=parseResources(allResources);
+        numRes=folders.size();
+        for (int i=0; i < numRes; i++) {
+          if (lang.getLanguageValue("title.rootfolder").equals(folders.elementAt(i))) {
+            folders.setElementAt("/",i);
+          }
+        }
+        checkRedundancies(folders);
+        numRes=folders.size();
+        Vector notWriteable=new Vector();
+        for (int i=numRes - 1; i >= 0; i--) {
+          String theFolder=(String)folders.elementAt(i);
+          if (!checkWriteable(cms,theFolder,Integer.parseInt(projectId))) {
+            notWriteable.addElement(theFolder);
+            templateSelector="errorsyncproperties";
+          }
+        }
+        if ("errorsyncproperties".equals(templateSelector)) {
+          templateDocument.setData("details","The following folders were not writeable:" + notWriteable.toString());
+        }
+      }
+      if (templateSelector == null || "".equals(templateSelector)) {
+        Hashtable hashResources=new Hashtable();
+        numRes=folders.size();
+        for (int i=0; i < numRes; i++) {
+          String key=C_SYNCHRONISATION_RESOURCETAG + (i + 1);
+          String value=(String)folders.elementAt(i);
+          hashResources.put(key,value);
+        }
+        CmsProject theProject=cms.readProject(Integer.parseInt(projectId));
+        projectName=theProject.getName();
+        reg.setSystemValue(C_SYNCHRONISATION_PROJECT,projectName);
+        reg.setSystemValue(C_SYNCHRONISATION_PATH,syncPath);
+        reg.setSystemValues(C_SYNCHRONISATION_RESOURCE,hashResources);
+        templateSelector="done";
+        int curProjectId=Integer.parseInt((String)session.getValue(C_CURPROJECT));
+        if (curProjectId != reqCont.currentProject().getId()) {
+          reqCont.setCurrentProject(curProjectId);
+        }
+        session.removeValue(C_CURPROJECT);
+        session.removeValue(C_STEP);
+      }
+    }
+ else     if ("fromerrorpage".equals(step)) {
+      templateDocument.setData(C_SYNCPROJECT,(String)session.getValue(C_SYNCPROJECT));
+      templateDocument.setData(C_SYNCPATH,(String)session.getValue(C_SYNCPATH));
+      templateDocument.setData(C_ADDFOLDER,"");
+      templateDocument.setData(C_SYNCRESOURCES,(String)session.getValue(C_SYNCRESOURCES));
+      templateSelector="";
+    }
+ else     if ("cancel".equals(step)) {
+      int curProjectId=Integer.parseInt((String)session.getValue(C_CURPROJECT));
+      if (curProjectId != reqCont.currentProject().getId()) {
+        reqCont.setCurrentProject(curProjectId);
+      }
+      session.removeValue(C_CURPROJECT);
+      session.removeValue(C_STEP);
+      templateSelector="done";
+    }
+  }
+  if ((projectId == null) || ("".equals(projectId))) {
+    projectId=(String)session.getValue(C_SYNCPROJECT);
+  }
+  if ((syncPath == null) || ("".equals(syncPath))) {
+    syncPath=(String)session.getValue(C_SYNCPATH);
+  }
+  if ((allResources == null) || ("".equals(allResources))) {
+    allResources=(String)session.getValue(C_SYNCRESOURCES);
+  }
+  if ((projectId == null) || ("".equals(projectId))) {
+    projectName=reg.getSystemValue(C_SYNCHRONISATION_PROJECT);
+    int countAccessible=0;
+    if ((projectName != null) && (!"".equals(projectName))) {
+      Vector allProjects=cms.getAllAccessibleProjects();
+      for (int i=0; i < allProjects.size(); i++) {
+        CmsProject nextProject=(CmsProject)allProjects.elementAt(i);
+        if (projectName.equals(nextProject.getName())) {
+          countAccessible++;
+          projectId=nextProject.getId() + "";
+        }
+      }
+      if ((countAccessible == 0) || (countAccessible > 1)) {
+        projectId="";
+      }
+    }
+ else {
+      projectId="";
+    }
+  }
+  if ((syncPath == null) || ("".equals(syncPath))) {
+    syncPath=reg.getSystemValue(C_SYNCHRONISATION_PATH);
+    if (syncPath == null) {
+      syncPath="";
+    }
+  }
+  if ((allResources == null) || ("".equals(allResources))) {
+    allResources="";
+    if (!((projectId == null) || ("".equals(projectId)))) {
+      Hashtable resources=reg.getSystemValues(C_SYNCHRONISATION_RESOURCE);
+      numRes=resources.size();
+      if (numRes > 0) {
+        allResources=new String();
+        for (int i=1; i < numRes + 1; i++) {
+          String path=(String)resources.get(C_SYNCHRONISATION_RESOURCETAG + i);
+          try {
+            CmsResource resource=cms.readFileHeaderForHist(path,Integer.parseInt(projectId));
+            allResources=allResources + path + ";";
+          }
+ catch (          CmsException exc) {
+          }
+        }
+        if (allResources.endsWith(";")) {
+          allResources=allResources.substring(0,allResources.lastIndexOf(";"));
+        }
+      }
+    }
+  }
+  if (!"done".equals(templateSelector)) {
+    if (projectId != null && !("".equals(projectId))) {
+      if (!(Integer.parseInt(projectId) == reqCont.currentProject().getId())) {
+        reqCont.setCurrentProject(Integer.parseInt(projectId));
+      }
+    }
+  }
+  templateDocument.setData(C_SYNCPROJECT,projectId);
+  templateDocument.setData(C_SYNCRESOURCES,allResources);
+  templateDocument.setData(C_SYNCPATH,syncPath);
+  session.putValue(C_SYNCPROJECT,projectId);
+  session.putValue(C_SYNCPATH,syncPath);
+  session.putValue(C_SYNCRESOURCES,allResources);
+  return startProcessing(cms,templateDocument,elementName,parameters,templateSelector);
+}
