@@ -27,59 +27,22 @@
   }
  else {
     if (file.isFile()) {
-      cms.copyFile(file.getAbsolutePath(),newFolder + newFile);
-      if ((cms.getResourceType(file.getType()).getResourceName()).equals(C_TYPE_PAGE_NAME)) {
-        String bodyPath=getBodyPath(cms,(CmsFile)file);
-        int help=C_CONTENTBODYPATH.lastIndexOf("/");
-        String hbodyPath=(C_CONTENTBODYPATH.substring(0,help)) + (file.getAbsolutePath());
-        if (hbodyPath.equals(bodyPath)) {
-          checkFolders(cms,newFolder);
-          String newbodyPath=(C_CONTENTBODYPATH.substring(0,help)) + newFolder + newFile;
-          CmsFile newContent=cms.readFile(newFolder + newFile);
-          changeContent(cms,newContent,newbodyPath);
-          cms.copyFile(bodyPath,newbodyPath);
-          if (flags.equals("false")) {
-            CmsFile newfile=cms.readFile(newFolder,file.getName());
-            Hashtable startSettings=null;
-            Integer accessFlags=null;
-            startSettings=(Hashtable)cms.getRequestContext().currentUser().getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
-            if (startSettings != null) {
-              accessFlags=(Integer)startSettings.get(C_START_ACCESSFLAGS);
-              if (accessFlags == null) {
-                accessFlags=new Integer(C_ACCESS_DEFAULT_FLAGS);
-              }
-            }
-            newfile.setAccessFlags(accessFlags.intValue());
-            cms.writeFile(newfile);
-          }
-        }
- else {
-          cms.unlockResource(file.getAbsolutePath());
-        }
-      }
-      if (flags.equals("false")) {
-        CmsFile newfile=cms.readFile(newFolder,newFile);
-        Hashtable startSettings=null;
-        Integer accessFlags=null;
-        startSettings=(Hashtable)cms.getRequestContext().currentUser().getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
-        if (startSettings != null) {
-          accessFlags=(Integer)startSettings.get(C_START_ACCESSFLAGS);
-          if (accessFlags == null) {
-            accessFlags=new Integer(C_ACCESS_DEFAULT_FLAGS);
-          }
-        }
-        newfile.setAccessFlags(accessFlags.intValue());
-        cms.writeFile(newfile);
-      }
+      copyFile(cms,(CmsFile)file,newFolder,newFile,flags);
     }
  else {
       Vector allFolders=new Vector();
       Vector allFiles=new Vector();
       getAllResources(cms,filename,allFiles,allFolders);
       cms.copyFolder(filename,newFolder + newFile + "/");
+      checkFlags(cms,newFolder + newFile + "/",flags);
       for (int i=0; i < allFolders.size(); i++) {
         CmsFolder folder=(CmsFolder)allFolders.elementAt(i);
         cms.copyFolder(folder.getAbsolutePath(),newFolder + newFile + "/"+ folder.getAbsolutePath().substring(file.getAbsolutePath().length()));
+        checkFlags(cms,newFolder + newFile + "/"+ folder.getAbsolutePath().substring(file.getAbsolutePath().length()),flags);
+      }
+      for (int i=0; i < allFiles.size(); i++) {
+        CmsFile newfile=(CmsFile)allFiles.elementAt(i);
+        copyFile(cms,newfile,newFolder + newFile + "/",newfile.getAbsolutePath().substring(file.getAbsolutePath().length()),flags);
       }
     }
     session.removeValue(C_PARA_FILE);
