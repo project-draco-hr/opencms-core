@@ -1,0 +1,38 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing module action class");
+  String moduleName="org.opencms.configuration.TestModule1";
+  if (!OpenCms.getModuleManager().hasModule(moduleName)) {
+    fail("Module '" + moduleName + "' was not imported!");
+  }
+  CmsModule module=OpenCms.getModuleManager().getModule(moduleName);
+  I_CmsModuleAction actionInstance=OpenCms.getModuleManager().getActionInstance(moduleName);
+  if (actionInstance == null) {
+    fail("Module '" + moduleName + "' has no action instance!");
+  }
+  if (!(actionInstance instanceof TestModuleActionImpl)) {
+    fail("Module '" + moduleName + "' has action class of unexpected type!");
+  }
+  assertEquals(true,TestModuleActionImpl.m_initialize);
+  assertEquals(true,TestModuleActionImpl.m_publishProject);
+  assertEquals(false,TestModuleActionImpl.m_moduleUpdate);
+  assertEquals(false,TestModuleActionImpl.m_moduleUninstall);
+  assertEquals(false,TestModuleActionImpl.m_shutDown);
+  TestModuleActionImpl.m_cmsEvent=-1;
+  TestModuleActionImpl.m_publishProject=false;
+  cms.publishProject();
+  assertEquals(true,TestModuleActionImpl.m_publishProject);
+  assertTrue(TestModuleActionImpl.m_cmsEvent == I_CmsEventListener.EVENT_PUBLISH_PROJECT);
+  CmsModule newModule=new CmsModule(module.getName(),module.getDescription(),module.getActionClass(),module.getDescription(),module.getVersion(),module.getAuthorName(),module.getAuthorEmail(),module.getDateCreated(),module.getUserInstalled(),module.getDateInstalled(),module.getDependencies(),module.getExportPoints(),module.getResources(),module.getParameters());
+  OpenCms.getModuleManager().updateModule(cms,newModule);
+  assertEquals(true,TestModuleActionImpl.m_moduleUpdate);
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  assertEquals("Offline",cms.getRequestContext().currentProject().getName());
+  OpenCms.getModuleManager().deleteModule(cms,module.getName(),false,new CmsShellReport());
+  assertEquals(true,TestModuleActionImpl.m_moduleUninstall);
+  TestModuleActionImpl.m_cmsEvent=-1;
+  TestModuleActionImpl.m_publishProject=false;
+  cms.publishProject();
+  assertEquals(false,TestModuleActionImpl.m_publishProject);
+  assertTrue(TestModuleActionImpl.m_cmsEvent == -1);
+}
