@@ -1,0 +1,30 @@
+{
+  HashMap returnValue=new HashMap();
+  ResultSet result=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  String resourceName=resource.getFullResourceName();
+  if ((resource.isFolder()) && (!resourceName.endsWith("/"))) {
+    resourceName+="/";
+  }
+  CmsUUID backupId=resource.getBackupId();
+  try {
+    conn=m_sqlManager.getConnectionForBackup();
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_READALL_BACKUP");
+    stmt.setString(1,backupId.toString());
+    stmt.setString(2,resourceName);
+    stmt.setInt(3,resource.getType());
+    stmt.setInt(4,resource.getTagId());
+    result=stmt.executeQuery();
+    while (result.next()) {
+      returnValue.put(result.getString(m_sqlManager.get("C_PROPERTYDEF_NAME")),result.getString(m_sqlManager.get("C_PROPERTY_VALUE")));
+    }
+  }
+ catch (  SQLException exc) {
+    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,exc,false);
+  }
+ finally {
+    m_sqlManager.closeAll(conn,stmt,result);
+  }
+  return (returnValue);
+}
