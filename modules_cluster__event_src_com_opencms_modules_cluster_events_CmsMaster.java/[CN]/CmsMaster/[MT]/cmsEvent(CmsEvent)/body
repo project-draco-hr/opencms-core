@@ -1,0 +1,29 @@
+{
+  if (event.getType() == EVENT_PUBLISH_PROJECT) {
+    CmsObject cms=event.getCmsObject();
+    try {
+      String user=cms.getRegistry().getModuleParameter("com.opencms.modules.cluster.events",C_PARA_USER);
+      String password=cms.getRegistry().getModuleParameter("com.opencms.modules.cluster.events",C_PARA_PASSWORD);
+      String file=cms.getRegistry().getModuleParameter("com.opencms.modules.cluster.events",C_PARA_FILENAME);
+      String list=cms.getRegistry().getModuleParameter("com.opencms.modules.cluster.events",C_PARA_SLAVE_LIST);
+      StringTokenizer seperatedList=new StringTokenizer(list,",");
+      CmsCommandContainer container=new CmsCommandContainer(user,password,false);
+      container.addCommand(new CmsCommand("clearcache",new Object[]{}));
+      container.addCommand(new CmsCommand("clearElementCache",new Object[]{}));
+      while (seperatedList.hasMoreTokens()) {
+        try {
+          URL target=new URL(seperatedList.nextToken() + file);
+          Thread sender=new CmsSendEventThread(container,target);
+          sender.start();
+        }
+ catch (        MalformedURLException e) {
+          if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+            A_OpenCms.log(A_OpenCms.C_MODULE_DEBUG," module com.opencms.modules.cluster.events cant send command " + e.getMessage());
+          }
+        }
+      }
+    }
+ catch (    CmsException e) {
+    }
+  }
+}
