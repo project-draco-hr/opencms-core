@@ -1,0 +1,58 @@
+{
+  String template=null;
+  String filename=null;
+  String title=null;
+  String link=null;
+  String foldername=null;
+  String type=null;
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String initial=(String)parameters.get(C_PARA_INITIAL);
+  if (initial != null) {
+    session.removeValue(C_PARA_FILE);
+    session.removeValue(C_PARA_TITLE);
+    session.removeValue(C_PARA_LINK);
+  }
+  filename=cms.getRequestContext().getRequest().getParameter(C_PARA_FILE);
+  if (filename != null) {
+    session.putValue(C_PARA_FILE,filename);
+  }
+  title=cms.getRequestContext().getRequest().getParameter(C_PARA_TITLE);
+  if (title != null) {
+    session.putValue(C_PARA_TITLE,title);
+  }
+  link=cms.getRequestContext().getRequest().getParameter(C_PARA_LINK);
+  if (link != null) {
+    session.putValue(C_PARA_LINK,link);
+  }
+  String step=cms.getRequestContext().getRequest().getParameter("step");
+  if (step != null) {
+    if (step.equals("1")) {
+      foldername=(String)session.getValue(C_PARA_FILELIST);
+      title=(String)session.getValue(C_PARA_TITLE);
+      if (foldername == null) {
+        foldername=cms.rootFolder().getAbsolutePath();
+      }
+      filename=(String)session.getValue(C_PARA_FILE);
+      link=(String)session.getValue(C_PARA_LINK);
+      type="link";
+      cms.createFile(foldername,filename,link.getBytes(),type);
+      cms.lockResource(foldername + filename);
+      cms.writeProperty(foldername + filename,C_PROPERTY_TITLE,title);
+      cms.unlockResource(foldername + filename);
+      session.removeValue(C_PARA_FILE);
+      session.removeValue(C_PARA_TITLE);
+      session.removeValue(C_PARA_LINK);
+      try {
+        cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+      }
+ catch (      Exception e) {
+        throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+      }
+    }
+  }
+ else {
+    session.removeValue(C_PARA_FILE);
+  }
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}
