@@ -19,13 +19,16 @@
     session.removeValue(C_NEWRESOURCES);
     session.removeValue(C_NEWCHANNELS);
     session.removeValue(C_NEWTYPE);
+    session.removeValue(C_STATEXP);
     session.removeValue("lasturl");
     session.removeValue("newProjectCallingFrom");
     reqCont.setCurrentProject(cms.onlineProject().getId());
   }
   String newName, newGroup, newDescription, newManagerGroup, newFolder;
   int projectType=0;
+  int statExp=0;
   String newType=new String();
+  String newStatExp=new String();
   String action=new String();
   action=(String)parameters.get("action");
   CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
@@ -65,12 +68,14 @@
     xmlTemplateDocument.setData("doThis","");
   }
   xmlTemplateDocument.setData("onlineId","" + cms.onlineProject().getId());
+  xmlTemplateDocument.setData("projectstatexp",xmlTemplateDocument.getProcessedDataValue("statexp_enabled",this));
   newGroup=(String)parameters.get(C_PROJECTNEW_GROUP);
   newDescription=(String)parameters.get(C_PROJECTNEW_DESCRIPTION);
   newManagerGroup=(String)parameters.get(C_PROJECTNEW_MANAGERGROUP);
   String allResources=(String)parameters.get(C_NEWRESOURCES);
   String allChannels=(String)parameters.get(C_NEWCHANNELS);
   newType=(String)parameters.get(C_NEWTYPE);
+  newStatExp=(String)parameters.get(C_STATEXP);
   if (newGroup == null) {
     newGroup=(String)session.getValue(C_NEWGROUP);
   }
@@ -88,6 +93,9 @@
   }
   if (newType == null) {
     newType=(String)session.getValue(C_NEWTYPE);
+  }
+  if (newStatExp == null) {
+    newStatExp=(String)session.getValue(C_STATEXP);
   }
   if (newName == null) {
     newName="";
@@ -114,14 +122,22 @@
  else {
     projectType=I_CmsConstants.C_PROJECT_TYPE_TEMPORARY;
   }
+  if (newStatExp == null || "".equals(newStatExp)) {
+    statExp=I_CmsConstants.C_PROJECT_TYPE_NORMAL;
+    newStatExp="";
+  }
+ else {
+    statExp=I_CmsConstants.C_PROJECT_TYPE_STATICEXPORT;
+  }
   if (parameters.get("submitform") != null) {
     session.putValue(C_NEWNAME,newName);
     session.putValue(C_NEWGROUP,newGroup);
     session.putValue(C_NEWDESCRIPTION,newDescription);
     session.putValue(C_NEWMANAGERGROUP,newManagerGroup);
     session.putValue(C_NEWTYPE,newType);
+    session.putValue(C_STATEXP,newStatExp);
     session.putValue(C_NEWCHANNELS,allChannels);
-    if (newName.equals("") || newGroup.equals("") || newManagerGroup.equals("")|| allResources.equals("")) {
+    if (newName.equals("") || newGroup.equals("") || newManagerGroup.equals("")|| (allResources.equals("") && allChannels.equals(""))) {
       templateSelector="datamissing" + errorTemplateAddOn;
     }
  else {
@@ -156,7 +172,7 @@
       }
       checkRedundancies(channels);
       numChan=channels.size();
-      CmsProject project=cms.createProject(newName,newDescription,newGroup,newManagerGroup,projectType);
+      CmsProject project=cms.createProject(newName,newDescription,newGroup,newManagerGroup,projectType + statExp);
       reqCont.setCurrentProject(project.getId());
       try {
         for (int i=0; i < folders.size(); i++) {
@@ -186,6 +202,7 @@
       session.removeValue(C_NEWMANAGERGROUP);
       session.removeValue(C_NEWFOLDER);
       session.removeValue(C_NEWTYPE);
+      session.removeValue(C_STATEXP);
       session.removeValue(C_NEWRESOURCES);
       session.removeValue(C_NEWCHANNELS);
       session.removeValue("lasturl");
@@ -200,5 +217,6 @@
   xmlTemplateDocument.setData(C_NEWNAME,newName);
   xmlTemplateDocument.setData(C_NEWDESCRIPTION,newDescription);
   xmlTemplateDocument.setData(C_NEWTYPE,newType);
+  xmlTemplateDocument.setData(C_STATEXP,newStatExp);
   return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
 }
