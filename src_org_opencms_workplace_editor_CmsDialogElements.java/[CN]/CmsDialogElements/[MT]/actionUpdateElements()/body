@@ -12,8 +12,12 @@
     while (i.hasNext()) {
       String[] currentElement=(String[])i.next();
       String elementName=currentElement[0];
+      boolean isExisting=page.hasElement(elementName,getParamBodylanguage());
       boolean isMandatory="1".equals(currentElement[2]);
       if (isMandatory || "true".equals(getJsp().getRequest().getParameter(PREFIX_PARAM_BODY + elementName))) {
+        if (!isExisting) {
+          page.addElement(elementName,getParamBodylanguage());
+        }
         page.setEnabled(elementName,getParamBodylanguage(),true);
         if (isMandatory && !foundMandatory) {
           changeBody=elementName;
@@ -21,7 +25,9 @@
         }
       }
  else {
-        page.setEnabled(elementName,getParamBodylanguage(),false);
+        if (isExisting) {
+          page.setEnabled(elementName,getParamBodylanguage(),false);
+        }
       }
     }
     getCms().writeFile(page.write(file));
@@ -36,5 +42,16 @@
     closeDialog();
   }
  catch (  CmsException e) {
+    setParamOkFunctions("window.close();");
+    setParamErrorstack(e.getStackTraceAsString());
+    setParamMessage(key("error.message.editor.elements"));
+    String reason=key("error.reason.editor.elements") + "<br>\n" + key("error.suggestion.editor.elements")+ "\n";
+    setParamReasonSuggestion(reason);
+    getJsp().getRequest().setAttribute(C_SESSION_WORKPLACE_CLASS,this);
+    try {
+      getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
+    }
+ catch (    Exception exc) {
+    }
   }
 }
