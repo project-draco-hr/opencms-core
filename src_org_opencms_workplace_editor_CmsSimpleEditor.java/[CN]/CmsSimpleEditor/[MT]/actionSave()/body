@@ -2,18 +2,16 @@
   CmsFile editFile=null;
   try {
     editFile=getCms().readFile(getParamResource());
-    String decodedContent=CmsEncoder.unescape(getParamContent(),CmsEncoder.C_UTF8_ENCODING);
-    String encoding=getCms().getRequestContext().getEncoding();
-    encoding=getCms().readPropertyObject(getParamResource(),I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,true).getValue(encoding);
+    String decodedContent=CmsEncoder.encodeForHtml(decodeContent(getParamContent()),getFileEncoding());
     try {
-      editFile.setContents(decodedContent.getBytes(encoding));
+      editFile.setContents(decodedContent.getBytes(getFileEncoding()));
     }
  catch (    UnsupportedEncodingException e) {
       editFile.setContents(decodedContent.getBytes());
     }
     CmsFile writtenFile=getCms().writeFile(editFile);
     try {
-      decodedContent=new String(writtenFile.getContents(),encoding);
+      decodedContent=new String(writtenFile.getContents(),getFileEncoding());
     }
  catch (    UnsupportedEncodingException e) {
       decodedContent=new String(writtenFile.getContents());
@@ -21,16 +19,12 @@
     setParamContent(encodeContent(decodedContent));
   }
  catch (  CmsXmlPageException e) {
-    setParamAction("");
-    showErrorPage(this,e,"xml",C_PATH_EDITORS + "dialogs/confirm.html");
-    setAction(ACTION_CANCEL);
-    return;
+    showErrorPage(e,"xml");
   }
 catch (  CmsException e) {
-    setParamAction("");
-    showErrorPage(this,e,"save",C_PATH_EDITORS + "dialogs/confirm.html");
-    setAction(ACTION_CANCEL);
-    return;
+    showErrorPage(e,"save");
   }
-  setAction(ACTION_SAVE);
+  if (getAction() != ACTION_CANCEL) {
+    setAction(ACTION_SAVE);
+  }
 }
