@@ -1,51 +1,66 @@
 {
   byte[] output=null;
-  CmsXmlControlFile doc=null;
-  try {
-    doc=new CmsXmlControlFile(cms,file);
-  }
- catch (  Exception e) {
-    handleException(cms,e,"There was an error while parsing XML file " + file.getAbsolutePath());
-    return "".getBytes();
-  }
-  String templateClass=doc.getTemplateClass();
-  if (templateClass == null || "".equals(templateClass)) {
-    templateClass=startTemplateClass;
-  }
-  if (templateClass == null || "".equals(templateClass)) {
-    templateClass="com.opencms.template.CmsXmlTemplate";
-  }
-  String templateName=doc.getMasterTemplate();
-  CmsFile masterTemplate=loadMasterTemplateFile(cms,templateName,doc);
   Hashtable newParameters=new Hashtable();
-  Enumeration masterTemplateParams=doc.getParameterNames();
-  while (masterTemplateParams.hasMoreElements()) {
-    String paramName=(String)masterTemplateParams.nextElement();
-    String paramValue=doc.getParameter(paramName);
-    newParameters.put(C_ROOT_TEMPLATE_NAME + "." + paramName,paramValue);
+  boolean isStaging=cms.getRequestContext().isStaging();
+  CmsStaging staging=null;
+  String uri=cms.getRequestContext().getUri();
+  CmsUriDescriptor uriDesc=null;
+  CmsUriLocator uriLoc=null;
+  CmsUri cmsUri=null;
+  String templateClass=null;
+  String templateName=null;
+  CmsXmlControlFile doc=null;
+  if (isStaging) {
+    staging=openCms.getStaging();
+    uriDesc=new CmsUriDescriptor(uri);
+    uriLoc=staging.getUriLocator();
+    cmsUri=uriLoc.get(uriDesc);
   }
-  Enumeration elementDefinitions=doc.getElementDefinitions();
-  while (elementDefinitions.hasMoreElements()) {
-    String elementName=(String)elementDefinitions.nextElement();
-    if (doc.isElementClassDefined(elementName)) {
-      newParameters.put(elementName + "._CLASS_",doc.getElementClass(elementName));
+  if (cmsUri == null || !isStaging) {
+    try {
+      doc=new CmsXmlControlFile(cms,file);
     }
-    if (doc.isElementTemplateDefined(elementName)) {
-      newParameters.put(elementName + "._TEMPLATE_",doc.getElementTemplate(elementName));
+ catch (    Exception e) {
+      handleException(cms,e,"There was an error while parsing XML page file " + file.getAbsolutePath());
+      return "".getBytes();
     }
-    if (doc.isElementTemplSelectorDefined(elementName)) {
-      newParameters.put(elementName + "._TEMPLATESELECTOR_",doc.getElementTemplSelector(elementName));
+    templateClass=doc.getTemplateClass();
+    if (templateClass == null || "".equals(templateClass)) {
+      templateClass=startTemplateClass;
     }
-    Enumeration parameters=doc.getElementParameterNames(elementName);
-    while (parameters.hasMoreElements()) {
-      String paramName=(String)parameters.nextElement();
-      String paramValue=doc.getElementParameter(elementName,paramName);
-      if (paramValue != null) {
-        newParameters.put(elementName + "." + paramName,paramValue);
+    if (templateClass == null || "".equals(templateClass)) {
+      templateClass="com.opencms.template.CmsXmlTemplate";
+    }
+    templateName=doc.getMasterTemplate();
+    Enumeration masterTemplateParams=doc.getParameterNames();
+    while (masterTemplateParams.hasMoreElements()) {
+      String paramName=(String)masterTemplateParams.nextElement();
+      String paramValue=doc.getParameter(paramName);
+      newParameters.put(C_ROOT_TEMPLATE_NAME + "." + paramName,paramValue);
+    }
+    Enumeration elementDefinitions=doc.getElementDefinitions();
+    while (elementDefinitions.hasMoreElements()) {
+      String elementName=(String)elementDefinitions.nextElement();
+      if (doc.isElementClassDefined(elementName)) {
+        newParameters.put(elementName + "._CLASS_",doc.getElementClass(elementName));
       }
+      if (doc.isElementTemplateDefined(elementName)) {
+        newParameters.put(elementName + "._TEMPLATE_",doc.getElementTemplate(elementName));
+      }
+      if (doc.isElementTemplSelectorDefined(elementName)) {
+        newParameters.put(elementName + "._TEMPLATESELECTOR_",doc.getElementTemplSelector(elementName));
+      }
+      Enumeration parameters=doc.getElementParameterNames(elementName);
+      while (parameters.hasMoreElements()) {
+        String paramName=(String)parameters.nextElement();
+        String paramValue=doc.getElementParameter(elementName,paramName);
+        if (paramValue != null) {
+          newParameters.put(elementName + "." + paramName,paramValue);
+        }
  else {
-        if (A_OpenCms.isLogging()) {
-          A_OpenCms.log(C_OPENCMS_INFO,getClassName() + "Empty parameter \"" + paramName+ "\" found.");
+          if (A_OpenCms.isLogging()) {
+            A_OpenCms.log(C_OPENCMS_INFO,getClassName() + "Empty parameter \"" + paramName+ "\" found.");
+          }
         }
       }
     }
@@ -74,23 +89,18 @@
       }
     }
   }
-  if (cms.getRequestContext().isStaging()) {
-    CmsStaging staging=null;
-    String uri=cms.getRequestContext().getUri();
-    staging=openCms.getStaging();
-    CmsUriDescriptor uriDesc=new CmsUriDescriptor(uri);
-    CmsUriLocator uriLoc=staging.getUriLocator();
-    CmsUri cmsUri=uriLoc.get(uriDesc);
-    if (cmsUri == null) {
-      CmsElementDescriptor elemDesc=new CmsElementDescriptor(templateClass,templateName);
-      CmsElementDefinitionCollection eldefs=doc.getElementDefinitionCollection();
-      cmsUri=new CmsUri(elemDesc,null,eldefs);
-      staging.getUriLocator().put(uriDesc,cmsUri);
-    }
+  if (isStaging && cmsUri == null) {
+    CmsElementDescriptor elemDesc=new CmsElementDescriptor(templateClass,templateName);
+    CmsElementDefinitionCollection eldefs=doc.getElementDefinitionCollection();
+    cmsUri=new CmsUri(elemDesc,null,eldefs);
+    staging.getUriLocator().put(uriDesc,cmsUri);
+  }
+  if (isStaging) {
     output=staging.callCanonicalRoot(cms,newParameters);
   }
  else {
     try {
+      CmsFile masterTemplate=loadMasterTemplateFile(cms,templateName,doc);
       I_CmsTemplate tmpl=getTemplateClass(cms,templateClass);
       if (!(tmpl instanceof I_CmsXmlTemplate)) {
         String errorMessage="Error in " + file.getAbsolutePath() + ": "+ templateClass+ " is not a XML template class.";
