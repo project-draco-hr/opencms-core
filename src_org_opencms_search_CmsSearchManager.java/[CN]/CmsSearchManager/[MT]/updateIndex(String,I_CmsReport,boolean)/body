@@ -1,6 +1,16 @@
 {
   CmsSearchIndex index=null;
+  CmsSearchIndexSource indexSource=null;
+  List sourceNames=null;
+  String sourceName=null;
+  CmsIndexingThreadManager threadManager=null;
+  I_CmsIndexer indexer=null;
+  List resourceNames=null;
+  String resourceName=null;
   IndexWriter writer=null;
+  String currentSiteRoot=null;
+  CmsProject currentProject=null;
+  CmsRequestContext context=m_cms.getRequestContext();
   if (report == null) {
     report=new CmsLogReport();
   }
@@ -10,55 +20,50 @@
     report.println(report.key("search.dots"),I_CmsReport.C_FORMAT_HEADLINE);
   }
   index=getIndex(indexName);
-  CmsRequestContext context=m_cms.getRequestContext();
-  CmsProject currentProject=context.currentProject();
-  String currentSiteRoot=context.getSiteRoot();
-  context.setSiteRoot(index.getSite());
-  context.setCurrentProject(m_cms.readProject(index.getProject()));
-  if (report != null) {
-    report.println(report.key("search.indexing_context") + context.getSiteRoot() + ", "+ context.currentProject().getName(),I_CmsReport.C_FORMAT_NOTE);
-  }
-  try {
-    CmsIndexingThreadManager threadManager=new CmsIndexingThreadManager(this,report,Long.parseLong(m_timeout),indexName);
-    writer=index.getIndexWriter();
-    int warning=0;
-    List folders=index.getFolders();
-    for (Iterator i=folders.iterator(); i.hasNext(); ) {
-      String vfsPath=(String)i.next();
-      m_vfsIndexer.init(m_cms,null,writer,index,report,threadManager);
-      m_vfsIndexer.updateIndex(vfsPath);
+  writer=index.getIndexWriter();
+  sourceNames=index.getSourceNames();
+  for (int i=0, n=sourceNames.size(); i < n; i++) {
+    try {
+      sourceName=(String)sourceNames.get(i);
+      indexSource=(CmsSearchIndexSource)m_indexSources.get(sourceName);
+      currentSiteRoot=context.getSiteRoot();
+      context.setSiteRoot("/");
+      currentProject=context.currentProject();
+      context.setCurrentProject(m_cms.readProject(index.getProject()));
+      threadManager=new CmsIndexingThreadManager(report,Long.parseLong(m_timeout),indexName);
+      indexer=(I_CmsIndexer)Class.forName(indexSource.getIndexerClassName()).newInstance();
+      resourceNames=indexSource.getResourcesNames();
+      for (int j=0, m=resourceNames.size(); j < m; j++) {
+        resourceName=(String)resourceNames.get(j);
+        indexer.init(m_cms,report,index,indexSource,writer,threadManager);
+        indexer.updateIndex(resourceName);
+      }
+      while (wait && threadManager.isRunning()) {
+        Thread.sleep(1000);
+      }
+      threadManager.reportStatistics();
     }
-    List channels=index.getChannels();
-    for (Iterator i=channels.iterator(); i.hasNext(); ) {
-      String cosChannel=(String)i.next();
-      String documenttype=(String)(index.getDocumenttypes(cosChannel).toArray())[0];
-      String resourcetype=(String)((List)m_resourcetypes.get(documenttype)).get(0);
-      m_cosIndexer.init(m_cms,resourcetype,writer,index,report,threadManager);
-      m_cosIndexer.updateIndex(cosChannel);
+ catch (    Exception e) {
+      if (report != null) {
+        report.println(report.key("search.indexing_failed"),I_CmsReport.C_FORMAT_WARNING);
+      }
+      if (OpenCms.getLog(this).isWarnEnabled()) {
+        OpenCms.getLog(this).warn("Rebuilding of search index " + index.getName() + " failed!",e);
+      }
     }
-    while (wait && threadManager.isRunning()) {
-      Thread.sleep(1000);
-    }
-    threadManager.reportStatistics();
-  }
- catch (  Exception exc) {
-    if (report != null) {
-      report.println(report.key("search.indexing_failed"),I_CmsReport.C_FORMAT_WARNING);
-    }
-    if (OpenCms.getLog(this).isWarnEnabled()) {
-      OpenCms.getLog(this).warn("Rebuilding index " + index.getName() + " failed.",exc);
-    }
-  }
  finally {
-    if (writer != null) {
-      try {
-        writer.close();
+      if (writer != null) {
+        try {
+          writer.close();
+        }
+ catch (        IOException e) {
+        }
       }
- catch (      IOException exc) {
+      context.setCurrentProject(currentProject);
+      if (currentSiteRoot != null) {
+        context.setSiteRoot(currentSiteRoot);
       }
     }
-    context.setSiteRoot(currentSiteRoot);
-    context.setCurrentProject(currentProject);
   }
   m_resultCache.clear();
 }
