@@ -4,6 +4,8 @@
   String vfsName=data.getVfsName();
   String rfsName=data.getRfsName();
   CmsResource resource=data.getResource();
+  String oldUri=null;
+  boolean exportOnDemand=((req != null) && (res != null));
   if (OpenCms.getLog(this).isDebugEnabled()) {
     OpenCms.getLog(this).debug("Static export starting for resource " + data);
   }
@@ -20,13 +22,7 @@
   if ((loader == null) || (!loader.isStaticExportEnabled())) {
     throw new CmsException("Unable to export VFS file " + vfsName + ", loader with id "+ loaderId+ " does not support static export");
   }
-  String exportFolderName=CmsLinkManager.normalizeRfsPath(getExportPath() + CmsResource.getFolderPath(rfsName).substring(1));
-  File exportFolder=new File(exportFolderName);
-  if (!exportFolder.exists()) {
-    if (!exportFolder.mkdirs()) {
-      throw new CmsException("Creation of static export folder failed for RFS file " + rfsName);
-    }
-  }
+  createExportFolder(rfsName);
   String exportFileName=CmsLinkManager.normalizeRfsPath(getExportPath() + rfsName.substring(1));
   File exportFile=new File(exportFileName);
   FileOutputStream exportStream;
@@ -36,14 +32,18 @@
  catch (  Throwable t) {
     throw new CmsException("Creation of static export output stream failed for RFS file " + exportFileName);
   }
-  String mimetype=OpenCms.getLoaderManager().getMimeType(file.getName(),cms.getRequestContext().getEncoding());
-  res.setContentType(mimetype);
-  String oldUri=cms.getRequestContext().getUri();
-  cms.getRequestContext().setUri(vfsName);
+  if (exportOnDemand) {
+    String mimetype=OpenCms.getLoaderManager().getMimeType(file.getName(),cms.getRequestContext().getEncoding());
+    res.setContentType(mimetype);
+    oldUri=cms.getRequestContext().getUri();
+    cms.getRequestContext().setUri(vfsName);
+  }
   loader.export(cms,file,exportStream,req,res);
   file=null;
   exportStream.close();
-  cms.getRequestContext().setUri(oldUri);
+  if (exportOnDemand) {
+    cms.getRequestContext().setUri(oldUri);
+  }
   if (OpenCms.getLog(this).isInfoEnabled()) {
     OpenCms.getLog(this).info("Static exported vfs file '" + vfsName + "' to rfs file '"+ exportFileName+ "'");
   }
