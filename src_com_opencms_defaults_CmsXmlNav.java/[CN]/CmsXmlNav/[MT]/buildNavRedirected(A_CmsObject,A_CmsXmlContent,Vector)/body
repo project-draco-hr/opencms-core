@@ -1,12 +1,35 @@
 {
+  String requestedUri=cms.getRequestContext().getUri();
+  String currentFolder=cms.getRequestContext().currentFolder().getAbsolutePath();
+  String servletPath=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getServletPath();
+  CmsXmlTemplateFile xmlDataBlock=(CmsXmlTemplateFile)doc;
   StringBuffer result=new StringBuffer();
   int size=resources.size();
   String navLink[]=new String[size];
   String navText[]=new String[size];
   float navPos[]=new float[size];
   int max=extractNav(cms,resources,navLink,navText,navPos);
-  if (max > 0) {
-    result.append(xmlDataBlock.getProcessedDataValue("navTreeStart"));
+  for (int i=0; i < max; i++) {
+    Vector folders=cms.getSubFolders(navLink[i]);
+    int tempSize=folders.size();
+    String tempLink[]=new String[tempSize];
+    String tempText[]=new String[tempSize];
+    float tempPos[]=new float[tempSize];
+    int tempMax=0;
+    if (tempSize > 0) {
+      tempMax=extractNav(cms,folders,tempLink,tempText,tempPos);
+    }
+    if (tempMax > 0) {
+      navLink[i]=tempLink[0];
+    }
+ else {
+      navLink[i]=requestedUri;
+    }
+  }
+  if (xmlDataBlock.hasData("navEntry")) {
+    if (!xmlDataBlock.hasData("navCurrent")) {
+      xmlDataBlock.setData("navCurrent",xmlDataBlock.getDataValue("navEntry"));
+    }
     for (int i=0; i < max; i++) {
       xmlDataBlock.setData("navText",navText[i]);
       xmlDataBlock.setData("count",new Integer(i + 1).toString());
@@ -38,21 +61,7 @@
  else {
         result.append(xmlDataBlock.getProcessedDataValue("navEntry"));
       }
-      depth--;
-      if (depth >= 0) {
-        if (navLink[i].endsWith("/")) {
-          Vector all=cms.getSubFolders(navLink[i]);
-          Vector files=cms.getFilesInFolder(navLink[i]);
-          all.ensureCapacity(all.size() + files.size());
-          Enumeration e=files.elements();
-          while (e.hasMoreElements()) {
-            all.addElement(e.nextElement());
-          }
-          result.append(buildNavTree(cms,xmlDataBlock,all,requestedUri,currentFolder,servletPath,depth));
-        }
-      }
     }
-    result.append(xmlDataBlock.getProcessedDataValue("navTreeEnd"));
   }
   return result.toString();
 }
