@@ -1,6 +1,7 @@
 {
   String source, destination, type, uuidresource, uuidcontent, userlastmodified, usercreated, flags, timestamp;
   long datelastmodified, datecreated;
+  int resType;
   NodeList fileNodes, acentryNodes;
   Element currentElement, currentEntry;
   Map properties=null;
@@ -12,18 +13,23 @@
     excludeList=new Vector();
   }
   List deleteProperties=(List)OpenCms.getRuntimeProperty("compatibility.support.import.remove.propertytags");
-  if (deleteProperties == null)   deleteProperties=new ArrayList();
+  if (deleteProperties == null) {
+    deleteProperties=new ArrayList();
+  }
   List immutableResources=(List)OpenCms.getRuntimeProperty("import.immutable.resources");
-  if (immutableResources == null)   immutableResources=new ArrayList();
+  if (immutableResources == null) {
+    immutableResources=new ArrayList();
+  }
   try {
     fileNodes=m_docXml.getElementsByTagName(I_CmsConstants.C_EXPORT_TAG_FILE);
     int importSize=fileNodes.getLength();
     for (int i=0; i < fileNodes.getLength(); i++) {
-      m_report.print(" ( " + (i + 1) + " / "+ importSize+ " ) ");
+      m_report.print(" ( " + (i + 1) + " / "+ importSize+ " ) ",I_CmsReport.C_FORMAT_NOTE);
       currentElement=(Element)fileNodes.item(i);
       source=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_SOURCE);
       destination=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DESTINATION);
       type=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_TYPE);
+      resType=m_cms.getResourceTypeId(type);
       uuidresource=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDRESOURCE);
       uuidcontent=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDCONTENT);
       if ((timestamp=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DATELASTMODIFIED)) != null) {
@@ -52,9 +58,10 @@
       translatedName=m_cms.getRequestContext().removeSiteRoot(translatedName);
       if (resourceNotImmutable && (!excludeList.contains(translatedName))) {
         m_report.print(m_report.key("report.importing"),I_CmsReport.C_FORMAT_NOTE);
-        m_report.print(translatedName + " ");
-        properties=getPropertiesFromXml(currentElement,type,propertyName,propertyValue,deleteProperties);
-        CmsResource res=importResource(source,destination,type,uuidresource,uuidcontent,datelastmodified,userlastmodified,datecreated,usercreated,flags,properties,writtenFilenames,fileCodes);
+        m_report.print(translatedName);
+        m_report.print(m_report.key("report.dots"),I_CmsReport.C_FORMAT_NOTE);
+        properties=getPropertiesFromXml(currentElement,resType,propertyName,propertyValue,deleteProperties);
+        CmsResource res=importResource(source,destination,resType,uuidresource,uuidcontent,datelastmodified,userlastmodified,datecreated,usercreated,flags,properties);
         if (res != null) {
           acentryNodes=currentElement.getElementsByTagName(I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_ENTRY);
           for (int j=0; j < acentryNodes.getLength(); j++) {
