@@ -1,0 +1,80 @@
+{
+  System.err.println("importZipR: noSubFolder: " + noSubFolder);
+  boolean isFolder=false;
+  int entries=0;
+  CmsFile file=null;
+  while (true) {
+    int j=0;
+    int stop=0;
+    ZipEntry entry=zipStreamIn.getNextEntry();
+    if (entry == null) {
+      break;
+    }
+    entries++;
+    String actImportPath=importPath;
+    StringTokenizer st=new StringTokenizer(entry.getName(),"/\\");
+    int count=st.countTokens();
+    String[] path=new String[count];
+    if (entry.getName().endsWith("\\") || entry.getName().endsWith("/")) {
+      isFolder=true;
+    }
+ else {
+      isFolder=false;
+    }
+    while (st.hasMoreTokens()) {
+      path[j]=st.nextToken();
+      j++;
+    }
+    if (isFolder == true) {
+      stop=path.length;
+    }
+ else {
+      stop=path.length - 1;
+    }
+    if (noSubFolder == true) {
+      stop=0;
+    }
+    for (int r=0; r < stop; r++) {
+      try {
+        m_cms.createFolder(actImportPath,path[r]);
+      }
+ catch (      CmsException e) {
+      }
+      actImportPath+=path[r]+="/";
+    }
+    if (isFolder == false) {
+      String type=getFileType(path[path.length - 1]);
+      int charsRead=0;
+      int size=new Long(entry.getSize()).intValue();
+      byte[] buffer=new byte[size];
+      while (charsRead < size) {
+        charsRead+=zipStreamIn.read(buffer,charsRead,size - charsRead);
+      }
+      if (size == 0) {
+        buffer=" ".getBytes();
+      }
+      file=null;
+      try {
+        file=m_cms.readFile(actImportPath,path[path.length - 1]);
+      }
+ catch (      CmsException e) {
+      }
+      try {
+        if (file == null) {
+          m_cms.createFile(actImportPath,path[path.length - 1],buffer,type);
+        }
+ else {
+          file.setContents(buffer);
+          m_cms.writeFile(file);
+        }
+      }
+ catch (      CmsException e) {
+      }
+    }
+    zipStreamIn.closeEntry();
+  }
+  zipStreamIn.close();
+  if (entries > 0) {
+    setValidZipFile(true);
+  }
+}
