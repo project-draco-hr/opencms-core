@@ -1,28 +1,33 @@
 {
-  if (getFilter() != null) {
-    m_file=getNextFilname();
-    if (m_file == null) {
-      CmsFlexController controller=(CmsFlexController)pageContext.getRequest().getAttribute(CmsFlexController.ATTRIBUTE_NAME);
-      I_CmsXmlContentFilter filter;
-      filter=OpenCms.getXmlContentTypeManager().getContentFilter(getFilter());
-      try {
-        m_filterContentList=filter.getFilterResults(controller.getCmsObject(),getFilter(),getParam());
-        m_createLink=CmsEncoder.encode(getFilter() + "|" + getParam());
-      }
- catch (      CmsException e) {
-        if (OpenCms.getLog(this).isErrorEnabled()) {
-          OpenCms.getLog(this).error("Error in Jsp 'contentitem' filter tag processing",e);
-        }
-        throw new javax.servlet.jsp.JspException(e);
-      }
+  if (getFilter() == null) {
+    throw new IllegalArgumentException("'contentload' tag requires 'filter' attribute");
+  }
+  m_controller=(CmsFlexController)pageContext.getRequest().getAttribute(CmsFlexController.ATTRIBUTE_NAME);
+  m_cms=m_controller.getCmsObject();
+  m_locale=m_cms.getRequestContext().getLocale();
+  String filterName=getFilter();
+  String param=resolveMagicName(getParam());
+  I_CmsXmlContentFilter filter=OpenCms.getXmlContentTypeManager().getContentFilter(filterName);
+  try {
+    m_filterContentList=filter.getFilterResults(m_cms,filterName,param);
+    if (filter.getCreateLink(m_cms,filterName,param) != null) {
+      m_directEditCreateLink=CmsEncoder.encode(getFilter() + "|" + getParam());
     }
-    m_file=getNextFilname();
-    m_wasEditable=contentItemTagFileAction(pageContext,getFile(),m_editable,createEditOptions(true,true,true),m_createLink,pageContext.getRequest());
-    return EVAL_BODY_INCLUDE;
+    doLoadNextFile();
   }
-  if (getFile() != null) {
-    m_wasEditable=contentItemTagFileAction(pageContext,getFile(),m_editable,createEditOptions(true,false,false),null,pageContext.getRequest());
-    return EVAL_BODY_INCLUDE;
+ catch (  CmsException e) {
+    m_controller.setThrowable(e,m_cms.getRequestContext().getUri());
+    throw new JspException(e);
   }
-  return SKIP_BODY;
+  String directEditOptions;
+  if (m_directEditCreateLink != null) {
+    directEditOptions=CmsJspTagEditable.createEditOptions(true,true,true);
+  }
+ else {
+    directEditOptions=CmsJspTagEditable.createEditOptions(true,false,false);
+  }
+  if (m_editable) {
+    m_directEditPermissions=CmsJspTagEditable.includeDirectEditElement(pageContext,I_CmsEditorActionHandler.C_DIRECT_EDIT_AREA_START,m_file,null,directEditOptions,null,m_directEditCreateLink);
+  }
+  return EVAL_BODY_INCLUDE;
 }
