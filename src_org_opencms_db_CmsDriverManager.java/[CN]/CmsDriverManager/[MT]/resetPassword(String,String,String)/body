@@ -1,0 +1,40 @@
+{
+  boolean noSystemUser=false;
+  boolean noWebUser=false;
+  boolean unknownException=false;
+  CmsUser user=null;
+  try {
+    user=m_userDriver.readUser(username,oldPassword,I_CmsConstants.C_USER_TYPE_SYSTEMUSER);
+  }
+ catch (  CmsException e) {
+    if (e.getType() == CmsException.C_NO_USER) {
+      noSystemUser=true;
+    }
+ else {
+      unknownException=true;
+    }
+  }
+  if (user == null) {
+    try {
+      user=m_userDriver.readUser(username,oldPassword,I_CmsConstants.C_USER_TYPE_WEBUSER);
+    }
+ catch (    CmsException e) {
+      if (e.getType() == CmsException.C_NO_USER) {
+        noWebUser=true;
+      }
+ else {
+        unknownException=true;
+      }
+    }
+  }
+  if (noSystemUser && noWebUser) {
+    throw new CmsSecurityException("The specified username and old password could not be verified",CmsSecurityException.C_SECURITY_INVALID_PASSWORD);
+  }
+ else   if (unknownException) {
+    throw new CmsException("[" + getClass().getName() + "] Error resetting password for user '"+ username+ "'",CmsException.C_UNKNOWN_EXCEPTION);
+  }
+ else   if (user != null) {
+    validatePassword(newPassword);
+    m_userDriver.writePassword(username,newPassword);
+  }
+}
