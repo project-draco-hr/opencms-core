@@ -1,0 +1,38 @@
+{
+  CmsResource res=readFileHeader(projectId,resource);
+  int groupId=-1;
+  boolean noGroupCanReadThis=false;
+  do {
+    int flags=res.getAccessFlags();
+    if (!((flags & C_ACCESS_PUBLIC_READ) == C_ACCESS_PUBLIC_READ)) {
+      if ((flags & C_ACCESS_GROUP_READ) == C_ACCESS_GROUP_READ) {
+        if ((groupId == -1) || (groupId == res.getGroupId())) {
+          groupId=res.getGroupId();
+        }
+ else {
+          int result=checkGroupDependence(groupId,res.getGroupId());
+          if (result == -1) {
+            noGroupCanReadThis=true;
+          }
+ else {
+            groupId=result;
+          }
+        }
+      }
+ else {
+        noGroupCanReadThis=true;
+      }
+    }
+    res=readFileHeader(res.getParentId());
+  }
+ while (!(noGroupCanReadThis || C_ROOT.equals(res.getAbsolutePath())));
+  if (noGroupCanReadThis) {
+    return C_GROUP_ADMIN;
+  }
+  if (groupId == -1) {
+    return null;
+  }
+ else {
+    return readGroup(groupId).getName();
+  }
+}
