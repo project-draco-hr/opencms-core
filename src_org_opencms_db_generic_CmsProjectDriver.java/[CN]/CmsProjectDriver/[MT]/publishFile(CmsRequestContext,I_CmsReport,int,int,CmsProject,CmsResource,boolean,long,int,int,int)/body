@@ -4,14 +4,14 @@
   CmsFile newFile=null;
   Map offlineProperties=null;
   try {
-    offlineFile=m_driverManager.getVfsDriver().readFile(context.currentProject().getId(),true,offlineFileHeader.getId());
-    offlineFile.setFullResourceName(offlineFileHeader.getFullResourceName());
+    offlineFile=m_driverManager.getVfsDriver().readFile(context.currentProject().getId(),true,offlineFileHeader.getStructureId());
+    offlineFile.setFullResourceName(offlineFileHeader.getRootPath());
     if (offlineFileHeader.getState() == I_CmsConstants.C_STATE_DELETED) {
       report.print("( " + m + " / "+ n+ " ) "+ report.key("report.deleting.file"),I_CmsReport.C_FORMAT_NOTE);
-      report.println(context.removeSiteRoot(offlineFileHeader.getFullResourceName()));
+      report.println(context.removeSiteRoot(offlineFileHeader.getRootPath()));
       try {
-        onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),true,offlineFile.getId());
-        onlineFile.setFullResourceName(offlineFileHeader.getFullResourceName());
+        onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),true,offlineFile.getStructureId());
+        onlineFile.setFullResourceName(offlineFileHeader.getRootPath());
       }
  catch (      CmsException e) {
         if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
@@ -53,8 +53,8 @@
         throw e;
       }
       try {
-        m_driverManager.getUserDriver().removeAllAccessControlEntries(onlineProject,onlineFile.getResourceAceId());
-        m_driverManager.getUserDriver().removeAllAccessControlEntries(context.currentProject(),offlineFile.getResourceAceId());
+        m_driverManager.getUserDriver().removeAllAccessControlEntries(onlineProject,onlineFile.getResourceId());
+        m_driverManager.getUserDriver().removeAllAccessControlEntries(context.currentProject(),offlineFile.getResourceId());
       }
  catch (      CmsException e) {
         if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
@@ -67,7 +67,7 @@
           offlineProperties=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),offlineFile,offlineFile.getType());
           m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),offlineFile,offlineProperties,backupTagId,publishDate,maxVersions);
         }
-        writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,offlineFileHeader.getFullResourceName(),offlineFile);
+        writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,offlineFileHeader.getRootPath(),offlineFile);
       }
  catch (      CmsException e) {
         if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
@@ -78,10 +78,10 @@
     }
  else     if (offlineFileHeader.getState() == I_CmsConstants.C_STATE_CHANGED) {
       report.print("( " + m + " / "+ n+ " ) "+ report.key("report.publishing.file"),I_CmsReport.C_FORMAT_NOTE);
-      report.println(context.removeSiteRoot(offlineFileHeader.getFullResourceName()));
+      report.println(context.removeSiteRoot(offlineFileHeader.getRootPath()));
       try {
-        onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),true,offlineFile.getId());
-        onlineFile.setFullResourceName(offlineFileHeader.getFullResourceName());
+        onlineFile=m_driverManager.getVfsDriver().readFile(onlineProject.getId(),true,offlineFile.getStructureId());
+        onlineFile.setFullResourceName(offlineFileHeader.getRootPath());
         m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),onlineFile);
         if (!onlineFile.getResourceId().equals(offlineFile.getResourceId())) {
           m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),onlineFile);
@@ -97,8 +97,8 @@
       try {
         newFile=(CmsFile)offlineFile.clone();
         newFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
-        newFile.setFullResourceName(offlineFileHeader.getFullResourceName());
-        m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentUser().getId(),newFile.getParentId(),newFile.getResourceName());
+        newFile.setFullResourceName(offlineFileHeader.getRootPath());
+        m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentUser().getId(),newFile.getParentStructureId(),newFile.getName());
         m_driverManager.getVfsDriver().updateResource(newFile,offlineFile);
       }
  catch (      CmsException e) {
@@ -118,7 +118,7 @@
         throw e;
       }
       try {
-        m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,newFile.getResourceAceId(),onlineFile.getResourceAceId());
+        m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,newFile.getResourceId(),onlineFile.getResourceId());
       }
  catch (      CmsException e) {
         if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
@@ -154,18 +154,18 @@
     }
  else     if (offlineFileHeader.getState() == I_CmsConstants.C_STATE_NEW) {
       report.print("( " + m + " / "+ n+ " ) "+ report.key("report.publishing.file"),I_CmsReport.C_FORMAT_NOTE);
-      report.println(context.removeSiteRoot(offlineFileHeader.getFullResourceName()));
+      report.println(context.removeSiteRoot(offlineFileHeader.getRootPath()));
       try {
         newFile=(CmsFile)offlineFile.clone();
         newFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
-        newFile.setFullResourceName(offlineFileHeader.getFullResourceName());
-        m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentUser().getId(),newFile.getParentId(),newFile.getResourceName());
+        newFile.setFullResourceName(offlineFileHeader.getRootPath());
+        m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentUser().getId(),newFile.getParentStructureId(),newFile.getName());
       }
  catch (      CmsException e) {
         if (e.getType() == CmsException.C_FILE_EXISTS) {
           try {
             m_driverManager.getVfsDriver().removeFile(onlineProject,offlineFile);
-            m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentUser().getId(),newFile.getParentId(),newFile.getResourceName());
+            m_driverManager.getVfsDriver().createFile(onlineProject,newFile,context.currentUser().getId(),newFile.getParentStructureId(),newFile.getName());
           }
  catch (          CmsException e1) {
             if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
@@ -190,7 +190,7 @@
         throw e;
       }
       try {
-        m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,offlineFile.getResourceAceId(),newFile.getResourceAceId());
+        m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,offlineFile.getResourceId(),newFile.getResourceId());
       }
  catch (      CmsException e) {
         if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
@@ -202,7 +202,7 @@
         if (backupEnabled) {
           m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),offlineFile,offlineProperties,backupTagId,publishDate,maxVersions);
         }
-        writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,offlineFileHeader.getFullResourceName(),offlineFile);
+        writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,offlineFileHeader.getRootPath(),offlineFile);
       }
  catch (      CmsException e) {
         if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
