@@ -24,10 +24,11 @@
     stmt.setString(12,user.getId().toString());
     stmt.executeUpdate();
     stmt.close();
+    stmt=null;
     stmt2=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERSFORUPDATE");
     stmt2.setString(1,user.getId().toString());
     conn.setAutoCommit(false);
-    res=stmt2.executeQuery();
+    res=((DelegatingResultSet)stmt2.executeQuery()).getInnermostDelegate();
     try {
       while (res.next()) {
         oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("USER_INFO");
@@ -49,6 +50,7 @@
       nextStmt=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
       nextStmt.execute();
       nextStmt.close();
+      nextStmt=null;
       conn.setAutoCommit(true);
     }
  catch (    IOException e) {
@@ -56,6 +58,8 @@
     }
     stmt2.close();
     res.close();
+    stmt2=null;
+    res=null;
   }
  catch (  SQLException e) {
     throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
@@ -64,21 +68,39 @@ catch (  IOException e) {
     throw m_sqlManager.getCmsException(this,"[CmsAccessUserInfoMySql/addUserInformation(id,object)]:",CmsException.C_SERIALIZATION,e,false);
   }
  finally {
-    if (stmt2 != null) {
+    if (res != null) {
       try {
-        stmt2.close();
+        res.close();
       }
  catch (      SQLException exc) {
       }
+    }
+    if (stmt2 != null) {
       try {
         nextStmt=m_sqlManager.getPreparedStatement(conn,"C_ROLLBACK");
         nextStmt.execute();
       }
  catch (      SQLException se) {
       }
+      try {
+        stmt2.close();
+      }
+ catch (      SQLException exc) {
+      }
     }
-    m_sqlManager.closeAll(null,trimStmt,null);
-    m_sqlManager.closeAll(null,nextStmt,null);
-    m_sqlManager.closeAll(conn,stmt,res);
+    if (nextStmt != null) {
+      try {
+        nextStmt.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (stmt != null) {
+      try {
+        stmt.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
   }
 }
