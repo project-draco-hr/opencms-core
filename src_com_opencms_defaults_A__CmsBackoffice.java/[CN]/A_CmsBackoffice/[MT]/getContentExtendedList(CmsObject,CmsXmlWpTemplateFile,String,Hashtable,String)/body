@@ -14,14 +14,18 @@
     filterParam=null;
   }
   templateSelector="list";
-  String tableHead="";
-  String singleRow="";
-  String allEntrys="";
-  String entry="";
+  StringBuffer tableHead=new StringBuffer();
+  String singleRow=new String();
+  StringBuffer allEntrys=new StringBuffer();
+  StringBuffer entry=new StringBuffer();
   String url="";
   int columns=0;
   String style=">";
   String url_style="";
+  String tabledatabegin=template.getDataValue("tabledatabegin");
+  String tabledataend=template.getDataValue("tabledataend");
+  String tablerowbegin=template.getDataValue("tablerowbegin");
+  String tablerowend=template.getDataValue("tablerowend");
   Vector columnsVector=new Vector();
   String fieldNamesMethod="getFieldNames";
   Class paramClasses[]={CmsObject.class};
@@ -35,9 +39,12 @@
   moduleName=moduleName.replace('.','_');
   CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
   for (int i=0; i < columns; i++) {
-    tableHead+=(template.getDataValue("tabledatabegin")) + style + lang.getLanguageValue(moduleName + ".label." + columnsVector.elementAt(i).toString().toLowerCase().trim())+ (template.getDataValue("tabledataend"));
+    tableHead.append(tabledatabegin);
+    tableHead.append(style);
+    tableHead.append(lang.getLanguageValue(moduleName + ".label." + columnsVector.elementAt(i).toString().toLowerCase().trim()));
+    tableHead.append(tabledataend);
   }
-  template.setData("tableheadline",tableHead);
+  template.setData("tableheadline",tableHead.toString());
   Vector tableContent=new Vector();
   try {
     Vector filterMethods=(Vector)cdClass.getMethod("getFilterMethods",new Class[]{CmsObject.class}).invoke(null,new Object[]{cms});
@@ -54,6 +61,7 @@
     if (filterMethod == null) {
       filterMethod=(CmsFilterMethod)filterMethods.firstElement();
     }
+    long stoptime=System.currentTimeMillis();
     tableContent=(Vector)cdClass.getMethod("applyFilter",new Class[]{CmsObject.class,CmsFilterMethod.class,String.class}).invoke(null,new Object[]{cms,filterMethod,filterParam});
   }
  catch (  InvocationTargetException ite) {
@@ -102,8 +110,8 @@ catch (  Exception e) {
   String fieldEntry="";
   String id="";
   for (int i=0; i < rows; i++) {
-    entry="";
-    singleRow="";
+    entry=new StringBuffer();
+    singleRow=new String();
     Object entryObject=new Object();
     entryObject=tableContent.elementAt(i);
     style=this.getStyle(cms,template,entryObject) + ">";
@@ -162,14 +170,23 @@ catch (      Exception e) {
         }
         if (!url.equals("")) {
           template.setData("url_style",url_style);
-          entry+=(template.getDataValue("tabledatabegin")) + style + (template.getProcessedDataValue("url",this,parameters))+ fieldEntry+ (template.getDataValue("tabledataend"));
+          entry.append(tabledatabegin);
+          entry.append(style);
+          entry.append(template.getProcessedDataValue("url",this,parameters));
+          entry.append(fieldEntry);
+          entry.append(tabledataend);
         }
  else {
-          entry+=(template.getDataValue("tabledatabegin")) + style + fieldEntry+ (template.getDataValue("tabledataend"));
+          entry.append(tabledatabegin);
+          entry.append(style);
+          entry.append(fieldEntry);
+          entry.append(tabledataend);
         }
       }
  else {
-        entry+=(template.getDataValue("tabledatabegin")) + "" + (template.getDataValue("tabledataend"));
+        entry.append(tabledatabegin);
+        entry.append("");
+        entry.append(tabledataend);
       }
     }
     try {
@@ -186,11 +203,13 @@ catch (      Exception e) {
     setExtendedLockstates(cms,template,cdClass,entryObject,parameters);
     setProjectFlag(cms,template,cdClass,entryObject,parameters);
     setContextMenu(cms,template,entryObject);
-    template.setData("entry",entry);
+    template.setData("entry",entry.toString());
     singleRow=template.getProcessedDataValue("singlerow",this,parameters);
-    allEntrys+=(template.getDataValue("tablerowbegin")) + singleRow + (template.getDataValue("tablerowend"));
+    allEntrys.append(tablerowbegin);
+    allEntrys.append(singleRow);
+    allEntrys.append(tablerowend);
   }
-  template.setData("tablecontent","" + allEntrys);
+  template.setData("tablecontent",allEntrys.toString());
   session.putValue("selectbox",filterMethodName);
   processResult=startProcessing(cms,template,elementName,parameters,templateSelector);
   return processResult;
