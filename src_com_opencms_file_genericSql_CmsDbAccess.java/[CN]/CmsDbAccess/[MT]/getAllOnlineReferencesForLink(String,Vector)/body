@@ -1,16 +1,16 @@
 {
   Vector resources=new Vector();
   ResultSet res=null;
-  PreparedStatement statement=null;
-  Connection con=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
   try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_SqlQueries.get("C_LM_GET_ONLINE_REFERENCES"));
-    statement.setString(1,link);
-    res=statement.executeQuery();
+    conn=m_SqlQueries.getConnection(I_CmsConstants.C_PROJECT_ONLINE_ID);
+    stmt=m_SqlQueries.getPreparedStatement(conn,"C_LM_GET_ONLINE_REFERENCES");
+    stmt.setString(1,link);
+    res=stmt.executeQuery();
     while (res.next()) {
       String resName=res.getString(m_SqlQueries.get("C_RESOURCES_RESOURCE_NAME"));
-      if (!exeptions.contains(resName)) {
+      if (!exceptions.contains(resName)) {
         CmsPageLinks pl=new CmsPageLinks(new CmsUUID(res.getString(m_SqlQueries.get("C_LM_PAGE_ID"))));
         pl.setOnline(true);
         pl.addLinkTarget(link);
@@ -20,33 +20,13 @@
     }
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "] getAllOnlineReferencesForLink "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,"getAllOnlineReferencesForLink(String, Vector)",CmsException.C_SQL_ERROR,e);
   }
 catch (  Exception ex) {
-    throw new CmsException("[" + this.getClass().getName() + "] getAllOnlineReferencesForLink ",ex);
+    throw m_SqlQueries.getCmsException(this,"getAllOnlineReferencesForLink(String, Vector)",CmsException.C_UNKNOWN_EXCEPTION,ex);
   }
  finally {
-    if (res != null) {
-      try {
-        res.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (statement != null) {
-      try {
-        statement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (con != null) {
-      try {
-        con.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
+    m_SqlQueries.closeAll(conn,stmt,res);
   }
   return resources;
 }

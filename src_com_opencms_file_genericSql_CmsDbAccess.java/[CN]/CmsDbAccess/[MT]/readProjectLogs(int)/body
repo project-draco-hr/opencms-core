@@ -1,9 +1,9 @@
 {
   ResultSet res=null;
-  Connection con=null;
+  Connection conn=null;
   CmsTaskLog tasklog=null;
   Vector logs=new Vector();
-  PreparedStatement statement=null;
+  PreparedStatement stmt=null;
   String comment=null;
   java.sql.Timestamp starttime=null;
   int id=C_UNKNOWN_ID;
@@ -11,10 +11,10 @@
   CmsUUID user=CmsUUID.getNullUUID();
   int type=C_UNKNOWN_ID;
   try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_SqlQueries.get("C_TASKLOG_READ_PPROJECTLOGS"));
-    statement.setInt(1,projectid);
-    res=statement.executeQuery();
+    conn=m_SqlQueries.getConnection();
+    stmt=m_SqlQueries.getPreparedStatement(conn,"C_TASKLOG_READ_PPROJECTLOGS");
+    stmt.setInt(1,projectid);
+    res=stmt.executeQuery();
     while (res.next()) {
       comment=res.getString(m_SqlQueries.get("C_LOG_COMMENT"));
       id=res.getInt(m_SqlQueries.get("C_LOG_ID"));
@@ -27,33 +27,13 @@
     }
   }
  catch (  SQLException exc) {
-    throw new CmsException(exc.getMessage(),CmsException.C_SQL_ERROR,exc);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,exc);
   }
 catch (  Exception exc) {
-    throw new CmsException(exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_UNKNOWN_EXCEPTION,exc);
   }
  finally {
-    if (res != null) {
-      try {
-        res.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (statement != null) {
-      try {
-        statement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (con != null) {
-      try {
-        con.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
+    m_SqlQueries.closeAll(conn,stmt,res);
   }
   return logs;
 }

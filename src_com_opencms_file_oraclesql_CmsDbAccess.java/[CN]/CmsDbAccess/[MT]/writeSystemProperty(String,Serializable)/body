@@ -1,9 +1,9 @@
 {
-  PreparedStatement statement=null;
-  PreparedStatement nextStatement=null;
-  PreparedStatement trimStatement=null;
+  PreparedStatement stmt=null;
+  PreparedStatement nextStmt=null;
+  PreparedStatement trimStmt=null;
   ResultSet res=null;
-  Connection con=null;
+  Connection conn=null;
   byte[] value=null;
   try {
     ByteArrayOutputStream bout=new ByteArrayOutputStream();
@@ -11,18 +11,18 @@
     oout.writeObject(object);
     oout.close();
     value=bout.toByteArray();
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_SqlQueries.get("C_ORACLE_SYSTEMPROPERTIES_NAMEFORUPDATE"));
-    statement.setString(1,name);
-    con.setAutoCommit(false);
-    res=statement.executeQuery();
+    conn=m_SqlQueries.getConnection();
+    stmt=m_SqlQueries.getPreparedStatement(conn,"C_ORACLE_SYSTEMPROPERTIES_NAMEFORUPDATE");
+    stmt.setString(1,name);
+    conn.setAutoCommit(false);
+    res=stmt.executeQuery();
     while (res.next()) {
       oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("SYSTEMPROPERTY_VALUE");
-      trimStatement=con.prepareStatement(m_SqlQueries.get("C_TRIMBLOB"));
-      trimStatement.setBlob(1,blob);
-      trimStatement.setInt(2,0);
-      trimStatement.execute();
-      trimStatement.close();
+      trimStmt=m_SqlQueries.getPreparedStatement(conn,"C_TRIMBLOB");
+      trimStmt.setBlob(1,blob);
+      trimStmt.setInt(2,0);
+      trimStmt.execute();
+      trimStmt.close();
       ByteArrayInputStream instream=new ByteArrayInputStream(value);
       OutputStream outstream=blob.getBinaryOutputStream();
       byte[] chunk=new byte[blob.getChunkSize()];
@@ -33,66 +33,35 @@
       instream.close();
       outstream.close();
     }
-    statement.close();
+    stmt.close();
     res.close();
-    nextStatement=con.prepareStatement(m_SqlQueries.get("C_COMMIT"));
-    nextStatement.execute();
-    nextStatement.close();
-    con.setAutoCommit(true);
+    nextStmt=m_SqlQueries.getPreparedStatement(conn,"C_COMMIT");
+    nextStmt.execute();
+    nextStmt.close();
+    conn.setAutoCommit(true);
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
 catch (  IOException e) {
-    throw new CmsException("[" + this.getClass().getName() + "]"+ CmsException.C_SERIALIZATION,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SERIALIZATION,e);
   }
  finally {
-    if (res != null) {
+    if (stmt != null) {
       try {
-        res.close();
-      }
- catch (      SQLException se) {
-      }
-    }
-    if (statement != null) {
-      try {
-        statement.close();
+        stmt.close();
       }
  catch (      SQLException se) {
       }
       try {
-        nextStatement=con.prepareStatement(m_SqlQueries.get("C_ROLLBACK"));
-        nextStatement.execute();
+        nextStmt=m_SqlQueries.getPreparedStatement(conn,"C_ROLLBACK");
+        nextStmt.execute();
       }
  catch (      SQLException exc) {
       }
     }
-    if (nextStatement != null) {
-      try {
-        nextStatement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (trimStatement != null) {
-      try {
-        trimStatement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (con != null) {
-      try {
-        con.setAutoCommit(true);
-      }
- catch (      SQLException se) {
-      }
-      try {
-        con.close();
-      }
- catch (      SQLException se) {
-      }
-    }
+    m_SqlQueries.closeAll(null,nextStmt,null);
+    m_SqlQueries.closeAll(conn,trimStmt,res);
   }
   return readSystemProperty(name);
 }

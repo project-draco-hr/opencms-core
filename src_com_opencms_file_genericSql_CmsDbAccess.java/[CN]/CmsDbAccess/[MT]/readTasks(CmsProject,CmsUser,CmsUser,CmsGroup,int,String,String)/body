@@ -3,7 +3,7 @@
   Vector tasks=new Vector();
   CmsTask task=null;
   ResultSet recset=null;
-  Connection con=null;
+  Connection conn=null;
   String sqlstr="SELECT * FROM " + m_SqlQueries.get("C_TABLENAME_TASK") + " WHERE ";
   if (project != null) {
     sqlstr=sqlstr + m_SqlQueries.get("C_TASK_ROOT") + "="+ project.getTaskId();
@@ -45,37 +45,24 @@
       }
     }
   }
-  Statement statement=null;
+  Statement stmt=null;
   try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.createStatement();
-    recset=statement.executeQuery(sqlstr);
+    conn=m_SqlQueries.getConnection();
+    stmt=conn.createStatement();
+    recset=stmt.executeQuery(sqlstr);
     while (recset.next()) {
       task=createTaskFromResultSet(recset);
       tasks.addElement(task);
     }
   }
  catch (  SQLException exc) {
-    throw new CmsException(exc.getMessage(),CmsException.C_SQL_ERROR,exc);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,exc);
   }
 catch (  Exception exc) {
-    throw new CmsException(exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_UNKNOWN_EXCEPTION,exc);
   }
  finally {
-    if (statement != null) {
-      try {
-        statement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (con != null) {
-      try {
-        con.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
+    m_SqlQueries.closeAll(conn,stmt,null);
   }
   return tasks;
 }

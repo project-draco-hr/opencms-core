@@ -1,47 +1,23 @@
 {
-  String usedPool;
-  String usedStatement;
-  int onlineProject=I_CmsConstants.C_PROJECT_ONLINE_ID;
-  if (projectId == onlineProject) {
-    usedPool=m_poolNameOnline;
-    usedStatement="_ONLINE";
-  }
- else {
-    usedPool=m_poolName;
-    usedStatement="";
-  }
   Vector files=m_ResourceBroker.getVfsAccess().getFilesInFolder(projectId,folder);
   files=getUndeletedResources(files);
   if (files.size() == 0) {
     Vector folders=m_ResourceBroker.getVfsAccess().getSubFolders(projectId,folder);
     folders=getUndeletedResources(folders);
     if (folders.size() == 0) {
-      Connection con=null;
-      PreparedStatement statement=null;
+      Connection conn=null;
+      PreparedStatement stmt=null;
       try {
-        con=DriverManager.getConnection(usedPool);
-        statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_ID_DELETE" + usedStatement));
-        statement.setString(1,folder.getResourceId().toString());
-        statement.executeUpdate();
+        conn=m_SqlQueries.getConnection(projectId);
+        stmt=m_SqlQueries.getPreparedStatement(conn,projectId,"C_RESOURCES_ID_DELETE");
+        stmt.setString(1,folder.getResourceId().toString());
+        stmt.executeUpdate();
       }
  catch (      SQLException e) {
-        throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+        throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
       }
  finally {
-        if (statement != null) {
-          try {
-            statement.close();
-          }
- catch (          SQLException exc) {
-          }
-        }
-        if (con != null) {
-          try {
-            con.close();
-          }
- catch (          SQLException exc) {
-          }
-        }
+        m_SqlQueries.closeAll(conn,stmt,null);
       }
     }
  else {

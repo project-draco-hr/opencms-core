@@ -1,49 +1,34 @@
 {
-  PreparedStatement statement=null;
+  PreparedStatement stmt=null;
   CmsPropertydefinition returnValue=null;
-  Connection con=null;
+  Connection conn=null;
   try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_SqlQueries.get("C_PROPERTYDEF_UPDATE"));
-    statement.setString(1,metadef.getName());
-    statement.setInt(2,metadef.getId());
-    statement.executeUpdate();
-    statement.close();
-    con.close();
-    con=DriverManager.getConnection(m_poolNameOnline);
-    statement=con.prepareStatement(m_SqlQueries.get("C_PROPERTYDEF_UPDATE_ONLINE"));
-    statement.setString(1,metadef.getName());
-    statement.setInt(2,metadef.getId());
-    statement.executeUpdate();
-    statement.close();
-    con.close();
-    con=DriverManager.getConnection(m_poolNameBackup);
-    statement=con.prepareStatement(m_SqlQueries.get("C_PROPERTYDEF_UPDATE_BACKUP"));
-    statement.setString(1,metadef.getName());
-    statement.setInt(2,metadef.getId());
-    statement.executeUpdate();
-    statement.close();
-    con.close();
+    for (int i=0; i < 3; i++) {
+      if (i == 0) {
+        conn=m_SqlQueries.getConnection();
+        stmt=m_SqlQueries.getPreparedStatement(conn,"C_PROPERTYDEF_UPDATE");
+      }
+ else       if (i == 1) {
+        conn=m_SqlQueries.getConnection(I_CmsConstants.C_PROJECT_ONLINE_ID);
+        stmt=m_SqlQueries.getPreparedStatement(conn,"C_PROPERTYDEF_UPDATE_ONLINE");
+      }
+ else {
+        conn=m_SqlQueries.getConnectionForBackup();
+        stmt=m_SqlQueries.getPreparedStatement(conn,"C_PROPERTYDEF_UPDATE_BACKUP");
+      }
+      stmt.setString(1,metadef.getName());
+      stmt.setInt(2,metadef.getId());
+      stmt.executeUpdate();
+      stmt.close();
+      conn.close();
+    }
     returnValue=m_ResourceBroker.getVfsAccess().readPropertydefinition(metadef.getName(),metadef.getType());
   }
  catch (  SQLException exc) {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ exc.getMessage(),CmsException.C_SQL_ERROR,exc);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,exc);
   }
  finally {
-    if (statement != null) {
-      try {
-        statement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (con != null) {
-      try {
-        con.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
+    m_SqlQueries.closeAll(conn,stmt,null);
   }
   return returnValue;
 }

@@ -1,15 +1,15 @@
 {
-  PreparedStatement statement=null;
+  PreparedStatement stmt=null;
   ResultSet res=null;
   Hashtable sessionData=new Hashtable();
   Hashtable data=null;
-  Connection con=null;
+  Connection conn=null;
   try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_SqlQueries.get("C_SESSION_READ"));
-    statement.setString(1,sessionId);
-    statement.setTimestamp(2,new java.sql.Timestamp(System.currentTimeMillis() - C_SESSION_TIMEOUT));
-    res=statement.executeQuery();
+    conn=m_SqlQueries.getConnection();
+    stmt=m_SqlQueries.getPreparedStatement(conn,"C_SESSION_READ");
+    stmt.setString(1,sessionId);
+    stmt.setTimestamp(2,new java.sql.Timestamp(System.currentTimeMillis() - C_SESSION_TIMEOUT));
+    res=stmt.executeQuery();
     if (res.next()) {
       byte[] value=m_SqlQueries.getBytes(res,"SESSION_DATA");
       ByteArrayInputStream bin=new ByteArrayInputStream(value);
@@ -31,33 +31,13 @@
     }
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
 catch (  Exception e) {
-    throw new CmsException("[" + this.getClass().getName() + "]",e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_UNKNOWN_EXCEPTION,e);
   }
  finally {
-    if (res != null) {
-      try {
-        res.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (statement != null) {
-      try {
-        statement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (con != null) {
-      try {
-        con.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
+    m_SqlQueries.closeAll(conn,stmt,res);
   }
   return data;
 }

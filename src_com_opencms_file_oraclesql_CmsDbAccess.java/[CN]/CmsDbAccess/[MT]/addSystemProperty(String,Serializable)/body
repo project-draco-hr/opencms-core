@@ -1,9 +1,9 @@
 {
   byte[] value;
-  PreparedStatement statement=null;
-  PreparedStatement statement2=null;
-  PreparedStatement nextStatement=null;
-  Connection con=null;
+  PreparedStatement stmt=null;
+  PreparedStatement stmt2=null;
+  PreparedStatement nextStmt=null;
+  Connection conn=null;
   ResultSet res=null;
   try {
     int id=nextId(C_TABLE_SYSTEMPROPERTIES);
@@ -12,15 +12,15 @@
     oout.writeObject(object);
     oout.close();
     value=bout.toByteArray();
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_SqlQueries.get("C_ORACLE_SYSTEMPROPERTIES_FORINSERT"));
-    statement.setInt(1,id);
-    statement.setString(2,name);
-    statement.executeUpdate();
-    statement2=con.prepareStatement(m_SqlQueries.get("C_ORACLE_SYSTEMPROPERTIES_FORUPDATE"));
-    statement2.setInt(1,id);
-    con.setAutoCommit(false);
-    res=statement2.executeQuery();
+    conn=m_SqlQueries.getConnection();
+    stmt=m_SqlQueries.getPreparedStatement(conn,"C_ORACLE_SYSTEMPROPERTIES_FORINSERT");
+    stmt.setInt(1,id);
+    stmt.setString(2,name);
+    stmt.executeUpdate();
+    stmt2=m_SqlQueries.getPreparedStatement(conn,"C_ORACLE_SYSTEMPROPERTIES_FORUPDATE");
+    stmt2.setInt(1,id);
+    conn.setAutoCommit(false);
+    res=stmt2.executeQuery();
     while (res.next()) {
       oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("SYSTEMPROPERTY_VALUE");
       ByteArrayInputStream instream=new ByteArrayInputStream(value);
@@ -33,64 +33,33 @@
       instream.close();
       outstream.close();
     }
-    nextStatement=con.prepareStatement(m_SqlQueries.get("C_COMMIT"));
-    nextStatement.execute();
-    nextStatement.close();
-    con.setAutoCommit(true);
+    nextStmt=m_SqlQueries.getPreparedStatement(conn,"C_COMMIT");
+    nextStmt.execute();
+    nextStmt.close();
+    conn.setAutoCommit(true);
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
 catch (  IOException e) {
-    throw new CmsException("[" + this.getClass().getName() + "]"+ CmsException.C_SERIALIZATION,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SERIALIZATION,e);
   }
  finally {
-    if (res != null) {
+    if (stmt2 != null) {
       try {
-        res.close();
-      }
- catch (      SQLException se) {
-      }
-    }
-    if (statement != null) {
-      try {
-        statement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (statement2 != null) {
-      try {
-        statement2.close();
+        stmt2.close();
       }
  catch (      SQLException exc) {
       }
       try {
-        nextStatement=con.prepareStatement(m_SqlQueries.get("C_ROLLBACK"));
-        nextStatement.execute();
+        nextStmt=conn.prepareStatement(m_SqlQueries.get("C_ROLLBACK"));
+        nextStmt.execute();
       }
  catch (      SQLException exc) {
       }
     }
-    if (nextStatement != null) {
-      try {
-        nextStatement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (con != null) {
-      try {
-        con.setAutoCommit(true);
-      }
- catch (      SQLException exc) {
-      }
-      try {
-        con.close();
-      }
- catch (      SQLException e) {
-      }
-    }
+    m_SqlQueries.closeAll(null,nextStmt,null);
+    m_SqlQueries.closeAll(conn,stmt,res);
   }
   return readSystemProperty(name);
 }

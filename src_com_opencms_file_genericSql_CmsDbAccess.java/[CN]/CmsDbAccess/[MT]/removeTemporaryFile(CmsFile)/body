@@ -1,44 +1,37 @@
 {
-  PreparedStatement statement=null;
+  PreparedStatement stmt=null;
   PreparedStatement statementCont=null;
   PreparedStatement statementProp=null;
-  Connection con=null;
+  Connection conn=null;
   ResultSet res=null;
   String tempFilename=file.getRootName() + file.getPath() + C_TEMP_PREFIX+ file.getName()+ "%";
   try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_GETTEMPFILES"));
-    statement.setString(1,tempFilename);
-    res=statement.executeQuery();
+    conn=m_SqlQueries.getConnection();
+    stmt=m_SqlQueries.getPreparedStatement(conn,"C_RESOURCES_GETTEMPFILES");
+    stmt.setString(1,tempFilename);
+    res=stmt.executeQuery();
     while (res.next()) {
       int fileId=res.getInt("FILE_ID");
       int resourceId=res.getInt("RESOURCE_ID");
-      statementProp=con.prepareStatement(m_SqlQueries.get("C_PROPERTIES_DELETEALL"));
+      statementProp=m_SqlQueries.getPreparedStatement(conn,"C_PROPERTIES_DELETEALL");
       statementProp.setInt(1,resourceId);
       statementProp.executeQuery();
       statementProp.close();
-      statementCont=con.prepareStatement(m_SqlQueries.get("C_FILE_DELETE"));
+      statementCont=m_SqlQueries.getPreparedStatement(conn,"C_FILE_DELETE");
       statementCont.setInt(1,fileId);
       statementCont.executeUpdate();
       statementCont.close();
     }
     res.close();
-    statement.close();
-    statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_DELETETEMPFILES"));
-    statement.setString(1,tempFilename);
-    statement.executeUpdate();
+    stmt.close();
+    stmt=m_SqlQueries.getPreparedStatement(conn,"C_RESOURCES_DELETETEMPFILES");
+    stmt.setString(1,tempFilename);
+    stmt.executeUpdate();
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
  finally {
-    if (res != null) {
-      try {
-        res.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
     if (statementProp != null) {
       try {
         statementProp.close();
@@ -53,19 +46,6 @@
  catch (      SQLException exc) {
       }
     }
-    if (statement != null) {
-      try {
-        statement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (con != null) {
-      try {
-        con.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
+    m_SqlQueries.closeAll(conn,stmt,null);
   }
 }

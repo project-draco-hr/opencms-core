@@ -1,38 +1,25 @@
 {
   byte[] value=null;
-  PreparedStatement statement=null;
-  Connection con=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
   int retValue;
   try {
     value=serializeSession(data);
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareStatement(m_SqlQueries.get("C_SESSION_UPDATE"));
-    statement.setTimestamp(1,new java.sql.Timestamp(System.currentTimeMillis()));
-    m_doSetBytes(statement,2,value);
-    statement.setString(3,sessionId);
-    retValue=statement.executeUpdate();
+    conn=m_SqlQueries.getConnection();
+    stmt=m_SqlQueries.getPreparedStatement(conn,"C_SESSION_UPDATE");
+    stmt.setTimestamp(1,new java.sql.Timestamp(System.currentTimeMillis()));
+    m_doSetBytes(stmt,2,value);
+    stmt.setString(3,sessionId);
+    retValue=stmt.executeUpdate();
   }
  catch (  SQLException e) {
-    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SQL_ERROR,e);
   }
 catch (  IOException e) {
-    throw new CmsException("[" + this.getClass().getName() + "]:"+ CmsException.C_SERIALIZATION,e);
+    throw m_SqlQueries.getCmsException(this,null,CmsException.C_SERIALIZATION,e);
   }
  finally {
-    if (statement != null) {
-      try {
-        statement.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
-    if (con != null) {
-      try {
-        con.close();
-      }
- catch (      SQLException exc) {
-      }
-    }
+    m_SqlQueries.closeAll(conn,stmt,null);
   }
   return retValue;
 }
