@@ -35,14 +35,25 @@
   String navpos=(String)parameters.get(C_PARA_NAVPOS);
   String step=(String)parameters.get("step");
   if (step != null) {
+    if (step.equals("extNavError")) {
+      step="1";
+      newFolder=(String)session.getValue(C_SESSIONHEADER + C_PARA_NEWFOLDER);
+      title=(String)session.getValue(C_SESSIONHEADER + C_PARA_TITLE);
+      navtitle=(String)session.getValue(C_SESSIONHEADER + C_PARA_NAVTEXT);
+      navpos=(String)session.getValue(C_SESSIONHEADER + C_PARA_NAVPOS);
+    }
     if (step.equals("1")) {
+      session.putValue(C_SESSIONHEADER + C_PARA_NEWFOLDER,newFolder);
+      session.putValue(C_SESSIONHEADER + C_PARA_TITLE,title);
+      if (navtitle != null) {
+        session.putValue(C_SESSIONHEADER + C_PARA_NAVTEXT,navtitle);
+        session.putValue(C_SESSIONHEADER + C_PARA_NAVPOS,navpos);
+      }
+ else {
+        session.removeValue(C_SESSIONHEADER + C_PARA_NAVTEXT);
+        session.removeValue(C_SESSIONHEADER + C_PARA_NAVPOS);
+      }
       if (extendedNavigation) {
-        session.putValue(C_SESSIONHEADER + C_PARA_NEWFOLDER,newFolder);
-        session.putValue(C_SESSIONHEADER + C_PARA_TITLE,title);
-        if (navtitle != null) {
-          session.putValue(C_SESSIONHEADER + C_PARA_NAVTEXT,navtitle);
-          session.putValue(C_SESSIONHEADER + C_PARA_NAVPOS,navpos);
-        }
         Hashtable preprops=(Hashtable)session.getValue(C_SESSIONHEADER + "extendedProperties");
         setNavDefault(xmlTemplateDocument,preprops,newFolder);
         if (cms.rootFolder().getAbsolutePath().equals(currentFilelist)) {
@@ -69,16 +80,17 @@
               }
               session.putValue(C_PARA_FILELIST,folder.getAbsolutePath());
               xmlTemplateDocument.setData("indexlocation",folder.getAbsolutePath());
-              template="update2";
             }
+            template="update2";
+          }
  else {
-              template="update";
-            }
+            template="update";
           }
           clearSession(session);
         }
  catch (        CmsException ex) {
-          throw new CmsException("Error while creating new Folder" + ex.getMessage(),ex.getType(),ex);
+          xmlTemplateDocument.setData("details",Utils.getStackTrace(ex));
+          return startProcessing(cms,xmlTemplateDocument,"",parameters,"error_system");
         }
       }
     }
@@ -92,8 +104,14 @@
       insertProperty(allProperties,C_PROPERTY_TITLE,title);
       insertProperty(allProperties,C_PROPERTY_NAVTEXT,navtitle);
       fillProperties(allProperties,parameters);
+      session.putValue(C_SESSIONHEADER + "extendedProperties",allProperties);
       if (back == null) {
         try {
+          int propError=checkProperties(cms,allProperties);
+          if (propError > 0) {
+            template="error_" + propError;
+            return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+          }
           CmsFolder folder=cms.createFolder(currentFilelist,newFolder);
           cms.lockResource(folder.getAbsolutePath());
           cms.writeProperties(folder.getAbsolutePath(),allProperties);
@@ -114,7 +132,8 @@
           clearSession(session);
         }
  catch (        CmsException ex) {
-          throw new CmsException("Error while creating new Folder" + ex.getMessage(),ex.getType(),ex);
+          xmlTemplateDocument.setData("details",Utils.getStackTrace(ex));
+          return startProcessing(cms,xmlTemplateDocument,"",parameters,"error_system");
         }
       }
  else {
@@ -126,8 +145,19 @@
  else {
           xmlTemplateDocument.setData("doOnload","checkInTheBox();");
         }
-        session.putValue(C_SESSIONHEADER + "extendedProperties",allProperties);
         template=null;
+      }
+    }
+ else     if ("fromerror".equalsIgnoreCase(step)) {
+      template=null;
+      xmlTemplateDocument.setData("name",(String)session.getValue(C_SESSIONHEADER + C_PARA_NEWFOLDER));
+      xmlTemplateDocument.setData("title",(String)session.getValue(C_SESSIONHEADER + C_PARA_TITLE));
+      navtitle=(String)session.getValue(C_SESSIONHEADER + C_PARA_NAVTEXT);
+      if (navtitle != null) {
+        xmlTemplateDocument.setData("navtext",navtitle);
+      }
+ else {
+        xmlTemplateDocument.setData("doOnload","checkInTheBox();");
       }
     }
   }
