@@ -1,0 +1,38 @@
+{
+  String errorMsgSuffix="";
+  try {
+    Iterator i=getMultiPartFileItems().iterator();
+    FileItem fi=null;
+    while (i.hasNext()) {
+      fi=(FileItem)i.next();
+      if (fi.getName() != null) {
+        break;
+      }
+    }
+    if (fi != null) {
+      long size=fi.getSize();
+      long maxFileSizeBytes=OpenCms.getWorkplaceManager().getFileBytesMaxUploadSize(getCms());
+      if (maxFileSizeBytes > 0 && size > maxFileSizeBytes) {
+        errorMsgSuffix="size";
+        throw new CmsException("File size larger than maximum allowed upload size, currently set to " + (maxFileSizeBytes / 1024) + " kb");
+      }
+      byte[] content=fi.get();
+      fi.delete();
+      CmsResource res=getCms().readResource(getParamResource());
+      int resTypeId=res.getTypeId();
+      checkLock(getParamResource());
+      getCms().replaceResource(getParamResource(),resTypeId,content,null);
+      actionCloseDialog();
+    }
+ else {
+      throw new CmsException("Upload file not found");
+    }
+  }
+ catch (  CmsException e) {
+    getJsp().getRequest().setAttribute(C_SESSION_WORKPLACE_CLASS,this);
+    setParamErrorstack(e.getStackTraceAsString());
+    setParamMessage(key("error.message.upload"));
+    setParamReasonSuggestion(key("error.reason.upload" + errorMsgSuffix) + "<br>\n" + key("error.suggestion.upload" + errorMsgSuffix)+ "\n");
+    getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
+  }
+}
