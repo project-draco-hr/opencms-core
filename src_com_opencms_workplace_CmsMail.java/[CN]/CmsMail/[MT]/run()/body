@@ -1,5 +1,5 @@
 {
-  Properties props=new Properties();
+  Properties props=System.getProperties();
   props.put("mail.smtp.host",c_MAILSERVER);
   Session session=Session.getDefaultInstance(props,null);
   MimeMessage msg=new MimeMessage(session);
@@ -11,7 +11,44 @@
     msg.setFrom(new InternetAddress(c_FROM));
     msg.setRecipients(Message.RecipientType.TO,to);
     msg.setSubject(c_SUBJECT,"ISO-8859-1");
-    msg.setContent(c_CONTENT,c_TYPE);
+    Enumeration enum=c_CMS.getRequestContext().getRequest().getFileNames();
+    Vector v=new Vector();
+    while (enum.hasMoreElements()) {
+      v.addElement(enum.nextElement());
+    }
+    int size=v.size();
+    System.err.println("Size: " + size);
+    if (size != 0) {
+      MimeBodyPart mbp1=new MimeBodyPart();
+      Multipart mp=new MimeMultipart();
+      if (c_TYPE.equals("text/html")) {
+        mbp1.setDataHandler(new DataHandler(new CmsByteArrayDataSource(c_CONTENT,c_TYPE)));
+      }
+ else {
+        mbp1.setText(c_CONTENT,"ISO-8859-1");
+      }
+      mp.addBodyPart(mbp1);
+      for (int i=0; i < size; i++) {
+        String filename=(String)v.elementAt(i);
+        System.err.println("Filename: " + filename);
+        MimetypesFileTypeMap mimeTypeMap=new MimetypesFileTypeMap();
+        String mimeType=mimeTypeMap.getContentType(filename);
+        System.err.println("MimeType: " + mimeType);
+        MimeBodyPart mbp=new MimeBodyPart();
+        mbp.setDataHandler(new DataHandler(new CmsByteArrayDataSource(c_CMS.getRequestContext().getRequest().getFile(filename),mimeType)));
+        mbp.setFileName(filename);
+        mp.addBodyPart(mbp);
+      }
+      msg.setContent(mp);
+    }
+ else {
+      if (c_TYPE.equals("text/html")) {
+        msg.setDataHandler(new DataHandler(new CmsByteArrayDataSource(c_CONTENT,c_TYPE)));
+      }
+ else {
+        msg.setContent(c_CONTENT,c_TYPE);
+      }
+    }
     msg.setSentDate(new Date());
     Transport.send(msg);
   }
