@@ -1,32 +1,25 @@
 {
-  String collectorName=getCollector();
-  if (CmsStringUtil.isEmpty(collectorName)) {
-    throw new IllegalArgumentException("'contentload' tag requires 'collector' attribute");
+  if ((CmsStringUtil.isEmpty(m_pageSize) && CmsStringUtil.isNotEmpty(m_pageIndex)) || (CmsStringUtil.isNotEmpty(m_pageSize) && CmsStringUtil.isEmpty(m_pageIndex))) {
+    throw new IllegalArgumentException("The 'cms:contentload' tag requires both a 'pageIndex' and 'pageSize' attribute!");
+  }
+  if (CmsStringUtil.isEmpty(m_collector)) {
+    throw new IllegalArgumentException("The 'cms:contentload' tag requires 'collector' attribute!");
   }
   m_controller=(CmsFlexController)pageContext.getRequest().getAttribute(CmsFlexController.ATTRIBUTE_NAME);
   m_cms=m_controller.getCmsObject();
+  m_stringMapper=new CmsStringMapper(m_cms,pageContext);
+  String collectorName=m_stringMapper.map(getCollector(),this);
   m_locale=m_cms.getRequestContext().getLocale();
-  String param=getProperty();
-  if (CmsStringUtil.isNotEmpty(param)) {
-    CmsProperty property;
-    try {
-      property=m_cms.readPropertyObject(m_cms.getRequestContext().getUri(),param,true);
-    }
- catch (    CmsException e) {
-      OpenCms.getLog(this).error("Error reading property '" + param + "' on resource "+ m_cms.getRequestContext().getUri(),e);
-      property=CmsProperty.getNullProperty();
-    }
-    param=property.getValue("");
-    if (CmsStringUtil.isNotEmpty(getParam())) {
-      param=param.concat(getParam());
-    }
-  }
- else {
-    param=resolveMagicName(getParam());
-  }
+  String param=m_stringMapper.map(getParam(),this);
   I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(collectorName);
   try {
     m_collectorResult=collector.getResults(m_cms,collectorName,param);
+    m_contentInfoBean=new CmsContentInfoBean();
+    m_contentInfoBean.setPageSizeAsString(m_stringMapper.map(m_pageSize,this));
+    m_contentInfoBean.setPageIndexAsString(m_stringMapper.map(m_pageIndex,this));
+    m_contentInfoBean.setResultSize(m_collectorResult.size());
+    m_contentInfoBean.initResultIndex();
+    m_collectorResult=CmsJspTagContentLoad.limitCollectorResult(m_contentInfoBean,m_collectorResult);
     if ((m_collectorResult == null) || (m_collectorResult.size() == 0)) {
       return SKIP_BODY;
     }
