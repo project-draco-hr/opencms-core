@@ -1,7 +1,10 @@
 {
   String template=null;
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  CmsXmlLanguageFile lang=xmlTemplateDocument.getLanguageFile();
   I_CmsSession session=cms.getRequestContext().getSession(true);
+  I_CmsRegistry registry=cms.getRegistry();
+  boolean extendedNavigation="on".equals(registry.getSystemValue("extendedNavigation"));
   String initial=(String)parameters.get("initial");
   if (initial != null) {
     clearSession(session);
@@ -14,6 +17,18 @@
   if (currentFilelist == null) {
     currentFilelist=cms.rootFolder().getAbsolutePath();
   }
+  if ((extendedNavigation) && (cms.rootFolder().getAbsolutePath().equals(currentFilelist))) {
+    xmlTemplateDocument.setData("frameTitle",lang.getLanguageValue("label.ebtitle"));
+  }
+ else {
+    xmlTemplateDocument.setData("frameTitle",lang.getLanguageValue("title.newfolder"));
+  }
+  if (extendedNavigation) {
+    xmlTemplateDocument.setData("endbutton",lang.getLanguageValue("button.nextscreen"));
+  }
+ else {
+    xmlTemplateDocument.setData("endbutton",lang.getLanguageValue("button.endwizard"));
+  }
   String newFolder=(String)parameters.get(C_PARA_NEWFOLDER);
   String title=(String)parameters.get(C_PARA_TITLE);
   String navtitle=(String)parameters.get(C_PARA_NAVTEXT);
@@ -21,7 +36,7 @@
   String step=(String)parameters.get("step");
   if (step != null) {
     if (step.equals("1")) {
-      if (true) {
+      if (extendedNavigation) {
         session.putValue(C_SESSIONHEADER + C_PARA_NEWFOLDER,newFolder);
         session.putValue(C_SESSIONHEADER + C_PARA_TITLE,title);
         if (navtitle != null) {
@@ -47,6 +62,17 @@
             cms.writeProperty(folder.getAbsolutePath(),C_PROPERTY_NAVTEXT,navtitle);
             if (navpos != null) {
               updateNavPos(cms,folder,navpos);
+              try {
+                cms.unlockResource(folder.getAbsolutePath());
+              }
+ catch (              CmsException e) {
+              }
+              session.putValue(C_PARA_FILELIST,folder.getAbsolutePath());
+              xmlTemplateDocument.setData("indexlocation",folder.getAbsolutePath());
+              template="update2";
+            }
+ else {
+              template="update";
             }
           }
           clearSession(session);
@@ -54,7 +80,6 @@
  catch (        CmsException ex) {
           throw new CmsException("Error while creating new Folder" + ex.getMessage(),ex.getType(),ex);
         }
-        template="update";
       }
     }
  else     if ("2".equals(step)) {
@@ -74,13 +99,23 @@
           cms.writeProperties(folder.getAbsolutePath(),allProperties);
           if ((navtitle != null) && (navpos != null)) {
             updateNavPos(cms,folder,navpos);
+            try {
+              cms.unlockResource(folder.getAbsolutePath());
+            }
+ catch (            CmsException e) {
+            }
+            xmlTemplateDocument.setData("indexlocation",folder.getAbsolutePath());
+            session.putValue(C_PARA_FILELIST,folder.getAbsolutePath());
+            template="update2";
+          }
+ else {
+            template="update";
           }
           clearSession(session);
         }
  catch (        CmsException ex) {
           throw new CmsException("Error while creating new Folder" + ex.getMessage(),ex.getType(),ex);
         }
-        template="update";
       }
  else {
         xmlTemplateDocument.setData("name",newFolder);
