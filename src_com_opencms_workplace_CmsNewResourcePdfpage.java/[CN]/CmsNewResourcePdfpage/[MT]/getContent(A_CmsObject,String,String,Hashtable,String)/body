@@ -1,0 +1,54 @@
+{
+  String template=null;
+  byte[] content=new byte[0];
+  CmsFile contentFile=null;
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String currentFilelist=(String)session.getValue(C_PARA_FILELIST);
+  if (currentFilelist == null) {
+    currentFilelist=cms.rootFolder().getAbsolutePath();
+  }
+  String newFile=(String)parameters.get(C_PARA_NEWFILE);
+  String title=(String)parameters.get(C_PARA_TITLE);
+  String templatefile=(String)parameters.get(C_PARA_TEMPLATE);
+  String navtitle=(String)parameters.get(C_PARA_NAVTEXT);
+  String navpos=(String)parameters.get(C_PARA_NAVPOS);
+  String step=cms.getRequestContext().getRequest().getParameter("step");
+  if (step != null) {
+    if (step.equals("1")) {
+      if (newFile.indexOf(".") == -1) {
+        newFile+=".pdf";
+      }
+      try {
+        content=createPagefile(C_CLASSNAME,templatefile,C_CONTENTBODYPATH + currentFilelist.substring(1,currentFilelist.length()) + newFile);
+        checkFolders(cms,currentFilelist);
+        CmsFile file=cms.createFile(currentFilelist,newFile,content,"pdfpage");
+        cms.lockResource(file.getAbsolutePath());
+        cms.writeProperty(file.getAbsolutePath(),C_PROPERTY_TITLE,title);
+        contentFile=cms.createFile(C_CONTENTBODYPATH + currentFilelist.substring(1,currentFilelist.length()),newFile,C_DEFAULTBODY.getBytes(),"plain");
+        cms.lockResource(contentFile.getAbsolutePath());
+        cms.chmod(contentFile.getAbsolutePath(),contentFile.getAccessFlags() + C_ACCESS_INTERNAL_READ);
+        if (navtitle != null) {
+          cms.writeProperty(file.getAbsolutePath(),C_PROPERTY_NAVTEXT,navtitle);
+          if (navpos != null) {
+            updateNavPos(cms,file,navpos);
+          }
+        }
+      }
+ catch (      CmsException ex) {
+        throw new CmsException("Error while creating new Page" + ex.getMessage(),ex.getType(),ex);
+      }
+      try {
+        cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+      }
+ catch (      Exception e) {
+        throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+      }
+      return null;
+    }
+  }
+ else {
+    session.removeValue(C_PARA_FILE);
+  }
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}
