@@ -3,6 +3,7 @@
   CmsFolder currentFolder=null;
   CmsFile currentFile=null;
   CmsFolder newFolder=null;
+  CmsFile newFile=null;
   Vector offlineFolders;
   Vector offlineFiles;
   Vector deletedFolders=new Vector();
@@ -205,6 +206,7 @@
     if (currentFile.isLocked()) {
     }
  else     if (currentFile.getName().startsWith(C_TEMP_PREFIX)) {
+      deleteAllProperties(projectId,currentFile.getResourceId());
       removeFile(projectId,currentFile.getAbsolutePath());
     }
  else     if (currentFile.getState() == C_STATE_DELETED) {
@@ -342,10 +344,72 @@
         parentId=new Integer(currentOnlineParent.getResourceId());
         folderIdIndex.put(new Integer(currentFile.getParentId()),parentId);
       }
-      removeFile(onlineProject.getId(),currentFile.getAbsolutePath());
-      CmsFile newFile=createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getAbsolutePath(),false);
-      newFile.setState(C_STATE_UNCHANGED);
-      updateResourcestate(newFile);
+      try {
+        newFile=createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getAbsolutePath(),false);
+        newFile.setState(C_STATE_UNCHANGED);
+        updateResourcestate(newFile);
+      }
+ catch (      CmsException e) {
+        if (e.getType() == CmsException.C_FILE_EXISTS) {
+          CmsFile onlineFile=null;
+          try {
+            onlineFile=readFileHeader(onlineProject.getId(),currentFile.getAbsolutePath());
+          }
+ catch (          CmsException exc) {
+            throw exc;
+          }
+          Connection con=null;
+          PreparedStatement statement=null;
+          try {
+            con=DriverManager.getConnection(m_poolNameOnline);
+            statement=con.prepareStatement(m_cq.get("C_RESOURCES_UPDATE_ONLINE"));
+            statement.setInt(1,currentFile.getType());
+            statement.setInt(2,currentFile.getFlags());
+            statement.setInt(3,currentFile.getOwnerId());
+            statement.setInt(4,currentFile.getGroupId());
+            statement.setInt(5,onlineFile.getProjectId());
+            statement.setInt(6,currentFile.getAccessFlags());
+            statement.setInt(7,C_STATE_UNCHANGED);
+            statement.setInt(8,currentFile.isLockedBy());
+            statement.setInt(9,currentFile.getLauncherType());
+            statement.setString(10,currentFile.getLauncherClassname());
+            statement.setTimestamp(11,new Timestamp(System.currentTimeMillis()));
+            statement.setInt(12,currentFile.getResourceLastModifiedBy());
+            statement.setInt(13,currentFile.getLength());
+            statement.setInt(14,onlineFile.getFileId());
+            statement.setInt(15,onlineFile.getResourceId());
+            statement.executeUpdate();
+            statement=con.prepareStatement(m_cq.get("C_FILES_UPDATE_ONLINE"));
+            statement.setBytes(1,currentFile.getContents());
+            statement.setInt(2,onlineFile.getFileId());
+            statement.executeUpdate();
+            statement.close();
+            newFile=readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getAbsolutePath());
+          }
+ catch (          SQLException sqle) {
+            throw new CmsException("[" + this.getClass().getName() + "] "+ sqle.getMessage(),CmsException.C_SQL_ERROR,sqle);
+          }
+ finally {
+            if (statement != null) {
+              try {
+                statement.close();
+              }
+ catch (              SQLException exc) {
+              }
+            }
+            if (con != null) {
+              try {
+                con.close();
+              }
+ catch (              SQLException exc) {
+              }
+            }
+          }
+        }
+ else {
+          throw e;
+        }
+      }
       Hashtable props=null;
       try {
         props=readAllProperties(projectId,currentFile,currentFile.getType());
@@ -373,7 +437,9 @@
       Hashtable props=readAllProperties(projectId,currentFolder,currentFolder.getType());
       backupResource(projectId,currentFolder,new byte[0],props,versionId,publishDate);
     }
+    CmsResource delOnlineFolder=readFolder(onlineProject.getId(),currentFolder.getAbsolutePath());
     try {
+      deleteAllProperties(onlineProject.getId(),delOnlineFolder);
       deleteAllProperties(projectId,currentFolder);
     }
  catch (    CmsException exc) {
