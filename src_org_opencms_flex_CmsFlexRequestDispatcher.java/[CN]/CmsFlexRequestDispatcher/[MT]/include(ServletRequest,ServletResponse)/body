@@ -35,8 +35,7 @@
   f_res.setCmsIncludeMode(true);
   CmsFlexRequest w_req=new CmsFlexRequest((HttpServletRequest)req,controller,m_vfsTarget);
   CmsFlexResponse w_res=new CmsFlexResponse((HttpServletResponse)res,controller);
-  controller.pushRequest(w_req);
-  controller.pushResponse(w_res);
+  controller.push(w_req,w_res);
   try {
     CmsFlexCacheEntry entry=null;
     if (f_req.isCacheable()) {
@@ -130,7 +129,13 @@ catch (      CmsException e) {
       }
       entry=w_res.processCacheEntry();
       if ((entry != null) && (variation != null) && w_req.isCacheable()) {
-        entry.updateDateLastModified(w_res.getDateLastModified());
+        if (w_res.getCmsCacheKey().m_timeout > 0) {
+          entry.setDateLastModified(System.currentTimeMillis());
+          controller.updateDateLastModified(entry.getDateLastModified());
+        }
+ else {
+          entry.setDateLastModified(controller.getDateLastModified());
+        }
         cache.put(w_res.getCmsCacheKey(),entry,variation);
       }
  else {
@@ -151,7 +156,6 @@ catch (      CmsException e) {
   finally {
     f_res.setCmsIncludeMode(false);
     f_req.removeIncludeCall(m_vfsTarget);
-    controller.popRequest();
-    controller.popResponse();
+    controller.pop();
   }
 }

@@ -37,8 +37,7 @@
     req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,controller);
     f_req=new CmsFlexRequest(req,controller);
     f_res=new CmsFlexResponse(res,controller,streaming,true);
-    controller.pushRequest(f_req);
-    controller.pushResponse(f_res);
+    controller.push(f_req,f_res);
   }
   if (bypass) {
     if (DEBUG > 1) {
@@ -60,22 +59,14 @@
     if (!streaming && !f_res.isSuspended()) {
       try {
         if (!res.isCommitted() || m_errorPagesAreNotCommited) {
-          long lastModifiedHeader=req.getDateHeader(C_HEADER_IF_MODIFIED_SINCE);
-          if (lastModifiedHeader > -1) {
-            if (controller.getDateLastModified() == lastModifiedHeader) {
-              res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
-              return;
-            }
+          if (CmsFlexController.isNotModifiedSince(f_req,controller.getDateLastModified())) {
+            res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+            return;
           }
           byte[] result=f_res.getWriterBytes();
           result=CmsEncoder.changeEncoding(result,OpenCms.getSystemInfo().getDefaultEncoding(),cms.getRequestContext().getEncoding());
           res.setContentLength(result.length);
-          if (controller.getDateLastModified() > -1) {
-            res.setDateHeader(C_HEADER_LAST_MODIFIED,controller.getDateLastModified());
-          }
- else {
-            res.setDateHeader(C_HEADER_LAST_MODIFIED,System.currentTimeMillis());
-          }
+          CmsFlexController.setDateLastModifiedHeader(res,controller.getDateLastModified());
           CmsFlexResponse.processHeaders(f_res.getHeaders(),res);
           res.getOutputStream().write(result);
           res.getOutputStream().flush();
