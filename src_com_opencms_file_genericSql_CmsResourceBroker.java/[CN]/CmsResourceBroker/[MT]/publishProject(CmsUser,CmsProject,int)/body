@@ -8,28 +8,40 @@
       Vector classFiles=((CmsClassLoader)loader).getFilenames();
       shouldReload=shouldReloadClasses(id,classFiles);
     }
-    changedResources=m_dbAccess.publishProject(currentUser,id,onlineProject(currentUser,currentProject),m_enableHistory);
-    m_resourceCache.clear();
-    m_subresCache.clear();
-    fileSystemChanged(true);
-    if (publishProject.getType() == C_PROJECT_TYPE_TEMPORARY) {
-      m_dbAccess.deleteProject(publishProject);
-      m_projectCache.remove(id);
+    try {
+      changedResources=m_dbAccess.publishProject(currentUser,id,onlineProject(currentUser,currentProject),m_enableHistory);
     }
-    if (m_refresh.length() > 0) {
-      try {
-        URL url=new URL(m_refresh);
-        URLConnection con=url.openConnection();
-        con.connect();
-        InputStream in=con.getInputStream();
-        in.close();
-      }
- catch (      Exception ex) {
-        throw new CmsException(0,ex);
-      }
+ catch (    CmsException e) {
+      throw e;
     }
-    if (loader instanceof CmsClassLoader) {
-      ((CmsClassLoader)loader).setShouldReload(shouldReload);
+ finally {
+      m_resourceCache.clear();
+      m_subresCache.clear();
+      fileSystemChanged(true);
+      if (publishProject.getType() == C_PROJECT_TYPE_TEMPORARY) {
+        m_dbAccess.deleteProject(publishProject);
+        try {
+          m_projectCache.remove(id);
+        }
+ catch (        Exception e) {
+          A_OpenCms.log(A_OpenCms.C_OPENCMS_CACHE,"Could not remove project " + id + " from cache");
+        }
+      }
+      if (m_refresh.length() > 0) {
+        try {
+          URL url=new URL(m_refresh);
+          URLConnection con=url.openConnection();
+          con.connect();
+          InputStream in=con.getInputStream();
+          in.close();
+        }
+ catch (        Exception ex) {
+          throw new CmsException(0,ex);
+        }
+      }
+      if (loader instanceof CmsClassLoader) {
+        ((CmsClassLoader)loader).setShouldReload(shouldReload);
+      }
     }
   }
  else {
