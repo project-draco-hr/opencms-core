@@ -1,0 +1,74 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing publish new files");
+  String source="/folder2/subfolder21/image1.gif";
+  String destination1="/folder2/image1_new.gif";
+  String destination2="/folder2/image1_sibling1.gif";
+  String destination3="/folder2/image1_sibling2.gif";
+  String destination4="/folder2/image1_sibling3.gif";
+  CmsProject onlineProject=cms.readProject("Online");
+  CmsProject offlineProject=cms.readProject("Offline");
+  cms.copyResource(source,destination1,I_CmsConstants.C_COPY_AS_NEW);
+  cms.copyResource(source,destination2,I_CmsConstants.C_COPY_AS_SIBLING);
+  cms.copyResource(source,destination3,I_CmsConstants.C_COPY_AS_SIBLING);
+  cms.copyResource(source,destination4,I_CmsConstants.C_COPY_AS_SIBLING);
+  cms.unlockResource(destination1);
+  cms.unlockResource(destination2);
+  cms.publishResource(destination1);
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  try {
+    cms.readResource(destination1);
+  }
+ catch (  CmsException e) {
+    fail("Resource " + destination1 + " not found in online project:"+ e);
+  }
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  assertState(cms,destination1,I_CmsConstants.C_STATE_UNCHANGED);
+  cms.publishResource(destination2);
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  try {
+    cms.readResource(destination2);
+  }
+ catch (  CmsException e) {
+    fail("Resource " + destination2 + " not found in online project:"+ e);
+  }
+  try {
+    cms.readResource(destination3);
+    fail("Resource " + destination3 + " should not available online yet");
+  }
+ catch (  CmsException e) {
+    if (e.getType() != CmsException.C_NOT_FOUND) {
+      fail("Resource " + destination3 + " error:"+ e);
+    }
+  }
+  try {
+    cms.readResource(destination4);
+    fail("Resource " + destination4 + " should not available online yet");
+  }
+ catch (  CmsException e) {
+    if (e.getType() != CmsException.C_NOT_FOUND) {
+      fail("Resource " + destination4 + " error:"+ e);
+    }
+  }
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  assertState(cms,destination2,I_CmsConstants.C_STATE_UNCHANGED);
+  assertState(cms,destination3,I_CmsConstants.C_STATE_NEW);
+  assertState(cms,destination4,I_CmsConstants.C_STATE_NEW);
+  cms.publishResource(destination3,true,new CmsShellReport());
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  try {
+    cms.readResource(destination3);
+  }
+ catch (  CmsException e) {
+    fail("Resource " + destination3 + " not found in online project:"+ e);
+  }
+  try {
+    cms.readResource(destination4);
+  }
+ catch (  CmsException e) {
+    fail("Resource " + destination4 + " not found in online project:"+ e);
+  }
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  assertState(cms,destination3,I_CmsConstants.C_STATE_UNCHANGED);
+  assertState(cms,destination4,I_CmsConstants.C_STATE_UNCHANGED);
+}
