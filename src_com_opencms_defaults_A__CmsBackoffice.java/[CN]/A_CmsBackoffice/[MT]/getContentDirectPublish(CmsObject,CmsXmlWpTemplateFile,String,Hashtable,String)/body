@@ -1,0 +1,56 @@
+{
+  byte[] processResult=null;
+  I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
+  Class cdClass=getContentDefinitionClass();
+  String id=(String)parameters.get("id");
+  if (id == null) {
+    id="";
+  }
+  String action=(String)parameters.get("action");
+  if (action == null || action.equals("")) {
+    if (id != "") {
+      templateSelector="publish";
+      CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+      template.setData("publishtitle",lang.getLanguageValue("messagebox.title.publishresource"));
+      template.setData("publishdialog1",lang.getLanguageValue("messagebox.message1.publishresource"));
+      template.setData("newsentry",id);
+      template.setData("publishdialog2",lang.getLanguageValue("messagebox.message4.publishresource"));
+      template.setData("setaction","default");
+    }
+  }
+ else {
+    templateSelector="done";
+    session.removeValue("idsave");
+    Integer idInteger=null;
+    try {
+      idInteger=Integer.valueOf(id);
+    }
+ catch (    Exception e) {
+      Object o=null;
+      o=getContentDefinition(cms,cdClass,id);
+      try {
+        ((I_CmsExtendedContentDefinition)o).publishResource(cms);
+      }
+ catch (      Exception e1) {
+        if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+          A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice: publish method throwed an exception!");
+        }
+        templateSelector="publisherror";
+        template.setData("publisherror",e1.getMessage());
+      }
+      processResult=startProcessing(cms,template,elementName,parameters,templateSelector);
+      return processResult;
+    }
+    Object o=null;
+    o=getContentDefinition(cms,cdClass,idInteger);
+    try {
+      ((I_CmsExtendedContentDefinition)o).publishResource(cms);
+    }
+ catch (    Exception e) {
+      templateSelector="publisherror";
+      template.setData("publisherror",e.getMessage());
+    }
+  }
+  processResult=startProcessing(cms,template,elementName,parameters,templateSelector);
+  return processResult;
+}
