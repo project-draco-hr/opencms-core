@@ -4,7 +4,7 @@
   File d=new File(jspPath).getParentFile();
   if (!(d != null) && (d.exists() && d.isDirectory() && d.canRead())) {
     log("Could not access directory for " + jspPath);
-    throw new CmsException("JspLoader: Could not access directory for " + jspPath);
+    throw new ServletException("JspLoader: Could not access directory for " + jspPath);
   }
   if (updates.contains(jspTargetName))   return null;
   updates.add(jspTargetName);
@@ -22,7 +22,13 @@
   String jspfilename=getJspUri(file.getAbsolutePath(),req.isOnline());
   if (mustUpdate) {
     if (DEBUG > 2)     System.err.println("JspLoader writing new file: " + jspfilename);
-    byte[] contents=req.getCmsObject().readFile(file.getAbsolutePath()).getContents();
+    byte[] contents=null;
+    try {
+      contents=req.getCmsObject().readFile(file.getAbsolutePath()).getContents();
+    }
+ catch (    CmsException e) {
+      throw new ServletException("JspLoader: Could not read contents for file '" + file.getAbsolutePath() + "'",e);
+    }
     try {
       FileOutputStream fs=new FileOutputStream(f);
       String page=new String(contents);
@@ -99,8 +105,8 @@
       fs.close();
       log("Updated JSP file \"" + jspfilename + "\" for resource \""+ file.getAbsolutePath()+ "\"");
     }
- catch (    Exception e) {
-      throw new CmsException("JspLauncher: Could not write to file '" + f.getName() + "'\n"+ e,e);
+ catch (    FileNotFoundException e) {
+      throw new ServletException("JspLauncher: Could not write to file '" + f.getName() + "'\n"+ e,e);
     }
   }
   return jspfilename;
