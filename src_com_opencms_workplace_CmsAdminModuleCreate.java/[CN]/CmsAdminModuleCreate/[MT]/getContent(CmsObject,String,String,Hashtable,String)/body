@@ -9,6 +9,7 @@
   I_CmsRegistry reg=cms.getRegistry();
   I_CmsSession session=cms.getRequestContext().getSession(true);
   String step=(String)parameters.get(C_STEP);
+  SimpleDateFormat dateFormat=new java.text.SimpleDateFormat("MM.dd.yyyy");
   if ((step == null) || "".equals(step)) {
     templateDocument.setData(C_PACKETNAME,"");
     templateDocument.setData(C_VERSION,"1");
@@ -19,7 +20,7 @@
     templateDocument.setData(C_MAINTENANCE,"");
     templateDocument.setData(C_AUTHOR,"");
     templateDocument.setData(C_EMAIL,"");
-    templateDocument.setData(C_DATE,"");
+    templateDocument.setData(C_DATE,dateFormat.format(new Date()));
   }
  else {
     if ("OK".equals(step)) {
@@ -40,7 +41,7 @@
       }
  catch (      Exception e) {
       }
-      if ((packetname == null) || ("".equals(packetname)) || (version == null)|| ("".equals(version))|| moduleExists|| (v == -1)) {
+      if ((packetname == null) || ("".equals(packetname)) || (version == null)|| ("".equals(version))|| moduleExists|| (v < 0)) {
         Hashtable sessionData=new Hashtable();
         sessionData.put(C_MODULENAME,getStringValue(modulename));
         sessionData.put(C_VERSION,getStringValue(version));
@@ -60,7 +61,14 @@
         }
       }
  else {
-        reg.createModule(packetname,getStringValue(modulename),getStringValue(description),getStringValue(author),getStringValue(createDate),v);
+        long createDateLong=0;
+        try {
+          createDateLong=dateFormat.parse(createDate).getTime();
+        }
+ catch (        Exception exc) {
+          createDateLong=(new Date()).getTime();
+        }
+        reg.createModule(packetname,getStringValue(modulename),getStringValue(description),getStringValue(author),createDateLong,v);
         reg.setModuleAuthorEmail(packetname,getStringValue(email));
         reg.setModuleMaintenanceEventClass(packetname,getStringValue(maintenance));
         tryToCreateFolder(cms,"/system/","modules");
@@ -85,8 +93,10 @@
         tryToCreateFolder(cms,modulePath,"language");
         tryToCreateFolder(cms,modulePath + "language/","de");
         tryToCreateFolder(cms,modulePath + "language/","uk");
+        tryToCreateFolder(cms,modulePath,"doc");
+        reg.setModuleDocumentPath(packetname,modulePath + "doc/index.html");
         if ("checked".equals(view)) {
-          reg.setModuleView(packetname,packetname.replace('.','_'),modulePath + "view/index.html");
+          reg.setModuleView(packetname,packetname.replace('.','_') + ".view",modulePath + "view/index.html");
           tryToCreateFolder(cms,modulePath,"view");
         }
         if ("checked".equals(adminpoint)) {
