@@ -36,68 +36,93 @@
   content.append("<html> \n<head> \n<script language=JavaScript>\n");
   content.append("function initialize() {\n");
   if (listonly) {
-    content.append(" top.openfolderMethod='openthisfolderflat';\n");
+    content.append("top.openfolderMethod='openthisfolderflat';\n");
   }
  else {
-    content.append(" top.openfolderMethod='openthisfolder';\n");
+    content.append("top.openfolderMethod='openthisfolder';\n");
   }
   if (projectView) {
-    content.append(" top.projectView=true;\n");
+    content.append("top.projectView=true;\n");
   }
  else {
-    content.append(" top.projectView=false;\n");
+    content.append("top.projectView=false;\n");
   }
   if (flaturl != null) {
-    content.append(" top.flaturl='" + flaturl + "';\n");
+    content.append("top.flaturl='" + flaturl + "';\n");
   }
  else   if (!listonly) {
-    content.append(" top.flaturl='';\n");
+    content.append("top.flaturl='';\n");
   }
-  content.append(" top.help_url='ExplorerAnsicht/index.html';\n");
-  content.append(" top.setProject(" + cms.getRequestContext().currentProject().getId() + ");\n");
-  content.append(" top.setOnlineProject(" + cms.onlineProject().getId() + ");\n");
-  content.append(" top.setChecksum(" + check + ");\n");
+  content.append("top.help_url='ExplorerAnsicht/index.html';\n");
+  content.append("top.setProject(" + cms.getRequestContext().currentProject().getId() + ");\n");
+  content.append("top.setOnlineProject(" + cms.onlineProject().getId() + ");\n");
+  content.append("top.setChecksum(" + check + ");\n");
   CmsFolder test=cms.readFolder(currentFolder);
   boolean writeAccess=test.getProjectId() == cms.getRequestContext().currentProject().getId();
-  content.append(" top.enableNewButton(" + writeAccess + ");\n");
-  content.append(" top.setDirectory(" + currentFolderId + ",\""+ currentFolder+ "\");\n");
-  content.append(" top.rD();\n\n");
+  content.append("top.enableNewButton(" + writeAccess + ");\n");
+  content.append("top.setDirectory(" + currentFolderId + ",\""+ currentFolder+ "\");\n");
+  content.append("top.rD();\n\n");
+  int filelist=getDefaultPreferences(cms);
+  boolean showTitle=(filelist & C_FILELIST_TITLE) > 0;
+  boolean showDateChanged=(filelist & C_FILELIST_CHANGED) > 0;
+  boolean showOwner=(filelist & C_FILELIST_OWNER) > 0;
+  boolean showGroup=(filelist & C_FILELIST_GROUP) > 0;
+  boolean showSize=(filelist & C_FILELIST_SIZE) > 0;
   Vector resources=getRessources(cms,currentFolder,projectView);
   for (int i=0; i < resources.size(); i++) {
     CmsResource res=(CmsResource)resources.elementAt(i);
-    content.append(" top.aF(");
-    content.append("\"" + res.getName() + "\", ");
-    content.append("\"" + res.getPath() + "\", ");
-    String title="";
-    try {
-      title=cms.readProperty(res.getAbsolutePath(),C_PROPERTY_TITLE);
-    }
- catch (    CmsException e) {
-    }
-    if (title == null) {
-      title="";
-    }
-    content.append("\"" + getChars(title) + "\", ");
-    content.append("\"" + res.getType() + "\", ");
-    content.append("\"" + Utils.getNiceDate(res.getDateLastModified()) + "\", ");
-    content.append("\"" + "TODO" + "\", ");
-    content.append("\"" + Utils.getNiceDate(res.getDateCreated()) + "\", ");
-    if (res.isFolder()) {
-      content.append("\"" + "" + "\", ");
+    content.append("top.aF(");
+    content.append("\"" + res.getName() + "\",");
+    if (showTitle) {
+      String title="";
+      try {
+        title=cms.readProperty(res.getAbsolutePath(),C_PROPERTY_TITLE);
+      }
+ catch (      CmsException e) {
+      }
+      if (title == null) {
+        title="";
+      }
+      content.append("\"" + getChars(title) + "\",");
     }
  else {
-      content.append("\"" + res.getLength() + "\", ");
+      content.append("\"" + "\",");
     }
-    content.append("" + res.getState() + ", ");
-    content.append("\"" + res.getProjectId() + "\", ");
-    content.append("\"" + cms.readUser(res.getOwnerId()).getName() + "\", ");
-    content.append("\"" + cms.readGroup(res).getName() + "\", ");
-    content.append("\"" + res.getAccessFlags() + "\", ");
+    content.append(res.getType() + ",");
+    if (showDateChanged) {
+      content.append("\"" + Utils.getNiceDate(res.getDateLastModified()) + "\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    content.append("\"\",");
+    content.append("\"\",");
+    if (res.isFolder() || (!showSize)) {
+      content.append("\"\",");
+    }
+ else {
+      content.append(res.getLength() + ",");
+    }
+    content.append(res.getState() + ",");
+    content.append(res.getProjectId() + ",");
+    if (showOwner) {
+      content.append("\"" + cms.readUser(res.getOwnerId()).getName() + "\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    if (showGroup) {
+      content.append("\"" + cms.readGroup(res).getName() + "\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    content.append(res.getAccessFlags() + ",");
     if (res.isLockedBy() == C_UNKNOWN_ID) {
-      content.append("\"" + "" + "\", ");
+      content.append("\"\",");
     }
  else {
-      content.append("\"" + cms.lockedBy(res).getName() + "\", ");
+      content.append("\"" + cms.lockedBy(res).getName() + "\",");
     }
     int lockedInProject=res.getLockedInProject();
     String lockedInProjectName="";
@@ -106,7 +131,7 @@
     }
  catch (    CmsException exc) {
     }
-    content.append("\"" + lockedInProjectName + "\", "+ lockedInProject+ ");\n");
+    content.append("\"" + lockedInProjectName + "\","+ lockedInProject+ ");\n");
   }
   if (newTreePlease && (!listonly)) {
     content.append("\n top.rT();\n");
