@@ -12,20 +12,26 @@
       cms.getRequestContext().setCurrentProject(curProject);
       throw e;
     }
- else {
-      try {
-        cms.deleteResource(temporaryFilename);
-        cms.copyFile(file.getAbsolutePath(),temporaryFilename);
-        cms.chmod(temporaryFilename,91);
-      }
- catch (      CmsException ex) {
-        cms.getRequestContext().setCurrentProject(curProject);
-        throw ex;
-      }
-    }
     ok=false;
   }
   extendedTempFile=temporaryFilename;
+  int loop=0;
+  while (!ok) {
+    ok=true;
+    extendedTempFile=temporaryFilename + loop;
+    try {
+      cms.copyFile(file.getAbsolutePath(),extendedTempFile);
+      cms.chmod(extendedTempFile,91);
+    }
+ catch (    CmsException e) {
+      if ((e.getType() != e.C_FILE_EXISTS) && (e.getType() != e.C_SQL_ERROR)) {
+        cms.getRequestContext().setCurrentProject(curProject);
+        throw e;
+      }
+      loop++;
+      ok=false;
+    }
+  }
   cms.getRequestContext().setCurrentProject(curProject);
   temporaryFilename=extendedTempFile;
   return temporaryFilename;
