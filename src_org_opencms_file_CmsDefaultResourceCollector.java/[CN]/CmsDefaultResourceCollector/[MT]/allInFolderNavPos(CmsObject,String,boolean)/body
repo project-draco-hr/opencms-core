@@ -1,0 +1,32 @@
+{
+  CmsCollectorData data=new CmsCollectorData(param);
+  String foldername=CmsResource.getFolderPath(data.getFileName());
+  CmsResourceFilter filter=CmsResourceFilter.DEFAULT.addRequireType(data.getType());
+  List foundResources=cms.readResources(foldername,filter,readSubTree);
+  Map navElementMap=new HashMap();
+  for (int i=0, n=foundResources.size(); i < n; i++) {
+    CmsResource resource=(CmsResource)foundResources.get(i);
+    CmsJspNavElement navElement=CmsJspNavBuilder.getNavigationForResource(cms,cms.getSitePath(resource));
+    if (navElement != null && navElement.isInNavigation()) {
+      navElementMap.put(navElement,resource);
+    }
+ else     if (OpenCms.getLog(this).isInfoEnabled()) {
+      OpenCms.getLog(this).info("Resource w/o nav. properties found: " + navElement.getResourceName());
+    }
+  }
+  List result=null;
+  if (navElementMap.size() == foundResources.size()) {
+    List navElementList=new ArrayList(navElementMap.keySet());
+    result=new ArrayList();
+    Collections.sort(navElementList);
+    for (int i=0, n=navElementList.size(); i < n; i++) {
+      CmsJspNavElement navElement=(CmsJspNavElement)navElementList.get(i);
+      result.add(navElementMap.get(navElement));
+    }
+  }
+ else {
+    result=foundResources;
+    Collections.sort(result,CmsResource.COMPARE_DATE_RELEASED);
+  }
+  return shrinkToFit(result,data.getCount());
+}
