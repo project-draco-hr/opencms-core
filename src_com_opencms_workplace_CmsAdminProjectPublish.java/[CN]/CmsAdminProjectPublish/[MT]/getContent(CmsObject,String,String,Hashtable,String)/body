@@ -15,6 +15,31 @@
     xmlTemplateDocument.setData("projectname",project.getName());
   }
   String action=(String)parameters.get("action");
+  String fromExplorer=(String)parameters.get("fromExplorer");
+  if (fromExplorer != null) {
+    CmsProject currentProject=cms.getRequestContext().currentProject();
+    projectId=currentProject.getId();
+    xmlTemplateDocument.setData("projectid",projectId + "");
+    xmlTemplateDocument.setData("projectname",currentProject.getName());
+    if ((action != null) && "check".equals(action)) {
+      if (cms.countLockedResources(projectId) == 0) {
+        action="ok";
+      }
+ else {
+        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"asklock");
+      }
+    }
+ else     if ((action != null) && "rmlocks".equals(action)) {
+      try {
+        cms.unlockProject(projectId);
+        action="ok";
+      }
+ catch (      CmsException exc) {
+        xmlTemplateDocument.setData("details",Utils.getStackTrace(exc));
+        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"errorlock");
+      }
+    }
+  }
   if ((action != null) && "ok".equals(action)) {
     if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
       session.removeValue(C_SESSION_THREAD_ERROR);
