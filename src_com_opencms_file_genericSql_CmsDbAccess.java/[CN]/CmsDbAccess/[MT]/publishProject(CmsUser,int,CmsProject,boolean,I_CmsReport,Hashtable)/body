@@ -16,7 +16,7 @@
     versionId=getBackupVersionId();
     backupProject(currentProject,versionId,publishDate,user);
   }
-  offlineFolders=readFolders(projectId,false,true);
+  offlineFolders=m_ResourceBroker.getVfsAccess().readFolders(projectId,false,true);
   for (int i=0; i < offlineFolders.size(); i++) {
     currentFolder=((CmsFolder)offlineFolders.elementAt(i));
     report.print(report.key("report.publishing"),I_CmsReport.C_FORMAT_NOTE);
@@ -35,12 +35,12 @@
       }
       Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFolder.getParentId()));
       if (parentId == null) {
-        CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFolder.getRootName() + currentFolder.getParent());
+        CmsFolder currentOnlineParent=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFolder.getRootName() + currentFolder.getParent());
         parentId=new Integer(currentOnlineParent.getResourceId());
         folderIdIndex.put(new Integer(currentFolder.getParentId()),parentId);
       }
       try {
-        newFolder=createFolder(user,onlineProject,onlineProject,currentFolder,parentId.intValue(),currentFolder.getResourceName());
+        newFolder=m_ResourceBroker.getVfsAccess().createFolder(user,onlineProject,onlineProject,currentFolder,parentId.intValue(),currentFolder.getResourceName());
         newFolder.setState(C_STATE_UNCHANGED);
         updateResourcestate(newFolder);
       }
@@ -48,7 +48,7 @@
         if (e.getType() == CmsException.C_FILE_EXISTS) {
           CmsFolder onlineFolder=null;
           try {
-            onlineFolder=readFolder(onlineProject.getId(),currentFolder.getResourceName());
+            onlineFolder=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFolder.getResourceName());
           }
  catch (          CmsException exc) {
             throw exc;
@@ -57,7 +57,7 @@
           Connection con=null;
           try {
             con=DriverManager.getConnection(m_poolNameOnline);
-            statement=con.prepareStatement(m_cq.get("C_RESOURCES_UPDATE_ONLINE"));
+            statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_UPDATE_ONLINE"));
             statement.setInt(1,currentFolder.getType());
             statement.setInt(2,currentFolder.getFlags());
             statement.setInt(3,currentFolder.getOwnerId());
@@ -74,7 +74,7 @@
             statement.setInt(14,onlineFolder.getFileId());
             statement.setInt(15,onlineFolder.getResourceId());
             statement.executeUpdate();
-            newFolder=readFolder(onlineProject.getId(),currentFolder.getResourceName());
+            newFolder=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFolder.getResourceName());
           }
  catch (          SQLException sqle) {
             throw new CmsException("[" + this.getClass().getName() + "] "+ sqle.getMessage(),CmsException.C_SQL_ERROR,sqle);
@@ -103,8 +103,8 @@
       folderIdIndex.put(new Integer(currentFolder.getResourceId()),new Integer(newFolder.getResourceId()));
       Map props=new HashMap();
       try {
-        props=readProperties(projectId,currentFolder,currentFolder.getType());
-        writeProperties(props,onlineProject.getId(),newFolder,newFolder.getType());
+        props=m_ResourceBroker.getVfsAccess().readProperties(projectId,currentFolder,currentFolder.getType());
+        m_ResourceBroker.getVfsAccess().writeProperties(props,onlineProject.getId(),newFolder,newFolder.getType());
       }
  catch (      CmsException exc) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -125,17 +125,17 @@
       }
       CmsFolder onlineFolder=null;
       try {
-        onlineFolder=readFolder(onlineProject.getId(),currentFolder.getResourceName());
+        onlineFolder=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFolder.getResourceName());
       }
  catch (      CmsException exc) {
         if (exc.getType() == CmsException.C_NOT_FOUND) {
           Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFolder.getParentId()));
           if (parentId == null) {
-            CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFolder.getRootName() + currentFolder.getParent());
+            CmsFolder currentOnlineParent=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFolder.getRootName() + currentFolder.getParent());
             parentId=new Integer(currentOnlineParent.getResourceId());
             folderIdIndex.put(new Integer(currentFolder.getParentId()),parentId);
           }
-          onlineFolder=createFolder(user,onlineProject,onlineProject,currentFolder,parentId.intValue(),currentFolder.getResourceName());
+          onlineFolder=m_ResourceBroker.getVfsAccess().createFolder(user,onlineProject,onlineProject,currentFolder,parentId.intValue(),currentFolder.getResourceName());
           onlineFolder.setState(C_STATE_UNCHANGED);
           updateResourcestate(onlineFolder);
         }
@@ -147,7 +147,7 @@
       PreparedStatement statement=null;
       try {
         con=DriverManager.getConnection(m_poolNameOnline);
-        statement=con.prepareStatement(m_cq.get("C_RESOURCES_UPDATE_ONLINE"));
+        statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_UPDATE_ONLINE"));
         statement.setInt(1,currentFolder.getType());
         statement.setInt(2,currentFolder.getFlags());
         statement.setInt(3,currentFolder.getOwnerId());
@@ -188,8 +188,8 @@
       Map props=new HashMap();
       try {
         deleteAllProperties(onlineProject.getId(),onlineFolder);
-        props=readProperties(projectId,currentFolder,currentFolder.getType());
-        writeProperties(props,onlineProject.getId(),onlineFolder,currentFolder.getType());
+        props=m_ResourceBroker.getVfsAccess().readProperties(projectId,currentFolder,currentFolder.getType());
+        m_ResourceBroker.getVfsAccess().writeProperties(props,onlineProject.getId(),onlineFolder,currentFolder.getType());
       }
  catch (      CmsException exc) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -203,7 +203,7 @@
       updateResourcestate(currentFolder);
     }
   }
-  offlineFiles=readFiles(projectId,false,true);
+  offlineFiles=m_ResourceBroker.getVfsAccess().readFiles(projectId,false,true);
   for (int i=0; i < offlineFiles.size(); i++) {
     currentFile=((CmsFile)offlineFiles.elementAt(i));
     report.print(report.key("report.publishing"),I_CmsReport.C_FORMAT_NOTE);
@@ -227,9 +227,9 @@
  catch (        Exception ex) {
         }
       }
-      CmsFile currentOnlineFile=readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getResourceName());
+      CmsFile currentOnlineFile=m_ResourceBroker.getVfsAccess().readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getResourceName());
       if (enableHistory) {
-        Map props=readProperties(projectId,currentFile,currentFile.getType());
+        Map props=m_ResourceBroker.getVfsAccess().readProperties(projectId,currentFile,currentFile.getType());
         backupResource(projectId,currentFile,currentFile.getContents(),props,versionId,publishDate);
       }
       try {
@@ -242,8 +242,8 @@
         }
       }
       try {
-        deleteResource(currentOnlineFile);
-        deleteResource(currentFile);
+        m_ResourceBroker.getVfsAccess().deleteResource(currentOnlineFile);
+        m_ResourceBroker.getVfsAccess().deleteResource(currentFile);
       }
  catch (      CmsException exc) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -256,7 +256,7 @@
       String exportKey=checkExport(currentFile.getAbsolutePath(),exportpoints);
       if (exportKey != null) {
         byte[] contents=currentFile.getContents();
-        String encoding=readProperty(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,projectId,currentFile,currentFile.getType());
+        String encoding=m_ResourceBroker.getVfsAccess().readProperty(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,projectId,currentFile,currentFile.getType());
         if (encoding != null) {
           try {
             contents=(new String(contents,encoding)).getBytes();
@@ -268,25 +268,25 @@
       }
       CmsFile onlineFile=null;
       try {
-        onlineFile=readFileHeader(onlineProject.getId(),currentFile.getResourceName(),false);
+        onlineFile=m_ResourceBroker.getVfsAccess().readFileHeader(onlineProject.getId(),currentFile.getResourceName(),false);
       }
  catch (      CmsException exc) {
         if (exc.getType() == CmsException.C_NOT_FOUND) {
           Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFile.getParentId()));
           if (parentId == null) {
-            CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFile.getRootName() + currentFile.getParent());
+            CmsFolder currentOnlineParent=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFile.getRootName() + currentFile.getParent());
             parentId=new Integer(currentOnlineParent.getResourceId());
             folderIdIndex.put(new Integer(currentFile.getParentId()),parentId);
           }
           currentFile.setState(C_STATE_UNCHANGED);
-          onlineFile=createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getResourceName());
+          onlineFile=m_ResourceBroker.getVfsAccess().createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getResourceName());
         }
       }
       Connection con=null;
       PreparedStatement statement=null;
       try {
         con=DriverManager.getConnection(m_poolNameOnline);
-        statement=con.prepareStatement(m_cq.get("C_RESOURCES_UPDATE_ONLINE"));
+        statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_UPDATE_ONLINE"));
         statement.setInt(1,currentFile.getType());
         statement.setInt(2,currentFile.getFlags());
         statement.setInt(3,currentFile.getOwnerId());
@@ -304,7 +304,7 @@
         statement.setInt(15,onlineFile.getResourceId());
         statement.executeUpdate();
         statement.close();
-        writeFileContent(onlineFile.getFileId(),currentFile.getContents(),m_poolNameOnline,"_ONLINE");
+        m_ResourceBroker.getVfsAccess().writeFileContent(onlineFile.getFileId(),currentFile.getContents(),m_poolNameOnline,"_ONLINE");
       }
  catch (      SQLException e) {
         throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
@@ -328,8 +328,8 @@
       Map props=new HashMap();
       try {
         deleteAllProperties(onlineProject.getId(),onlineFile);
-        props=readProperties(projectId,currentFile,currentFile.getType());
-        writeProperties(props,onlineProject.getId(),onlineFile,currentFile.getType());
+        props=m_ResourceBroker.getVfsAccess().readProperties(projectId,currentFile,currentFile.getType());
+        m_ResourceBroker.getVfsAccess().writeProperties(props,onlineProject.getId(),onlineFile,currentFile.getType());
       }
  catch (      CmsException exc) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -347,7 +347,7 @@
       String exportKey=checkExport(currentFile.getAbsolutePath(),exportpoints);
       if (exportKey != null) {
         byte[] contents=currentFile.getContents();
-        String encoding=readProperty(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,projectId,currentFile,currentFile.getType());
+        String encoding=m_ResourceBroker.getVfsAccess().readProperty(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,projectId,currentFile,currentFile.getType());
         if (encoding != null) {
           try {
             contents=(new String(contents,encoding)).getBytes();
@@ -359,12 +359,12 @@
       }
       Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFile.getParentId()));
       if (parentId == null) {
-        CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFile.getRootName() + currentFile.getParent());
+        CmsFolder currentOnlineParent=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFile.getRootName() + currentFile.getParent());
         parentId=new Integer(currentOnlineParent.getResourceId());
         folderIdIndex.put(new Integer(currentFile.getParentId()),parentId);
       }
       try {
-        newFile=createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getResourceName());
+        newFile=m_ResourceBroker.getVfsAccess().createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getResourceName());
         newFile.setState(C_STATE_UNCHANGED);
         updateResourcestate(newFile);
       }
@@ -372,7 +372,7 @@
         if (e.getType() == CmsException.C_FILE_EXISTS) {
           CmsFile onlineFile=null;
           try {
-            onlineFile=readFileHeader(onlineProject.getId(),currentFile.getResourceName(),false);
+            onlineFile=m_ResourceBroker.getVfsAccess().readFileHeader(onlineProject.getId(),currentFile.getResourceName(),false);
           }
  catch (          CmsException exc) {
             throw exc;
@@ -381,7 +381,7 @@
           PreparedStatement statement=null;
           try {
             con=DriverManager.getConnection(m_poolNameOnline);
-            statement=con.prepareStatement(m_cq.get("C_RESOURCES_UPDATE_ONLINE"));
+            statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_UPDATE_ONLINE"));
             statement.setInt(1,currentFile.getType());
             statement.setInt(2,currentFile.getFlags());
             statement.setInt(3,currentFile.getOwnerId());
@@ -398,8 +398,8 @@
             statement.setInt(14,onlineFile.getFileId());
             statement.setInt(15,onlineFile.getResourceId());
             statement.executeUpdate();
-            writeFileContent(onlineFile.getFileId(),currentFile.getContents(),m_poolNameOnline,"_ONLINE");
-            newFile=readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getResourceName());
+            m_ResourceBroker.getVfsAccess().writeFileContent(onlineFile.getFileId(),currentFile.getContents(),m_poolNameOnline,"_ONLINE");
+            newFile=m_ResourceBroker.getVfsAccess().readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getResourceName());
           }
  catch (          SQLException sqle) {
             throw new CmsException("[" + this.getClass().getName() + "] "+ sqle.getMessage(),CmsException.C_SQL_ERROR,sqle);
@@ -427,8 +427,8 @@
       }
       Map props=new HashMap();
       try {
-        props=readProperties(projectId,currentFile,currentFile.getType());
-        writeProperties(props,onlineProject.getId(),newFile,newFile.getType());
+        props=m_ResourceBroker.getVfsAccess().readProperties(projectId,currentFile,currentFile.getType());
+        m_ResourceBroker.getVfsAccess().writeProperties(props,onlineProject.getId(),newFile,newFile.getType());
       }
  catch (      CmsException exc) {
         if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -451,10 +451,10 @@
       discAccess.removeResource(currentFolder.getAbsolutePath(),exportKey);
     }
     if (enableHistory) {
-      Map props=readProperties(projectId,currentFolder,currentFolder.getType());
+      Map props=m_ResourceBroker.getVfsAccess().readProperties(projectId,currentFolder,currentFolder.getType());
       backupResource(projectId,currentFolder,new byte[0],props,versionId,publishDate);
     }
-    CmsResource delOnlineFolder=readFolder(onlineProject.getId(),currentFolder.getResourceName());
+    CmsResource delOnlineFolder=m_ResourceBroker.getVfsAccess().readFolder(onlineProject.getId(),currentFolder.getResourceName());
     try {
       deleteAllProperties(onlineProject.getId(),delOnlineFolder);
       deleteAllProperties(projectId,currentFolder);

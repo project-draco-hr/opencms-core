@@ -5,34 +5,34 @@
   String groupName=new String();
   String lastModifiedName=null;
   try {
-    CmsUser owner=readUser(resource.getOwnerId());
+    CmsUser owner=m_ResourceBroker.getUserAccess().readUser(resource.getOwnerId());
     ownerName=owner.getName() + " " + owner.getFirstname()+ " "+ owner.getLastname();
   }
  catch (  CmsException e) {
     ownerName="";
   }
   try {
-    groupName=readGroup(resource.getGroupId()).getName();
+    groupName=m_ResourceBroker.getUserAccess().readGroup(resource.getGroupId()).getName();
   }
  catch (  CmsException e) {
     groupName="";
   }
   try {
-    CmsUser lastModified=readUser(resource.getResourceLastModifiedBy());
+    CmsUser lastModified=m_ResourceBroker.getUserAccess().readUser(resource.getResourceLastModifiedBy());
     lastModifiedName=lastModified.getName() + " " + lastModified.getFirstname()+ " "+ lastModified.getLastname();
   }
  catch (  CmsException e) {
     lastModifiedName="";
   }
-  int resourceId=nextId(m_cq.get("C_TABLE_RESOURCES_BACKUP"));
+  int resourceId=nextId(m_SqlQueries.get("C_TABLE_RESOURCES_BACKUP"));
   int fileId=C_UNKNOWN_ID;
   try {
     con=DriverManager.getConnection(m_poolNameBackup);
     if (resource.getType() != C_TYPE_FOLDER) {
-      fileId=nextId(m_cq.get("C_TABLE_FILES_BACKUP"));
-      createFileContent(fileId,content,versionId,m_poolNameBackup,"_BACKUP");
+      fileId=nextId(m_SqlQueries.get("C_TABLE_FILES_BACKUP"));
+      m_ResourceBroker.getVfsAccess().createFileContent(fileId,content,versionId,m_poolNameBackup,"_BACKUP");
     }
-    statement=con.prepareStatement(m_cq.get("C_RESOURCES_WRITE_BACKUP"));
+    statement=con.prepareStatement(m_SqlQueries.get("C_RESOURCES_WRITE_BACKUP"));
     statement.setInt(1,resourceId);
     statement.setInt(2,C_UNKNOWN_ID);
     statement.setString(3,resource.getResourceName());
@@ -60,14 +60,14 @@
     String key;
     while (keys.hasNext()) {
       key=(String)keys.next();
-      CmsPropertydefinition propdef=readPropertydefinition(key,resource.getType());
+      CmsPropertydefinition propdef=m_ResourceBroker.getVfsAccess().readPropertydefinition(key,resource.getType());
       String value=(String)properties.get(key);
       if (propdef == null) {
         throw new CmsException("[" + this.getClass().getName() + "] "+ key,CmsException.C_NOT_FOUND);
       }
  else {
-        statement=con.prepareStatement(m_cq.get("C_PROPERTIES_CREATE_BACKUP"));
-        statement.setInt(1,nextId(m_cq.get("C_TABLE_PROPERTIES_BACKUP")));
+        statement=con.prepareStatement(m_SqlQueries.get("C_PROPERTIES_CREATE_BACKUP"));
+        statement.setInt(1,nextId(m_SqlQueries.get("C_TABLE_PROPERTIES_BACKUP")));
         statement.setInt(2,propdef.getId());
         statement.setInt(3,resourceId);
         statement.setString(4,checkNull(value));
