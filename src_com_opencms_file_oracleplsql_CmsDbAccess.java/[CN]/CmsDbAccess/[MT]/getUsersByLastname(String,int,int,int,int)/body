@@ -1,0 +1,58 @@
+{
+  Vector users=new Vector();
+  PreparedStatement statement=null;
+  ResultSet res=null;
+  Connection con=null;
+  int i=0;
+  if (lastname == null)   lastname="";
+  try {
+    con=DriverManager.getConnection(m_poolName);
+    if (wasLoggedIn == C_AT_LEAST_ONCE)     statement=con.prepareStatement(m_cq.C_USERS_GETUSERS_BY_LASTNAME_ONCE);
+ else     if (wasLoggedIn == C_NEVER)     statement=con.prepareStatement(m_cq.C_USERS_GETUSERS_BY_LASTNAME_NEVER);
+ else     statement=con.prepareStatement(m_cq.C_USERS_GETUSERS_BY_LASTNAME_WHATEVER);
+    statement.setString(1,lastname + "%");
+    statement.setInt(2,userType);
+    statement.setInt(3,userStatus);
+    res=statement.executeQuery();
+    while (res.next() && (i++ < nMax)) {
+      oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB(m_cq.C_USERS_USER_INFO);
+      byte[] value=new byte[(int)blob.length()];
+      value=blob.getBytes(1,(int)blob.length());
+      ByteArrayInputStream bin=new ByteArrayInputStream(value);
+      ObjectInputStream oin=new ObjectInputStream(bin);
+      Hashtable info=(Hashtable)oin.readObject();
+      CmsUser user=new CmsUser(res.getInt(m_cq.C_USERS_USER_ID),res.getString(m_cq.C_USERS_USER_NAME),res.getString(m_cq.C_USERS_USER_PASSWORD),res.getString(m_cq.C_USERS_USER_RECOVERY_PASSWORD),res.getString(m_cq.C_USERS_USER_DESCRIPTION),res.getString(m_cq.C_USERS_USER_FIRSTNAME),res.getString(m_cq.C_USERS_USER_LASTNAME),res.getString(m_cq.C_USERS_USER_EMAIL),SqlHelper.getTimestamp(res,m_cq.C_USERS_USER_LASTLOGIN).getTime(),SqlHelper.getTimestamp(res,m_cq.C_USERS_USER_LASTUSED).getTime(),res.getInt(m_cq.C_USERS_USER_FLAGS),info,new CmsGroup(res.getInt(m_cq.C_GROUPS_GROUP_ID),res.getInt(m_cq.C_GROUPS_PARENT_GROUP_ID),res.getString(m_cq.C_GROUPS_GROUP_NAME),res.getString(m_cq.C_GROUPS_GROUP_DESCRIPTION),res.getInt(m_cq.C_GROUPS_GROUP_FLAGS)),res.getString(m_cq.C_USERS_USER_ADDRESS),res.getString(m_cq.C_USERS_USER_SECTION),res.getInt(m_cq.C_USERS_USER_TYPE));
+      users.addElement(user);
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "]"+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+catch (  Exception e) {
+    throw new CmsException("[" + this.getClass().getName() + "]",e);
+  }
+ finally {
+    if (res != null) {
+      try {
+        res.close();
+      }
+ catch (      SQLException se) {
+      }
+    }
+    if (statement != null) {
+      try {
+        statement.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (con != null) {
+      try {
+        con.close();
+      }
+ catch (      SQLException se) {
+      }
+    }
+  }
+  return users;
+}
