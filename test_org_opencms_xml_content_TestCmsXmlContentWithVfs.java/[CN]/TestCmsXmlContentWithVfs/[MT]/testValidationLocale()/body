@@ -1,0 +1,35 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Test for the validation of multiple locale values in the XML content");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  String content;
+  CmsXmlContent xmlcontent;
+  content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-definition-8.xsd",CmsEncoder.C_UTF8_ENCODING);
+  CmsXmlEntityResolver.cacheSystemId(C_SCHEMA_SYSTEM_ID_8,content.getBytes(CmsEncoder.C_UTF8_ENCODING));
+  content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-8.xml",CmsEncoder.C_UTF8_ENCODING);
+  xmlcontent=CmsXmlContentFactory.unmarshal(content,CmsEncoder.C_UTF8_ENCODING,resolver);
+  xmlcontent.validateXmlStructure(resolver);
+  CmsXmlContentValueSequence sequence;
+  I_CmsXmlContentValue value;
+  xmlcontent.addLocale(cms,Locale.GERMAN);
+  sequence=xmlcontent.getValueSequence("String",Locale.ENGLISH);
+  value=sequence.addValue(cms,0);
+  value.setStringValue(cms,"This is a String that contains an error and a warning!");
+  sequence=xmlcontent.getValueSequence("String",Locale.GERMAN);
+  value=sequence.addValue(cms,0);
+  value.setStringValue(cms,"Dieser String enth?llt einen Fehler (English: 'error') und eine Warnung!");
+  xmlcontent.validateXmlStructure(resolver);
+  CmsXmlContentErrorHandler errorHandler;
+  errorHandler=xmlcontent.validate(cms);
+  assertTrue(errorHandler.hasErrors());
+  assertTrue(errorHandler.hasWarnings());
+  assertTrue(errorHandler.hasErrors(Locale.ENGLISH));
+  assertTrue(errorHandler.hasErrors(Locale.GERMAN));
+  assertFalse(errorHandler.hasErrors(Locale.FRENCH));
+  assertEquals(2,errorHandler.getErrors().size());
+  assertEquals(1,errorHandler.getErrors(Locale.ENGLISH).size());
+  assertEquals(1,errorHandler.getWarnings(Locale.ENGLISH).size());
+  assertEquals(1,errorHandler.getErrors(Locale.GERMAN).size());
+  assertEquals(1,errorHandler.getWarnings(Locale.GERMAN).size());
+  System.out.println(xmlcontent.toString());
+}
