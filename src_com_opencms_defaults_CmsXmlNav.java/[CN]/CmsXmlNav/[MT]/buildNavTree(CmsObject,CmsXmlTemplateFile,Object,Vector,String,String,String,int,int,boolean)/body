@@ -6,11 +6,19 @@
   float navPos[]=new float[size];
   int max=extractNav(cms,resources,navLink,navText,navPos);
   if (max > 0) {
-    result.append(xmlDataBlock.getProcessedDataValue("navTreeStart",this,userObject));
+    result.append(template.getProcessedDataValue("navstart",this,userObject));
     for (int i=0; i < max; i++) {
-      xmlDataBlock.setData("navText",navText[i]);
-      xmlDataBlock.setData("count",new Integer(i + 1).toString());
-      xmlDataBlock.setData("level",new Integer(extractLevel(cms,navLink[i]) - (level + 1)).toString());
+      template.setData("navtext",navText[i]);
+      template.setData("navcount",new Integer(i + 1).toString());
+      int extractedLevel=extractLevel(cms,navLink[i]);
+      int rightLevel=extractedLevel;
+      if (level != 0) {
+        rightLevel=(extractedLevel - level);
+        if (rightLevel >= 0) {
+          rightLevel++;
+        }
+      }
+      template.setData("navlevel",new Integer(rightLevel).toString());
       String link="";
       if (navLink[i].endsWith("/")) {
         String navIndex=cms.readProperty(navLink[i],C_PROPERTY_NAVINDEX);
@@ -20,32 +28,32 @@
         try {
           cms.readFile(navLink[i] + navIndex);
           link=navLink[i] + navIndex;
-          xmlDataBlock.setData("navLink",servletPath + navLink[i] + navIndex);
+          template.setData("navlink",servletPath + navLink[i] + navIndex);
         }
  catch (        CmsException e) {
           link=requestedUri;
-          xmlDataBlock.setData("navLink",servletPath + requestedUri);
+          template.setData("navlink",servletPath + requestedUri);
         }
       }
  else {
         try {
           cms.readFile(navLink[i]);
           link=navLink[i];
-          xmlDataBlock.setData("navLink",servletPath + navLink[i]);
+          template.setData("navlink",servletPath + navLink[i]);
         }
  catch (        CmsException e) {
           link=requestedUri;
-          xmlDataBlock.setData("navLink",servletPath + requestedUri);
+          template.setData("navlink",servletPath + requestedUri);
         }
       }
       if (link.equals(requestedUri)) {
-        result.append(xmlDataBlock.getProcessedDataValue("navCurrent",this,userObject));
+        result.append(template.getProcessedDataValue("navcurrent",this,userObject));
       }
  else {
-        result.append(xmlDataBlock.getProcessedDataValue("navEntry",this,userObject));
+        result.append(template.getProcessedDataValue("naventry",this,userObject));
       }
       depth--;
-      if (depth >= 0) {
+      if (depthIsNull || (depthIsNull == false && depth >= 0)) {
         if (navLink[i].endsWith("/")) {
           Vector all=cms.getSubFolders(navLink[i]);
           Vector files=cms.getFilesInFolder(navLink[i]);
@@ -54,11 +62,11 @@
           while (e.hasMoreElements()) {
             all.addElement(e.nextElement());
           }
-          result.append(buildNavTree(cms,xmlDataBlock,userObject,all,requestedUri,currentFolder,servletPath,level,depth));
+          result.append(buildNavTree(cms,template,userObject,all,requestedUri,currentFolder,servletPath,level,depth,depthIsNull));
         }
       }
     }
-    result.append(xmlDataBlock.getProcessedDataValue("navTreeEnd",this,userObject));
+    result.append(template.getProcessedDataValue("navend",this,userObject));
   }
   return result.toString();
 }

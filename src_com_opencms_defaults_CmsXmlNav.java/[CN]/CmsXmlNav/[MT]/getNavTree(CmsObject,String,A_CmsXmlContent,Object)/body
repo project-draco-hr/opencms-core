@@ -1,10 +1,20 @@
 {
+  CmsXmlTemplateFile template=(CmsXmlTemplateFile)doc;
+  if (!template.hasData("naventry")) {
+    return "".getBytes();
+  }
   int level=0;
   int depth=0;
+  boolean depthIsNull=true;
   if (!tagcontent.equals("")) {
     try {
-      level=Integer.parseInt(tagcontent.substring(0,tagcontent.indexOf(",")));
-      depth=Integer.parseInt(tagcontent.substring(tagcontent.indexOf(",") + 1));
+      if (tagcontent.indexOf(",") != -1) {
+        level=Integer.parseInt(tagcontent.substring(0,tagcontent.indexOf(",")));
+        depth=Integer.parseInt(tagcontent.substring(tagcontent.indexOf(",") + 1));
+      }
+ else {
+        level=Integer.parseInt(tagcontent);
+      }
     }
  catch (    NumberFormatException e) {
       throw new CmsException(e.getMessage());
@@ -17,6 +27,9 @@
  else {
     folder=extractFolder(cms,level);
   }
+  if (depth > 0) {
+    depthIsNull=false;
+  }
   Vector resources=cms.getSubFolders(folder);
   Vector allFile=cms.getFilesInFolder(folder);
   resources.ensureCapacity(resources.size() + allFile.size());
@@ -27,19 +40,16 @@
   String requestedUri=cms.getRequestContext().getUri();
   String currentFolder=cms.getRequestContext().currentFolder().getAbsolutePath();
   String servletPath=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getServletPath();
-  CmsXmlTemplateFile xmlDataBlock=(CmsXmlTemplateFile)doc;
   String result="";
-  if (xmlDataBlock.hasData("navEntry")) {
-    if (!xmlDataBlock.hasData("navCurrent")) {
-      xmlDataBlock.setData("navCurrent",xmlDataBlock.getData("navEntry"));
-    }
-    if (!xmlDataBlock.hasData("navTreeStart")) {
-      xmlDataBlock.setData("navTreeStart","");
-    }
-    if (!xmlDataBlock.hasData("navTreeEnd")) {
-      xmlDataBlock.setData("navTreeEnd","");
-    }
-    result=buildNavTree(cms,xmlDataBlock,userObject,resources,requestedUri,currentFolder,servletPath,level,depth);
+  if (!template.hasData("navcurrent")) {
+    template.setData("navcurrent",template.getData("naventry"));
   }
+  if (!template.hasData("navstart")) {
+    template.setData("navstart","");
+  }
+  if (!template.hasData("navend")) {
+    template.setData("navend","");
+  }
+  result=buildNavTree(cms,template,userObject,resources,requestedUri,currentFolder,servletPath,level,depth,depthIsNull);
   return result.getBytes();
 }
