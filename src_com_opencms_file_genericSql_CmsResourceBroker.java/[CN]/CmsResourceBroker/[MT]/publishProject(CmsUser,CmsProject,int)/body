@@ -1,9 +1,12 @@
 {
   CmsProject publishProject=readProject(currentUser,currentProject,id);
   if ((isAdmin(currentUser,currentProject) || isManagerOfProject(currentUser,publishProject)) && (publishProject.getFlags() == C_PROJECT_STATE_UNLOCKED)) {
-    CmsClassLoader loader=(CmsClassLoader)getClass().getClassLoader();
-    Vector classFiles=loader.getFilenames();
-    boolean shouldReload=shouldReloadClasses(id,classFiles);
+    ClassLoader loader=getClass().getClassLoader();
+    boolean shouldReload=false;
+    if (loader instanceof CmsClassLoader) {
+      Vector classFiles=((CmsClassLoader)loader).getFilenames();
+      shouldReload=shouldReloadClasses(id,classFiles);
+    }
     m_dbAccess.publishProject(currentUser,id,onlineProject(currentUser,currentProject));
     m_subresCache.clear();
     fileSystemChanged(true);
@@ -29,7 +32,9 @@
     if (m_deletePublishedProject) {
       deleteProject(currentUser,currentProject,id);
     }
-    loader.setShouldReload(shouldReload);
+    if (loader instanceof CmsClassLoader) {
+      ((CmsClassLoader)loader).setShouldReload(shouldReload);
+    }
   }
  else {
     throw new CmsException("[" + this.getClass().getName() + "] could not publish project "+ id,CmsException.C_NO_ACCESS);
