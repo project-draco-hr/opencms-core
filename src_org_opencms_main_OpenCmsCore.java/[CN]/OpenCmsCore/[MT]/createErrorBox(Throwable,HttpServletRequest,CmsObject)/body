@@ -1,5 +1,4 @@
 {
-  StringBuffer result=new StringBuffer(8192);
   Properties htmlProps=new Properties();
   try {
     htmlProps.load(getClass().getClassLoader().getResourceAsStream(C_FILE_HTML_MESSAGES));
@@ -9,41 +8,53 @@
       getLog(this).error("Could not load " + C_FILE_HTML_MESSAGES,thr);
     }
   }
-  CmsAcceptLanguageHeaderParser headerParser=new CmsAcceptLanguageHeaderParser(request);
-  List locales=headerParser.getAcceptedLocales();
-  Locale locale;
-  if (locales != null && locales.size() > 0) {
-    locale=(Locale)locales.get(0);
+  Locale locale=null;
+  HttpSession session=request.getSession(false);
+  if (session != null) {
+    CmsWorkplaceSettings settings=(CmsWorkplaceSettings)session.getAttribute(CmsWorkplace.C_SESSION_WORKPLACE_SETTINGS);
+    if (settings != null) {
+      locale=settings.getUserSettings().getLocale();
+    }
   }
+  if (locale == null) {
+    CmsAcceptLanguageHeaderParser headerParser=new CmsAcceptLanguageHeaderParser(request);
+    List locales=headerParser.getAcceptedLocales();
+    if (locales != null && locales.size() > 0) {
+      locale=(Locale)locales.get(0);
+    }
  else {
-    locale=Locale.ENGLISH;
+      locale=Locale.ENGLISH;
+    }
   }
   CmsMessages messages=new CmsMessages(CmsWorkplaceMessages.C_BUNDLE_NAME,locale);
-  result.append(htmlProps.getProperty("C_HTML_START"));
-  result.append(messages.key("error.system.message"));
-  result.append(htmlProps.getProperty("C_HEAD_START"));
-  result.append(htmlProps.getProperty("C_STYLES"));
-  result.append(htmlProps.getProperty("C_JAVASCRIPT_ERROR"));
-  result.append(htmlProps.getProperty("C_HEAD_END"));
-  result.append(messages.key("error.system.message"));
-  result.append(htmlProps.getProperty("C_CONTENT_START"));
-  result.append(htmlProps.getProperty("C_ERRORPART_1"));
-  result.append(CmsWorkplace.getSkinUri(cms) + "explorer/report_error.gif");
-  result.append(htmlProps.getProperty("C_ERRORPART_2"));
-  if (t.getLocalizedMessage() != null) {
-    result.append("<p><b>" + CmsStringSubstitution.substitute(t.getLocalizedMessage(),"\n","\n<br>") + "</b></p>");
+  Throwable cause=CmsFlexController.getThrowable(request);
+  if (cause == null) {
+    cause=t;
   }
-  result.append("<p>" + messages.key("error.system.resource") + ":<b> "+ cms.getRequestContext().getRequest().getRequestedResource()+ "</b><br>");
-  result.append(messages.key("error.system.version") + ":<b> " + this.getSystemInfo().getVersionName()+ "</b><br>");
-  result.append(messages.key("error.system.context") + ":<b> " + this.getSystemInfo().getOpenCmsContext()+ "</b></p>");
-  result.append(htmlProps.getProperty("C_ERRORPART_3"));
-  result.append(messages.key("button.detail"));
-  result.append(htmlProps.getProperty("C_ERRORPART_4"));
-  result.append(CmsStringSubstitution.substitute(CmsException.getStackTraceAsString(t),"\n","\n<br>"));
-  result.append(htmlProps.getProperty("C_ERRORPART_5"));
-  result.append(messages.key("button.close"));
-  result.append(htmlProps.getProperty("C_ERRORPART_6"));
-  result.append(htmlProps.getProperty("C_CONTENT_END"));
-  result.append(htmlProps.getProperty("C_HTML_END"));
-  return result.toString();
+  String errorHtml;
+  errorHtml=htmlProps.getProperty("C_ERROR_DIALOG_START") + htmlProps.getProperty("C_STYLES") + htmlProps.getProperty("C_ERROR_DIALOG_END");
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${title}",messages.key("error.system.message"));
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${encoding}",getSystemInfo().getDefaultEncoding());
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${warnimageuri}",CmsWorkplace.getSkinUri(cms) + "explorer/report_error.gif");
+  if (cause.getLocalizedMessage() != null) {
+    errorHtml=CmsStringSubstitution.substitute(errorHtml,"${message}","<p><b>" + CmsStringSubstitution.substitute(cause.getLocalizedMessage(),"\n","\n<br>") + "</b></p>");
+  }
+ else {
+    errorHtml=CmsStringSubstitution.substitute(errorHtml,"${message}","<p><b>" + CmsStringSubstitution.substitute(cause.toString(),"\n","\n<br>") + "</b></p>");
+  }
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${resource_key}",messages.key("error.system.resource"));
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${version_key}",messages.key("error.system.version"));
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${context_key}",messages.key("error.system.context"));
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${resource}",cms.getRequestContext().getUri());
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${version}",getSystemInfo().getVersionName());
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${context}",getSystemInfo().getOpenCmsContext());
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${bt_close}",messages.key("button.close"));
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${bt_details}",messages.key("button.detail"));
+  String exception=CmsException.getStackTraceAsString(cause);
+  exception=CmsStringSubstitution.substitute(exception,"\\","\\\\");
+  exception=CmsStringSubstitution.substitute(exception,"\r\n","\\n");
+  exception=CmsStringSubstitution.substitute(exception,"\n","\\n");
+  String details="<html><body bgcolor='#fffff'><pre>" + exception + "</pre></body></html>";
+  errorHtml=CmsStringSubstitution.substitute(errorHtml,"${details}",details);
+  return errorHtml;
 }
