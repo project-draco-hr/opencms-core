@@ -1,0 +1,64 @@
+{
+  I_CmsSession session=cms.getRequestContext().getSession(false);
+  if (session != null) {
+    session.invalidate();
+  }
+  CmsXmlTemplateFile xmlTemplateDocument=new CmsXmlTemplateFile(cms,templateFile);
+  String username=null;
+  CmsUser user;
+  String name=(String)parameters.get("NAME");
+  String password=(String)parameters.get("PASSWORD");
+  if (DEBUG > 1)   System.err.println("CmsLoginNew: name=" + name + " password="+ password);
+  if ((name != null) && (password != null)) {
+    boolean validLogin;
+    try {
+      username=cms.loginUser(name,password);
+      validLogin=true;
+      if (DEBUG > 1)       System.err.println("CmsLoginNew: cms.loginUser() successfull");
+    }
+ catch (    CmsException e) {
+      validLogin=false;
+      if (DEBUG > 1)       System.err.println("CmsLoginNew: cms.loginUser() failed");
+    }
+    if ((username != null) && (username.equals(cms.C_USER_GUEST))) {
+      validLogin=false;
+      if (DEBUG > 1)       System.err.println("CmsLoginNew: user was guest user");
+    }
+ else     if ((username != null) && (!cms.userInGroup(username,cms.C_GROUP_USERS)) && (!cms.userInGroup(username,cms.C_GROUP_PROJECTLEADER))&& (!cms.userInGroup(username,cms.C_GROUP_ADMIN))) {
+      validLogin=false;
+      if (DEBUG > 1)       System.err.println("CmsLoginNew: user was not in default groups");
+    }
+    if (!validLogin) {
+      throw new CmsException("[OpenCms login failed]",CmsException.C_NO_USER);
+    }
+    if (DEBUG > 0)     System.err.println("CmsLoginNew: user " + username + " logged in");
+    session=cms.getRequestContext().getSession(true);
+    if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+      A_OpenCms.log(C_OPENCMS_INFO,"[CmsLogin] Login user " + username);
+    }
+    user=cms.readUser(username);
+    int currentProject=cms.onlineProject().getId();
+    Hashtable startSettings=(Hashtable)cms.getRequestContext().currentUser().getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
+    if (startSettings != null) {
+      Integer i=(Integer)startSettings.get(C_START_PROJECT);
+      if (i != null)       currentProject=i.intValue();
+    }
+    try {
+      if (!cms.accessProject(currentProject)) {
+        currentProject=cms.onlineProject().getId();
+      }
+    }
+ catch (    Exception e) {
+      currentProject=cms.onlineProject().getId();
+    }
+    cms.getRequestContext().setCurrentProject(currentProject);
+    Hashtable preferences=(Hashtable)user.getAdditionalInfo(C_ADDITIONAL_INFO_PREFERENCES);
+    if (preferences == null) {
+      preferences=getDefaultPreferences();
+    }
+    session.putValue(C_ADDITIONAL_INFO_PREFERENCES,preferences);
+  }
+  long id=System.currentTimeMillis();
+  xmlTemplateDocument.setData("ID",new Long(id).toString());
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,templateSelector);
+}
