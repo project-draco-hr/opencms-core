@@ -1,19 +1,18 @@
 {
   CmsResource resource=readFileHeader(context,resourcename);
-  CmsLock oldLock=null;
+  CmsLock oldLock=getLock(context,resourcename);
   CmsLock exclusiveLock=null;
-  if (stealLock) {
-    exclusiveLock=m_lockDispatcher.getExclusiveLockedSibling(this,context,resourcename);
-    oldLock=getLock(context,resourcename);
-    unlockResource(context,resourcename,true);
+  if (oldLock.isNullLock()) {
+    throw new CmsLockException("Unable to steal lock on a unlocked resource",CmsLockException.C_RESOURCE_UNLOCKED);
   }
+  exclusiveLock=m_lockDispatcher.getExclusiveLockedSibling(this,context,resourcename);
+  oldLock=getLock(context,resourcename);
+  m_lockDispatcher.removeResource(this,context,resourcename,true);
   try {
     checkPermissions(context,resource,I_CmsConstants.C_WRITE_ACCESS);
   }
  catch (  CmsSecurityException e) {
-    if (stealLock && (oldLock.getType() != CmsLock.C_TYPE_INHERITED) && (oldLock.getType() != CmsLock.C_TYPE_SHARED_INHERITED)&& !exclusiveLock.isNullLock()) {
-      m_lockDispatcher.addResource(this,context,exclusiveLock.getResourceName(),exclusiveLock.getUserId(),exclusiveLock.getProjectId());
-    }
+    m_lockDispatcher.addResource(this,context,exclusiveLock.getResourceName(),exclusiveLock.getUserId(),exclusiveLock.getProjectId());
     throw e;
   }
   if (resource.getState() != I_CmsConstants.C_STATE_UNCHANGED && resource.getProjectId() != context.currentProject().getId()) {
