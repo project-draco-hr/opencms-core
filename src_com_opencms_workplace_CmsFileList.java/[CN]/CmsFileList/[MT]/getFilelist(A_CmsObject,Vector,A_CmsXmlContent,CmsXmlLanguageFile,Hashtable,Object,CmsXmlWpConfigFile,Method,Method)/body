@@ -11,12 +11,35 @@
   CmsFolder folder;
   CmsResource res;
   int filelist=getDefaultPreferences(cms);
+  filelist=modifyPreferences(cms,filelist,columnsMethod,callingObject);
   template=checkDisplayedColumns(filelist,template,"");
   output.append(template.getProcessedXmlDataValue(C_LIST_HEAD,callingObject));
   enum=list.elements();
   while (enum.hasMoreElements()) {
     res=(CmsResource)enum.nextElement();
     if (checkAccess(cms,res)) {
+      String displayedName=null;
+      if (nameDisplayMethod != null) {
+        try {
+          displayedName=((String)nameDisplayMethod.invoke(callingObject,new Object[]{cms,res}));
+        }
+ catch (        InvocationTargetException targetEx) {
+          Throwable e=targetEx.getTargetException();
+          if (!(e instanceof CmsException)) {
+            e.printStackTrace();
+            throwException("User method " + nameDisplayMethod.getName() + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+          }
+ else {
+            throw (CmsException)e;
+          }
+        }
+catch (        Exception exc2) {
+          throwException("User method " + nameDisplayMethod.getName() + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+        }
+      }
+ else {
+        displayedName=res.getName();
+      }
       if (res.isFolder()) {
         folder=(CmsFolder)res;
         template.setXmlData(C_CLASS_VALUE,getStyle(cms,folder));
@@ -33,7 +56,7 @@
           template.setXmlData(C_LINK_VALUE,"#");
         }
         template.setXmlData(C_LOCK_VALUE,template.getProcessedXmlDataValue(getLock(cms,folder,template,lang),callingObject));
-        template.setXmlData(C_NAME_VALUE,folder.getName());
+        template.setXmlData(C_NAME_VALUE,displayedName);
         template.setXmlData(C_NAME_FILEFOLDER,template.getProcessedXmlDataValue(getName(cms,folder),this));
         title="";
         try {
@@ -84,7 +107,7 @@
           template.setXmlData(C_LINK_VALUE,"#");
         }
         template.setXmlData(C_LOCK_VALUE,template.getProcessedXmlDataValue(getLock(cms,file,template,lang),callingObject));
-        template.setXmlData(C_NAME_VALUE,file.getName());
+        template.setXmlData(C_NAME_VALUE,displayedName);
         template.setXmlData(C_NAME_FILEFOLDER,template.getProcessedXmlDataValue(getName(cms,file),this));
         title="";
         try {
