@@ -5,10 +5,32 @@
     A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
   }
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  I_CmsSession session=cms.getRequestContext().getSession(true);
   String fileName=(String)parameters.get("filename");
   String existingFile=(String)parameters.get("existingfile");
   String action=(String)parameters.get("action");
   String allResources=(String)parameters.get("ALLRES");
+  if ((action != null) && ("working".equals(action))) {
+    Thread doTheWork=(Thread)session.getValue(C_DATABASE_THREAD);
+    if (doTheWork.isAlive()) {
+      String time=(String)parameters.get("time");
+      int wert=Integer.parseInt(time);
+      wert+=20;
+      xmlTemplateDocument.setData("time","" + wert);
+      return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"wait");
+    }
+ else {
+      String errordetails=(String)session.getValue(C_SESSION_THREAD_ERROR);
+      if (errordetails == null) {
+        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"done");
+      }
+ else {
+        xmlTemplateDocument.setData("details",errordetails);
+        session.removeValue(C_SESSION_THREAD_ERROR);
+        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"error");
+      }
+    }
+  }
   try {
     if ("export".equals(action)) {
       Vector resourceNames=parseResources(allResources);
@@ -24,12 +46,24 @@
       if (parameters.get("nosystem") != null) {
         excludeSystem=true;
       }
-      cms.exportResources(cms.readExportPath() + fileName,exportPaths,excludeSystem);
-      templateSelector="done";
+      if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
+        session.removeValue(C_SESSION_THREAD_ERROR);
+      }
+      Thread doExport=new CmsAdminDatabaseExportThread(cms,cms.readExportPath() + fileName,exportPaths,excludeSystem);
+      doExport.start();
+      session.putValue(C_DATABASE_THREAD,doExport);
+      xmlTemplateDocument.setData("time","10");
+      templateSelector="wait";
     }
  else     if ("import".equals(action)) {
-      cms.importResources(cms.readExportPath() + existingFile,C_ROOT);
-      templateSelector="done";
+      if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
+        session.removeValue(C_SESSION_THREAD_ERROR);
+      }
+      Thread doImport=new CmsAdminDatabaseImportThread(cms,cms.readExportPath() + existingFile);
+      doImport.start();
+      session.putValue(C_DATABASE_THREAD,doImport);
+      xmlTemplateDocument.setData("time","10");
+      templateSelector="wait";
     }
   }
  catch (  CmsException exc) {
