@@ -1,0 +1,46 @@
+{
+  CmsResource importedResource=null;
+  destination=importPath + destination;
+  boolean changed=true;
+  int resourceType=cms.getResourceType(type).getResourceType();
+  int launcherType=cms.getResourceType(type).getLauncherType();
+  if ((launcherStartClass == null) || ("".equals(launcherStartClass))) {
+    launcherStartClass=cms.getResourceType(type).getLauncherClass();
+  }
+  CmsUser resowner=null;
+  CmsGroup resgroup=null;
+  try {
+    resowner=cms.readUser(user);
+  }
+ catch (  CmsException e) {
+    if (DEBUG > 0)     System.err.println("[" + this.getClass().getName() + ".importResource/1] User "+ user+ " not found");
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".importResource/1] User "+ user+ " not found");
+    }
+    resowner=cms.getRequestContext().currentUser();
+  }
+  try {
+    resgroup=cms.readGroup(group);
+  }
+ catch (  CmsException e) {
+    if (DEBUG > 0)     System.err.println("[" + this.getClass().getName() + ".importResource/2] Group "+ group+ " not found");
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".importResource/2] Group "+ group+ " not found");
+    }
+    resgroup=cms.getRequestContext().currentGroup();
+  }
+  try {
+    importedResource=cms.doImportResource(destination,resourceType,properties,launcherType,launcherStartClass,resowner.getName(),resgroup.getName(),Integer.parseInt(access),lastmodified,content);
+    if (importedResource != null) {
+      changed=false;
+    }
+  }
+ catch (  CmsException e) {
+  }
+  if (changed) {
+    lockResource(cms,destination,true);
+    cms.doWriteResource(destination,properties,resowner.getName(),resgroup.getName(),Integer.parseInt(access),resourceType,content);
+    importedResource=cms.readFileHeader(destination);
+  }
+  return importedResource;
+}
