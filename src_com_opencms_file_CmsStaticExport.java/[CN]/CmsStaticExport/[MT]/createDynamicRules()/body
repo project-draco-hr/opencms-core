@@ -8,15 +8,19 @@
         m_dynamicExportNameRulesExtern=new Vector();
         for (int i=0; i < resWithProp.size(); i++) {
           CmsResource resource=(CmsResource)resWithProp.elementAt(i);
-          String oldName=m_cms.readAbsolutePath(resource);
-          String newName=m_cms.readProperty(oldName,C_PROPERTY_EXPORTNAME);
-          if (CmsObject.getStaticExportProperties().isExportDefault()) {
-            m_dynamicExportNameRules.addElement("s#^" + oldName + "#"+ CmsObject.getStaticExportProperties().getUrlPrefixArray()[0]+ newName+ "#");
-          }
+          String resName=m_cms.readAbsolutePath(resource);
+          String newName=m_cms.readProperty(resName,C_PROPERTY_EXPORTNAME);
+          if (newName != null) {
+            resName=m_cms.getRequestContext().addSiteRoot(resName);
+            newName=newName.trim();
+            if (CmsObject.getStaticExportProperties().isExportDefault()) {
+              m_dynamicExportNameRules.addElement("s#^" + resName + "#"+ CmsObject.getStaticExportProperties().getUrlPrefixArray()[0]+ newName+ "#");
+            }
  else {
-            m_dynamicExportNameRules.addElement("s#^(" + CmsObject.getStaticExportProperties().getUrlPrefixArray()[0] + ")"+ oldName+ "#$1"+ newName+ "#");
+              m_dynamicExportNameRules.addElement("s#^(" + CmsObject.getStaticExportProperties().getUrlPrefixArray()[0] + ")"+ resName+ "#$1"+ newName+ "#");
+            }
+            m_dynamicExportNameRulesExtern.addElement("s#^" + resName + "#"+ newName+ "#");
           }
-          m_dynamicExportNameRulesExtern.addElement("s#^" + oldName + "#"+ newName+ "#");
         }
       }
     }
@@ -28,7 +32,7 @@
   }
   try {
     Vector resWithProp=m_cms.getResourcesWithPropertyDefinition(C_PROPERTY_EXPORT);
-    if (resWithProp != null && resWithProp.size() != 0) {
+    if ((resWithProp != null) && (resWithProp.size() != 0)) {
       m_dynamicExportRulesExtern=new Vector();
       m_dynamicExportRulesOnline=new Vector();
       m_rulesForHttpsEnabledResources=new Vector();
@@ -38,26 +42,27 @@
         String propertyValue=m_cms.readProperty(resName,C_PROPERTY_EXPORT);
         resName=m_cms.getRequestContext().addSiteRoot(resName);
         if (propertyValue != null) {
-          if (propertyValue.equalsIgnoreCase("dynamic")) {
-            m_dynamicExportRulesExtern.addElement("s#^" + resName + ".*##");
-            m_dynamicExportRulesOnline.addElement("s#^(" + resName + ")#"+ CmsObject.getStaticExportProperties().getUrlPrefixArray()[1]+ "$1#");
-          }
-          if (propertyValue.equalsIgnoreCase("https")) {
-            m_dynamicExportRulesExtern.addElement("s#^" + resName + ".*##");
-            m_dynamicExportRulesOnline.addElement("s#^(" + resName + ")#"+ CmsObject.getStaticExportProperties().getUrlPrefixArray()[2]+ "$1#");
-          }
+          propertyValue=propertyValue.trim();
           if (propertyValue.equalsIgnoreCase("true")) {
             m_dynamicExportRulesExtern.addElement("s#^(" + resName + ")#$1#");
             m_dynamicExportRulesOnline.addElement("s#^(" + resName + ")#"+ CmsObject.getStaticExportProperties().getUrlPrefixArray()[0]+ "$1#");
           }
-          if (propertyValue.equalsIgnoreCase("false")) {
-            m_dynamicExportRulesExtern.addElement("s#^" + resName + ".*#export value was set to false#");
+ else           if (propertyValue.equalsIgnoreCase("false")) {
+            m_dynamicExportRulesExtern.addElement("s#^" + resName + ".*#"+ C_EXPORT_FALSE+ "#");
             m_dynamicExportRulesOnline.addElement("s#^(" + resName + ")#"+ CmsObject.getStaticExportProperties().getUrlPrefixArray()[1]+ "$1#");
           }
-          if (propertyValue.equalsIgnoreCase("https_enabled")) {
+ else           if (propertyValue.equalsIgnoreCase("dynamic")) {
+            m_dynamicExportRulesExtern.addElement("s#^" + resName + ".*##");
+            m_dynamicExportRulesOnline.addElement("s#^(" + resName + ")#"+ CmsObject.getStaticExportProperties().getUrlPrefixArray()[1]+ "$1#");
+          }
+ else           if (propertyValue.equalsIgnoreCase("https")) {
+            m_dynamicExportRulesExtern.addElement("s#^" + resName + ".*##");
+            m_dynamicExportRulesOnline.addElement("s#^(" + resName + ")#"+ CmsObject.getStaticExportProperties().getUrlPrefixArray()[2]+ "$1#");
+          }
+ else           if (propertyValue.equalsIgnoreCase("https_enabled")) {
             m_rulesForHttpsEnabledResources.addElement("s#^" + resName + ".*##");
           }
-          if (propertyValue.equalsIgnoreCase("dynamic_https_enabled")) {
+ else           if (propertyValue.equalsIgnoreCase("dynamic_https_enabled")) {
             m_dynamicExportRulesExtern.addElement("s#^" + resName + ".*##");
             m_dynamicExportRulesOnline.addElement("s#^(" + resName + ")#"+ CmsObject.getStaticExportProperties().getUrlPrefixArray()[1]+ "$1#");
             m_rulesForHttpsEnabledResources.addElement("s#^" + resName + ".*##");
