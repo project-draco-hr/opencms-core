@@ -4,8 +4,33 @@
   String iconAction=n.getAttribute(C_ICON_ACTION);
   String iconHref=n.getAttribute(C_ICON_HREF);
   String iconTarget=n.getAttribute(C_ICON_TARGET);
+  String iconMethod=n.getAttribute(C_ICON_METHOD);
   if (iconHref == null || "".equals(iconHref)) {
     iconHref="";
+  }
+  boolean activate=true;
+  if (iconMethod != null && !"".equals(iconMethod)) {
+    Method groupsMethod=null;
+    try {
+      groupsMethod=callingObject.getClass().getMethod(iconMethod,new Class[]{A_CmsObject.class,CmsXmlLanguageFile.class,Hashtable.class});
+      activate=((Boolean)groupsMethod.invoke(callingObject,new Object[]{cms,lang,parameters})).booleanValue();
+    }
+ catch (    NoSuchMethodException exc) {
+      throwException("Could not find icon activation method " + iconMethod + " in calling class "+ callingObject.getClass().getName()+ " for generating icon.",CmsException.C_NOT_FOUND);
+    }
+catch (    InvocationTargetException targetEx) {
+      Throwable e=targetEx.getTargetException();
+      if (!(e instanceof CmsException)) {
+        e.printStackTrace();
+        throwException("Icon activation method " + iconMethod + " in calling class "+ callingObject.getClass().getName()+ " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+      }
+ else {
+        throw (CmsException)e;
+      }
+    }
+catch (    Exception exc2) {
+      throwException("Icon activation method " + iconMethod + " in calling class "+ callingObject.getClass().getName()+ " was found but could not be invoked. "+ exc2,CmsException.C_UNKNOWN_EXCEPTION);
+    }
   }
   CmsXmlWpTemplateFile icondef=getIconDefinitions(cms);
   StringBuffer iconLabelBuffer=new StringBuffer(lang.getLanguageValue(C_LANG_ICON + "." + iconLabel));
@@ -17,5 +42,10 @@
   icondef.setXmlData(C_ICON_ACTION,iconAction);
   icondef.setXmlData(C_ICON_HREF,iconHref);
   icondef.setXmlData(C_ICON_TARGET,iconTarget);
-  return icondef.getProcessedXmlDataValue("defaulticon",callingObject);
+  if (activate) {
+    return icondef.getProcessedXmlDataValue("defaulticon",callingObject);
+  }
+ else {
+    return icondef.getProcessedXmlDataValue("deactivatedicon",callingObject);
+  }
 }
