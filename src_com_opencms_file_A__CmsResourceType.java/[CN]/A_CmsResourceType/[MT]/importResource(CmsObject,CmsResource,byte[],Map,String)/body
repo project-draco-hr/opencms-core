@@ -3,15 +3,24 @@
   boolean changed=true;
   try {
     importedResource=cms.doImportResource(resource,content,properties,destination);
+    cms.lockResource(destination);
     changed=(importedResource == null);
   }
  catch (  CmsException e) {
   }
   if (changed) {
-    lockResource(cms,destination,true);
-    cms.doWriteResource(destination,properties,null,getResourceType(),content);
-    importedResource=cms.readFileHeader(destination);
-    cms.touch(destination,resource.getDateLastModified(),false,resource.getUserLastModified());
+    CmsResource existingResource=cms.readFileHeader(destination);
+    if (existingResource.getResourceId().equals(resource.getResourceId())) {
+      cms.lockResource(destination);
+      cms.doWriteResource(destination,properties,null,getResourceType(),content);
+      importedResource=cms.readFileHeader(destination);
+      cms.touch(destination,resource.getDateLastModified(),false,resource.getUserLastModified());
+    }
+ else {
+      cms.moveToLostAndFound(destination);
+      importedResource=cms.doImportResource(resource,content,properties,destination);
+      cms.lockResource(destination);
+    }
   }
   return importedResource;
 }

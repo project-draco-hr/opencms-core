@@ -1,0 +1,55 @@
+{
+  NodeList userNodes;
+  NodeList groupNodes;
+  Element currentElement, currentGroup;
+  Vector userGroups;
+  Hashtable userInfo=new Hashtable();
+  sun.misc.BASE64Decoder dec;
+  String name, description, flags, password, recoveryPassword, firstname, lastname, email, address, section, defaultGroup, type, pwd, infoNode;
+  try {
+    userNodes=m_docXml.getElementsByTagName(I_CmsConstants.C_EXPORT_TAG_USERDATA);
+    for (int i=0; i < userNodes.getLength(); i++) {
+      currentElement=(Element)userNodes.item(i);
+      name=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_NAME);
+      name=A_OpenCms.getDefaultUsers().translateUser(name);
+      dec=new sun.misc.BASE64Decoder();
+      pwd=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_PASSWORD);
+      password=new String(dec.decodeBuffer(pwd.trim()));
+      dec=new sun.misc.BASE64Decoder();
+      pwd=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_RECOVERYPASSWORD);
+      recoveryPassword=new String(dec.decodeBuffer(pwd.trim()));
+      description=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DESCRIPTION);
+      flags=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_FLAGS);
+      firstname=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_FIRSTNAME);
+      lastname=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_LASTNAME);
+      email=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_EMAIL);
+      address=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_ADDRESS);
+      section=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_SECTION);
+      defaultGroup=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DEFAULTGROUP);
+      type=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_TYPE);
+      infoNode=getTextNodeValue(currentElement,I_CmsConstants.C_EXPORT_TAG_USERINFO);
+      try {
+        byte[] value=getFileBytes(infoNode);
+        ByteArrayInputStream bin=new ByteArrayInputStream(value);
+        ObjectInputStream oin=new ObjectInputStream(bin);
+        userInfo=(Hashtable)oin.readObject();
+      }
+ catch (      IOException ioex) {
+        m_report.println(ioex);
+      }
+      groupNodes=currentElement.getElementsByTagName(I_CmsConstants.C_EXPORT_TAG_GROUPNAME);
+      userGroups=new Vector();
+      for (int j=0; j < groupNodes.getLength(); j++) {
+        currentGroup=(Element)groupNodes.item(j);
+        String userInGroup=getTextNodeValue(currentGroup,I_CmsConstants.C_EXPORT_TAG_NAME);
+        userInGroup=A_OpenCms.getDefaultUsers().translateGroup(userInGroup);
+        userGroups.addElement(userInGroup);
+      }
+      importUser(null,name,description,flags,password,recoveryPassword,firstname,lastname,email,address,section,defaultGroup,type,userInfo,userGroups);
+    }
+  }
+ catch (  Exception exc) {
+    m_report.println(exc);
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+}
