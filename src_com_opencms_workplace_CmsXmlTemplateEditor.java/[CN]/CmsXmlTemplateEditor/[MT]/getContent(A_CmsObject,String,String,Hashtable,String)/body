@@ -5,7 +5,8 @@
     A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
   }
   A_CmsRequestContext reqCont=cms.getRequestContext();
-  HttpSession session=((HttpServletRequest)reqCont.getRequest().getOriginalRequest()).getSession(true);
+  HttpServletRequest orgReq=(HttpServletRequest)reqCont.getRequest().getOriginalRequest();
+  HttpSession session=orgReq.getSession(true);
   CmsFile editFile=null;
   Encoder encoder=new Encoder();
   String content=(String)parameters.get("CONTENT");
@@ -27,6 +28,7 @@
   String layoutTemplateClassName=(String)session.getValue("te_templateclass");
   String tempPageFilename=(String)session.getValue("te_temppagefile");
   String tempBodyFilename=(String)session.getValue("te_tempbodyfile");
+  String style=(String)session.getValue("te_stylesheet");
   boolean existsContentParam=(content != null && (!"".equals(content)));
   boolean existsFileParam=(file != null && (!"".equals(file)));
   boolean saveRequested=((action != null) && ("save".equals(action) || "saveexit".equals(action)));
@@ -73,11 +75,6 @@
     session.putValue("te_temppagefile",tempPageFilename);
     session.putValue("te_tempbodyfile",tempBodyFilename);
   }
-  if (templatechangeRequested) {
-    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
-    temporaryControlFile.setMasterTemplate(layoutTemplateFilename);
-    temporaryControlFile.write();
-  }
   if (titlechangeRequested) {
     try {
       cms.writeMetainformation(tempPageFilename,C_METAINFO_TITLE,title);
@@ -97,6 +94,32 @@
   CmsXmlTemplateFile bodyTemplateFile=bodyElementClassObject.getOwnTemplateFile(cms,tempBodyFilename,"body",parameters,null);
   Element bodyTag=layoutTemplateFile.getBodyTag();
   bodyTemplateFile.setBodyTag(bodyTag);
+  if (templatechangeRequested) {
+    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
+    temporaryControlFile.setMasterTemplate(layoutTemplateFilename);
+    temporaryControlFile.write();
+    String browser=orgReq.getHeader("user-agent");
+    String hostName=orgReq.getScheme() + "://" + orgReq.getHeader("HOST")+ orgReq.getServletPath()+ "/";
+    String styleName=null;
+    if (browser.indexOf("MSIE") > -1) {
+      styleName="stylesheet-ie";
+    }
+ else {
+      styleName="stylesheet-ns";
+    }
+    try {
+      style=hostName + temporaryControlFile.getParameter("root",styleName);
+    }
+ catch (    Exception e) {
+      try {
+        style=hostName + layoutTemplateFile.getParameter("root",styleName);
+      }
+ catch (      Exception e2) {
+        style="";
+      }
+    }
+    session.putValue("te_stylesheet",style);
+  }
   if (!existsContentParam) {
     Vector allBodys=bodyTemplateFile.getAllSections();
     if (allBodys == null || allBodys.size() == 0) {
@@ -110,6 +133,27 @@
     temporaryControlFile.setElementTemplSelector("body",body);
     temporaryControlFile.setElementTemplate("body",tempBodyFilename);
     temporaryControlFile.write();
+    String browser=orgReq.getHeader("user-agent");
+    String hostName=orgReq.getScheme() + "://" + orgReq.getHeader("HOST")+ orgReq.getServletPath()+ "/";
+    String styleName=null;
+    if (browser.indexOf("MSIE") > -1) {
+      styleName="stylesheet-ie";
+    }
+ else {
+      styleName="stylesheet-ns";
+    }
+    try {
+      style=hostName + temporaryControlFile.getParameter("root",styleName);
+    }
+ catch (    Exception e) {
+      try {
+        style=hostName + layoutTemplateFile.getParameter("root",styleName);
+      }
+ catch (      Exception e2) {
+        style="";
+      }
+    }
+    session.putValue("te_stylesheet",style);
   }
   if (bodytitlechangeRequested) {
     bodyTemplateFile.setSectionTitle(oldBody,bodytitle);
@@ -159,7 +203,7 @@
     }
     return "".getBytes();
   }
-  content=bodyTemplateFile.getEditableTemplateContent(this,parameters,body,editor.equals(C_SELECTBOX_EDITORVIEWS[0]));
+  content=bodyTemplateFile.getEditableTemplateContent(this,parameters,body,editor.equals(C_SELECTBOX_EDITORVIEWS[0]),style);
   content=encoder.escape(content);
   parameters.put("CONTENT",content);
   parameters.put("body",body);
