@@ -2,6 +2,8 @@
   String cacheKey=getCacheDirectives(cms,templateName,elementName,parameters,templateSelector).getCacheKey(cms,parameters);
   if (cms.getRequestContext().isElementCacheEnabled() && (cacheKey != null) && (cms.getRequestContext().currentProject().equals(cms.onlineProject()))) {
     Hashtable externVarDeps=cms.getVariantDependencies();
+    long exTimeForVariant=Long.MAX_VALUE;
+    long now=System.currentTimeMillis();
     String variantEntry=getClass().getName() + "|" + templateName+ "|"+ cacheKey;
     Vector allDeps=new Vector();
     if (cosDeps != null) {
@@ -9,6 +11,16 @@
         A_CmsContentDefinition contentDef=(A_CmsContentDefinition)cosDeps.elementAt(i);
         String key="cos/" + contentDef.getClass().getName() + "/"+ contentDef.getUniqueId(cms);
         allDeps.add(key);
+        if (contentDef.isTimedContent()) {
+          long time=((I_CmsTimedContentDefinition)cosDeps.elementAt(i)).getPublicationDate();
+          if (time > now && time < exTimeForVariant) {
+            exTimeForVariant=time;
+          }
+          time=((I_CmsTimedContentDefinition)cosDeps.elementAt(i)).getPurgeDate();
+          if (time > now && time < exTimeForVariant) {
+            exTimeForVariant=time;
+          }
+        }
       }
     }
     if (cosClassDeps != null) {
@@ -19,7 +31,7 @@
     }
     if (vfsDeps != null) {
       for (int i=0; i < vfsDeps.size(); i++) {
-        allDeps.add("vfs:" + ((CmsResource)vfsDeps.elementAt(i)).getAbsolutePath());
+        allDeps.add(((CmsResource)vfsDeps.elementAt(i)).getResourceName());
       }
     }
     for (int i=0; i < allDeps.size(); i++) {
@@ -38,6 +50,9 @@
     A_CmsElement currElem=elementCache.getElementLocator().get(cms,elKey,parameters);
     CmsElementVariant emptyVar=new CmsElementVariant();
     emptyVar.addDependencies(allDeps);
+    if (exTimeForVariant < Long.MAX_VALUE) {
+      emptyVar.mergeNextTimeout(exTimeForVariant);
+    }
     Vector removedVar=currElem.addVariant(cacheKey,emptyVar);
     if ((removedVar != null)) {
       String key=(String)removedVar.firstElement();
