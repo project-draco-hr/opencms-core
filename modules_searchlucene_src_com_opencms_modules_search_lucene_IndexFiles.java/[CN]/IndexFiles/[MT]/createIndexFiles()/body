@@ -2,54 +2,45 @@
   IndexWriter writer=null;
   deleteIndexFiles();
   Document doc=null;
-  InputStream conPDF=null;
+  InputStream con=null;
   try {
     writer=new IndexWriter(m_indexPath,new GermanAnalyzer(),m_newIndex);
     String completeContent="", keywords="", description="", title="", parsedContent="";
     InputStream is=null;
+    I_ContentParser parser=null;
     for (int i=0; i < m_files.size(); i++) {
       if (debug) {
         System.out.println("Indexing file " + m_files.elementAt(i));
       }
       doc=new Document();
-      if (((String)m_files.elementAt(i)).toLowerCase().indexOf(".htm") != -1) {
-        completeContent=fetchContentForUrl((String)m_files.elementAt(i));
-        convHtml.parse(completeContent);
-        if (completeContent.indexOf("Not Found (404)") != -1 || completeContent.indexOf("HTTP Status 404") != -1 || completeContent.indexOf("Error 404") != -1) {
-          if (debug)           System.out.println("Servermessage: Not Found (404)");
-          continue;
-        }
-        if (convHtml.getKeywords() != null)         keywords=convHtml.getKeywords();
-        if (convHtml.getDescription() != null)         description=convHtml.getDescription();
-        if (convHtml.getTitle() != null)         title=convHtml.getTitle();
-        if (convHtml.getContents() != null)         parsedContent=convHtml.getContents();
-        doc.add(Field.Keyword("path",(String)m_files.elementAt(i)));
-        doc.add(Field.Keyword("keywords",keywords));
-        doc.add(Field.Keyword("description",description));
-        doc.add(Field.Keyword("title",title));
-        is=new ByteArrayInputStream(parsedContent.getBytes());
+      con=connectUrl((String)m_files.elementAt(i));
+      if (m_contentType.equals("text/html")) {
+        parser=convHtml;
       }
- else {
-        conPDF=connectPdfForUrl((String)m_files.elementAt(i));
-        doc.add(Field.Keyword("path",(String)m_files.elementAt(i)));
-        convPdf.parse(conPDF);
-        completeContent=convPdf.getContents();
-        if (completeContent.indexOf("Not Found (404)") != -1 || completeContent.indexOf("HTTP Status 404") != -1 || completeContent.indexOf("Error 404") != -1) {
-          if (debug)           System.out.println("Servermessage: Not Found (404)");
-          continue;
-        }
-        if (convPdf.getKeywords() != null)         keywords=convPdf.getKeywords();
-        if (convPdf.getDescription() != null)         description=convPdf.getDescription();
-        if (convPdf.getTitle() != null)         title=convPdf.getTitle();
+ else       if (m_contentType.equals("application/pdf")) {
+        parser=convPdf;
+      }
+ else       continue;
+      parser.parse(con);
+      completeContent=parser.getContents();
+      if (completeContent.indexOf("Not Found (404)") != -1 || completeContent.indexOf("HTTP Status 404") != -1 || completeContent.indexOf("Error 404") != -1) {
+        if (debug)         System.out.println("Servermessage: Not Found (404)");
+        continue;
+      }
+      if (parser.getKeywords() != null)       keywords=parser.getKeywords();
+      if (parser.getDescription() != null)       description=parser.getDescription();
+      if (parser.getTitle() != null)       title=parser.getTitle();
+      if (parser.getContents() != null)       parsedContent=parser.getContents();
+      doc.add(Field.Keyword("path",(String)m_files.elementAt(i)));
+      doc.add(Field.Keyword("keywords",keywords));
+      doc.add(Field.Keyword("description",description));
+      doc.add(Field.Keyword("title",title));
+      is=new ByteArrayInputStream(parsedContent.getBytes());
+      if (debug) {
         File output=new File("D:/Programme/Apache Group/Apache/htdocs/lucineTest/" + ((String)m_files.elementAt(i)).substring(((String)m_files.elementAt(i)).lastIndexOf("/"),((String)m_files.elementAt(i)).lastIndexOf(".")) + ".txt");
         FileOutputStream os=new FileOutputStream(output);
         os.write(completeContent.getBytes());
         os.close();
-        doc.add(Field.Keyword("path",(String)m_files.elementAt(i)));
-        doc.add(Field.Keyword("keywords",keywords));
-        doc.add(Field.Keyword("description",description));
-        doc.add(Field.Keyword("title",title));
-        is=new ByteArrayInputStream(completeContent.getBytes());
       }
       doc.add(Field.Text("body",(Reader)new InputStreamReader(is)));
       writer.addDocument(doc);
