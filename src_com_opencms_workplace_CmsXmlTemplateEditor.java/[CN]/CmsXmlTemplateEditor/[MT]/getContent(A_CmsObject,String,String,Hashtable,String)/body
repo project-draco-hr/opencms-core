@@ -7,7 +7,6 @@
   A_CmsRequestContext reqCont=cms.getRequestContext();
   HttpSession session=((HttpServletRequest)reqCont.getRequest().getOriginalRequest()).getSession(true);
   CmsFile editFile=null;
-  CmsXmlControlFile controlFile=null;
   String content=(String)parameters.get("CONTENT");
   String file=(String)parameters.get("file");
   String exit=(String)parameters.get("EXIT");
@@ -19,60 +18,82 @@
   String layoutTemplateFilename=(String)parameters.get("template");
   String bodyElementClassName=(String)parameters.get("bodyclass");
   String bodyElementFilename=(String)parameters.get("bodyfile");
+  String preview=(String)parameters.get("preview");
   String oldEdit=(String)session.getValue("te_oldedit");
   String bodytag=(String)session.getValue("bodytag");
   String oldLayoutFilename=(String)session.getValue("te_oldlayout");
   String oldTitle=(String)session.getValue("te_title");
+  String oldBody=(String)session.getValue("te_oldbody");
   String layoutTemplateClassName=(String)session.getValue("te_templateclass");
+  String tempPageFilename=(String)session.getValue("te_temppagefile");
+  String tempBodyFilename=(String)session.getValue("te_tempbodyfile");
   boolean existsContentParam=(content != null && (!"".equals(content)));
   boolean existsFileParam=(file != null && (!"".equals(file)));
   boolean existsBodyParam=(body != null && (!"".equals(body)));
   boolean existsTemplateParam=(layoutTemplateFilename != null && (!"".equals(layoutTemplateFilename)));
   boolean saveRequested=((save != null) && "1".equals(save));
   boolean exitRequested=((exit != null) && "1".equals(exit));
-  boolean bodychangeRequested=((exit != null) && "1".equals(bodychange));
+  boolean bodychangeRequested=((oldBody != null) && (body != null) && (!(oldBody.equals(body))));
   boolean templatechangeRequested=(oldLayoutFilename != null && layoutTemplateFilename != null && (!(oldLayoutFilename.equals(layoutTemplateFilename))));
   boolean titlechangeRequested=(oldTitle != null && title != null && (!(oldTitle.equals(title))));
+  boolean previewRequested=((preview != null) && "1".equals(preview));
   if (!existsFileParam) {
     throwException("No \"file\" parameter given. Don't know which file should be edited.");
   }
-  if (!existsContentParam || templatechangeRequested) {
-    controlFile=new CmsXmlControlFile(cms,file);
-  }
   if (!existsContentParam) {
-    if (controlFile.isElementClassDefined("body")) {
-      bodyElementClassName=controlFile.getElementClass("body");
+    System.err.println("***************************");
+    System.err.println("*** no content given!!! ***");
+    System.err.println("***************************");
+    CmsXmlControlFile originalControlFile=new CmsXmlControlFile(cms,file);
+    if (originalControlFile.isElementClassDefined("body")) {
+      bodyElementClassName=originalControlFile.getElementClass("body");
     }
-    if (controlFile.isElementTemplateDefined("body")) {
-      bodyElementFilename=controlFile.getElementTemplate("body");
+    if (originalControlFile.isElementTemplateDefined("body")) {
+      bodyElementFilename=originalControlFile.getElementTemplate("body");
     }
     if ((bodyElementClassName == null) || (bodyElementFilename == null)) {
     }
-    A_CmsResource tempFile=cms.readFileHeader(bodyElementFilename);
-    if (!tempFile.isLocked()) {
+    A_CmsResource pageFileResource=cms.readFileHeader(file);
+    if (!pageFileResource.isLocked()) {
+      cms.lockResource(file);
+    }
+    A_CmsResource contentFileResource=cms.readFileHeader(bodyElementFilename);
+    if (!contentFileResource.isLocked()) {
       cms.lockResource(bodyElementFilename);
     }
-    layoutTemplateFilename=controlFile.getMasterTemplate();
-    layoutTemplateClassName=controlFile.getTemplateClass();
+    layoutTemplateFilename=originalControlFile.getMasterTemplate();
+    layoutTemplateClassName=originalControlFile.getTemplateClass();
     oldLayoutFilename=layoutTemplateFilename;
     if (editor == null || "".equals(editor)) {
       editor=this.C_SELECTBOX_EDITORVIEWS[C_SELECTBOX_EDITORVIEWS_DEFAULT];
       parameters.put("editor",editor);
     }
     oldEdit=editor;
+    body="-- unnamed --";
     title=cms.readMetainformation(file,C_METAINFO_TITLE);
     if (title == null) {
       title="";
     }
     oldTitle=title;
+    tempPageFilename=createTemporaryFile(cms,pageFileResource);
+    tempBodyFilename=createTemporaryFile(cms,contentFileResource);
+    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
+    temporaryControlFile.setElementTemplSelector("body",body);
+    temporaryControlFile.setElementTemplate("body",tempBodyFilename);
+    temporaryControlFile.write();
+    session.putValue("te_temppagefile",tempPageFilename);
+    session.putValue("te_tempbodyfile",tempBodyFilename);
   }
   if (templatechangeRequested) {
-    controlFile.setMasterTemplate(layoutTemplateFilename);
-    controlFile.write();
+    System.err.println("*** TEMPLATECHANGE to " + layoutTemplateFilename);
+    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
+    temporaryControlFile.setMasterTemplate(layoutTemplateFilename);
+    temporaryControlFile.write();
   }
   if (titlechangeRequested) {
+    System.err.println("Changing document title to \"" + title + "\".");
     try {
-      cms.writeMetainformation(file,C_METAINFO_TITLE,title);
+      cms.writeMetainformation(tempPageFilename,C_METAINFO_TITLE,title);
     }
  catch (    CmsException e) {
       if (A_OpenCms.isLogging()) {
@@ -81,19 +102,24 @@
       }
     }
   }
+  if (bodychangeRequested) {
+    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
+    temporaryControlFile.setElementTemplSelector("body",body);
+    temporaryControlFile.write();
+  }
   Object tempObj=CmsTemplateClassManager.getClassInstance(cms,layoutTemplateClassName);
   CmsXmlTemplate layoutTemplateClassObject=(CmsXmlTemplate)tempObj;
   CmsXmlTemplateFile layoutTemplateFile=layoutTemplateClassObject.getOwnTemplateFile(cms,layoutTemplateFilename,null,parameters,null);
   tempObj=CmsTemplateClassManager.getClassInstance(cms,bodyElementClassName);
   CmsXmlTemplate bodyElementClassObject=(CmsXmlTemplate)tempObj;
-  CmsXmlTemplateFile bodyTemplateFile=bodyElementClassObject.getOwnTemplateFile(cms,bodyElementFilename,"body",parameters,null);
+  CmsXmlTemplateFile bodyTemplateFile=bodyElementClassObject.getOwnTemplateFile(cms,tempBodyFilename,"body",parameters,null);
   Element bodyTag=layoutTemplateFile.getBodyTag();
   bodyTemplateFile.setBodyTag(bodyTag);
   if (existsContentParam) {
     Encoder encoder=new Encoder();
     content=encoder.unescape(content);
     try {
-      bodyTemplateFile.setEditedTemplateContent(content,templateSelector,oldEdit.equals(C_SELECTBOX_EDITORVIEWS[0]));
+      bodyTemplateFile.setEditedTemplateContent(content,oldBody,oldEdit.equals(C_SELECTBOX_EDITORVIEWS[0]));
     }
  catch (    CmsException e) {
       if (e.getType() == e.C_XML_PARSING_ERROR) {
@@ -102,11 +128,32 @@
       }
  else       throw e;
     }
-    System.err.println("*** Writing body template file");
     bodyTemplateFile.write();
-    System.err.println("*** Ready");
+  }
+  if (previewRequested) {
+    HttpServletRequest srvReq=(HttpServletRequest)reqCont.getRequest().getOriginalRequest();
+    String servletPath=srvReq.getServletPath();
+    try {
+      reqCont.getResponse().sendCmsRedirect(tempPageFilename);
+    }
+ catch (    IOException e) {
+      throwException("Could not send redirect preview file " + servletPath + tempPageFilename,e);
+    }
+    return "".getBytes();
+  }
+  if (saveRequested) {
+    commitTemporaryFile(cms,bodyElementFilename,tempBodyFilename);
+    cms.writeMetainformation(file,"Title",cms.readMetainformation(tempPageFilename,"Title"));
+    CmsXmlControlFile originalControlFile=new CmsXmlControlFile(cms,file);
+    CmsXmlControlFile temporaryControlFile=new CmsXmlControlFile(cms,tempPageFilename);
+    originalControlFile.setMasterTemplate(temporaryControlFile.getMasterTemplate());
+    originalControlFile.write();
   }
   if (exitRequested) {
+    cms.deleteFile(tempBodyFilename);
+    cms.deleteFile(tempPageFilename);
+    A_CmsXmlContent.clearFileCache(tempBodyFilename);
+    A_CmsXmlContent.clearFileCache(tempPageFilename);
     try {
       cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceMainPath());
     }
@@ -121,9 +168,6 @@
  else {
     content=bodyTemplateFile.getTextEditableTemplateContent(this,parameters,body);
   }
-  System.err.println("##########################");
-  System.err.println("### SETTING CONTENT ");
-  System.err.println(content);
   Encoder encoder=new Encoder();
   content=encoder.escape(content);
   parameters.put("CONTENT",content);
@@ -141,8 +185,9 @@
     }
   }
   session.putValue("te_oldedit",editor);
-  session.putValue("te_oldlayout",oldLayoutFilename);
-  session.putValue("te_title",oldTitle);
+  session.putValue("te_oldbody",body);
+  session.putValue("te_oldlayout",layoutTemplateFilename);
+  session.putValue("te_title",title);
   session.putValue("te_templateclass",layoutTemplateClassName);
   CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
   xmlTemplateDocument.setXmlData("editor",editor);
