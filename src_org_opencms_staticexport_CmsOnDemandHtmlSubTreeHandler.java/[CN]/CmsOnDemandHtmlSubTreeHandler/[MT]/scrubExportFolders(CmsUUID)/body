@@ -1,0 +1,91 @@
+{
+  if (OpenCms.getLog(this).isDebugEnabled()) {
+    OpenCms.getLog(this).debug("Static export manager scrubbing export folders for project ID " + publishHistoryId);
+  }
+  Set scrubedFolders=new HashSet();
+  Set scrubedFiles=new HashSet();
+  CmsObject cms;
+  try {
+    cms=OpenCms.initCmsObject(OpenCms.getDefaultUsers().getUserExport());
+  }
+ catch (  CmsException e) {
+    OpenCms.getLog(this).error("Could not init CmsObject with default export user");
+    return;
+  }
+  List publishedResources;
+  try {
+    publishedResources=cms.readPublishedResources(publishHistoryId);
+  }
+ catch (  CmsException e) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Static export manager could not read list of changes resources for project ID " + publishHistoryId);
+    }
+    return;
+  }
+  Iterator it=publishedResources.iterator();
+  while (it.hasNext()) {
+    CmsPublishedResource res=(CmsPublishedResource)it.next();
+    if (res.isUnChanged() || !res.isVfsResource()) {
+      continue;
+    }
+    List siblings=getSiblingsList(cms,res.getRootPath());
+    Iterator sibIt=siblings.iterator();
+    while (sibIt.hasNext()) {
+      String vfsName=(String)sibIt.next();
+      String rfsName=OpenCms.getStaticExportManager().getRfsName(cms,vfsName);
+      if (OpenCms.getLog(this).isDebugEnabled()) {
+        OpenCms.getLog(this).debug("Static export checking for deletion vfsName='" + vfsName + "' rfsName='"+ rfsName+ "'");
+      }
+      if (rfsName.startsWith(OpenCms.getStaticExportManager().getRfsPrefix()) && (!scrubedFiles.contains(rfsName)) && (!scrubedFolders.contains(CmsResource.getFolderPath(rfsName)))) {
+        if (res.isFolder()) {
+          if (res.isDeleted()) {
+            String exportFolderName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath() + rfsName.substring(OpenCms.getStaticExportManager().getRfsPrefix().length() + 1));
+            try {
+              File exportFolder=new File(exportFolderName);
+              if (exportFolder.exists() && exportFolder.canWrite()) {
+                CmsFileUtil.purgeDirectory(exportFolder);
+                if (OpenCms.getLog(this).isInfoEnabled()) {
+                  OpenCms.getLog(this).info("Static export deleted export folder '" + exportFolderName + "'");
+                }
+                scrubedFolders.add(rfsName);
+                continue;
+              }
+            }
+ catch (            Throwable t) {
+              if (OpenCms.getLog(this).isWarnEnabled()) {
+                OpenCms.getLog(this).warn("Error deleting static export folder vfsName='" + vfsName + "' rfsName='"+ exportFolderName+ "'",t);
+              }
+            }
+          }
+          rfsName+=CmsStaticExportManager.C_EXPORT_DEFAULT_FILE;
+          if (OpenCms.getLog(this).isDebugEnabled()) {
+            OpenCms.getLog(this).debug("Static export folder index file rfsName='" + rfsName + "'");
+          }
+        }
+        String exportFileName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath() + rfsName.substring(OpenCms.getStaticExportManager().getRfsPrefix().length() + 1));
+        purgeFile(exportFileName);
+        scrubedFiles.add(rfsName);
+        if (!res.isFolder()) {
+          FileFilter htmlFilter=new FileFilter(){
+            /** 
+ * Accepts only html files
+ */
+            public boolean accept(            File file){
+              return file.isFile() && (file.getName().endsWith(".html") || file.getName().endsWith(".htm"));
+            }
+          }
+;
+          List fileList=CmsFileUtil.getSubtree(exportFileName,htmlFilter);
+          Iterator iter=fileList.iterator();
+          while (iter.hasNext()) {
+            File file=(File)iter.next();
+            purgeFile(file.getAbsolutePath());
+            rfsName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getRfsPrefix() + "/" + file.getAbsolutePath().substring(OpenCms.getStaticExportManager().getExportPath().length()));
+            rfsName=CmsStringUtil.substitute(rfsName,new String(new char[]{File.separatorChar}),"/");
+            scrubedFiles.add(rfsName);
+          }
+        }
+      }
+    }
+  }
+}
