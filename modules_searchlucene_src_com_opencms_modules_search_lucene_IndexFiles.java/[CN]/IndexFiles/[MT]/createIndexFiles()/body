@@ -1,0 +1,39 @@
+{
+  IndexWriter writer=null;
+  deleteIndexFiles();
+  try {
+    writer=new IndexWriter(m_indexPath,new GermanAnalyzer(),m_newIndex);
+    String completeContent=null;
+    for (int i=0; i < m_files.size(); i++) {
+      if (debug) {
+        System.out.println("Indexing file " + m_files.elementAt(i));
+      }
+      completeContent=fetchContentForUrl((String)m_files.elementAt(i));
+      if (completeContent.indexOf("Not Found (404)") != -1 || completeContent.indexOf("HTTP Status 404") != -1 || completeContent.indexOf("Error 404") != -1) {
+        if (debug) {
+          System.out.println("Servermessage: Not Found (404)");
+        }
+        continue;
+      }
+      InputStream is=new ByteArrayInputStream(filterContent(completeContent,m_configPath + "/content.xml").getBytes());
+      Document doc=new Document();
+      doc.add(Field.Keyword("path",(String)m_files.elementAt(i)));
+      doc.add(Field.Keyword("keywords",filterContent(completeContent,m_configPath + "/keywords.xml")));
+      doc.add(Field.Keyword("description",filterContent(completeContent,m_configPath + "/description.xml")));
+      doc.add(Field.Keyword("title",filterContent(completeContent,m_configPath + "/title.xml")));
+      doc.add(Field.Text("body",(Reader)new InputStreamReader(is)));
+      writer.addDocument(doc);
+      is.close();
+    }
+    writer.optimize();
+    if (debug) {
+      System.out.println("Docs in Index " + writer.docCount());
+    }
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+  }
+ finally {
+    writer.close();
+  }
+}
