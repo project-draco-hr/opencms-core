@@ -1,16 +1,14 @@
 {
   int pos=m_paramNewLink.indexOf('|');
-  String filterName=m_paramNewLink.substring(0,pos);
+  String collectorName=m_paramNewLink.substring(0,pos);
   String param=m_paramNewLink.substring(pos + 1);
-  String newFileName;
-  int todo=0;
-  I_CmsXmlContentFilter filter=OpenCms.getXmlContentTypeManager().getContentFilter(filterName);
+  I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(collectorName);
   try {
-    newFileName=filter.getCreateLink(getCms(),filterName,param);
     CmsFile templateFile=getCms().readFile(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
     CmsXmlContent template=CmsXmlContentFactory.unmarshal(getCms(),templateFile);
-    Locale defaultLocale=(Locale)OpenCms.getLocaleManager().getDefaultLocales(getCms(),getParamResource()).get(0);
-    CmsXmlContent newContent=new CmsXmlContent(template.getContentDefinition(new CmsXmlEntityResolver(getCms())),defaultLocale,template.getEncoding());
+    Locale locale=(Locale)OpenCms.getLocaleManager().getDefaultLocales(getCms(),getParamResource()).get(0);
+    CmsXmlContent newContent=new CmsXmlContent(template.getContentDefinition(new CmsXmlEntityResolver(getCms())),locale,template.getEncoding());
+    String newFileName=collector.getCreateLink(getCms(),collectorName,param);
     getCms().createResource(newFileName,11);
     CmsFile newFile=getCms().readFile(newFileName,CmsResourceFilter.IGNORE_EXPIRATION);
     newFile.setContents(newContent.marshal());
@@ -20,12 +18,13 @@
     setParamAction(null);
     setParamResource(newFileName);
     setAction(ACTION_DEFAULT);
-    initContent();
-    setParamContent(encodeContent(getParamContent()));
+    m_file=newFile;
+    m_content=newContent;
+    m_contentDefinition=m_content.getContentDefinition(new CmsXmlEntityResolver(getCms()));
   }
  catch (  CmsException e) {
     if (OpenCms.getLog(this).isErrorEnabled()) {
-      OpenCms.getLog(this).error("Error accessing XML content filter '" + m_paramNewLink + "'",e);
+      OpenCms.getLog(this).error("Error creating new XML content item '" + m_paramNewLink + "'",e);
     }
     throw new JspException(e);
   }

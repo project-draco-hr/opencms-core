@@ -1,17 +1,37 @@
 {
-  if (getFilter() == null) {
-    throw new IllegalArgumentException("'contentload' tag requires 'filter' attribute");
+  String collectorName=getCollector();
+  if (CmsStringUtil.isEmpty(collectorName)) {
+    throw new IllegalArgumentException("'contentload' tag requires 'collector' attribute");
   }
   m_controller=(CmsFlexController)pageContext.getRequest().getAttribute(CmsFlexController.ATTRIBUTE_NAME);
   m_cms=m_controller.getCmsObject();
   m_locale=m_cms.getRequestContext().getLocale();
-  String filterName=getFilter();
-  String param=resolveMagicName(getParam());
-  I_CmsXmlContentFilter filter=OpenCms.getXmlContentTypeManager().getContentFilter(filterName);
+  String param=getProperty();
+  String createParam;
+  if (CmsStringUtil.isNotEmpty(param)) {
+    CmsProperty property;
+    try {
+      property=m_cms.readPropertyObject(m_cms.getRequestContext().getUri(),param,true);
+    }
+ catch (    CmsException e) {
+      OpenCms.getLog(this).error("Error reading property '" + param + "' on resource "+ m_cms.getRequestContext().getUri(),e);
+      property=CmsProperty.getNullProperty();
+    }
+    param=property.getValue("");
+    if (CmsStringUtil.isNotEmpty(getParam())) {
+      param=param.concat(getParam());
+    }
+    createParam=param;
+  }
+ else {
+    param=resolveMagicName(getParam());
+    createParam=getParam();
+  }
+  I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(collectorName);
   try {
-    m_filterResult=filter.getFilterResults(m_cms,filterName,param);
-    if (filter.getCreateLink(m_cms,filterName,param) != null) {
-      m_directEditCreateLink=CmsEncoder.encode(getFilter() + "|" + getParam());
+    m_collectorResult=collector.getResults(m_cms,collectorName,param);
+    if (collector.getCreateLink(m_cms,collectorName,param) != null) {
+      m_directEditCreateLink=CmsEncoder.encode(collectorName + "|" + createParam);
     }
     doLoadNextFile();
   }
@@ -29,7 +49,7 @@
       directEditOptions=CmsJspTagEditable.createEditOptions(true,false,false);
       m_directEditFollowOptions=directEditOptions;
     }
-    m_directEditPermissions=CmsJspTagEditable.includeDirectEditElement(pageContext,I_CmsEditorActionHandler.C_DIRECT_EDIT_AREA_START,m_file,null,directEditOptions,null,m_directEditCreateLink);
+    m_directEditPermissions=CmsJspTagEditable.includeDirectEditElement(pageContext,I_CmsEditorActionHandler.C_DIRECT_EDIT_AREA_START,m_resourceName,null,directEditOptions,null,m_directEditCreateLink);
   }
   return EVAL_BODY_INCLUDE;
 }

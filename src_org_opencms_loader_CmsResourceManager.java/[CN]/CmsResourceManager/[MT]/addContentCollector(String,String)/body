@@ -1,0 +1,73 @@
+{
+  Class classClazz;
+  try {
+    classClazz=Class.forName(className);
+  }
+ catch (  ClassNotFoundException e) {
+    OpenCms.getLog(this).error("Configured content collector class not found: " + className,e);
+    return null;
+  }
+  I_CmsResourceCollector collector;
+  try {
+    collector=(I_CmsResourceCollector)classClazz.newInstance();
+  }
+ catch (  InstantiationException e) {
+    throw new CmsConfigurationException("Invalid content collector name '" + className + "' configured");
+  }
+catch (  IllegalAccessException e) {
+    throw new CmsConfigurationException("Invalid content collector name '" + className + "' configured");
+  }
+catch (  ClassCastException e) {
+    throw new CmsConfigurationException("Invalid content collector name '" + className + "' configured");
+  }
+  int ord=0;
+  try {
+    ord=Integer.valueOf(order).intValue();
+  }
+ catch (  NumberFormatException e) {
+    OpenCms.getLog(this).error("Bad order number for collector '" + className + "'",e);
+  }
+  collector.setOrder(ord);
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". VFS configuration    : added collector class '" + className + "' with order "+ order);
+  }
+  if (m_collectors != null) {
+    m_collectors=new ArrayList(m_collectors);
+    m_collectorNameMappings=new HashMap(m_collectorNameMappings);
+  }
+ else {
+    m_collectors=new ArrayList();
+    m_collectorNameMappings=new HashMap();
+  }
+  if (!m_collectors.contains(collector)) {
+    m_collectors.add(collector);
+    Iterator i=collector.getCollectorNames().iterator();
+    while (i.hasNext()) {
+      String name=(String)i.next();
+      if (m_collectorNameMappings.containsKey(name)) {
+        I_CmsResourceCollector otherCollector=(I_CmsResourceCollector)m_collectorNameMappings.get(name);
+        if (collector.getOrder() > otherCollector.getOrder()) {
+          m_collectorNameMappings.put(name,collector);
+          if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+            OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". VFS configuration    : replaced collector named '" + name + "'");
+          }
+        }
+ else {
+          if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+            OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". VFS configuration    : skipped duplicate collector named '" + name + "'");
+          }
+        }
+      }
+ else {
+        m_collectorNameMappings.put(name,collector);
+        if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+          OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". VFS configuration    : added new collector named '" + name + "'");
+        }
+      }
+    }
+  }
+  Collections.sort(m_collectors);
+  m_collectors=Collections.unmodifiableList(m_collectors);
+  m_collectorNameMappings=Collections.unmodifiableMap(m_collectorNameMappings);
+  return collector;
+}
