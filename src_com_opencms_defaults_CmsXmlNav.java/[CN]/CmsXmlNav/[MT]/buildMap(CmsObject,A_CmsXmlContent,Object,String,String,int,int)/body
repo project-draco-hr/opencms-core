@@ -1,0 +1,59 @@
+{
+  StringBuffer result=new StringBuffer();
+  CmsXmlTemplateFile template=(CmsXmlTemplateFile)doc;
+  LinkSubstitution ls=new LinkSubstitution();
+  boolean isFolder=false;
+  Vector vfsDeps=new Vector();
+  vfsDeps.add(cms.readFolder(currentFolder));
+  registerVariantDeps(cms,doc.getAbsoluteFilename(),null,null,(Hashtable)userObject,vfsDeps,null,null);
+  Vector resources=cms.getSubFolders(currentFolder);
+  Vector files=cms.getFilesInFolder(currentFolder);
+  resources.ensureCapacity(resources.size() + files.size());
+  Enumeration allFiles=files.elements();
+  while (allFiles.hasMoreElements()) {
+    resources.addElement(allFiles.nextElement());
+  }
+  int size=resources.size();
+  String navLink[]=new String[size];
+  String navText[]=new String[size];
+  float navPos[]=new float[size];
+  int navResourceCount=extractNav(cms,resources,navLink,navText,navPos);
+  for (int i=0; i < navResourceCount; i++) {
+    isFolder=false;
+    String currentNavLink=null;
+    template.setData("navtext",navText[i]);
+    template.setData("navcount",new Integer(i + 1).toString());
+    template.setData("navlevel",new Integer(extractLevel(cms,navLink[i])).toString());
+    if (navLink[i].endsWith("/")) {
+      isFolder=true;
+      String navIndex=cms.readProperty(navLink[i],C_PROPERTY_NAVINDEX);
+      if (navIndex == null) {
+        navIndex=C_NAVINDEX;
+      }
+      currentNavLink=navLink[i] + navIndex;
+    }
+ else {
+      currentNavLink=navLink[i];
+    }
+    try {
+      cms.readFile(currentNavLink);
+      template.setData("navlink",ls.getLinkSubstitution(cms,currentNavLink));
+    }
+ catch (    CmsException e) {
+      template.setData("navlink","#");
+    }
+    result.append(template.getProcessedDataValue(datablock,this,userObject));
+    if (isFolder && (currentResursionLevel + 1 <= maxRecursionLevel)) {
+      String subMapNavEntryDatablock="naventry";
+      for (int j=0; j <= currentResursionLevel; j++) {
+        subMapNavEntryDatablock+="sub";
+      }
+      if (!template.hasData(subMapNavEntryDatablock)) {
+        subMapNavEntryDatablock="naventry";
+      }
+      StringBuffer subMap=this.buildMap(cms,doc,userObject,navLink[i],subMapNavEntryDatablock,currentResursionLevel + 1,maxRecursionLevel);
+      result.append(subMap.toString());
+    }
+  }
+  return result;
+}

@@ -1,0 +1,55 @@
+{
+  String navPath="";
+  CmsXmlTemplateFile template=(CmsXmlTemplateFile)doc;
+  boolean startAbsolute=true;
+  int requestedNavLevels=1;
+  boolean includeCurrentFolder=true;
+  int startLevel=0, endLevel=0;
+  if (!template.hasData("naventry")) {
+    return "".getBytes();
+  }
+  if (!template.hasData("navcurrent")) {
+    template.setData("navcurrent",template.getData("naventry"));
+  }
+  if (!"".equals(tagcontent)) {
+    StringTokenizer tagContentTokenizer=new StringTokenizer(tagcontent,",");
+    if (tagContentTokenizer.countTokens() >= 3) {
+      if (tagContentTokenizer.hasMoreTokens()) {
+        startAbsolute=tagContentTokenizer.nextToken().trim().equalsIgnoreCase("absolute");
+      }
+      if (tagContentTokenizer.hasMoreTokens()) {
+        includeCurrentFolder=tagContentTokenizer.nextToken().trim().equalsIgnoreCase("this");
+      }
+      if (tagContentTokenizer.hasMoreTokens()) {
+        try {
+          requestedNavLevels=Integer.parseInt(tagContentTokenizer.nextToken());
+        }
+ catch (        Exception e) {
+          requestedNavLevels=1;
+        }
+      }
+    }
+  }
+  String requestedFolder=cms.getRequestContext().currentFolder().getAbsolutePath();
+  endLevel=extractLevel(cms,requestedFolder);
+  if (includeCurrentFolder) {
+    endLevel++;
+  }
+  if (startAbsolute) {
+    startLevel=1;
+  }
+ else {
+    startLevel=endLevel - requestedNavLevels + 1;
+  }
+  for (int i=startLevel; i <= endLevel; i++) {
+    String currentFolder=extractFolder(cms,i,"false");
+    Vector vfsDeps=new Vector();
+    vfsDeps.add(cms.readFolder(currentFolder));
+    registerVariantDeps(cms,doc.getAbsoluteFilename(),null,null,(Hashtable)userObject,vfsDeps,null,null);
+    Vector resources=new Vector();
+    resources.addElement(cms.readFolder(currentFolder,false));
+    String currentNav=buildNav(cms,doc,userObject,resources);
+    navPath+=currentNav;
+  }
+  return navPath.getBytes();
+}
