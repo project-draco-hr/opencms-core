@@ -8,16 +8,23 @@
   String username=config.getString(C_KEY_DATABASE_POOL + "." + key+ "."+ C_KEY_USERNAME);
   String password=config.getString(C_KEY_DATABASE_POOL + "." + key+ "."+ C_KEY_PASSWORD);
   String poolUrl=config.getString(C_KEY_DATABASE_POOL + "." + key+ "."+ C_KEY_POOL_URL);
+  String dbName=config.getString(C_KEY_DATABASE_NAME);
   Class.forName(jdbcDriver).newInstance();
-  AbandonedConfig abandonedConfig=new AbandonedConfig();
-  abandonedConfig.setLogAbandoned(true);
-  abandonedConfig.setRemoveAbandoned(true);
-  GenericObjectPool connectionPool=new AbandonedObjectPool(null,abandonedConfig);
+  GenericObjectPool connectionPool=null;
+  if ("mysql".equalsIgnoreCase(dbName.trim())) {
+    AbandonedConfig abandonedConfig=new AbandonedConfig();
+    abandonedConfig.setLogAbandoned(true);
+    abandonedConfig.setRemoveAbandoned(true);
+    connectionPool=new AbandonedObjectPool(null,abandonedConfig);
+    connectionPool.setWhenExhaustedAction(GenericObjectPool.WHEN_EXHAUSTED_GROW);
+    connectionPool.setTestOnBorrow(true);
+  }
+ else {
+    connectionPool=new GenericObjectPool(null);
+  }
   connectionPool.setMaxActive(maxActive);
   connectionPool.setMaxIdle(maxIdle);
   connectionPool.setMaxWait(maxWait);
-  connectionPool.setWhenExhaustedAction(GenericObjectPool.WHEN_EXHAUSTED_GROW);
-  connectionPool.setTestOnBorrow(true);
   ConnectionFactory connectionFactory=new DriverManagerConnectionFactory(jdbcUrl,username,password);
   new PoolableConnectionFactory(connectionFactory,connectionPool,null,testQuery,false,true);
   PoolingDriver driver=new PoolingDriver();
