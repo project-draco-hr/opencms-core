@@ -11,8 +11,8 @@
     for (int i=0; i < propertyDef.size(); i++) {
       CmsPropertydefinition curPropDef=(CmsPropertydefinition)propertyDef.elementAt(i);
       String propName=CmsEncoder.escapeXml(curPropDef.getName());
-      String valueStructure="";
-      String valueResource="";
+      String valueStructure=null;
+      String valueResource=null;
       if (activeTab == 1) {
         valueStructure=request.getParameter(PREFIX_VALUE + propName);
         valueResource=request.getParameter(PREFIX_RESOURCE + propName);
@@ -27,14 +27,8 @@
       if (valueStructure != null) {
         valueStructure=valueStructure.trim();
       }
- else {
-        valueStructure="";
-      }
       if (valueResource != null) {
         valueResource=valueResource.trim();
-      }
- else {
-        valueResource="";
       }
       CmsProperty newProperty=new CmsProperty();
       newProperty.setKey(curPropDef.getName());
@@ -45,13 +39,23 @@
         oldProperty=new CmsProperty();
         oldProperty.setKey(curPropDef.getName());
       }
-      if (oldProperty.getStructureValue() == null) {
-        oldProperty.setStructureValue("");
+      boolean writeStructureValue=false;
+      boolean writeResourceValue=false;
+      String oldValue=oldProperty.getStructureValue();
+      String newValue=newProperty.getStructureValue().trim();
+      writeStructureValue=(oldValue != null && newProperty.deleteStructureValue());
+      writeStructureValue|=!newValue.equals(oldValue) && !"".equalsIgnoreCase(newValue) && !CmsProperty.C_DELETE_VALUE.equalsIgnoreCase(newValue);
+      if (!writeStructureValue) {
+        newProperty.setStructureValue(null);
       }
-      if (oldProperty.getResourceValue() == null) {
-        oldProperty.setResourceValue("");
+      oldValue=oldProperty.getResourceValue();
+      newValue=newProperty.getResourceValue().trim();
+      writeResourceValue=(oldValue != null && newProperty.deleteStructureValue());
+      writeResourceValue|=!newValue.equals(oldValue) && !"".equalsIgnoreCase(newValue) && !CmsProperty.C_DELETE_VALUE.equalsIgnoreCase(newValue);
+      if (!writeResourceValue) {
+        newProperty.setResourceValue(null);
       }
-      if (!newProperty.isIdentical(oldProperty)) {
+      if (writeStructureValue || writeResourceValue) {
         propertiesToWrite.add(newProperty);
       }
     }
