@@ -1,11 +1,17 @@
 {
-  System.err.println("importZipR: noSubFolder: " + noSubFolder);
   boolean isFolder=false;
+  boolean exit=false;
+  int j, r, stop, charsRead, size;
   int entries=0;
+  int totalBytes=0;
+  int offset=0;
   CmsFile file=null;
+  byte[] buffer=null;
   while (true) {
-    int j=0;
-    int stop=0;
+    j=0;
+    stop=0;
+    charsRead=0;
+    totalBytes=0;
     ZipEntry entry=zipStreamIn.getNextEntry();
     if (entry == null) {
       break;
@@ -25,16 +31,11 @@
       path[j]=st.nextToken();
       j++;
     }
-    if (isFolder == true) {
-      stop=path.length;
-    }
- else {
-      stop=path.length - 1;
-    }
+    stop=isFolder == true ? path.length : path.length - 1;
     if (noSubFolder == true) {
       stop=0;
     }
-    for (int r=0; r < stop; r++) {
+    for (r=0; r < stop; r++) {
       try {
         m_cms.createFolder(actImportPath,path[r]);
       }
@@ -44,14 +45,58 @@
     }
     if (isFolder == false) {
       String type=getFileType(path[path.length - 1]);
-      int charsRead=0;
-      int size=new Long(entry.getSize()).intValue();
-      byte[] buffer=new byte[size];
-      while (charsRead < size) {
-        charsRead+=zipStreamIn.read(buffer,charsRead,size - charsRead);
+      size=new Long(entry.getSize()).intValue();
+      System.err.println("size: " + size);
+      if (size == -1) {
+        Vector v=new Vector();
+        while (true) {
+          buffer=new byte[512];
+          offset=0;
+          while (offset < buffer.length) {
+            charsRead=zipStreamIn.read(buffer,offset,buffer.length - offset);
+            if (charsRead == -1) {
+              exit=true;
+              break;
+            }
+            offset+=charsRead;
+            totalBytes+=charsRead;
+          }
+          if (offset > 0) {
+            v.addElement(buffer);
+          }
+          if (exit == true) {
+            exit=false;
+            break;
+          }
+        }
+        buffer=new byte[totalBytes];
+        offset=0;
+        byte[] act=null;
+        for (int z=0; z < v.size() - 1; z++) {
+          act=(byte[])v.elementAt(z);
+          System.arraycopy(act,0,buffer,offset,act.length);
+          offset+=act.length;
+        }
+        act=(byte[])v.lastElement();
+        if ((totalBytes > act.length) && (totalBytes % act.length != 0)) {
+          totalBytes=totalBytes % act.length;
+        }
+ else         if ((totalBytes > act.length) && (totalBytes % act.length == 0)) {
+          totalBytes=act.length;
+        }
+        System.arraycopy(act,0,buffer,offset,totalBytes);
+        if (totalBytes == 0) {
+          buffer=" ".getBytes();
+        }
       }
-      if (size == 0) {
-        buffer=" ".getBytes();
+ else {
+        buffer=new byte[size];
+        while (charsRead < size) {
+          charsRead+=zipStreamIn.read(buffer,charsRead,size - charsRead);
+        }
+        if (size == 0) {
+          buffer=" ".getBytes();
+        }
       }
       file=null;
       try {
