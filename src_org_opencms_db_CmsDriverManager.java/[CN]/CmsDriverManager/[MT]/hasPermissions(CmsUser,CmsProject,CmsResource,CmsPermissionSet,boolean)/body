@@ -1,0 +1,24 @@
+{
+  CmsPermissionSet permissions=null;
+  int denied=0;
+  if (currentProject.isOnlineProject()) {
+    denied|=I_CmsConstants.C_PERMISSION_WRITE;
+  }
+  I_CmsResourceType resType=getResourceType(currentUser,currentProject,resource.getType());
+  if (("XMLTemplate".equals(resType.getResourceTypeName()) || "jsp".equals(resType.getResourceTypeName())) && !isAdmin(currentUser,currentProject)) {
+    denied|=I_CmsConstants.C_PERMISSION_WRITE;
+  }
+  if (resource.isLocked()) {
+    if (!currentUser.getId().equals(resource.isLockedBy()))     denied|=I_CmsConstants.C_PERMISSION_WRITE;
+  }
+  if (isAdmin(currentUser,currentProject)) {
+    permissions=new CmsPermissionSet(~0);
+  }
+ else {
+    CmsAccessControlList acl=getAccessControlList(currentUser,currentProject,resource);
+    permissions=acl.getPermissions(currentUser,getGroupsOfUser(currentUser,currentProject,currentUser.getName()));
+  }
+  permissions.denyPermissions(denied);
+  if (strongCheck)   return (requiredPermissions.getPermissions() & (permissions.getPermissions())) == requiredPermissions.getPermissions();
+ else   return (requiredPermissions.getPermissions() & (permissions.getPermissions())) > 0;
+}
