@@ -5,14 +5,15 @@
   ResultSet res=null;
   Connection conn=null;
   try {
+    byte[] value=internalSerializeAdditionalUserInfo(additionalInfo);
     conn=m_sqlManager.getConnection();
     conn.setAutoCommit(false);
     stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERS_UPDATEINFO");
     stmt.setString(1,userId.toString());
     res=((DelegatingResultSet)stmt.executeQuery()).getInnermostDelegate();
-    if (!res.next())     throw new CmsException("[internalWriteUserInfo]: " + "USER_INFO not found.",CmsException.C_NOT_FOUND);
-    byte[] value=internalSerializeAdditionalUserInfo(additionalInfo);
+    if (!res.next())     throw new CmsException("internalWriteUserInfo id=" + userId.toString() + " user info not found",CmsException.C_NOT_FOUND);
     Blob userInfo=res.getBlob("USER_INFO");
+    ((oracle.sql.BLOB)userInfo).trim(0);
     OutputStream output=((oracle.sql.BLOB)userInfo).getBinaryOutputStream();
     output.write(value);
     output.close();
@@ -26,10 +27,10 @@
     conn.setAutoCommit(true);
   }
  catch (  SQLException e) {
-    throw m_sqlManager.getCmsException(this,"[internalWriteUserInfo]:",CmsException.C_SQL_ERROR,e,false);
+    throw m_sqlManager.getCmsException(this,"internalWriteUserInfo id=" + userId.toString(),CmsException.C_SQL_ERROR,e,false);
   }
 catch (  IOException e) {
-    throw m_sqlManager.getCmsException(this,"[internalWriteUserInfo]:",CmsException.C_SERIALIZATION,e,false);
+    throw m_sqlManager.getCmsException(this,"internalWriteUserInfo id=" + userId.toString(),CmsException.C_SERIALIZATION,e,false);
   }
  finally {
     if (res != null) {

@@ -1,67 +1,73 @@
 {
   PreparedStatement stmt=null;
-  PreparedStatement nextStmt=null;
-  PreparedStatement trimStmt=null;
+  PreparedStatement commit=null;
+  PreparedStatement rollback=null;
   ResultSet res=null;
   Connection conn=null;
-  byte[] value=null;
   try {
-    ByteArrayOutputStream bout=new ByteArrayOutputStream();
-    ObjectOutputStream oout=new ObjectOutputStream(bout);
-    oout.writeObject(object);
-    oout.close();
-    value=bout.toByteArray();
+    byte[] value=internalSerializeObject(object);
     conn=m_sqlManager.getConnection();
-    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_SYSTEMPROPERTIES_NAMEFORUPDATE");
-    stmt.setString(1,name);
     conn.setAutoCommit(false);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_SYSTEMPROPERTIES_UPDATE_BYNAME");
+    stmt.setString(1,name);
     res=((DelegatingResultSet)stmt.executeQuery()).getInnermostDelegate();
-    while (res.next()) {
-      oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB("SYSTEMPROPERTY_VALUE");
-      trimStmt=m_sqlManager.getPreparedStatement(conn,"C_TRIMBLOB");
-      trimStmt.setBlob(1,blob);
-      trimStmt.setInt(2,0);
-      trimStmt.execute();
-      trimStmt.close();
-      ByteArrayInputStream instream=new ByteArrayInputStream(value);
-      OutputStream outstream=blob.getBinaryOutputStream();
-      byte[] chunk=new byte[blob.getChunkSize()];
-      int i=-1;
-      while ((i=instream.read(chunk)) != -1) {
-        outstream.write(chunk,0,i);
-      }
-      instream.close();
-      outstream.close();
-    }
+    if (!res.next())     throw new CmsException("writeSystemProperty name=" + name + " system property not found",CmsException.C_NOT_FOUND);
+    Blob propertyValue=res.getBlob("SYSTEMPROPERTY_VALUE");
+    ((oracle.sql.BLOB)propertyValue).trim(0);
+    OutputStream output=((oracle.sql.BLOB)propertyValue).getBinaryOutputStream();
+    output.write(value);
+    output.close();
+    commit=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
+    commit.execute();
+    commit.close();
+    commit=null;
     stmt.close();
-    res.close();
-    nextStmt=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
-    nextStmt.execute();
-    nextStmt.close();
+    stmt=null;
+    res=null;
     conn.setAutoCommit(true);
   }
  catch (  SQLException e) {
-    throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
+    throw m_sqlManager.getCmsException(this,"writeSystemProperty name=" + name,CmsException.C_SQL_ERROR,e,false);
   }
 catch (  IOException e) {
-    throw m_sqlManager.getCmsException(this,null,CmsException.C_SERIALIZATION,e,false);
+    throw m_sqlManager.getCmsException(this,"writeSystemProperty name=" + name,CmsException.C_SERIALIZATION,e,false);
   }
  finally {
-    if (stmt != null) {
+    if (res != null) {
       try {
-        stmt.close();
-      }
- catch (      SQLException se) {
-      }
-      try {
-        nextStmt=m_sqlManager.getPreparedStatement(conn,"C_ROLLBACK");
-        nextStmt.execute();
+        res.close();
       }
  catch (      SQLException exc) {
       }
     }
-    m_sqlManager.closeAll(null,nextStmt,null);
-    m_sqlManager.closeAll(conn,trimStmt,res);
+    if (commit != null) {
+      try {
+        commit.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (stmt != null) {
+      try {
+        rollback=m_sqlManager.getPreparedStatement(conn,"C_ROLLBACK");
+        rollback.execute();
+        rollback.close();
+      }
+ catch (      SQLException se) {
+      }
+      try {
+        stmt.close();
+      }
+ catch (      SQLException exc) {
+      }
+    }
+    if (conn != null) {
+      try {
+        conn.setAutoCommit(true);
+      }
+ catch (      SQLException se) {
+      }
+    }
   }
   return readSystemProperty(name);
 }
