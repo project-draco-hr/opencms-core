@@ -3,15 +3,22 @@
   Vector changedModuleData=new Vector();
   int versionId=0;
   long publishDate=System.currentTimeMillis();
-  boolean enableHistory=cms.isHistoryEnabled();
-  if (enableHistory) {
-    versionId=cms.getBackupTagId();
-    cms.backupProject(cms.getRequestContext().currentProject().getId(),versionId,publishDate);
+  boolean historyEnabled=cms.isHistoryEnabled();
+  try {
+    if (historyEnabled) {
+      versionId=cms.getBackupTagId();
+      cms.backupProject(cms.getRequestContext().currentProject().getId(),versionId,publishDate);
+    }
+    getDbAccessObject(getSubId()).publishResource(cms,m_dataSet,getSubId(),this.getClass().getName(),historyEnabled,versionId,publishDate,changedResources,changedModuleData);
+    if (CmsXmlTemplateLoader.isElementCacheEnabled(cms)) {
+      CmsXmlTemplateLoader.getOnlineElementCache().cleanupCache(changedResources,changedModuleData);
+    }
   }
-  getDbAccessObject(getSubId()).publishResource(cms,m_dataSet,getSubId(),this.getClass().getName(),enableHistory,versionId,publishDate,changedResources,changedModuleData);
-  if (CmsXmlTemplateLoader.isElementCacheEnabled(cms)) {
-    CmsXmlTemplateLoader.getOnlineElementCache().cleanupCache(changedResources,changedModuleData);
+ catch (  Exception e) {
+    throw e;
   }
-  CmsUUID publishId=new CmsUUID();
-  cms.postPublishBoResource(new CmsPublishedResource(this.getClass().getName(),m_dataSet.m_masterId,getSubId(),m_dataSet.m_state),publishId,versionId);
+ finally {
+    CmsUUID publishId=new CmsUUID();
+    cms.postPublishBoResource(new CmsPublishedResource(this.getClass().getName(),m_dataSet.m_masterId,getSubId(),m_dataSet.m_state),publishId,versionId);
+  }
 }
