@@ -1,0 +1,67 @@
+{
+  Hashtable exportPoints=null;
+  String currentExportPoint=null;
+  List resources=(List)new ArrayList();
+  Iterator i=null;
+  CmsResource currentResource=null;
+  CmsExportPointDriver discAccess=null;
+  CmsProject oldProject=null;
+  try {
+    oldProject=context.currentProject();
+    context.setCurrentProject(I_CmsConstants.C_PROJECT_ONLINE_ID);
+    exportPoints=m_registry.getExportpoints();
+    if (exportPoints.size() == 0) {
+      if (OpenCms.getLog(this).isWarnEnabled()) {
+        OpenCms.getLog(this).warn("No export points configured at all.");
+      }
+      return;
+    }
+    if (report == null) {
+      report=(I_CmsReport)new CmsLogReport();
+    }
+    discAccess=new CmsExportPointDriver(exportPoints);
+    i=exportPoints.keySet().iterator();
+    while (i.hasNext()) {
+      currentExportPoint=(String)i.next();
+      try {
+        resources=readAllSubResourcesInDfs(context,currentExportPoint,-1);
+        setFullResourceNames(context,resources);
+        Iterator j=resources.iterator();
+        while (j.hasNext()) {
+          currentResource=(CmsResource)j.next();
+          if (currentResource.getType() == CmsResourceTypeFolder.C_RESOURCE_TYPE_ID) {
+            discAccess.createFolder(currentResource.getRootPath(),currentExportPoint);
+          }
+ else {
+            CmsFile file=getVfsDriver().readFile(I_CmsConstants.C_PROJECT_ONLINE_ID,false,currentResource.getStructureId());
+            file.setFullResourceName(currentResource.getRootPath());
+            writeExportPoint(context,discAccess,currentExportPoint,file);
+          }
+        }
+      }
+ catch (      CmsException e) {
+        if (e.getType() != CmsException.C_NOT_FOUND) {
+          if (OpenCms.getLog(this).isErrorEnabled()) {
+            OpenCms.getLog(this).error("Error updating export points",e);
+          }
+        }
+      }
+    }
+  }
+ catch (  CmsException e) {
+    if (OpenCms.getLog(this).isErrorEnabled()) {
+      OpenCms.getLog(this).error("Error updating export points",e);
+    }
+  }
+ finally {
+    try {
+      context.setCurrentProject(oldProject.getId());
+    }
+ catch (    CmsException e) {
+      if (OpenCms.getLog(this).isErrorEnabled()) {
+        OpenCms.getLog(this).error("Error setting back current project in request context",e);
+      }
+    }
+    report.println(report.key("report.export_points_write_end"),I_CmsReport.C_FORMAT_HEADLINE);
+  }
+}

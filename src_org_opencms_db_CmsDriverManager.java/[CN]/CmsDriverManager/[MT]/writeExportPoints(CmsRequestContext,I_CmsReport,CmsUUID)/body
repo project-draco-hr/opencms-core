@@ -4,26 +4,33 @@
   List publishedResources=null;
   CmsPublishedResource currentPublishedResource=null;
   String currentExportKey=null;
-  boolean printReportHeader=false;
+  boolean printReportHeaders=false;
   try {
-    publishedResources=getProjectDriver().readPublishedResources(context.currentProject().getId(),publishHistoryId);
     exportPoints=m_registry.getExportpoints();
-    discAccess=new CmsExportPointDriver(exportPoints);
     if (exportPoints.size() == 0) {
       if (OpenCms.getLog(this).isWarnEnabled()) {
-        OpenCms.getLog(this).warn("No export points configured at all. Pls. check registry.xml for configured 'module' XML-nodes if this is correct.");
+        OpenCms.getLog(this).warn("No export points configured at all.");
       }
       return;
     }
+    if (report == null) {
+      report=(I_CmsReport)new CmsLogReport();
+    }
+    publishedResources=getProjectDriver().readPublishedResources(context.currentProject().getId(),publishHistoryId);
+    if (publishedResources.size() == 0) {
+      if (OpenCms.getLog(this).isWarnEnabled()) {
+        OpenCms.getLog(this).warn("No published resources in the publish history for the specified ID " + publishHistoryId + " found.");
+      }
+      return;
+    }
+    discAccess=new CmsExportPointDriver(exportPoints);
     Iterator i=publishedResources.iterator();
     while (i.hasNext()) {
       currentPublishedResource=(CmsPublishedResource)i.next();
       currentExportKey=checkExportPoint(currentPublishedResource.getRootPath(),exportPoints);
       if (currentExportKey != null) {
-        if (!printReportHeader && report != null) {
-          printReportHeader=true;
-          report.println(report.key("report.export_points_write_begin"),I_CmsReport.C_FORMAT_HEADLINE);
-        }
+        report.println(report.key("report.export_points_write_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+        printReportHeaders=true;
         if (currentPublishedResource.getType() == CmsResourceTypeFolder.C_RESOURCE_TYPE_ID) {
           if (currentPublishedResource.getState() == I_CmsConstants.C_STATE_DELETED) {
             discAccess.removeResource(currentPublishedResource.getRootPath(),currentExportKey);
@@ -37,30 +44,22 @@
             discAccess.removeResource(currentPublishedResource.getRootPath(),currentExportKey);
           }
  else {
-            writeExportPoint(context,discAccess,currentExportKey,currentPublishedResource);
+            CmsFile file=getVfsDriver().readFile(I_CmsConstants.C_PROJECT_ONLINE_ID,false,currentPublishedResource.getStructureId());
+            file.setFullResourceName(currentPublishedResource.getRootPath());
+            writeExportPoint(context,discAccess,currentExportKey,file);
           }
         }
-        if (report != null) {
-          if (currentPublishedResource.getState() == I_CmsConstants.C_STATE_DELETED) {
-            report.print(report.key("report.export_points_delete"),I_CmsReport.C_FORMAT_NOTE);
-            report.print(currentPublishedResource.getRootPath());
-            report.print(report.key("report.dots"));
-            report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
-          }
- else {
-            report.print(report.key("report.export_points_write"),I_CmsReport.C_FORMAT_NOTE);
-            report.print(currentPublishedResource.getRootPath());
-            report.print(report.key("report.dots"));
-            report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
-          }
+        if (currentPublishedResource.getState() == I_CmsConstants.C_STATE_DELETED) {
+          report.print(report.key("report.export_points_delete"),I_CmsReport.C_FORMAT_NOTE);
+          report.print(currentPublishedResource.getRootPath());
+          report.print(report.key("report.dots"));
+          report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
         }
- else         if (OpenCms.getLog(this).isDebugEnabled()) {
-          if (currentPublishedResource.getState() == I_CmsConstants.C_STATE_DELETED) {
-            OpenCms.getLog(this).debug("deleting export point " + currentPublishedResource.getRootPath());
-          }
  else {
-            OpenCms.getLog(this).debug("writing export point " + currentPublishedResource.getRootPath());
-          }
+          report.print(report.key("report.export_points_write"),I_CmsReport.C_FORMAT_NOTE);
+          report.print(currentPublishedResource.getRootPath());
+          report.print(report.key("report.dots"));
+          report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
         }
       }
     }
@@ -71,7 +70,7 @@
     }
   }
  finally {
-    if (printReportHeader && report != null) {
+    if (printReportHeaders) {
       report.println(report.key("report.export_points_write_end"),I_CmsReport.C_FORMAT_HEADLINE);
     }
   }
