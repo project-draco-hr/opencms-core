@@ -3,18 +3,30 @@
   if (schema == null) {
     throw new RuntimeException("No XML schema set for content definition");
   }
-  InputSource source;
-  try {
-    source=resolver.resolveEntity(null,schema);
-    return CmsXmlContentDefinition.unmarshal(source,schema,resolver);
+  CmsXmlContentDefinition result=null;
+  CmsXmlEntityResolver cmsResolver=null;
+  if (resolver instanceof CmsXmlEntityResolver) {
+    cmsResolver=(CmsXmlEntityResolver)resolver;
+    result=cmsResolver.getCachedContentDefinition(schema);
   }
- catch (  SAXException e) {
-    throw new RuntimeException("Could not parse XML content definition schema",e);
+  if (result == null) {
+    InputSource source;
+    try {
+      source=resolver.resolveEntity(null,schema);
+      result=CmsXmlContentDefinition.unmarshal(source,schema,resolver);
+      if (cmsResolver != null) {
+        cmsResolver.cacheContentDefinition(schema,result);
+      }
+    }
+ catch (    SAXException e) {
+      throw new RuntimeException("Could not parse XML content definition schema",e);
+    }
+catch (    IOException e) {
+      throw new RuntimeException("IO error resolving XML content definition schema",e);
+    }
+catch (    CmsXmlException e) {
+      throw new RuntimeException("Unable to unmarshal XML content definition schema",e);
+    }
   }
-catch (  IOException e) {
-    throw new RuntimeException("IO error resolving XML content definition schema",e);
-  }
-catch (  CmsXmlException e) {
-    throw new RuntimeException("Unable to unmarshal XML content definition schema",e);
-  }
+  return result;
 }
