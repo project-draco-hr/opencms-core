@@ -52,29 +52,6 @@
     }
     xmlTemplateDocument.setData("moduleselect",this.getModuleSelectbox(cms,xmlTemplateDocument));
   }
-  if ((action != null) && ("working".equals(action))) {
-    A_CmsReportThread doTheWork=(A_CmsReportThread)session.getValue(C_DATABASE_THREAD);
-    if (doTheWork != null && doTheWork.isAlive()) {
-      String time=(String)parameters.get("time");
-      int wert=Integer.parseInt(time);
-      wert+=20;
-      xmlTemplateDocument.setData("time","" + wert);
-      return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"wait");
-    }
- else {
-      String errordetails=(String)session.getValue(C_SESSION_THREAD_ERROR);
-      if (errordetails == null) {
-        session.removeValue(C_PARA_FILE);
-        session.removeValue(C_PARA_FILECONTENT);
-        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"done");
-      }
- else {
-        xmlTemplateDocument.setData("details",errordetails);
-        session.removeValue(C_SESSION_THREAD_ERROR);
-        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"error");
-      }
-    }
-  }
   try {
     if ("export".equals(action)) {
       Vector resourceNames=parseResources(allResources);
@@ -107,10 +84,7 @@
       if (parameters.get("userdata") != null) {
         exportUserdata=true;
       }
-      if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
-        session.removeValue(C_SESSION_THREAD_ERROR);
-      }
-      A_CmsReportThread doExport=new CmsAdminDatabaseExportThread(cms,CmsBase.getAbsolutePath(cms.readExportPath()) + File.separator + fileName,exportPaths,excludeSystem,excludeUnchanged,exportUserdata,contentAge,session);
+      A_CmsReportThread doExport=new CmsAdminDatabaseExportThread(cms,CmsBase.getAbsolutePath(cms.readExportPath()) + File.separator + fileName,exportPaths,excludeSystem,excludeUnchanged,exportUserdata,contentAge);
       doExport.start();
       session.putValue(C_DATABASE_THREAD,doExport);
       xmlTemplateDocument.setData("time","10");
@@ -132,14 +106,12 @@
       for (int i=0; i < moduleNames.size(); i++) {
         exportModules[i]=(String)moduleNames.elementAt(i);
       }
-      if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
-        session.removeValue(C_SESSION_THREAD_ERROR);
-      }
-      A_CmsReportThread doExport=new CmsAdminDatabaseExportThread(cms,CmsBase.getAbsolutePath(cms.readExportPath()) + File.separator + fileName,exportChannels,exportModules,session);
+      A_CmsReportThread doExport=new CmsAdminDatabaseExportThread(cms,CmsBase.getAbsolutePath(cms.readExportPath()) + File.separator + fileName,exportChannels,exportModules);
       doExport.start();
       session.putValue(C_DATABASE_THREAD,doExport);
       xmlTemplateDocument.setData("time","10");
-      templateSelector="wait";
+      xmlTemplateDocument.setData("currenttime","" + System.currentTimeMillis());
+      templateSelector="showresult";
     }
  else     if ("import".equals(action)) {
       if ("local".equals(step) || "server".equals(step)) {
@@ -150,10 +122,7 @@
         step="go";
       }
       if ("go".equals(step)) {
-        if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
-          session.removeValue(C_SESSION_THREAD_ERROR);
-        }
-        A_CmsReportThread doImport=new CmsAdminDatabaseImportThread(cms,CmsBase.getAbsolutePath(cms.readExportPath()) + File.separator + existingFile,session);
+        A_CmsReportThread doImport=new CmsAdminDatabaseImportThread(cms,CmsBase.getAbsolutePath(cms.readExportPath()) + File.separator + existingFile);
         doImport.start();
         session.putValue(C_DATABASE_THREAD,doImport);
         xmlTemplateDocument.setData("time","10");
