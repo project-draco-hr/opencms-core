@@ -1,0 +1,52 @@
+{
+  Hashtable parameters=(Hashtable)userObj;
+  Hashtable preferences=new Hashtable();
+  StringBuffer output=new StringBuffer();
+  String foldername;
+  String currentFolder;
+  CmsXmlWpTemplateFile template=(CmsXmlWpTemplateFile)doc;
+  Vector files;
+  Vector folders;
+  Enumeration enum;
+  CmsFile file;
+  CmsFolder folder;
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  preferences=(Hashtable)session.getValue(C_ADDITIONAL_INFO_PREFERENCES);
+  foldername=cms.getRequestContext().getRequest().getParameter(C_PARA_FOLDER);
+  if (foldername != null) {
+    session.putValue(C_PARA_FOLDER,foldername);
+  }
+  currentFolder=(String)session.getValue(C_PARA_FOLDER);
+  if (currentFolder == null) {
+    currentFolder=cms.getRequestContext().currentFolder().getAbsolutePath();
+  }
+  if (preferences == null) {
+    preferences=getDefaultPreferences();
+  }
+  int filelist=((Integer)preferences.get(C_USERPREF_FILELIST)).intValue();
+  template=checkDisplayedColumns(filelist,template,"");
+  output.append(template.getProcessedXmlDataValue(C_LIST_HEAD,this));
+  folders=cms.getSubFolders(currentFolder);
+  files=cms.getFilesInFolder(currentFolder);
+  enum=files.elements();
+  while (enum.hasMoreElements()) {
+    file=(CmsFile)enum.nextElement();
+    template.setXmlData(C_CLASS_VALUE,"dateingeaendert");
+    template.setXmlData(C_NAME_VALUE,file.getName());
+    String title=cms.readMetainformation(file.getAbsolutePath(),C_METAINFO_TITLE);
+    if (title == null) {
+      title="";
+    }
+    template.setXmlData(C_TITLE_VALUE,title);
+    long time=file.getDateLastModified();
+    template.setXmlData(C_CHANGED_VALUE,getNiceDate(time));
+    template.setXmlData(C_SIZE_VALUE,new Integer(file.getLength()).toString());
+    A_CmsUser owner=cms.readOwner(file);
+    template.setXmlData(C_OWNER_VALUE,owner.getName());
+    A_CmsGroup group=cms.readGroup(file);
+    template.setXmlData(C_GROUP_VALUE,group.getName());
+    template=checkDisplayedColumns(filelist,template,C_SUFFIX_VALUE);
+    output.append(template.getProcessedXmlDataValue(C_LIST_ENTRY,this));
+  }
+  return output.toString();
+}
