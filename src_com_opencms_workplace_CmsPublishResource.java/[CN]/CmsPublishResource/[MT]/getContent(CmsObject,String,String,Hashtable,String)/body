@@ -1,11 +1,85 @@
 {
   I_CmsSession session=cms.getRequestContext().getSession(true);
   CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  CmsXmlLanguageFile lang=xmlTemplateDocument.getLanguageFile();
   String template=null;
   String initial=(String)parameters.get(C_PARA_INITIAL);
   if (initial != null) {
     session.removeValue(C_PARA_FILE);
     session.removeValue("lasturl");
+  }
+  String action=(String)parameters.get("action");
+  if ("showResult".equals(action)) {
+    CmsAdminLinkmanagementThread doTheWork=(CmsAdminLinkmanagementThread)session.getValue(C_PUBLISH_LINKCHECK_THREAD);
+    if (doTheWork.isAlive()) {
+      xmlTemplateDocument.setData("endMethod","");
+      xmlTemplateDocument.setData("text",lang.getDataValue("project.publish.message_linkcheck"));
+    }
+ else {
+      if (doTheWork.brokenLinksFound()) {
+        xmlTemplateDocument.setData("endMethod",xmlTemplateDocument.getDataValue("endMethod2"));
+        xmlTemplateDocument.setData("autoUpdate","");
+        xmlTemplateDocument.setData("text",lang.getDataValue("project.publish.message_brokenlinks") + "<br>" + lang.getDataValue("project.publish.message_brokenlinks2"));
+      }
+ else {
+        xmlTemplateDocument.setData("endMethod",xmlTemplateDocument.getDataValue("endMethod3"));
+        xmlTemplateDocument.setData("autoUpdate","");
+        xmlTemplateDocument.setData("text","");
+      }
+      session.removeValue(C_PUBLISH_LINKCHECK_THREAD);
+    }
+    xmlTemplateDocument.setData("data",doTheWork.getReportUpdate());
+    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"updateReport");
+  }
+  if ("doThePublish".equals(action)) {
+    int projectId=((Integer)session.getValue(C_TEMP_PROJECT_ID)).intValue();
+    session.removeValue(C_TEMP_PROJECT_ID);
+    Thread doPublish=new CmsAdminPublishProjectThread(cms,projectId,session);
+    doPublish.start();
+    session.putValue(C_PUBLISH_THREAD,doPublish);
+    xmlTemplateDocument.setData("actionParameter","showPublishResult");
+    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"showresult");
+  }
+  if ("showPublishResult".equals(action)) {
+    CmsAdminPublishProjectThread doTheWork=(CmsAdminPublishProjectThread)session.getValue(C_PUBLISH_THREAD);
+    if (doTheWork.isAlive()) {
+      xmlTemplateDocument.setData("endMethod","");
+      xmlTemplateDocument.setData("text",lang.getDataValue("project.publish.message_publish"));
+    }
+ else {
+      xmlTemplateDocument.setData("endMethod",xmlTemplateDocument.getDataValue("endMethod"));
+      xmlTemplateDocument.setData("autoUpdate","");
+      xmlTemplateDocument.setData("text",lang.getDataValue("project.publish.message_publish2"));
+      session.removeValue(C_PUBLISH_THREAD);
+    }
+    xmlTemplateDocument.setData("data",doTheWork.getReportUpdate());
+    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"updateReport");
+  }
+  if ("done".equals(action)) {
+    String delTempProject=(String)parameters.get("deleteTempProject");
+    if ("true".equals(delTempProject)) {
+      String resourceName=(String)session.getValue(C_PARA_FILE);
+      cms.lockResource(resourceName,true);
+      cms.unlockResource(resourceName);
+      int delProjectId=((Integer)session.getValue(C_TEMP_PROJECT_ID)).intValue();
+      cms.deleteProject(delProjectId);
+    }
+    session.removeValue("lasturlForPublishResource");
+    session.removeValue(C_PARA_FILE);
+    session.removeValue(C_TEMP_PROJECT_ID);
+    String lasturl=(String)session.getValue("lasturlForPublishResource");
+    try {
+      if (lasturl == null || "".equals(lasturl)) {
+        cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+      }
+ else {
+        cms.getRequestContext().getResponse().sendRedirect(lasturl);
+      }
+    }
+ catch (    Exception e) {
+      throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+    }
+    return null;
   }
   String lasturl=getLastUrl(cms,parameters);
   String filename=(String)parameters.get(C_PARA_FILE);
@@ -13,7 +87,6 @@
     session.putValue(C_PARA_FILE,filename);
   }
   filename=(String)session.getValue(C_PARA_FILE);
-  String action=(String)parameters.get("action");
   CmsResource file=null;
   if (filename.endsWith("/")) {
     file=(CmsResource)cms.readFolder(filename,true);
@@ -46,25 +119,18 @@
         return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"errorlock");
       }
     }
-    if ((action != null) && "wait".equals(action)) {
+    if ("wait".equals(action)) {
       return startProcessing(cms,xmlTemplateDocument,"",parameters,"wait");
     }
-    if ((action != null) && "ok".equals(action)) {
+    if ("ok".equals(action)) {
       try {
-        cms.publishResource(file.getAbsolutePath());
-        session.removeValue(C_PARA_FILE);
-        try {
-          if (lasturl == null || "".equals(lasturl)) {
-            cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
-          }
- else {
-            cms.getRequestContext().getResponse().sendRedirect(lasturl);
-          }
-        }
- catch (        Exception e) {
-          throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
-        }
-        return null;
+        int tempProjectId=cms.publishResource(file.getAbsolutePath(),true);
+        session.putValue(C_TEMP_PROJECT_ID,new Integer(tempProjectId));
+        session.putValue("lasturlForPublishResource",lasturl);
+        CmsAdminLinkmanagementThread doCheck=new CmsAdminLinkmanagementThread(cms,tempProjectId);
+        doCheck.start();
+        session.putValue(C_PUBLISH_LINKCHECK_THREAD,doCheck);
+        template="showresult";
       }
  catch (      CmsException e) {
         session.removeValue(C_PARA_FILE);
@@ -75,7 +141,6 @@
     }
   }
   if (action == null) {
-    CmsXmlLanguageFile lang=xmlTemplateDocument.getLanguageFile();
     xmlTemplateDocument.setData("CHANGEDATE",Utils.getNiceDate(file.getDateLastModified()));
     xmlTemplateDocument.setData("USER",cms.readUser(file.getResourceLastModifiedBy()).getName());
     xmlTemplateDocument.setData("FILENAME",file.getName());
