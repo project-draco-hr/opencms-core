@@ -1,0 +1,106 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  CmsRequestContext reqCont=cms.getRequestContext();
+  String action=new String();
+  action=(String)parameters.get("action");
+  CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  String initial=(String)parameters.get(C_PARA_INITIAL);
+  if (initial != null) {
+    session.removeValue("lasturl");
+    Vector allProjects=cms.getAllAccessibleProjects();
+    int count=0;
+    CmsProject cmsProject=null;
+    int projectId=cms.getRequestContext().currentProject().getId();
+    String projectName=cms.getRegistry().getSystemValue(C_SYNCHRONISATION_PROJECT);
+    for (int i=0; i < allProjects.size(); i++) {
+      cmsProject=(CmsProject)allProjects.elementAt(i);
+      if (cmsProject.getName().equals(projectName)) {
+        projectId=cmsProject.getId();
+        count++;
+      }
+    }
+    if (count == 1) {
+      reqCont.setCurrentProject(projectId);
+      m_newProject=false;
+    }
+ else     if (count == 0) {
+      reqCont.setCurrentProject(cms.createProject(projectName,"Project for synchronisation","Users","Projectmanager").getId());
+      m_newProject=true;
+    }
+ else {
+      xmlTemplateDocument.setData("details","Too many projects for synchronisation.");
+      return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"error");
+    }
+    action="start";
+  }
+  Vector synchronizeResources=parseResources(cms.getRegistry().getSystemValues(C_SYNCHRONISATION_RESOURCE));
+  if ((action != null) && ("working".equals(action))) {
+    Thread doProjectNew=(Thread)session.getValue(C_SYNCFOLDER_THREAD);
+    if (doProjectNew.isAlive()) {
+      String time=(String)parameters.get("time");
+      int wert=Integer.parseInt(time);
+      wert+=5;
+      xmlTemplateDocument.setData("time","" + wert);
+      return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"wait");
+    }
+ else {
+      String errordetails=(String)session.getValue(C_SESSION_THREAD_ERROR);
+      if (errordetails == null) {
+        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"done");
+      }
+ else {
+        xmlTemplateDocument.setData("details",errordetails);
+        session.removeValue(C_SESSION_THREAD_ERROR);
+        return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"error");
+      }
+    }
+  }
+  if ("start".equals(action)) {
+    try {
+      int numRes=synchronizeResources.size();
+      checkRedundancies(synchronizeResources);
+      numRes=synchronizeResources.size();
+      Vector notWriteable=new Vector();
+      String picspath=getConfigFile(cms).getPicGalleryPath();
+      String downloadpath=getConfigFile(cms).getDownGalleryPath();
+      for (int i=numRes - 1; i >= 0; i--) {
+        String theFolder=(String)synchronizeResources.elementAt(i);
+        if (m_newProject) {
+          cms.copyResourceToProject(theFolder);
+        }
+        if (!checkWriteable(cms,theFolder)) {
+          notWriteable.addElement(theFolder);
+          if (!(picspath.equals(theFolder) || downloadpath.equals(theFolder) || C_CONTENTPATH.equals(theFolder))) {
+            templateSelector="error";
+          }
+ else {
+            synchronizeResources.removeElementAt(i);
+          }
+        }
+      }
+      if (!"error".equals(templateSelector)) {
+        if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
+          session.removeValue(C_SESSION_THREAD_ERROR);
+        }
+        Thread doSyncFolder=new CmsSyncFolderThread(cms,synchronizeResources);
+        doSyncFolder.start();
+        session.putValue(C_SYNCFOLDER_THREAD,doSyncFolder);
+        xmlTemplateDocument.setData("time","5");
+        templateSelector="wait";
+      }
+ else {
+        xmlTemplateDocument.setData("details","The following folders were not writeable:" + notWriteable.toString());
+      }
+    }
+ catch (    CmsException exc) {
+      xmlTemplateDocument.setData("details",Utils.getStackTrace(exc));
+      templateSelector="error";
+    }
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
