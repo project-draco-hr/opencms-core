@@ -1,0 +1,93 @@
+{
+  NodeList fileNodes, propertyNodes;
+  Element currentElement, currentProperty;
+  String source, destination, type, user, group, access, launcherStartClass, dummy;
+  long lastmodified=0;
+  Map properties;
+  Vector types=new Vector();
+  if (excludeList == null) {
+    excludeList=new Vector();
+  }
+  m_webAppNames=(List)A_OpenCms.getRuntimeProperty("compatibility.support.webAppNames");
+  if (m_webAppNames == null)   m_webAppNames=new ArrayList();
+  m_webappUrl=(String)A_OpenCms.getRuntimeProperty("compatibility.support.import.old.webappurl");
+  if (m_webappUrl == null) {
+    m_webappUrl="http://localhost:8080/opencms/opencms";
+  }
+  if (m_webappUrl.endsWith("/")) {
+    m_webappUrl=m_webappUrl.substring(0,m_webappUrl.lastIndexOf("/"));
+  }
+  List deleteProperties=(List)A_OpenCms.getRuntimeProperty("compatibility.support.import.remove.propertytags");
+  if (deleteProperties == null)   deleteProperties=new ArrayList();
+  try {
+    fileNodes=m_docXml.getElementsByTagName(C_EXPORT_TAG_FILE);
+    int importSize=fileNodes.getLength();
+    String root=I_CmsConstants.C_DEFAULT_SITE + I_CmsConstants.C_ROOTNAME_VFS;
+    for (int i=0; i < fileNodes.getLength(); i++) {
+      m_report.print(" ( " + (i + 1) + " / "+ importSize+ " ) ");
+      currentElement=(Element)fileNodes.item(i);
+      source=getTextNodeValue(currentElement,C_EXPORT_TAG_SOURCE);
+      destination=getTextNodeValue(currentElement,C_EXPORT_TAG_DESTINATION);
+      type=getTextNodeValue(currentElement,C_EXPORT_TAG_TYPE);
+      user=getTextNodeValue(currentElement,C_EXPORT_TAG_USER);
+      group=getTextNodeValue(currentElement,C_EXPORT_TAG_GROUP);
+      access=getTextNodeValue(currentElement,C_EXPORT_TAG_ACCESS);
+      launcherStartClass=getTextNodeValue(currentElement,C_EXPORT_TAG_LAUNCHER_START_CLASS);
+      if ((dummy=getTextNodeValue(currentElement,C_EXPORT_TAG_LASTMODIFIED)) != null) {
+        lastmodified=Long.parseLong(dummy);
+      }
+ else {
+        lastmodified=System.currentTimeMillis();
+      }
+      if ("script".equals(type)) {
+        type=C_TYPE_PLAIN_NAME;
+      }
+      String translatedName=root + m_importPath + destination;
+      if (C_TYPE_FOLDER_NAME.equals(type)) {
+        translatedName+=C_FOLDER_SEPARATOR;
+      }
+      translatedName=m_cms.getRequestContext().getDirectoryTranslator().translateResource(translatedName);
+      translatedName=translatedName.substring(root.length());
+      if (!excludeList.contains(translatedName)) {
+        m_report.print(m_report.key("report.importing"),I_CmsReport.C_FORMAT_NOTE);
+        m_report.print(translatedName + " ");
+        propertyNodes=currentElement.getElementsByTagName(C_EXPORT_TAG_PROPERTY);
+        properties=new HashMap();
+        if (propertyName != null && propertyValue != null && !"".equals(propertyName)) {
+          if (!types.contains(type)) {
+            types.addElement(type);
+            createPropertydefinition(propertyName,type);
+          }
+          properties.put(propertyName,propertyValue);
+        }
+        for (int j=0; j < propertyNodes.getLength(); j++) {
+          currentProperty=(Element)propertyNodes.item(j);
+          String name=getTextNodeValue(currentProperty,C_EXPORT_TAG_NAME);
+          if ((name != null) && (!deleteProperties.contains(name))) {
+            String value=getTextNodeValue(currentProperty,C_EXPORT_TAG_VALUE);
+            if (value == null) {
+              value="";
+            }
+            properties.put(name,value);
+            createPropertydefinition(name,type);
+          }
+        }
+        importResource(source,destination,type,user,group,access,lastmodified,properties,launcherStartClass,writtenFilenames,fileCodes);
+      }
+ else {
+        m_report.print(m_report.key("report.skipping"),I_CmsReport.C_FORMAT_NOTE);
+        m_report.println(translatedName);
+      }
+    }
+    if (!m_importingChannelData) {
+      m_report.println(m_report.key("report.check_links_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+      updatePageLinks();
+      m_report.println(m_report.key("report.check_links_end"),I_CmsReport.C_FORMAT_HEADLINE);
+      m_cms.joinLinksToTargets(m_report);
+    }
+  }
+ catch (  Exception exc) {
+    m_report.println(exc);
+    throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+}
