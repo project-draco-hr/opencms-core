@@ -1,0 +1,28 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing mapping of values in the XML content");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  String iso="ISO-8859-1";
+  String content;
+  CmsXmlContent xmlcontent;
+  content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-definition-8.xsd",CmsEncoder.C_UTF8_ENCODING);
+  CmsXmlEntityResolver.cacheSystemId(C_SCHEMA_SYSTEM_ID_8,content.getBytes(iso));
+  content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-8.xml",iso);
+  xmlcontent=CmsXmlContentFactory.unmarshal(content,iso,resolver);
+  xmlcontent.validateXmlStructure(resolver);
+  String resourcename="/mappingtext.html";
+  cms.createResource(resourcename,CmsResourceTypeXmlContent.C_RESOURCE_TYPE_ID,content.getBytes(iso),Collections.EMPTY_LIST);
+  CmsFile file=cms.readFile(resourcename);
+  xmlcontent=CmsXmlContentFactory.unmarshal(cms,file);
+  CmsProperty titleProperty;
+  titleProperty=cms.readPropertyObject(resourcename,I_CmsConstants.C_PROPERTY_TITLE,false);
+  assertSame(titleProperty,CmsProperty.getNullProperty());
+  String titleStr="This must be the Title";
+  I_CmsXmlContentValue value;
+  value=xmlcontent.addValue(cms,"String",Locale.ENGLISH,0);
+  value.setStringValue(cms,titleStr);
+  file.setContents(xmlcontent.toString().getBytes(iso));
+  cms.writeFile(file);
+  titleProperty=cms.readPropertyObject(resourcename,I_CmsConstants.C_PROPERTY_TITLE,false);
+  assertEquals(titleStr,titleProperty.getValue());
+}
