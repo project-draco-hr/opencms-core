@@ -1,0 +1,86 @@
+{
+  boolean createTemplateTags=false;
+  Hashtable templateElements=new Hashtable();
+  boolean found=false;
+  for (int i=0; i < m_webAppNames.size(); i++) {
+    if (content.indexOf((String)m_webAppNames.get(i)) != -1) {
+      found=true;
+    }
+  }
+  if (content.indexOf("<edittemplate>") != -1) {
+    found=true;
+  }
+  if (found == true) {
+    InputStream in=new ByteArrayInputStream(content.getBytes());
+    String editString, templateString;
+    try {
+      Document contentXml=A_CmsXmlContent.getXmlParser().parse(in);
+      NodeList editNodes=contentXml.getElementsByTagName("edittemplate");
+      if (editNodes.getLength() < 1) {
+        createTemplateTags=true;
+        NodeList templateNodes=contentXml.getElementsByTagName("TEMPLATE");
+        for (int i=0; i < templateNodes.getLength(); i++) {
+          editString=templateNodes.item(i).getFirstChild().getNodeValue();
+          templateString=editString;
+          try {
+            LinkSubstitution sub=new LinkSubstitution();
+            templateString=sub.substituteContentBody(m_cms,templateString,m_webappUrl,fileName);
+          }
+ catch (          CmsException e) {
+            throw new CmsException("[" + this.getClass().getName() + "] can't parse the content: ",e);
+          }
+          NamedNodeMap attrs=templateNodes.item(i).getAttributes();
+          String templateName="";
+          if (attrs.getLength() > 0) {
+            templateName=attrs.item(0).getNodeValue();
+          }
+          Element newNode=contentXml.createElement("edittemplate");
+          CDATASection newText=contentXml.createCDATASection(editString);
+          newNode.appendChild(newText);
+          attrs=newNode.getAttributes();
+          if (!templateName.equals("")) {
+            newNode.setAttribute("name",templateName);
+          }
+          contentXml.getElementsByTagName("XMLTEMPLATE").item(0).appendChild(newNode);
+          if (templateName.equals("")) {
+            templateName="noNameKey";
+          }
+          templateElements.put(templateName,templateString);
+        }
+        while (templateNodes.getLength() > 0) {
+          contentXml.getElementsByTagName("XMLTEMPLATE").item(0).removeChild(templateNodes.item(0));
+        }
+      }
+      for (int i=0; i < editNodes.getLength(); i++) {
+        editString=editNodes.item(i).getFirstChild().getNodeValue();
+        for (int k=0; k < m_webAppNames.size(); k++) {
+          editString=CmsStringSubstitution.substitute(editString,CmsStringSubstitution.escapePattern((String)m_webAppNames.get(k)),CmsStringSubstitution.escapePattern(C_MACRO_OPENCMS_CONTEXT));
+        }
+        editNodes.item(i).getFirstChild().setNodeValue(editString);
+      }
+      CmsXmlXercesParser parser=new CmsXmlXercesParser();
+      Writer out=new StringWriter();
+      parser.getXmlText(contentXml,out);
+      content=out.toString();
+      if (createTemplateTags) {
+        content=content.substring(0,content.lastIndexOf("</XMLTEMPLATE>"));
+        Enumeration enum=templateElements.keys();
+        while (enum.hasMoreElements()) {
+          String key=(String)enum.nextElement();
+          String value=(String)templateElements.get(key);
+          if (key.equals("noNameKey")) {
+            content+="\n<TEMPLATE><![CDATA[" + value;
+          }
+ else {
+            content+="\n<TEMPLATE name=\"" + key + "\"><![CDATA["+ value;
+          }
+          content+="]]></TEMPLATE>\n";
+        }
+        content+="\n</XMLTEMPLATE>";
+      }
+    }
+ catch (    Exception exc) {
+    }
+  }
+  return content;
+}
