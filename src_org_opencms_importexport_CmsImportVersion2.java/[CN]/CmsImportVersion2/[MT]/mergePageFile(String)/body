@@ -1,6 +1,8 @@
 {
   String mastertemplate="";
   String bodyname="";
+  String bodyclass="";
+  HashMap bodyparams=null;
   CmsFile pagefile=m_cms.readFile(resname);
   InputStream in=new ByteArrayInputStream(pagefile.getContents());
   Document contentXml;
@@ -10,9 +12,31 @@
   if (masterTemplateNode.getLength() == 1) {
     mastertemplate=masterTemplateNode.item(0).getFirstChild().getNodeValue();
   }
-  NodeList bodyNode=contentXml.getElementsByTagName("TEMPLATE");
+  NodeList bodyNode=contentXml.getElementsByTagName("ELEMENTDEF");
   if (bodyNode.getLength() == 1) {
-    bodyname=bodyNode.item(0).getFirstChild().getNodeValue();
+    Node bodyElement=bodyNode.item(0);
+    NodeList nodes=bodyElement.getChildNodes();
+    int i;
+    for (i=0; i < nodes.getLength() && !"CLASS".equals(nodes.item(i).getNodeName()); i++)     ;
+    if (i < nodes.getLength()) {
+      bodyclass=nodes.item(i).getFirstChild().getNodeValue();
+    }
+    for (i=0; i < nodes.getLength() && !"TEMPLATE".equals(nodes.item(i).getNodeName()); i++)     ;
+    if (i < nodes.getLength()) {
+      bodyname=nodes.item(i).getFirstChild().getNodeValue();
+      if (!bodyname.startsWith("/")) {
+        bodyname=CmsResource.getFolderPath(resname) + bodyname;
+      }
+    }
+    for (i=0; i < nodes.getLength(); i++) {
+      if ("PARAMETER".equals(nodes.item(i).getNodeName())) {
+        Node paramElement=nodes.item(i);
+        if (bodyparams == null) {
+          bodyparams=new HashMap();
+        }
+        bodyparams.put(paramElement.getAttributes().getNamedItem("name").getNodeValue(),paramElement.getFirstChild().getNodeValue());
+      }
+    }
     m_cms.lockResource(resname);
     Map properties=m_cms.readProperties(resname);
     bodyfile=m_cms.readFile(bodyname);
@@ -32,6 +56,15 @@
     }
     m_cms.writeFile(pagefile);
     m_cms.writeProperty(resname,I_CmsConstants.C_PROPERTY_TEMPLATE,mastertemplate,true);
+    if (bodyclass != null && !"".equals(bodyclass)) {
+      m_cms.writeProperty(resname,"templateclass",bodyclass,true);
+    }
+    if (bodyparams != null) {
+      for (Iterator p=bodyparams.keySet().iterator(); p.hasNext(); ) {
+        String key=(String)p.next();
+        m_cms.writeProperty(resname,key,(String)bodyparams.get(key),true);
+      }
+    }
     m_cms.writeProperties(resname,properties,true);
     m_cms.touch(resname,pagefile.getDateLastModified(),false,pagefile.getUserLastModified());
     m_cms.unlockResource(resname,false);
