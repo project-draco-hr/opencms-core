@@ -1,0 +1,80 @@
+{
+  String startfolder=getCategoryFolder();
+  if (OpenCms.getLog(this).isDebugEnabled()) {
+    OpenCms.getLog(this).debug("Category start folder is: " + startfolder + ", FAQ resource type is: "+ faqResourceTypeId);
+  }
+  CmsResourceFilter filter=CmsResourceFilter.DEFAULT.addRequireType(CmsResourceTypeFolder.C_RESOURCE_TYPE_ID);
+  List resourceTree=getCmsObject().readResources(startfolder,filter,true);
+  String indent="&nbsp;&nbsp;";
+  StringBuffer result=new StringBuffer(32);
+  if (resourceTree.size() > 0) {
+    result.append("<ul");
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(attrs)) {
+      result.append(" ").append(attrs);
+    }
+    result.append(">\n");
+    int indentCount=0;
+    int startLevel=CmsResource.getPathLevel(getCmsObject().getSitePath((CmsResource)resourceTree.get(0)));
+    int lastLevel=startLevel;
+    m_hasCategoryFolders=true;
+    for (int i=0, n=resourceTree.size(); i < n; i++) {
+      CmsResource resource=(CmsResource)resourceTree.get(i);
+      String resourceName=getCmsObject().getSitePath(resource);
+      if (!resource.isFolder()) {
+        continue;
+      }
+      int faqCount=getResourceCount(resourceName,faqResourceTypeId);
+      int level=CmsResource.getPathLevel(resourceName);
+      if (lastLevel < level) {
+        indentCount++;
+      }
+ else       if (lastLevel > level) {
+        indentCount--;
+      }
+      if (level == startLevel) {
+        if (i == 0) {
+          result.append("<li>\n");
+        }
+ else {
+          result.append("<br>&nbsp;&nbsp;\n");
+          result.append("</li>\n");
+          result.append("<li>\n");
+        }
+      }
+      if (level > startLevel) {
+        result.append("<br>");
+      }
+      for (int j=0; j < indentCount; j++) {
+        result.append(indent);
+      }
+      String faqUri=link(getRequestContext().getUri() + "?" + C_PARAM_CATEGORYFOLDER+ "="+ resourceName);
+      String title=getCmsObject().readPropertyObject(resourceName,I_CmsConstants.C_PROPERTY_TITLE,false).getValue(null);
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(title)) {
+        if (OpenCms.getLog(this).isWarnEnabled()) {
+          OpenCms.getLog(this).warn(resourceName + " has no " + I_CmsConstants.C_PROPERTY_TITLE+ " set!");
+        }
+        title=resource.getName();
+      }
+      result.append("<a href=\"");
+      result.append(faqUri);
+      result.append("\">");
+      if (level == startLevel) {
+        result.append("<b>").append(title).append("</b>");
+      }
+ else {
+        result.append(title);
+      }
+      result.append("</a>");
+      if (level == startLevel) {
+        result.append("&nbsp;&nbsp;(");
+        result.append(faqCount);
+        result.append(")\n");
+      }
+      result.append("\n");
+      lastLevel=level;
+    }
+    result.append("</li>\n");
+    result.append("</ul>\n");
+  }
+  return result.toString();
+}
