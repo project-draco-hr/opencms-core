@@ -1,5 +1,5 @@
 {
-  CmsExportPointDriver discAccess=new CmsExportPointDriver(exportpoints);
+  CmsExportPointDriver discAccess=null;
   CmsFolder currentFolder=null;
   CmsFile currentFile=null;
   CmsResource currentFileHeader=null;
@@ -13,7 +13,6 @@
   Vector changedResources=new Vector();
   String currentExportKey=null;
   String currentResourceName=null;
-  int backupVersionId=1;
   long publishDate=System.currentTimeMillis();
   Iterator i=null;
   boolean publishCurrentResource=false;
@@ -24,13 +23,14 @@
   List sortedFolderList=null;
   CmsResource delOnlineFolder=null;
   byte[] contents=null;
+  int publishHistoryId=nextPublishVersionId();
   try {
+    discAccess=new CmsExportPointDriver(exportpoints);
     if (backupEnabled) {
-      backupVersionId=m_driverManager.getBackupVersionId();
-      m_driverManager.backupProject(context,context.currentProject(),backupVersionId,publishDate,context.currentUser());
+      m_driverManager.backupProject(context,context.currentProject(),backupTagId,publishDate,context.currentUser());
     }
     projectResources=m_driverManager.readProjectResources(context.currentProject());
-    offlineFolders=m_driverManager.getVfsDriver().readFolders(context.currentProject(),false,false);
+    offlineFolders=m_driverManager.getVfsDriver().readFolders(context.currentProject().getId());
     sortedFolderMap=(Map)new HashMap();
     i=offlineFolders.iterator();
     while (i.hasNext()) {
@@ -99,9 +99,9 @@
             }
           }
           if (backupEnabled) {
-            m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFolder,properties,backupVersionId,publishDate);
-            m_driverManager.getBackupDriver().writePublishHistoryResource(context.currentProject(),backupVersionId,currentResourceName,currentFolder);
+            m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFolder,properties,backupTagId,publishDate);
           }
+          writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,currentResourceName,currentFolder);
           if (currentFolder.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
             currentFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
             m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFolder,CmsDriverManager.C_UPDATE_ALL);
@@ -142,9 +142,9 @@
             }
           }
           if (backupEnabled) {
-            m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFolder,properties,backupVersionId,publishDate);
-            m_driverManager.getBackupDriver().writePublishHistoryResource(context.currentProject(),backupVersionId,currentResourceName,currentFolder);
+            m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFolder,properties,backupTagId,publishDate);
           }
+          writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,currentResourceName,currentFolder);
           if (currentFolder.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
             currentFolder.setState(I_CmsConstants.C_STATE_UNCHANGED);
             m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFolder,CmsDriverManager.C_UPDATE_ALL);
@@ -157,10 +157,14 @@
         onlineFolder=null;
       }
     }
-    sortedFolderList.clear();
-    sortedFolderList=null;
-    sortedFolderMap.clear();
-    sortedFolderMap=null;
+    if (sortedFolderList != null) {
+      sortedFolderList.clear();
+      sortedFolderList=null;
+    }
+    if (sortedFolderMap != null) {
+      sortedFolderMap.clear();
+      sortedFolderMap=null;
+    }
     offlineFiles=m_driverManager.getVfsDriver().readFiles(context.currentProject().getId());
     i=offlineFiles.iterator();
     while (i.hasNext()) {
@@ -210,9 +214,9 @@ onlineFile=m_driverManager.readFileInProject(context,onlineProject.getId(),curre
 onlineFile.setFullResourceName(currentResourceName);
 if (backupEnabled) {
 properties=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFile,currentFile.getType());
-m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,properties,backupVersionId,publishDate);
-m_driverManager.getBackupDriver().writePublishHistoryResource(context.currentProject(),backupVersionId,currentResourceName,currentFile);
+m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,properties,backupTagId,publishDate);
 }
+writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,currentResourceName,currentFile);
 try {
 m_driverManager.getVfsDriver().deleteAllProperties(onlineProject.getId(),onlineFile);
 m_driverManager.getVfsDriver().deleteAllProperties(context.currentProject().getId(),currentFile);
@@ -279,9 +283,9 @@ OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "]
 }
 m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,currentFile.getResourceAceId(),onlineFile.getResourceAceId());
 if (backupEnabled) {
-m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,properties,backupVersionId,publishDate);
-m_driverManager.getBackupDriver().writePublishHistoryResource(context.currentProject(),backupVersionId,currentResourceName,currentFile);
+m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,properties,backupTagId,publishDate);
 }
+writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,currentResourceName,currentFile);
 if (currentFile.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
 currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
 m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFile,CmsDriverManager.C_UPDATE_ALL);
@@ -334,9 +338,9 @@ OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[" + this.getClass().getName() + "]
 }
 m_driverManager.getUserDriver().publishAccessControlEntries(context.currentProject(),onlineProject,currentFile.getResourceAceId(),newFile.getResourceAceId());
 if (backupEnabled) {
-m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,properties,backupVersionId,publishDate);
-m_driverManager.getBackupDriver().writePublishHistoryResource(context.currentProject(),backupVersionId,currentResourceName,currentFile);
+m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFile,properties,backupTagId,publishDate);
 }
+writePublishHistory(context.currentProject(),publishHistoryId,backupTagId,currentResourceName,currentFile);
 if (currentFile.getState() != I_CmsConstants.C_STATE_UNCHANGED) {
 currentFile.setState(I_CmsConstants.C_STATE_UNCHANGED);
 m_driverManager.getVfsDriver().updateResourceState(context.currentProject(),currentFile,CmsDriverManager.C_UPDATE_ALL);
@@ -351,8 +355,10 @@ onlineFile=null;
 contents=null;
 }
 }
+if (offlineFiles != null) {
 offlineFiles.clear();
 offlineFiles=null;
+}
 if (deletedFolders.isEmpty()) {
 return changedResources;
 }
@@ -366,8 +372,10 @@ sortedFolderMap.put(currentResourceName,currentFolder);
 sortedFolderList=(List)new ArrayList(sortedFolderMap.keySet());
 Collections.sort(sortedFolderList);
 Collections.reverse(sortedFolderList);
+if (deletedFolders != null) {
 deletedFolders.clear();
 deletedFolders=null;
+}
 i=sortedFolderList.iterator();
 while (i.hasNext()) {
 currentResourceName=(String)i.next();
@@ -380,7 +388,7 @@ discAccess.removeResource(currentResourceName,currentExportKey);
 }
 if (backupEnabled) {
 properties=m_driverManager.getVfsDriver().readProperties(context.currentProject().getId(),currentFolder,currentFolder.getType());
-m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFolder,properties,backupVersionId,publishDate);
+m_driverManager.getBackupDriver().writeBackupResource(context.currentUser(),context.currentProject(),currentFolder,properties,backupTagId,publishDate);
 }
 delOnlineFolder=m_driverManager.readFolder(context,currentFolder.getId(),true);
 delOnlineFolder.setFullResourceName(currentResourceName);
@@ -400,10 +408,14 @@ m_driverManager.getUserDriver().removeAllAccessControlEntries(context.currentPro
 currentFolder=null;
 delOnlineFolder=null;
 }
+if (sortedFolderList != null) {
 sortedFolderList.clear();
 sortedFolderList=null;
+}
+if (sortedFolderMap != null) {
 sortedFolderMap.clear();
 sortedFolderMap=null;
+}
 }
  catch (CmsException e) {
 if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {

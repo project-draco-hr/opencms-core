@@ -3,18 +3,21 @@
   Vector changedResources=new Vector();
   Vector changedModuleMasters=new Vector();
   int publishProjectId=context.currentProject().getId();
+  boolean backupEnabled=isHistoryEnabled(cms);
+  int versionId=0;
   if ((isAdmin(context) || isManagerOfProject(context)) && (context.currentProject().getFlags() == I_CmsConstants.C_PROJECT_STATE_UNLOCKED) && (publishProjectId != I_CmsConstants.C_PROJECT_ONLINE_ID)) {
     try {
-      changedResources=m_projectDriver.publishProject(context,readProject(I_CmsConstants.C_PROJECT_ONLINE_ID),isHistoryEnabled(cms),report,m_registry.getExportpoints());
+      if (backupEnabled) {
+        versionId=getBackupVersionId();
+      }
+ else {
+        versionId=0;
+      }
+      changedResources=m_projectDriver.publishProject(context,readProject(I_CmsConstants.C_PROJECT_ONLINE_ID),isHistoryEnabled(cms),versionId,report,m_registry.getExportpoints());
       Vector publishModules=new Vector();
       cms.getRegistry().getModulePublishables(publishModules,null);
-      int versionId=0;
       long publishDate=System.currentTimeMillis();
-      if (isHistoryEnabled(cms)) {
-        versionId=m_backupDriver.nextBackupVersionId();
-        if (versionId > 1) {
-          versionId--;
-        }
+      if (backupEnabled) {
         try {
           publishDate=m_backupDriver.readBackupProject(versionId).getPublishingDate();
         }
