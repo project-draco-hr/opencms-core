@@ -3,14 +3,30 @@
   if (!accessRead(currentUser,currentProject,res)) {
     throw new CmsException("[" + this.getClass().getName() + "] "+ resource,CmsException.C_NO_ACCESS);
   }
+  property=property.toLowerCase();
   search=search && (siteRoot != null);
   String cacheKey=getCacheKey(property + search,null,new CmsProject(currentProject.getId(),-1),res.getResourceName());
   String value=(String)m_propertyCache.get(cacheKey);
   if (value == null) {
-    if (search) {
-      String cacheKey2=getCacheKey(property + false,null,new CmsProject(currentProject.getId(),-1),res.getResourceName());
-      value=(String)m_propertyCache.get(cacheKey2);
+    String cacheKey2=getCacheKey(C_CACHE_ALL_PROPERTIES + search,null,new CmsProject(currentProject.getId(),-1),res.getResourceName());
+    Map allProperties=(HashMap)m_propertyCache.get(cacheKey2);
+    if (allProperties != null) {
+      value=(String)allProperties.get(property);
       if (value == null) {
+        Iterator i=allProperties.keySet().iterator();
+        while (i.hasNext()) {
+          String key=(String)i.next();
+          if (key.equalsIgnoreCase(property)) {
+            value=(String)allProperties.get(key);
+            break;
+          }
+        }
+      }
+    }
+ else     if (search) {
+      String cacheKey3=getCacheKey(property + false,null,new CmsProject(currentProject.getId(),-1),res.getResourceName());
+      value=(String)m_propertyCache.get(cacheKey3);
+      if ((value == null) || (value == C_CACHE_NULL_PROPERTY_VALUE)) {
         boolean cont;
         siteRoot+="/";
         do {
@@ -24,7 +40,8 @@
  else {
       value=m_dbAccess.readProperty(property,currentProject.getId(),res,res.getType());
     }
+    if (value == null)     value=C_CACHE_NULL_PROPERTY_VALUE;
     m_propertyCache.put(cacheKey,value);
   }
-  return value;
+  return (value == C_CACHE_NULL_PROPERTY_VALUE) ? null : value;
 }
