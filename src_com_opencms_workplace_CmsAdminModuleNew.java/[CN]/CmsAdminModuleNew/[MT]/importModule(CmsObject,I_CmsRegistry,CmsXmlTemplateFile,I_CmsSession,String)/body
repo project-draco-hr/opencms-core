@@ -1,0 +1,43 @@
+{
+  String nav=(String)session.getValue(C_MODULE_NAV);
+  Vector conflictFiles=null;
+  if (nav == null) {
+    String moduleName=reg.importGetModuleName(zipName);
+    if (reg.moduleExists(moduleName)) {
+      xmlDocument.setData("name",moduleName);
+      xmlDocument.setData("version","" + reg.getModuleVersion(moduleName));
+      session.removeValue(C_MODULE_NAV);
+      return C_ERRORREPLACE;
+    }
+    Vector needs=reg.importCheckDependencies(zipName);
+    if (!needs.isEmpty()) {
+      xmlDocument.setData("name",moduleName);
+      xmlDocument.setData("version","" + reg.getModuleVersion(moduleName));
+      String preconditions="";
+      for (int i=0; i < needs.size(); i++) {
+        preconditions+="<br><br>" + needs.elementAt(i);
+      }
+      xmlDocument.setData("precondition",preconditions);
+      session.removeValue(C_MODULE_NAV);
+      return C_ERRORDEP;
+    }
+    conflictFiles=reg.importGetConflictingFileNames(zipName);
+    if (!conflictFiles.isEmpty()) {
+      session.putValue(C_SESSION_MODULE_VECTOR,conflictFiles);
+      session.putValue(C_MODULE_NAV,C_FILES);
+      session.putValue(C_MODULE_FILENAME,zipName);
+      return C_FILES;
+    }
+  }
+ else   if (C_FILES.equals(nav)) {
+    zipName=(String)session.getValue(C_MODULE_FILENAME);
+    conflictFiles=(Vector)session.getValue(C_SESSION_MODULE_VECTOR);
+    session.removeValue(C_MODULE_NAV);
+  }
+  Vector projectFiles=reg.importGetResourcesForProject(zipName);
+  Thread doTheImport=new CmsAdminModuleImport(cms,reg,zipName,conflictFiles,projectFiles);
+  doTheImport.start();
+  session.putValue(C_MODULE_THREAD,doTheImport);
+  xmlDocument.setData("time","10");
+  return C_WAIT;
+}

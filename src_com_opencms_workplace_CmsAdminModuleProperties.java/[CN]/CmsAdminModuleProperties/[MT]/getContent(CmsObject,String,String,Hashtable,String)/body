@@ -1,0 +1,99 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  I_CmsRegistry reg=cms.getRegistry();
+  String view=(String)parameters.get(C_VIEW);
+  String module=(String)parameters.get(C_MODULENAME);
+  if ((view != null) && (C_DESCRIPTION.equals(view))) {
+    xmlTemplateDocument.setData("name",module);
+    xmlTemplateDocument.setData("version","" + reg.getModuleVersion(module));
+    xmlTemplateDocument.setData("descriptiontext",reg.getModuleDescription(module));
+    xmlTemplateDocument.setData("author",reg.getModuleAuthor(module));
+    xmlTemplateDocument.setData("email",reg.getModuleAuthorEmail(module));
+    xmlTemplateDocument.setData("createdate",Utils.getNiceDate(reg.getModuleCreateDate(module)));
+    xmlTemplateDocument.setData("uploadfrom",reg.getModuleUploadedBy(module));
+    xmlTemplateDocument.setData("uploaddate",Utils.getNiceDate(reg.getModuleUploadDate(module)));
+    xmlTemplateDocument.setData("view",reg.getModuleViewName(module));
+    String docu=reg.getModuleDocumentPath(module);
+    if ((docu != null) && (docu.length() > 1)) {
+      xmlTemplateDocument.setData("documentation",docu.substring(1));
+    }
+ else {
+      xmlTemplateDocument.setData("documentation","");
+    }
+    Vector depNames=new Vector();
+    Vector minVersion=new Vector();
+    Vector maxVersion=new Vector();
+    int deps=reg.getModuleDependencies(module,depNames,minVersion,maxVersion);
+    String dependences="";
+    for (int i=0; i < deps; i++) {
+      String max=(String)maxVersion.elementAt(i);
+      if ("-1".equals(max)) {
+        dependences+=(String)depNames.elementAt(i) + "  " + (String)minVersion.elementAt(i)+ " - "+ "*"+ "\n";
+      }
+ else {
+        dependences+=(String)depNames.elementAt(i) + "  " + (String)minVersion.elementAt(i)+ " - "+ max+ "\n";
+      }
+    }
+    xmlTemplateDocument.setData("dependences",dependences);
+    String[] repositorys=reg.getModuleRepositories(module);
+    String outputRep="";
+    for (int i=0; i < repositorys.length; i++) {
+      outputRep+=repositorys[i] + "\n";
+    }
+    xmlTemplateDocument.setData("repository",outputRep);
+    templateSelector=C_DESCRIPTION;
+  }
+ else   if ((view != null) && (C_PARAMETER.equals(view))) {
+    xmlTemplateDocument.setData("name",module);
+    xmlTemplateDocument.setData("version","" + reg.getModuleVersion(module));
+    String[] parameterNames=reg.getModuleParameterNames(module);
+    String allParameter="";
+    for (int i=0; i < parameterNames.length; i++) {
+      xmlTemplateDocument.setData("paraname",parameterNames[i]);
+      xmlTemplateDocument.setData("paravalue",reg.getModuleParameter(module,parameterNames[i]));
+      allParameter+=xmlTemplateDocument.getProcessedDataValue("parameterentry");
+    }
+    xmlTemplateDocument.setData("allparameter",allParameter);
+    templateSelector=C_PARAMETER;
+  }
+ else   if ((view != null) && (C_CHANGE_PARAMETER.equals(view))) {
+    String parameter=(String)parameters.get("selectpara");
+    String fromError=(String)parameters.get(C_FROMERRORPAGE);
+    if (fromError != null) {
+      module=(String)session.getValue(C_SESSION_MODULENAME);
+      parameter=(String)session.getValue(C_SESSION_PARAMETER);
+      session.removeValue(C_SESSION_MODULENAME);
+      session.removeValue(C_SESSION_PARAMETER);
+    }
+    xmlTemplateDocument.setData("name",module);
+    xmlTemplateDocument.setData("version","" + reg.getModuleVersion(module));
+    xmlTemplateDocument.setData("paraname",parameter);
+    xmlTemplateDocument.setData("paratext",reg.getModuleParameterDescription(module,parameter));
+    xmlTemplateDocument.setData("paratype",reg.getModuleParameterType(module,parameter));
+    xmlTemplateDocument.setData("paravalue",reg.getModuleParameter(module,parameter));
+    templateSelector=C_CHANGE_PARAMETER;
+  }
+ else   if ((view != null) && (C_NEW_VALUE.equals(view))) {
+    String parameter=(String)parameters.get("parameter");
+    String value=(String)parameters.get("parawert");
+    xmlTemplateDocument.setData("name",module);
+    templateSelector="done";
+    try {
+      reg.setModuleParameter(module,parameter,value);
+    }
+ catch (    CmsException e) {
+      session.putValue(C_SESSION_MODULENAME,module);
+      session.putValue(C_SESSION_PARAMETER,parameter);
+      templateSelector="error";
+      xmlTemplateDocument.setData("paraname",parameter);
+      xmlTemplateDocument.setData("DETAILS",Utils.getStackTrace(e));
+    }
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}

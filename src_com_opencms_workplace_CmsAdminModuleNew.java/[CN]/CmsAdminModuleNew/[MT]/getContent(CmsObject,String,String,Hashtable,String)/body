@@ -1,0 +1,88 @@
+{
+  if (C_DEBUG && A_OpenCms.isLogging()) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsXmlTemplateFile xmlTemplateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  I_CmsRegistry reg=cms.getRegistry();
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  String errorNavigation=(String)parameters.get(C_FROMERRORPAGE);
+  if (errorNavigation != null) {
+    templateSelector=importModule(cms,reg,xmlTemplateDocument,session,null);
+    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+  }
+  String step=(String)parameters.get("step");
+  if ((step != null) && ("working".equals(step))) {
+    Thread doImport=(Thread)session.getValue(C_MODULE_THREAD);
+    if (doImport.isAlive()) {
+      String time=(String)parameters.get("time");
+      int wert=Integer.parseInt(time);
+      wert+=20;
+      xmlTemplateDocument.setData("time","" + wert);
+      return startProcessing(cms,xmlTemplateDocument,elementName,parameters,C_WAIT);
+    }
+ else {
+      return startProcessing(cms,xmlTemplateDocument,elementName,parameters,C_DONE);
+    }
+  }
+  if (step != null) {
+    if ("server".equals(step)) {
+      File modulefolder=new File(cms.readExportPath() + reg.C_MODULE_PATH);
+      String[] modules=modulefolder.list();
+      String listentrys="";
+      for (int i=0; i < modules.length; i++) {
+        xmlTemplateDocument.setData("modulname",modules[i]);
+        listentrys+=xmlTemplateDocument.getProcessedDataValue("optionentry");
+      }
+      xmlTemplateDocument.setData("entries",listentrys);
+      templateSelector="server";
+    }
+ else     if ("local".equals(step)) {
+      templateSelector="local";
+    }
+ else     if ("localupload".equals(step)) {
+      String filename=null;
+      Enumeration files=cms.getRequestContext().getRequest().getFileNames();
+      while (files.hasMoreElements()) {
+        filename=(String)files.nextElement();
+      }
+      if (filename != null) {
+        session.putValue(C_PARA_FILE,filename);
+      }
+      filename=(String)session.getValue(C_PARA_FILE);
+      byte[] filecontent=new byte[0];
+      if (filename != null) {
+        filecontent=cms.getRequestContext().getRequest().getFile(filename);
+      }
+      if (filecontent != null) {
+        session.putValue(C_PARA_FILECONTENT,filecontent);
+      }
+      filecontent=(byte[])session.getValue(C_PARA_FILECONTENT);
+      File discFolder=new File(cms.readExportPath() + reg.C_MODULE_PATH);
+      if (!discFolder.exists()) {
+        boolean success=discFolder.mkdir();
+        if ((!success) && A_OpenCms.isLogging()) {
+          A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsAccessFilesystem] Couldn't create folder " + cms.readExportPath() + reg.C_MODULE_PATH+ ".");
+        }
+      }
+      File discFile=new File(cms.readExportPath() + reg.C_MODULE_PATH + filename);
+      try {
+        OutputStream s=new FileOutputStream(discFile);
+        s.write(filecontent);
+        s.close();
+      }
+ catch (      Exception e) {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage());
+      }
+      session.removeValue(C_MODULE_NAV);
+      templateSelector=importModule(cms,reg,xmlTemplateDocument,session,cms.readExportPath() + reg.C_MODULE_PATH + filename);
+    }
+ else     if ("serverupload".equals(step)) {
+      String filename=(String)parameters.get("moduleselect");
+      session.removeValue(C_MODULE_NAV);
+      templateSelector=importModule(cms,reg,xmlTemplateDocument,session,cms.readExportPath() + reg.C_MODULE_PATH + filename);
+    }
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
