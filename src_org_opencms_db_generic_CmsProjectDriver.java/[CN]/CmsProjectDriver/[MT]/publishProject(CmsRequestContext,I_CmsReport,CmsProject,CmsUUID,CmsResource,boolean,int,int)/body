@@ -12,7 +12,10 @@
   List projectResources=null;
   Map sortedFolderMap=null;
   List sortedFolderList=null;
-  int m, n;
+  int n;
+  int publishedFolderCount=0;
+  int deletedFolderCount=0;
+  int publishedFileCount=0;
   Set publishedContentIds=(Set)new HashSet();
   try {
     if (backupEnabled) {
@@ -45,7 +48,7 @@
     Collections.sort(sortedFolderList);
     offlineFolders.clear();
     offlineFolders=null;
-    m=1;
+    publishedFolderCount=0;
     n=sortedFolderList.size();
     i=sortedFolderList.iterator();
     if (n > 0) {
@@ -58,11 +61,11 @@
         deletedFolders.add(currentFolder);
       }
  else       if (currentFolder.getState() == I_CmsConstants.C_STATE_NEW) {
-        m_driverManager.getProjectDriver().publishFolder(context,report,m++,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
+        m_driverManager.getProjectDriver().publishFolder(context,report,++publishedFolderCount,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
         internalResetResourceState(context,currentFolder);
       }
  else       if (currentFolder.getState() == I_CmsConstants.C_STATE_CHANGED) {
-        m_driverManager.getProjectDriver().publishFolder(context,report,m++,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
+        m_driverManager.getProjectDriver().publishFolder(context,report,++publishedFolderCount,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
         internalResetResourceState(context,currentFolder);
       }
       i.remove();
@@ -125,7 +128,7 @@ if (!publishCurrentResource) {
 i.remove();
 }
 }
-m=1;
+publishedFileCount=0;
 n=offlineFiles.size();
 i=offlineFiles.iterator();
 if (n > 0) {
@@ -135,7 +138,7 @@ while (i.hasNext()) {
 currentFileHeader=(CmsResource)i.next();
 currentResourceName=currentFileHeader.getRootPath();
 currentFileHeader.setFullResourceName(currentResourceName);
-m_driverManager.getProjectDriver().publishFile(context,report,m++,n,onlineProject,currentFileHeader,publishedContentIds,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
+m_driverManager.getProjectDriver().publishFile(context,report,++publishedFileCount,n,onlineProject,currentFileHeader,publishedContentIds,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
 if (currentFileHeader.getState() != I_CmsConstants.C_STATE_DELETED) {
 internalResetResourceState(context,currentFileHeader);
 }
@@ -167,7 +170,7 @@ if (deletedFolders != null) {
 deletedFolders.clear();
 deletedFolders=null;
 }
-m=1;
+deletedFolderCount=0;
 n=sortedFolderList.size();
 i=sortedFolderList.iterator();
 if (n > 0) {
@@ -176,7 +179,7 @@ report.println(report.key("report.publish_delete_folders_begin"),I_CmsReport.C_F
 while (i.hasNext()) {
 currentResourceName=(String)i.next();
 currentFolder=(CmsFolder)sortedFolderMap.get(currentResourceName);
-m_driverManager.getProjectDriver().publishDeletedFolder(context,report,m++,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
+m_driverManager.getProjectDriver().publishDeletedFolder(context,report,++deletedFolderCount,n,onlineProject,currentFolder,backupEnabled,publishDate,publishHistoryId,backupTagId,maxVersions);
 i.remove();
 }
 if (n > 0) {
@@ -228,5 +231,19 @@ offlineFiles=null;
 }
 currentFileHeader=null;
 currentFolder=null;
+StringBuffer stats=new StringBuffer();
+stats.append(report.key("report.publish_stats"));
+stats.append(report.key("report.publish_stats_files"));
+stats.append(publishedFileCount);
+stats.append(report.key("report.publish_stats_folders"));
+stats.append(publishedFolderCount);
+stats.append(report.key("report.publish_stats_deleted_folders"));
+stats.append(deletedFolderCount);
+stats.append(report.key("report.publish_stats_duration"));
+stats.append(report.formatRuntime());
+if (OpenCms.getLog(this).isInfoEnabled()) {
+OpenCms.getLog(this).info(stats.toString());
+}
+report.println(stats.toString());
 }
 }
