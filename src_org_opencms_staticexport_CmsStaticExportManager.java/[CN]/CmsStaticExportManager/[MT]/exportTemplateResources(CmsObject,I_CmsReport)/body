@@ -8,6 +8,7 @@
   Iterator i=publishedTemplateResources.iterator();
   HttpClient client=new HttpClient();
   Header exportHeader=new Header(I_CmsConstants.C_HEADER_OPENCMS_EXPORT,"true");
+  Header lastModified;
   try {
     cms.getRequestContext().saveSiteRoot();
     cms.getRequestContext().setSiteRoot("/");
@@ -21,6 +22,13 @@
       if (url != null) {
         HttpMethod method=new GetMethod(url);
         method.addRequestHeader(exportHeader);
+        String exportFileName=CmsLinkManager.normalizeRfsPath(getExportPath() + rfsName.substring(1));
+        File exportFile=new File(exportFileName);
+        if (exportFile != null) {
+          long timestamp=exportFile.lastModified();
+          lastModified=new Header(I_CmsConstants.C_HEADER_IF_MODIFIED_SINCE,new Long(timestamp).toString());
+          method.addRequestHeader(lastModified);
+        }
         client.executeMethod(method);
         report.println(report.key("report.ok") + " ",I_CmsReport.C_FORMAT_OK);
         method.releaseConnection();
