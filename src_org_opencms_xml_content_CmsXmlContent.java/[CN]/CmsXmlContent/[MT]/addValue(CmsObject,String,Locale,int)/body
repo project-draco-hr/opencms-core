@@ -1,0 +1,66 @@
+{
+  I_CmsXmlSchemaType type=m_contentDefinition.getSchemaType(path);
+  Element parentElement;
+  String elementName;
+  CmsXmlContentDefinition contentDefinition;
+  if (CmsXmlUtils.isDeepXpath(path)) {
+    String parentPath=CmsXmlUtils.removeLastXpathElement(path);
+    Object o=getBookmark(parentPath,locale);
+    if (o == null) {
+      throw new IllegalArgumentException("Unknown XML content element path " + path);
+    }
+    CmsXmlNestedContentDefinition parentValue=(CmsXmlNestedContentDefinition)o;
+    parentElement=parentValue.getElement();
+    elementName=CmsXmlUtils.getLastXpathElement(path);
+    contentDefinition=parentValue.getNestedContentDefinition();
+  }
+ else {
+    parentElement=getLocaleNode(locale);
+    elementName=CmsXmlUtils.removeXpathIndex(path);
+    contentDefinition=m_contentDefinition;
+  }
+  List siblings=parentElement.elements(elementName);
+  int insertIndex;
+  if (siblings.size() > 0) {
+    if (siblings.size() >= type.getMaxOccurs()) {
+      throw new RuntimeException("Element '" + elementName + "' can occur at maximum "+ type.getMaxOccurs()+ " times");
+    }
+    if (index > siblings.size()) {
+      throw new RuntimeException("You can't insert at position " + index + " because element '"+ elementName+ "' only occurs "+ siblings.size()+ " times");
+    }
+    int offset=(index == siblings.size()) ? 1 : 0;
+    Element sibling=(Element)siblings.get(index - offset);
+    insertIndex=sibling.getParent().content().indexOf(sibling) + offset;
+  }
+ else {
+    if (index > 0) {
+      throw new RuntimeException("You must insert at 0 not at position " + index + " because element '"+ elementName+ "' does not yet occur in the parent node");
+    }
+    int typeIndex=contentDefinition.getTypeSequence().indexOf(type);
+    if (typeIndex == 0) {
+      insertIndex=0;
+    }
+ else {
+      List previousTypeNames=new ArrayList();
+      for (int i=0; i < typeIndex; i++) {
+        I_CmsXmlSchemaType t=(I_CmsXmlSchemaType)contentDefinition.getTypeSequence().get(i);
+        previousTypeNames.add(t.getElementName());
+      }
+      Iterator i=parentElement.content().iterator();
+      int pos=0;
+      while (i.hasNext()) {
+        Node node=(Node)i.next();
+        if (node instanceof Element) {
+          if (!previousTypeNames.contains(node.getName())) {
+            break;
+          }
+        }
+        pos++;
+      }
+      insertIndex=pos;
+    }
+  }
+  I_CmsXmlContentValue newValue=addValue(cms,parentElement,type,locale,insertIndex);
+  initDocument(m_document,m_encoding,m_contentDefinition);
+  return newValue;
+}
