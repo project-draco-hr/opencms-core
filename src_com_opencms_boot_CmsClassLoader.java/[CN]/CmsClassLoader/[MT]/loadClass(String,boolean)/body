@@ -1,0 +1,112 @@
+{
+  if (C_DEBUG && CmsBase.isLogging()) {
+    CmsBase.log(C_OPENCMS_DEBUG,"[CmsClassLoader] Class " + name + " requested.");
+  }
+  Class c=null;
+  String heyItsMe="com.opencms.core.CmsClassLoader";
+  if (heyItsMe.equals(name)) {
+    c=Class.forName(name);
+    if (c != null) {
+      return c;
+    }
+  }
+  c=(Class)cache.get(name);
+  if (c != null) {
+    if (C_DEBUG && CmsBase.isLogging()) {
+      CmsBase.log(C_OPENCMS_DEBUG,"[CmsClassLoader] BINGO! Class " + name + "was found in cache.");
+    }
+    if (resolve) {
+      resolveClass(c);
+    }
+    return c;
+  }
+  if (C_DEBUG && CmsBase.isLogging()) {
+    CmsBase.log(C_OPENCMS_DEBUG,"[CmsClassLoader] Class " + name + " was NOT found in cache.");
+  }
+  try {
+    if (m_parent != null) {
+      c=m_parent.loadClass(name);
+      if (c != null) {
+        if (resolve)         resolveClass(c);
+        return c;
+      }
+    }
+  }
+ catch (  ClassNotFoundException e) {
+    c=null;
+  }
+catch (  Exception e) {
+    c=null;
+  }
+  if (c != null) {
+    return c;
+  }
+  Enumeration allRepositories=repository.elements();
+  String filename=null;
+  int type=0;
+  byte[] myClassData=null;
+  while ((allRepositories.hasMoreElements()) && (myClassData == null)) {
+    filename=(String)allRepositories.nextElement();
+    type=((Integer)repositoryTypes.elementAt(repository.indexOf(filename))).intValue();
+    try {
+      if (type == C_REPOSITORY_CLASSIC_FS) {
+        File f=new File(filename);
+        if (f.isDirectory()) {
+          myClassData=loadClassFromDirectory(f,name);
+        }
+ else {
+          myClassData=loadClassFromZipFile(f,name);
+        }
+      }
+ else {
+        boolean fromJar=false;
+        if (filename.endsWith("/")) {
+          String classname=name.replace('.','/');
+          filename=filename + classname + ".class";
+        }
+ else {
+          fromJar=true;
+        }
+        try {
+          myClassData=readFileContent(filename);
+        }
+ catch (        Exception e) {
+          myClassData=null;
+        }
+        if (fromJar) {
+          myClassData=loadClassFromZipFile(new ByteArrayInputStream(myClassData),name);
+        }
+      }
+    }
+ catch (    IOException ioe) {
+      myClassData=null;
+    }
+  }
+  if (myClassData == null) {
+    throw new ClassNotFoundException(name);
+  }
+  if (myClassData != null) {
+    try {
+      c=defineClass(null,myClassData,0,myClassData.length);
+    }
+ catch (    ClassFormatError e) {
+      throw new ClassNotFoundException(filename + " seems to be no class file. Sorry.");
+    }
+catch (    Exception e) {
+      throw new ClassNotFoundException(e.toString());
+    }
+catch (    Error e) {
+      throw new ClassNotFoundException("Something really bad happened while loading class " + name + ": "+ e);
+    }
+    cache.put(name,c);
+    m_filenames.addElement(filename);
+    if (resolve) {
+      resolveClass(c);
+    }
+    if (C_DEBUG && CmsBase.isLogging()) {
+      CmsBase.log(C_OPENCMS_DEBUG,"Classloader returned class " + name + " successfully!");
+    }
+    return c;
+  }
+  throw new ClassNotFoundException(name);
+}
