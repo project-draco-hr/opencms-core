@@ -1,0 +1,143 @@
+{
+  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging() && C_DEBUG) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,this.getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  CmsXmlTemplateFile templateDocument=getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  I_CmsRegistry reg=cms.getRegistry();
+  CmsRequestContext reqCont=cms.getRequestContext();
+  I_CmsSession session=reqCont.getSession(true);
+  CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
+  String weeks=new String();
+  String enableHistory=new String();
+  String enableDelete=new String();
+  Hashtable histproperties=reg.getSystemValues(C_REGISTRY_HISTORY);
+  String step=(String)parameters.get(C_STEP);
+  weeks=(String)parameters.get(C_WEEKS_HISTORY);
+  enableHistory=(String)parameters.get(C_ENABLE_HISTORY);
+  enableDelete=(String)parameters.get(C_DELETE_HISTORY);
+  if ((weeks == null) || ("".equals(weeks))) {
+    weeks=(String)session.getValue(C_WEEKS_HISTORY);
+    if (weeks == null) {
+      weeks=new String();
+    }
+  }
+  if ((enableHistory == null) || ("".equals(enableHistory))) {
+    enableHistory=(String)session.getValue(C_ENABLE_HISTORY);
+  }
+  if ((enableDelete == null) || ("".equals(enableDelete))) {
+    enableDelete=(String)session.getValue(C_DELETE_HISTORY);
+  }
+  if (step == null) {
+    if (session.getValue(C_STEP) == null) {
+      session.removeValue(C_WEEKS_HISTORY);
+      session.removeValue(C_ENABLE_HISTORY);
+      session.removeValue(C_DELETE_HISTORY);
+      session.removeValue("lasturl");
+      session.putValue(C_STEP,"nextstep");
+      if ((weeks == null) || ("".equals(weeks))) {
+        weeks=(String)histproperties.get(C_WEEKS_HISTORY);
+      }
+      if ((enableHistory == null) || ("".equals(enableHistory))) {
+        enableHistory=(String)histproperties.get(C_ENABLE_HISTORY);
+      }
+      if ((enableDelete == null) || ("".equals(enableDelete))) {
+        enableDelete=(String)histproperties.get(C_DELETE_HISTORY);
+      }
+    }
+  }
+ else {
+    if ("ok".equalsIgnoreCase(step)) {
+      try {
+        histproperties.put(C_WEEKS_HISTORY,weeks);
+        if ("true".equals(enableHistory)) {
+          histproperties.put(C_ENABLE_HISTORY,"true");
+        }
+ else {
+          histproperties.put(C_ENABLE_HISTORY,"false");
+        }
+        if ("true".equals(enableDelete)) {
+          histproperties.put(C_DELETE_HISTORY,"true");
+        }
+ else {
+          histproperties.put(C_DELETE_HISTORY,"false");
+        }
+        reg.setSystemValues(C_REGISTRY_HISTORY,histproperties);
+        templateSelector="done";
+        session.removeValue(C_WEEKS_HISTORY);
+        session.removeValue(C_ENABLE_HISTORY);
+        session.removeValue(C_DELETE_HISTORY);
+      }
+ catch (      CmsException e) {
+        session.putValue(C_WEEKS_HISTORY,weeks);
+        if (enableHistory != null) {
+          session.putValue(C_ENABLE_HISTORY,enableHistory);
+        }
+        if (enableDelete != null) {
+          session.putValue(C_DELETE_HISTORY,enableDelete);
+        }
+        templateSelector="errorhistproperties";
+        if ("errorhistproperties".equals(templateSelector)) {
+          templateDocument.setData("details","The data could not be stored in the registry:" + e.getLocalizedMessage());
+        }
+      }
+    }
+ else     if ("execute".equalsIgnoreCase(step)) {
+      try {
+        histproperties.put(C_WEEKS_HISTORY,weeks);
+        if ("true".equals(enableHistory)) {
+          histproperties.put(C_ENABLE_HISTORY,"true");
+        }
+ else {
+          histproperties.put(C_ENABLE_HISTORY,"false");
+        }
+        if ("true".equals(enableDelete)) {
+          histproperties.put(C_DELETE_HISTORY,"true");
+        }
+ else {
+          histproperties.put(C_DELETE_HISTORY,"false");
+        }
+        reg.setSystemValues(C_REGISTRY_HISTORY,histproperties);
+        executeDeleting(cms,null);
+      }
+ catch (      CmsException e) {
+        session.putValue(C_WEEKS_HISTORY,weeks);
+        if (enableHistory != null) {
+          session.putValue(C_ENABLE_HISTORY,enableHistory);
+        }
+        if (enableDelete != null) {
+          session.putValue(C_DELETE_HISTORY,enableDelete);
+        }
+        templateSelector="errorhistproperties";
+        if ("errorhistproperties".equals(templateSelector)) {
+          templateDocument.setData("details","The history could not be cleaned:" + e.getLocalizedMessage());
+        }
+      }
+    }
+ else     if ("fromerrorpage".equals(step)) {
+      templateSelector="";
+    }
+ else     if ("cancel".equals(step)) {
+      session.removeValue(C_WEEKS_HISTORY);
+      session.removeValue(C_ENABLE_HISTORY);
+      session.removeValue(C_DELETE_HISTORY);
+      templateSelector="done";
+    }
+    session.removeValue(C_STEP);
+  }
+  templateDocument.setData(C_WEEKS_HISTORY,weeks);
+  if ("true".equalsIgnoreCase(enableHistory)) {
+    templateDocument.setData(C_ENABLE_HISTORY,"checked");
+  }
+ else {
+    templateDocument.setData(C_ENABLE_HISTORY,"");
+  }
+  if ("true".equalsIgnoreCase(enableDelete)) {
+    templateDocument.setData(C_DELETE_HISTORY,"checked");
+  }
+ else {
+    templateDocument.setData(C_DELETE_HISTORY,"");
+  }
+  return startProcessing(cms,templateDocument,elementName,parameters,templateSelector);
+}
