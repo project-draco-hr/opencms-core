@@ -4,14 +4,43 @@
       throw new CmsSecurityException(CmsSecurityException.C_SECURITY_ADMIN_PRIVILEGES_REQUIRED);
     }
   }
-  if (!m_initialized) {
-    initialize();
-  }
+  m_jobCount=0;
+  m_jobEntries=new ArrayList();
   m_adminCms=adminCms;
+  Properties properties=new Properties();
+  properties.put(StdSchedulerFactory.PROP_SCHED_INSTANCE_NAME,"OpenCmsScheduler");
+  properties.put(StdSchedulerFactory.PROP_SCHED_THREAD_NAME,"OpenCms: Scheduler");
+  properties.put(StdSchedulerFactory.PROP_SCHED_RMI_EXPORT,String.valueOf(false));
+  properties.put(StdSchedulerFactory.PROP_SCHED_RMI_PROXY,String.valueOf(false));
+  properties.put(StdSchedulerFactory.PROP_THREAD_POOL_CLASS,CmsSchedulerThreadPool.class.getName());
+  properties.put(StdSchedulerFactory.PROP_JOB_STORE_CLASS,"org.quartz.simpl.RAMJobStore");
+  try {
+    SchedulerFactory schedulerFactory=new StdSchedulerFactory(properties);
+    m_scheduler=schedulerFactory.getScheduler();
+  }
+ catch (  Exception e) {
+    OpenCms.getLog(this).error("Could not initialize the scheduler",e);
+    m_scheduler=null;
+    return;
+  }
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Scheduler config     : scheduler initialized");
+  }
+  if (m_configuredJobEntries != null) {
+    for (int i=0; i < m_configuredJobEntries.size(); i++) {
+      scheduleJob(adminCms,(CmsScheduledJobInfo)m_configuredJobEntries.get(i));
+    }
+  }
   try {
     m_scheduler.start();
   }
  catch (  Exception e) {
-    OpenCms.getLog(this).error("Could not initialize the scheduler",e);
+    OpenCms.getLog(this).error("Could not start the scheduler",e);
+    m_scheduler=null;
+    return;
+  }
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Scheduler config     : scheduler started");
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Scheduler config     : finished");
   }
 }

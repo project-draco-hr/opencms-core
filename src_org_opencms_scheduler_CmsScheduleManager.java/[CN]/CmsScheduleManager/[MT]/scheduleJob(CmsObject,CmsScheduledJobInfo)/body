@@ -1,0 +1,47 @@
+{
+  if (OpenCms.getRunLevel() > 1) {
+    if ((cms == null) || !cms.isAdmin()) {
+      throw new CmsSecurityException(CmsSecurityException.C_SECURITY_ADMIN_PRIVILEGES_REQUIRED);
+    }
+  }
+  if ((jobInfo == null) || (jobInfo.getClassName() == null)) {
+    OpenCms.getLog(this).error("Scheduler: Invalid job configuation provided");
+    return;
+  }
+  if (m_scheduler == null) {
+    OpenCms.getLog(this).error("Scheduler: No scheduler available to schedule job '" + jobInfo.getJobName() + "'");
+    return;
+  }
+  try {
+    Class.forName(jobInfo.getClassName());
+  }
+ catch (  ClassNotFoundException e) {
+    OpenCms.getLog(this).error("Scheduler: Class not found '" + jobInfo.getClassName() + "'",e);
+    return;
+  }
+  m_jobCount++;
+  JobDetail jobDetail=new JobDetail("cmsJob" + m_jobCount,Scheduler.DEFAULT_GROUP,CmsScheduleManager.class);
+  CronTrigger trigger=new CronTrigger("cmsTrigger" + m_jobCount,Scheduler.DEFAULT_GROUP);
+  try {
+    trigger.setCronExpression(jobInfo.getCronExpression());
+  }
+ catch (  ParseException e) {
+    OpenCms.getLog(this).error("Scheduler: Bad cron expression for job '" + jobInfo.getJobName() + "': ["+ jobInfo.getCronExpression()+ "]",e);
+    return;
+  }
+  JobDataMap jobData=new JobDataMap();
+  jobData.put(CmsScheduleManager.C_SCHEDULER_JOB_INFO,jobInfo);
+  jobDetail.setJobDataMap(jobData);
+  jobInfo.initConfiguration();
+  try {
+    m_scheduler.scheduleJob(jobDetail,trigger);
+  }
+ catch (  SchedulerException e) {
+    OpenCms.getLog(this).error("Scheduler: Could not schedule job '" + jobInfo.getJobName() + "' for class '"+ jobInfo.getClassName()+ "'",e);
+    return;
+  }
+  m_jobEntries.add(jobInfo);
+  if (OpenCms.getLog(this).isInfoEnabled()) {
+    OpenCms.getLog(this).info("Scheduled job " + m_jobEntries.size() + " named '"+ jobInfo.getJobName()+ "' for class '"+ jobInfo.getClassName()+ "' with user "+ jobInfo.getContextInfo().getUserName());
+  }
+}
