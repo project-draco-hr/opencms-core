@@ -2,6 +2,7 @@
   if (A_OpenCms.isLogging() && I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && C_DEBUG) {
     A_OpenCms.log(C_OPENCMS_DEBUG,"[CmsDumpTemplate] Now dumping contents of file " + templateFile);
   }
+  System.err.println("mgm--parameter" + parameters);
   I_CmsSession session=cms.getRequestContext().getSession(true);
   CmsXmlWpTemplateFile templateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
   CmsXmlLanguageFile lang=templateDocument.getLanguageFile();
@@ -69,7 +70,35 @@
   boolean showGroup=(filelist & C_FILELIST_GROUP) > 0;
   boolean showSize=(filelist & C_FILELIST_SIZE) > 0;
   Vector resources=getRessources(cms,currentFolder,projectView);
-  for (int i=0; i < resources.size(); i++) {
+  int startat=0;
+  int stopat=resources.size();
+  int selectedPage=1;
+  int numberOfPages=0;
+  int maxEntrys=C_ENTRYS_PER_PAGE;
+  if (!(listonly || projectView)) {
+    String selPage=(String)parameters.get("selPage");
+    if (selPage != null && !"".equals(selPage)) {
+      try {
+        selectedPage=Integer.parseInt(selPage);
+      }
+ catch (      Exception e) {
+      }
+    }
+    if (stopat > maxEntrys) {
+      numberOfPages=(stopat / maxEntrys) + 1;
+      if (selectedPage > numberOfPages) {
+        selectedPage=1;
+      }
+      startat=(selectedPage - 1) * maxEntrys;
+      if ((startat + maxEntrys) < stopat) {
+        stopat=startat + maxEntrys;
+      }
+    }
+    System.err.println("mgm--selected page found in parameters:" + selectedPage);
+    System.err.println("mgm--we have " + resources.size() + " resources to show.");
+    System.err.println("mgm--we show now: " + startat + " <= x < "+ stopat);
+  }
+  for (int i=startat; i < stopat; i++) {
     CmsResource res=(CmsResource)resources.elementAt(i);
     content.append("top.aF(");
     content.append("\"" + res.getName() + "\",");
@@ -213,7 +242,8 @@
     content.append(" top.dUL(document); \n");
   }
  else {
-    content.append(" top.dU(document); \n");
+    System.err.println("mgm--call : top.dU(document," + numberOfPages + ","+ selectedPage+ ");");
+    content.append(" top.dU(document," + numberOfPages + ","+ selectedPage+ "); \n");
   }
   content.append("}\n");
   content.append("</script>\n</head> \n<BODY onLoad=\"initialize()\"></BODY> \n</html>\n");
