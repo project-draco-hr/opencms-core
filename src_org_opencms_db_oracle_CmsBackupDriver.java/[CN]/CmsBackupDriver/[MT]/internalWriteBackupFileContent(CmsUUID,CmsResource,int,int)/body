@@ -1,21 +1,31 @@
 {
-  CmsUUID fileId=resource.getContentId();
   PreparedStatement stmt=null, stmt2=null;
   PreparedStatement commit=null;
   PreparedStatement rollback=null;
   Connection conn=null;
   ResultSet res=null;
+  CmsUUID contentId;
+  byte[] fileContent;
+  if (resource instanceof CmsFile) {
+    contentId=((CmsFile)resource).getContentId();
+    fileContent=((CmsFile)resource).getContents();
+  }
+ else {
+    contentId=CmsUUID.getNullUUID();
+    fileContent=new byte[0];
+  }
   try {
     conn=m_sqlManager.getConnectionForBackup();
     stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILES_ADDBACKUP");
-    stmt.setString(1,fileId.toString());
-    stmt.setInt(2,tagId);
-    stmt.setInt(3,versionId);
-    stmt.setString(4,backupId.toString());
+    stmt.setString(1,contentId.toString());
+    stmt.setString(2,resource.getResourceId().toString());
+    stmt.setInt(3,tagId);
+    stmt.setInt(4,versionId);
+    stmt.setString(5,backupId.toString());
     stmt.executeUpdate();
   }
  catch (  SQLException e) {
-    throw m_sqlManager.getCmsException(this,"internalWriteBackupFileContent backupId=" + backupId.toString() + " fileId="+ fileId.toString(),CmsException.C_SQL_ERROR,e,false);
+    throw m_sqlManager.getCmsException(this,"internalWriteBackupFileContent backupId=" + backupId.toString() + " contentId="+ contentId.toString(),CmsException.C_SQL_ERROR,e,false);
   }
  finally {
     m_sqlManager.closeAll(conn,stmt,res);
@@ -25,13 +35,13 @@
     conn.setAutoCommit(false);
     if (m_enableServerCopy) {
       stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILES_READCONTENT");
-      stmt.setString(1,fileId.toString());
+      stmt.setString(1,resource.getResourceId().toString());
       res=stmt.executeQuery();
       if (res.next()) {
         Blob content=res.getBlob(1);
         stmt2=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILES_BACKUPCONTENT");
         stmt2.setBlob(1,content);
-        stmt2.setString(2,fileId.toString());
+        stmt2.setString(2,contentId.toString());
         stmt2.setString(3,backupId.toString());
         stmt2.executeUpdate();
         stmt2.close();
@@ -44,11 +54,11 @@
     }
  else {
       stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_FILES_UPDATEBACKUP");
-      stmt.setString(1,fileId.toString());
+      stmt.setString(1,contentId.toString());
       stmt.setString(2,backupId.toString());
       res=((DelegatingResultSet)stmt.executeQuery()).getInnermostDelegate();
       if (!res.next()) {
-        throw new CmsException("internalWriteBackupFileContent backupId=" + backupId.toString() + " fileId="+ fileId.toString()+ " content not found",CmsException.C_NOT_FOUND);
+        throw new CmsException("internalWriteBackupFileContent backupId=" + backupId.toString() + " contentId="+ contentId.toString()+ " content not found",CmsException.C_NOT_FOUND);
       }
       Blob content=res.getBlob("FILE_CONTENT");
       ((oracle.sql.BLOB)content).trim(0);
@@ -68,10 +78,10 @@
     conn.setAutoCommit(true);
   }
  catch (  IOException e) {
-    throw m_sqlManager.getCmsException(this,"internalWriteBackupFileContent backupId=" + backupId.toString() + " fileId="+ fileId.toString(),CmsException.C_SERIALIZATION,e,false);
+    throw m_sqlManager.getCmsException(this,"internalWriteBackupFileContent backupId=" + backupId.toString() + " contentId="+ contentId.toString(),CmsException.C_SERIALIZATION,e,false);
   }
 catch (  SQLException e) {
-    throw m_sqlManager.getCmsException(this,"internalWriteBackupFileContent backupId=" + backupId.toString() + " fileId="+ fileId.toString(),CmsException.C_SQL_ERROR,e,false);
+    throw m_sqlManager.getCmsException(this,"internalWriteBackupFileContent backupId=" + backupId.toString() + " contentId="+ contentId.toString(),CmsException.C_SQL_ERROR,e,false);
   }
  finally {
     if (res != null) {
