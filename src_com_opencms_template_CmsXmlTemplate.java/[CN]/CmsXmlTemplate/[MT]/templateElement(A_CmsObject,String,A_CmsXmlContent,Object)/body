@@ -1,71 +1,63 @@
 {
-  Object t2Key=null;
+  CmsXmlTemplateFile templateFile=(CmsXmlTemplateFile)doc;
+  boolean isAnonymousUser=cms.anonymousUser().equals(cms.getRequestContext().currentUser());
   Hashtable parameterHashtable=(Hashtable)((Hashtable)userObject).clone();
-  String templateClass=getTemplateClassName(tagcontent,doc,parameterHashtable);
-  String templateFilename=getTemplateFileName(tagcontent,doc,parameterHashtable);
+  String templateClass=getTemplateClassName(tagcontent,templateFile,parameterHashtable);
+  String templateFilename=getTemplateFileName(tagcontent,templateFile,parameterHashtable);
   byte[] result=null;
-  Object tmpl=null;
+  Object loadedObject=null;
+  I_CmsTemplate subTemplate=null;
+  Object subTemplateKey=null;
   try {
-    tmpl=CmsTemplateClassManager.getClassInstance(cms,templateClass);
+    loadedObject=CmsTemplateClassManager.getClassInstance(cms,templateClass);
   }
- catch (  Exception e) {
-    doc.clearFileCache(doc);
-    A_CmsRequestContext reqContext=cms.getRequestContext();
-    if (cms.anonymousUser().equals(reqContext.currentUser())) {
-      String ss="Error while generating output!";
-      return ss;
+ catch (  CmsException e) {
+    templateFile.clearFileCache(templateFile);
+    if (isAnonymousUser) {
+      return C_ERRORTEXT;
     }
  else {
-      if (e instanceof ClassNotFoundException) {
-        System.err.println("Class " + templateClass + " could not be loaded!");
-        throw new CmsException("Could not load template class " + templateClass);
-      }
- else {
-        System.err.println("Class " + templateClass + " could not be instantiated!");
-        throw new CmsException("Could not instantiate class " + templateClass + ". Original Exception: "+ e);
-      }
+      throw e;
     }
   }
-  if (!(tmpl instanceof I_CmsTemplate)) {
-    System.err.println(templateClass + " is not a OpenCms template class. Sorry.");
-    System.err.println("removing cache");
-    throw new CmsException("Error in " + templateClass + " is not a XML template class. Sorry.");
+  if (!(loadedObject instanceof I_CmsTemplate)) {
+    String errorMessage="Class " + templateClass + " is no OpenCms template class.";
+    if (A_OpenCms.isLogging()) {
+      A_OpenCms.log(C_OPENCMS_CRITICAL,"[CmsXmlTemplate] " + errorMessage);
+    }
+    throw new CmsException(errorMessage,CmsException.C_XML_NO_TEMPLATE_CLASS);
   }
-  I_CmsTemplate t2=(I_CmsTemplate)tmpl;
-  Element elementDefinitionTag=doc.getData("ELEMENTDEF." + tagcontent);
-  NodeList parameterTags=elementDefinitionTag.getElementsByTagName("PARAMETER");
-  int numParameters=parameterTags.getLength();
-  for (int i=0; i < numParameters; i++) {
-    Element param=(Element)parameterTags.item(i);
-    String paramName=param.getAttribute("name");
-    String paramValue=doc.getTagValue(param);
+  subTemplate=(I_CmsTemplate)loadedObject;
+  Enumeration parameterTags=templateFile.getParameterNames(tagcontent);
+  while (parameterTags.hasMoreElements()) {
+    String paramName=(String)parameterTags.nextElement();
+    String paramValue=templateFile.getParameter(tagcontent,paramName);
     if (!parameterHashtable.containsKey(paramName)) {
       parameterHashtable.put(tagcontent + "." + paramName,paramValue);
     }
   }
-  t2Key=t2.getKey(cms,templateFilename,parameterHashtable);
-  if (t2.isCacheable(cms,templateFilename,parameterHashtable) && m_cache.has(t2Key) && (!t2.shouldReload(cms,templateFilename,parameterHashtable))) {
-    result=m_cache.get(t2Key);
-  }
   if (result == null) {
     try {
-      result=t2.getContent(cms,templateFilename,tagcontent,parameterHashtable);
+      result=subTemplate.getContent(cms,templateFilename,tagcontent,parameterHashtable);
     }
  catch (    CmsException e) {
       if (A_OpenCms.isLogging()) {
-        A_OpenCms.log(C_OPENCMS_INFO,"[CmsXmlTemplate] Could not generate output for element " + tagcontent + " in template file "+ templateFilename+ ". ");
+        A_OpenCms.log(C_OPENCMS_CRITICAL,"[CmsXmlTemplate] Could not generate output for element " + tagcontent + " in template file "+ templateFilename+ ". ");
       }
-      A_CmsRequestContext reqContext=cms.getRequestContext();
-      if (cms.anonymousUser().equals(reqContext.currentUser())) {
-        result="ERROR!".getBytes();
+      if (isAnonymousUser) {
+        return C_ERRORTEXT;
       }
  else {
         throw e;
       }
     }
   }
-  if (t2.isCacheable(cms,templateFilename,parameterHashtable)) {
-    m_cache.put(t2Key,result);
+  if (subTemplate.isCacheable(cms,templateFilename,parameterHashtable)) {
+    subTemplateKey=subTemplate.getKey(cms,templateFilename,parameterHashtable);
+    if (subTemplate.isCacheable(cms,templateFilename,parameterHashtable) && m_cache.has(subTemplateKey) && (!subTemplate.shouldReload(cms,templateFilename,parameterHashtable))) {
+      result=m_cache.get(subTemplateKey);
+    }
+    m_cache.put(subTemplateKey,result);
   }
   return result;
 }
