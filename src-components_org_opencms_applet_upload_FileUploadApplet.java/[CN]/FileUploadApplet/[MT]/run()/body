@@ -1,0 +1,62 @@
+{
+  try {
+    boolean ok=true;
+    while (ok) {
+      ok=true;
+      m_message="";
+      m_resources=0;
+      m_step=0;
+      if (m_fileSelector == null) {
+        m_fileSelector=new JFileChooser();
+      }
+      m_fileSelector.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+      m_fileSelector.setDialogTitle(m_actionOutputSelect);
+      m_fileSelector.addChoosableFileFilter(new ImageFilter());
+      m_fileSelector.addChoosableFileFilter(new OfficeFilter());
+      m_fileSelector.setAcceptAllFileFilterUsed(true);
+      m_fileSelector.setMultiSelectionEnabled(true);
+      m_fileSelector.setFileView(new ImageFileView(m_opencms,m_fileExtensions));
+      m_fileSelector.setAccessory(new ImagePreview(m_fileSelector,m_messageNoPreview));
+      m_action=m_actionOutputSelect;
+      repaint();
+      int returnVal=m_fileSelector.showDialog(this,"OK");
+      if (returnVal == JFileChooser.APPROVE_OPTION) {
+        m_outputMode=1;
+        m_action=m_actionOutputCount;
+        repaint();
+        m_resources=countResources(m_fileSelector.getSelectedFiles());
+        m_outputMode=2;
+        File targetFile=createZipFile(m_fileSelector.getSelectedFiles());
+        if (targetFile == null || m_maxsize > 0 && targetFile.length() > m_maxsize) {
+          m_outputMode=4;
+          if (targetFile == null) {
+            m_message=m_messageOutputErrorZip;
+          }
+ else {
+            m_message=m_messageOutputErrorSize + " " + targetFile.length()+ " > "+ m_maxsize;
+          }
+          m_action=m_actionOutputError;
+          repaint();
+          JOptionPane.showMessageDialog(this,m_message,m_action,JOptionPane.ERROR_MESSAGE);
+        }
+ else {
+          m_outputMode=3;
+          m_message=m_messageOutputUpload + " (" + targetFile.length() / 1024 + " kb)";
+          repaint();
+          FileUploadThread uploadThreat=new FileUploadThread();
+          uploadThreat.init(this);
+          uploadThreat.start();
+          uploadZipFile(targetFile);
+          ok=false;
+        }
+      }
+ else {
+        ok=false;
+        getAppletContext().showDocument(new URL(m_redirectUrl),"explorer_files");
+      }
+    }
+  }
+ catch (  Exception e) {
+    System.err.println(e);
+  }
+}
