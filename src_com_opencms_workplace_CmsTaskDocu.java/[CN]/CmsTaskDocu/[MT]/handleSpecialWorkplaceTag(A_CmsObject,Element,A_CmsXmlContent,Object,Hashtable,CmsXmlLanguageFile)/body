@@ -1,0 +1,26 @@
+{
+  StringBuffer result=new StringBuffer();
+  Vector taskdocs=new Vector();
+  CmsTaskLog tasklog;
+  CmsXmlWpTemplateFile template=getTaskDocuDefinitions(cms);
+  String taskId=(String)parameters.get("taskid");
+  if (taskId != null) {
+    int id=new Integer(taskId).intValue();
+    taskdocs=cms.readTaskLogs(id);
+  }
+  for (int i=0; i < taskdocs.size(); i++) {
+    tasklog=(CmsTaskLog)taskdocs.elementAt(i);
+    int type=tasklog.getType();
+    if (type >= 100) {
+      java.sql.Timestamp time=tasklog.getStartTime();
+      template.setXmlData("DATE",Utils.getNiceDate(time.getTime()));
+      A_CmsUser user=cms.readOwner(tasklog);
+      template.setXmlData("USER",user.getFirstname() + " " + user.getLastname()+ "("+ user.getName()+ ")");
+      template.setXmlData("MESSAGE",tasklog.getComment());
+      template.setXmlData("ICON",template.getProcessedXmlDataValue("ICON" + type,callingObject,parameters));
+      result.append(template.getProcessedXmlDataValue("LISTENTRY",callingObject,parameters));
+      template.setXmlData("HEADLINE",lang.getLanguageValue("task.headline.m" + type));
+    }
+  }
+  return result.toString();
+}
