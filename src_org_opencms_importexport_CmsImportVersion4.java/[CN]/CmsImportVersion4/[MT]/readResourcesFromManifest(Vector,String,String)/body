@@ -1,21 +1,21 @@
 {
-  String source, destination, type, uuidresource, uuidcontent, userlastmodified, usercreated, flags, timestamp;
-  long datelastmodified, datecreated;
-  int resType;
+  String source=null, destination=null, type=null, uuidresource=null, uuidcontent=null, userlastmodified=null, usercreated=null, flags=null, timestamp=null;
+  long datelastmodified=0, datecreated=0;
+  int resType=I_CmsConstants.C_UNKNOWN_ID;
   int loaderId=I_CmsConstants.C_UNKNOWN_ID;
-  List fileNodes, acentryNodes;
-  Element currentElement, currentEntry;
+  List fileNodes=null, acentryNodes=null;
+  Element currentElement=null, currentEntry=null;
   List properties=null;
   if (m_importingChannelData) {
     m_cms.getRequestContext().saveSiteRoot();
     m_cms.setContextToCos();
   }
-  if (excludeList == null) {
-    excludeList=new Vector();
+  if (ignoredResources == null) {
+    ignoredResources=new Vector();
   }
-  List deleteProperties=OpenCms.getImportExportManager().getIgnoredProperties();
-  if (deleteProperties == null) {
-    deleteProperties=Collections.EMPTY_LIST;
+  List ignoredProperties=OpenCms.getImportExportManager().getIgnoredProperties();
+  if (ignoredProperties == null) {
+    ignoredProperties=Collections.EMPTY_LIST;
   }
   List immutableResources=OpenCms.getImportExportManager().getImmutableResources();
   if (immutableResources == null) {
@@ -44,8 +44,14 @@
         resType=m_cms.getResourceTypeId(type);
         loaderId=m_cms.getResourceType(resType).getLoaderId();
       }
-      uuidresource=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDRESOURCE);
-      uuidcontent=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDCONTENT);
+      if (resType != CmsResourceTypeFolder.C_RESOURCE_TYPE_ID) {
+        uuidresource=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDRESOURCE);
+        uuidcontent=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_UUIDCONTENT);
+      }
+ else {
+        uuidresource=null;
+        uuidcontent=null;
+      }
       if ((timestamp=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DATELASTMODIFIED)) != null) {
         datelastmodified=Long.parseLong(timestamp);
       }
@@ -70,11 +76,11 @@
       translatedName=m_cms.getRequestContext().getDirectoryTranslator().translateResource(translatedName);
       boolean resourceNotImmutable=checkImmutable(translatedName,immutableResources);
       translatedName=m_cms.getRequestContext().removeSiteRoot(translatedName);
-      if (resourceNotImmutable && (!excludeList.contains(translatedName))) {
+      if (resourceNotImmutable && (!ignoredResources.contains(translatedName))) {
         m_report.print(m_report.key("report.importing"),I_CmsReport.C_FORMAT_NOTE);
         m_report.print(translatedName);
         m_report.print(m_report.key("report.dots"));
-        properties=readPropertiesFromManifest(currentElement,resType,propertyName,propertyValue,deleteProperties);
+        properties=readPropertiesFromManifest(currentElement,resType,propertyKey,propertyValue,ignoredProperties);
         CmsResource res=importResource(source,destination,resType,loaderId,uuidresource,uuidcontent,datelastmodified,userlastmodified,datecreated,usercreated,flags,properties);
         if (res != null) {
           acentryNodes=currentElement.selectNodes("*/" + I_CmsConstants.C_EXPORT_TAG_ACCESSCONTROL_ENTRY);
