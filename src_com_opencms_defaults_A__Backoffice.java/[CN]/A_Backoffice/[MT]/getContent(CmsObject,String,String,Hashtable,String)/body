@@ -6,7 +6,7 @@
     String values=(String)parameters.get(key);
     System.err.println(key + " : " + values);
   }
-  System.err.println("------");
+  System.err.println("-------");
   byte[] returnProcess=null;
   I_CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
   CmsXmlWpTemplateFile template=new CmsXmlWpTemplateFile(cms,templateFile);
@@ -16,9 +16,12 @@
   String idlock=(String)parameters.get("idlock");
   String iddelete=(String)parameters.get("iddelete");
   String idedit=(String)parameters.get("idedit");
+  String idview=(String)parameters.get("idview");
   String action=(String)parameters.get("action");
+  String parentId=(String)parameters.get("parentId");
   String ok=(String)parameters.get("ok");
   String setaction=(String)parameters.get("setaction");
+  System.err.println("getContent: action: " + action + " idedit: "+ idedit+ " id: "+ id+ " idlock: "+ idlock);
   String hasFilterParam=(String)session.getValue("filterparameter");
   template.setData("filternumber","0");
   if (action != null)   parameters.put("action",action);
@@ -31,12 +34,6 @@
   }
  else {
     template.setData("filternumber",(String)session.getValue("filter"));
-  }
-  session.removeValue("filterparameter");
-  if (session.getValue("filter") == null) {
-    System.err.println("first time!");
-    session.putValue("filter","0");
-    template.setData("filternumber","0");
   }
   if (idlock != null) {
     id=idlock;
@@ -68,6 +65,9 @@
   }
   String idsave=(String)session.getValue("idsave");
   if (ok == null)   idsave=null;
+  if (parentId != null) {
+    session.putValue("parentId",parentId);
+  }
   String idnewsave=(String)session.getValue("idnew");
   if ((id != null) && (id.equals("new")) || ((idsave != null) && (idsave.equals("new")))) {
     if (idsave != null)     parameters.put("idsave",idsave);
@@ -75,12 +75,20 @@
     returnProcess=getContentNew(cms,template,elementName,parameters,templateSelector);
     return returnProcess;
   }
-  if ((selectBox == null) && (id == null) && (idsave == null)&& (action == null)) {
+  if (idview != null) {
+    if (id == null)     id=idview;
+    parameters.put("id",id);
+    if (idsave != null)     parameters.put("idsave",idsave);
+    returnProcess=getContentView(cms,template,elementName,parameters,templateSelector);
+    return returnProcess;
+  }
+  if ((id == null) && (idsave == null) && (action == null)&& (idlock == null)&& (iddelete == null)&& (idedit == null)) {
     returnProcess=getContentHead(cms,template,elementName,parameters,templateSelector);
     return returnProcess;
   }
  else {
-    if (selectBox != null) {
+    if (action == null)     action="";
+    if (action.equalsIgnoreCase("list")) {
       System.err.println("body");
       if (filterParam != null)       parameters.put("filterparameter",filterParam);
       if (selectBox != null)       parameters.put("selectbox",selectBox);
@@ -88,6 +96,7 @@
       return returnProcess;
     }
  else {
+      System.err.println("else");
       String ideditsave=(String)session.getValue("idedit");
       if ((idedit != null) || (ideditsave != null)) {
         if (idsave != null)         parameters.put("idsave",idsave);

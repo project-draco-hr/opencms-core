@@ -4,10 +4,26 @@
   String singleSelection="";
   String allSelections="";
   CmsSession session=(CmsSession)cms.getRequestContext().getSession(true);
-  String selectBoxValue=(String)session.getValue("filter");
-  System.err.println("head filter:" + selectBoxValue);
+  String selectBoxValue=(String)parameters.get("selectbox");
+  if (selectBoxValue == null)   selectBoxValue="0";
+  boolean filterChanged=true;
+  if (selectBoxValue.equals((String)session.getValue("selectBoxValue"))) {
+    filterChanged=false;
+  }
+ else {
+    filterChanged=true;
+  }
+  System.err.println("getContentHead selectBoxValue: " + selectBoxValue + " session: "+ (String)session.getValue("selectBoxValue"));
+  session.putValue("selectBoxValue",selectBoxValue);
+  session.putValue("filter",selectBoxValue);
   String filterParam=(String)parameters.get("filterparameter");
-  if (filterParam != null)   session.putValue("filterparameter",filterParam);
+  System.err.println("getContentHead selectBoxValue: " + selectBoxValue + " filterParam: "+ filterParam);
+  String action=(String)parameters.get("action");
+  String setaction=(String)parameters.get("setaction");
+  System.err.println("getContentHead: action: " + action);
+  if (filterParam != null) {
+    session.putValue("filterparameter",filterParam);
+  }
   String moduleName="";
   moduleName=(String)getClass().toString();
   moduleName=moduleName.substring(5);
@@ -16,54 +32,25 @@
   CmsXmlLanguageFile lang=new CmsXmlLanguageFile(cms);
   template.setData("filterlabel",lang.getLanguageValue(moduleName + ".label.filter"));
   template.setData("filterparameterlabel",lang.getLanguageValue(moduleName + ".label.filterparameter"));
-  Vector filterMethods=new Vector();
-  try {
-    filterMethods=(Vector)cdClass.getMethod("getFilterMethods",new Class[]{CmsObject.class}).invoke(null,new Object[]{cms});
-  }
- catch (  InvocationTargetException ite) {
-    if (A_OpenCms.isLogging()) {
-      A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice getContentHead: InvocationTargetException!");
-    }
-  }
-catch (  NoSuchMethodException nsm) {
-    if (A_OpenCms.isLogging()) {
-      A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice getContentHead: Requested method was not found!");
-    }
-  }
-catch (  Exception e) {
-    if (A_OpenCms.isLogging()) {
-      A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice getContentHead: Problem occured with your filter methods!");
-    }
-  }
+  Vector filterMethods=getFilterMethods(cms);
   FilterMethod filterMethod=null;
   if (selectBoxValue == null) {
     FilterMethod defaultFilter=(FilterMethod)filterMethods.firstElement();
     session.putValue("selectbox",defaultFilter.getFilterName());
   }
-  if (filterParam != null)   parameters.put("filterparameter",filterParam);
-  template.setData("filter",selectBoxValue);
-  for (int i=0; i < filterMethods.size(); i++) {
-    FilterMethod currentFilter=(FilterMethod)filterMethods.elementAt(i);
-    System.err.println("if filtermethod:" + currentFilter.getFilterName());
-    template.setData("selectname",currentFilter.getFilterName());
-    template.setData("selectnumber","" + i);
-    template.setData("selectparameter","" + currentFilter.hasUserParameter());
-    template.setData("filterparameter",filterParam);
-    if (i == Integer.parseInt(selectBoxValue)) {
-      template.setData("selected","selected");
+  FilterMethod currentFilter=(FilterMethod)filterMethods.elementAt(Integer.parseInt(selectBoxValue));
+  if (currentFilter.hasUserParameter()) {
+    if (filterChanged) {
+      template.setData("filterparameter",currentFilter.getDefaultFilterParam());
+      session.putValue("filterparameter",currentFilter.getDefaultFilterParam());
     }
  else {
-      template.setData("selected","");
+      template.setData("filterparameter",filterParam);
     }
-    try {
-      singleSelection=template.getProcessedDataValue("singleselection",this);
-      allSelections+=singleSelection;
-    }
- catch (    Exception e) {
-      if (A_OpenCms.isLogging()) {
-        A_OpenCms.log(C_OPENCMS_INFO,getClassName() + ": Backoffice getContentHead: Error while getting processedDataValue from Backoffice template!");
-      }
-    }
+    template.setData("insertFilter",template.getProcessedDataValue("selectboxWithParam",this,parameters));
+  }
+ else {
+    template.setData("insertFilter",template.getProcessedDataValue("singleSelectbox",this,parameters));
   }
   String createButton=null;
   try {
@@ -79,7 +66,6 @@ catch (  Exception e) {
     String cb=template.getDataValue("wand");
     template.setData("createbutton",cb);
   }
-  template.setData("selectionbox","" + allSelections);
   processResult=startProcessing(cms,template,elementName,parameters,templateSelector);
   return processResult;
 }
