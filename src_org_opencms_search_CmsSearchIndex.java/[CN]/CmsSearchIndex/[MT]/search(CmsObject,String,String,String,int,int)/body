@@ -1,122 +1,109 @@
 {
-  List searchResults=null;
+  List searchResults=new ArrayList();
   Query query=null;
   Searcher searcher=null;
-  IndexReader reader=null;
   Hits hits=null;
   Document luceneDocument=null;
-  A_CmsIndexResource indexResource=null;
-  List foundDocuments=null;
   double maxScore=-1.0;
-  List scores=null;
   CmsSearchResult searchResult=null;
   double score=-1;
   String excerpt=null;
-  Field field=null;
-  String path=null;
   long totalSearchDuration=-System.currentTimeMillis();
   long luceneSearchDuration=0;
-  Map searchCache=OpenCms.getSearchManager().getResultCache();
-  String cacheKey=cms.getRequestContext().currentUser().getName() + "_" + cms.getRequestContext().getRemoteAddress()+ "_"+ m_name+ "_"+ searchQuery+ "_"+ searchRoot+ "_"+ fields+ "_"+ page+ "_"+ matchesPerPage;
-  if (cms.getRequestContext().currentProject().getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
-    searchResults=(ArrayList)searchCache.get(cacheKey);
-    if (searchResults != null) {
-      return searchResults;
-    }
-  }
-  CmsRequestContext context=cms.getRequestContext();
-  CmsProject currentProject=context.currentProject();
-  context.setCurrentProject(cms.readProject(m_project));
-  if (searchRoot != null && !"".equals(searchRoot)) {
-    searchRoot=cms.getRequestContext().getSiteRoot() + searchRoot;
-  }
- else {
-    searchRoot=cms.getRequestContext().getSiteRoot();
-  }
   if (OpenCms.getLog(this).isDebugEnabled()) {
     OpenCms.getLog(this).debug("Searching for \"" + searchQuery + "\" in fields \""+ fields+ "\" of index "+ m_name);
   }
+  CmsRequestContext context=cms.getRequestContext();
+  CmsProject currentProject=context.currentProject();
   try {
-    if (!C_SEARCH_QUERY_RETURN_ALL.equals(searchQuery)) {
-      searchQuery="(" + searchQuery + ")"+ " AND "+ I_CmsDocumentFactory.DOC_PATH+ ":"+ searchRoot+ "*";
-      BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
-      if (fields != null) {
-        BooleanQuery fieldsQuery=new BooleanQuery();
-        BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
-        String fList[]=org.opencms.util.CmsStringUtil.splitAsArray(fields,' ');
-        for (int i=0; i < fList.length; i++) {
-          fieldsQuery.add(QueryParser.parse(searchQuery,fList[i],OpenCms.getSearchManager().getAnalyzer(m_locale)),false,false);
-        }
-        query=fieldsQuery;
+    if (m_priority >= 0) {
+      Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
+    }
+    if (hits == null) {
+      context.setCurrentProject(cms.readProject(m_project));
+      if (searchRoot != null && !"".equals(searchRoot)) {
+        searchRoot=cms.getRequestContext().getSiteRoot() + searchRoot;
       }
  else {
+        searchRoot=cms.getRequestContext().getSiteRoot();
+      }
+      if (!C_SEARCH_QUERY_RETURN_ALL.equals(searchQuery)) {
+        searchQuery="(" + searchQuery + ")"+ " AND "+ I_CmsDocumentFactory.DOC_PATH+ ":"+ searchRoot+ "*";
+        BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
+        if (fields != null) {
+          BooleanQuery fieldsQuery=new BooleanQuery();
+          BooleanQuery.setMaxClauseCount(Integer.MAX_VALUE);
+          String fList[]=org.opencms.util.CmsStringUtil.splitAsArray(fields,' ');
+          for (int i=0; i < fList.length; i++) {
+            fieldsQuery.add(QueryParser.parse(searchQuery,fList[i],OpenCms.getSearchManager().getAnalyzer(m_locale)),false,false);
+          }
+          query=fieldsQuery;
+        }
+ else {
+          query=QueryParser.parse(searchQuery,I_CmsDocumentFactory.DOC_CONTENT,OpenCms.getSearchManager().getAnalyzer(m_locale));
+        }
+      }
+ else {
+        searchQuery=I_CmsDocumentFactory.DOC_PATH + ":" + searchRoot+ "*";
         query=QueryParser.parse(searchQuery,I_CmsDocumentFactory.DOC_CONTENT,OpenCms.getSearchManager().getAnalyzer(m_locale));
       }
       luceneSearchDuration=-System.currentTimeMillis();
       searcher=new IndexSearcher(m_path);
       hits=searcher.search(query);
       luceneSearchDuration+=System.currentTimeMillis();
-      foundDocuments=new ArrayList(hits.length());
-      scores=new ArrayList(hits.length());
-      for (int i=0, n=hits.length(); i < n; i++) {
-        luceneDocument=hits.doc(i);
-        foundDocuments.add(luceneDocument);
-        scores.add(new Double(hits.score(i)));
-      }
     }
+    if (hits != null) {
+      maxScore=(hits.length() > 0) ? hits.score(0) : 0.0;
+      int start=-1, end=-1;
+      if (matchesPerPage > 0 && page > 0 && hits.length() > 0) {
+        start=matchesPerPage * (page - 1);
+        end=start + matchesPerPage;
+        start=(start > hits.length()) ? hits.length() : start;
+        end=(end > hits.length()) ? hits.length() : end;
+      }
  else {
-      try {
-        reader=IndexReader.open(m_path);
-        foundDocuments=new ArrayList();
-        scores=new ArrayList();
-        for (int i=0, n=reader.numDocs(); i < n; i++) {
-          if (!reader.isDeleted(i)) {
-            luceneDocument=reader.document(i);
-            if ((field=luceneDocument.getField(I_CmsDocumentFactory.DOC_PATH)) != null) {
-              path=field.stringValue();
-              if (path.startsWith(searchRoot)) {
-                foundDocuments.add(luceneDocument);
-                scores.add(new Double(0));
+        start=0;
+        end=hits.length();
+      }
+      if (m_checkPermissions) {
+        for (int i=0, cnt=0; i < hits.length() && cnt < end; i++) {
+          try {
+            luceneDocument=hits.doc(i);
+            score=(hits.score(i) / maxScore) * 100.0;
+            if (getIndexResource(cms,luceneDocument) != null) {
+              if (cnt >= start) {
+                if (m_createExcerpt) {
+                  excerpt=getExcerpt(luceneDocument.getField(I_CmsDocumentFactory.DOC_CONTENT).stringValue(),searchQuery);
+                }
+                searchResult=new CmsSearchResult((int)score,luceneDocument,excerpt);
+                searchResults.add(searchResult);
               }
+              cnt++;
             }
+          }
+ catch (          Exception exc) {
           }
         }
       }
-  finally {
-        if (reader != null) {
-          reader.close();
-        }
-      }
-    }
-    int start=-1, end=-1;
-    searchResults=new ArrayList();
-    if (matchesPerPage > 0 && page > 0 && foundDocuments.size() > 0) {
-      start=matchesPerPage * (page - 1);
-      end=start + matchesPerPage;
-      start=(start > foundDocuments.size()) ? foundDocuments.size() : start;
-      end=(end > foundDocuments.size()) ? foundDocuments.size() : end;
-    }
  else {
-      start=0;
-      end=foundDocuments.size();
-    }
-    for (int i=0, n=foundDocuments.size(); i < n; i++) {
-      try {
-        luceneDocument=(Document)foundDocuments.get(i);
-        indexResource=getIndexResource(cms,luceneDocument);
-        if (indexResource != null) {
-          score=((Double)scores.get(i)).doubleValue();
-          maxScore=(maxScore < score) ? score : maxScore;
-          score=(score / maxScore) * 100.0;
-          if (i >= start && i < end && indexResource.getRootPath().startsWith(searchRoot)) {
-            excerpt=getExcerpt(indexResource,searchQuery);
+        for (int i=start; i < end; i++) {
+          try {
+            luceneDocument=hits.doc(i);
+            score=(hits.score(i) / maxScore) * 100.0;
+            if (m_createExcerpt) {
+              excerpt=getExcerpt(luceneDocument.getField(I_CmsDocumentFactory.DOC_CONTENT).stringValue(),searchQuery);
+            }
             searchResult=new CmsSearchResult((int)score,luceneDocument,excerpt);
             searchResults.add(searchResult);
           }
+ catch (          Exception exc) {
+          }
         }
       }
- catch (      Exception exc) {
-      }
+      searchResults.add(new Integer(hits.length()));
+    }
+ else {
+      searchResults.add(new Integer(0));
     }
   }
  catch (  Exception exc) {
@@ -130,11 +117,9 @@
  catch (      IOException exc) {
       }
     }
+    Thread.currentThread().setPriority(Thread.NORM_PRIORITY);
     context.setCurrentProject(currentProject);
   }
-  Collections.sort(searchResults);
-  searchResults.add(new Integer(foundDocuments.size()));
-  searchCache.put(cacheKey,searchResults);
   totalSearchDuration+=System.currentTimeMillis();
   if (OpenCms.getLog(this).isDebugEnabled()) {
     OpenCms.getLog(this).debug(hits.length() + " results found in " + totalSearchDuration+ " ms"+ " (Lucene: "+ luceneSearchDuration+ " ms)");

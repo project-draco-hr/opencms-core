@@ -1,0 +1,28 @@
+{
+  CmsResource resource=(CmsResource)indexResource.getData();
+  String rawContent=null;
+  try {
+    CmsFile file=CmsFile.upgrade(resource,cms);
+    String absolutePath=cms.getSitePath(file);
+    CmsXmlPage page=CmsXmlPageFactory.unmarshal(cms,file);
+    List pageLocales=page.getLocales();
+    if (pageLocales.size() == 0) {
+      pageLocales=OpenCms.getLocaleManager().getDefaultLocales(cms,absolutePath);
+    }
+    Locale locale=OpenCms.getLocaleManager().getBestMatchingLocale(CmsLocaleManager.getLocale(language),OpenCms.getLocaleManager().getDefaultLocales(cms,absolutePath),pageLocales);
+    List elements=page.getNames(locale);
+    StringBuffer content=new StringBuffer();
+    for (Iterator i=elements.iterator(); i.hasNext(); ) {
+      String value=page.getStringValue(cms,(String)i.next(),locale);
+      if (value != null) {
+        content.append(value);
+      }
+    }
+    CmsHtmlExtractor extractor=new CmsHtmlExtractor();
+    rawContent=extractor.extractText(content.toString(),page.getEncoding());
+  }
+ catch (  Exception exc) {
+    throw new CmsIndexException("Reading resource " + resource.getRootPath() + " failed",exc);
+  }
+  return rawContent;
+}
