@@ -2,15 +2,20 @@
   ResultSet res=null;
   PreparedStatement stmt=null;
   Connection conn=null;
-  CmsFolder currentFolder=null;
-  CmsAdjacencyTree tree=new CmsAdjacencyTree();
+  CmsAdjacencyTree adjacencyTree=new CmsAdjacencyTree();
+  CmsUUID parentId=null;
+  CmsUUID structureId=null;
   try {
     conn=m_sqlManager.getConnection(currentProject);
     stmt=m_sqlManager.getPreparedStatement(conn,currentProject,"C_RESOURCES_GET_FOLDERTREE");
+    stmt.setInt(1,I_CmsConstants.C_STATE_CHANGED);
+    stmt.setInt(2,I_CmsConstants.C_STATE_NEW);
+    stmt.setInt(3,I_CmsConstants.C_STATE_UNCHANGED);
     res=stmt.executeQuery();
     while (res.next()) {
-      currentFolder=createCmsFolderFromResultSet(res,currentProject.getId(),true);
-      tree.addResource(currentFolder);
+      parentId=new CmsUUID(res.getString(1));
+      structureId=new CmsUUID(res.getString(2));
+      adjacencyTree.add(parentId,structureId);
     }
   }
  catch (  SQLException e) {
@@ -22,5 +27,6 @@ catch (  Exception ex) {
  finally {
     m_sqlManager.closeAll(conn,stmt,res);
   }
-  return tree.toList(parentResource);
+  List dfsList=adjacencyTree.toList(parentResource.getId());
+  return dfsList;
 }
