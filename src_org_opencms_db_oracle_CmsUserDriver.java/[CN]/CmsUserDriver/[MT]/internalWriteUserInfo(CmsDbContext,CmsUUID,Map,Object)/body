@@ -4,6 +4,7 @@
   PreparedStatement rollback=null;
   ResultSet res=null;
   Connection conn=null;
+  boolean wasInTransaction=false;
   try {
     byte[] value=internalSerializeAdditionalUserInfo(additionalInfo);
     if (reservedParam == null) {
@@ -12,10 +13,16 @@
  else {
       conn=m_sqlManager.getConnection(dbc,((Integer)reservedParam).intValue());
     }
-    if (dbc.isDefaultDbContext()) {
+    wasInTransaction=!conn.getAutoCommit();
+    if (!wasInTransaction) {
       conn.setAutoCommit(false);
     }
-    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERS_UPDATEINFO");
+    if (conn.getMetaData().getDriverMajorVersion() < 9) {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE8_USERS_UPDATEINFO");
+    }
+ else {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERS_UPDATEINFO");
+    }
     stmt.setString(1,userId.toString());
     res=((DelegatingResultSet)stmt.executeQuery()).getInnermostDelegate();
     if (!res.next()) {
@@ -25,7 +32,7 @@
     output.write(value);
     output.close();
     value=null;
-    if (dbc.isDefaultDbContext()) {
+    if (!wasInTransaction) {
       commit=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
       commit.execute();
       m_sqlManager.closeAll(dbc,null,commit,null);
@@ -34,7 +41,7 @@
     commit=null;
     stmt=null;
     res=null;
-    if (dbc.isDefaultDbContext()) {
+    if (!wasInTransaction) {
       conn.setAutoCommit(true);
     }
   }
@@ -59,7 +66,7 @@ catch (  IOException e) {
  catch (      SQLException exc) {
       }
     }
-    if (dbc.isDefaultDbContext()) {
+    if (!wasInTransaction) {
       if (stmt != null) {
         try {
           rollback=m_sqlManager.getPreparedStatement(conn,"C_ROLLBACK");

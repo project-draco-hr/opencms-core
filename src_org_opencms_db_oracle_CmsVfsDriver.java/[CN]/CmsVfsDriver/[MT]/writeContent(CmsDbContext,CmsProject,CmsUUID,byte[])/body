@@ -4,10 +4,17 @@
   PreparedStatement rollback=null;
   Connection conn=null;
   ResultSet res=null;
+  boolean wasInTransaction=false;
   try {
     conn=m_sqlManager.getConnection(dbc,project.getId());
-    stmt=m_sqlManager.getPreparedStatement(conn,project,"C_ORACLE_CONTENTS_UPDATECONTENT");
-    if (dbc.isDefaultDbContext()) {
+    if (conn.getMetaData().getDriverMajorVersion() < 9) {
+      stmt=m_sqlManager.getPreparedStatement(conn,project,"C_ORACLE8_CONTENTS_UPDATECONTENT");
+    }
+ else {
+      stmt=m_sqlManager.getPreparedStatement(conn,project,"C_ORACLE_CONTENTS_UPDATECONTENT");
+    }
+    wasInTransaction=!conn.getAutoCommit();
+    if (!wasInTransaction) {
       conn.setAutoCommit(false);
     }
     stmt.setString(1,resourceId.toString());
@@ -18,7 +25,7 @@
     OutputStream output=CmsUserDriver.getOutputStreamFromBlob(res,"FILE_CONTENT");
     output.write(content);
     output.close();
-    if (dbc.isDefaultDbContext()) {
+    if (!wasInTransaction) {
       commit=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
       commit.execute();
       m_sqlManager.closeAll(dbc,null,commit,null);
@@ -27,7 +34,7 @@
     commit=null;
     stmt=null;
     res=null;
-    if (dbc.isDefaultDbContext()) {
+    if (!wasInTransaction) {
       conn.setAutoCommit(true);
     }
   }
@@ -52,7 +59,7 @@ catch (  SQLException e) {
  catch (      SQLException exc) {
       }
     }
-    if (dbc.isDefaultDbContext()) {
+    if (!wasInTransaction) {
       if (stmt != null) {
         try {
           rollback=m_sqlManager.getPreparedStatement(conn,"C_ROLLBACK");
