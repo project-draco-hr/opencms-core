@@ -1,5 +1,5 @@
 {
-  byte[] result=null;
+  String result=null;
   A_CmsCacheDirectives cd=getCacheDirectives();
   boolean streamable=cms.getRequestContext().isStreaming();
   String cacheKey=cd.getCacheKey(cms,parameters);
@@ -15,7 +15,7 @@
       variant=getVariant(cacheKey);
     }
     if (variant != null) {
-      result=(byte[])variant.get(0);
+      result=(String)variant.get(0);
     }
   }
   if (variant == null) {
@@ -51,18 +51,18 @@ catch (    Exception exc2) {
     }
     if (methodResult != null) {
       if (methodResult instanceof String) {
+        result=(String)methodResult;
+      }
+ else       if (methodResult instanceof byte[]) {
         try {
-          result=((String)methodResult).getBytes(cms.getRequestContext().getEncoding());
+          result=new String((byte[])methodResult,cms.getRequestContext().getEncoding());
         }
  catch (        UnsupportedEncodingException uee) {
           throw new CmsException(CmsException.C_LAUNCH_ERROR,uee);
         }
       }
- else       if (methodResult instanceof byte[]) {
-        result=(byte[])methodResult;
-      }
  else       if (methodResult instanceof Integer) {
-        result=((Integer)methodResult).toString().getBytes();
+        result=((Integer)methodResult).toString();
       }
  else       if (methodResult instanceof CmsProcessedString) {
         variant=new CmsElementVariant();
@@ -75,13 +75,13 @@ catch (    Exception exc2) {
     }
     if ((result != null) && (cacheKey != null) && (cd.isInternalCacheable())) {
       variant=new CmsElementVariant();
-      variant.add(result,cms.getRequestContext().getEncoding());
+      variant.add(result);
       addVariant(cacheKey,variant);
     }
   }
   if (streamable) {
     try {
-      cms.getRequestContext().getResponse().getOutputStream().write(result);
+      cms.getRequestContext().getResponse().getOutputStream().write(result.getBytes(cms.getRequestContext().getEncoding()));
     }
  catch (    Exception e) {
       if (com.opencms.core.I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
@@ -90,5 +90,10 @@ catch (    Exception exc2) {
     }
     result=null;
   }
-  return result;
+  try {
+    return result.getBytes(cms.getRequestContext().getEncoding());
+  }
+ catch (  UnsupportedEncodingException uee) {
+    throw new CmsException(CmsException.C_LAUNCH_ERROR,uee);
+  }
 }
