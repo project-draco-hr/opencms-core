@@ -1,4 +1,15 @@
 {
+  String defaultWebApplication=context.getInitParameter("DefaultWebApplication");
+  if (defaultWebApplication == null) {
+    defaultWebApplication="ROOT";
+  }
+  getSystemInfo().setDefaultWebApplicationName(defaultWebApplication);
+  String servletMapping=context.getInitParameter("OpenCmsServlet");
+  if (servletMapping == null) {
+    m_instance=null;
+    throw new CmsInitException("OpenCms servlet mapping not configured in 'web.xml', please set the 'OpenCmsServlet' parameter.");
+  }
+  getSystemInfo().setServletMapping(servletMapping);
   String base=context.getInitParameter("opencms.home");
   if (base == null || "".equals(base)) {
     base=searchWebInfFolder(context.getRealPath("/"));
@@ -9,10 +20,10 @@
   getSystemInfo().setWebInfPath(base);
   ExtendedProperties configuration=null;
   try {
-    configuration=CmsSetupUtils.loadProperties(getSystemInfo().getConfigurationFilePath());
+    configuration=CmsSetupUtils.loadProperties(getSystemInfo().getConfigurationFileRfsPath());
   }
  catch (  Exception e) {
-    throwInitException(new CmsInitException(C_ERRORMSG + "Trouble reading property file " + getSystemInfo().getConfigurationFilePath()+ ".\n\n",e));
+    throwInitException(new CmsInitException(C_ERRORMSG + "Trouble reading property file " + getSystemInfo().getConfigurationFileRfsPath()+ ".\n\n",e));
   }
   if (configuration.getBoolean("wizard.enabled",true)) {
     m_instance=null;
@@ -20,24 +31,12 @@
   }
   String logfile=(String)configuration.get("log.file");
   if (logfile != null) {
-    logfile=getSystemInfo().getAbsolutePathRelativeToWebInf(logfile);
+    logfile=getSystemInfo().getAbsoluteRfsPathRelativeToWebInf(logfile);
     configuration.put("log.file",logfile);
   }
   getSystemInfo().setLogFileName(logfile);
-  m_log.init(configuration,getSystemInfo().getConfigurationFilePath());
-  String servletPath=context.getInitParameter("OpenCmsServlet");
-  if (servletPath == null) {
-    m_instance=null;
-    throw new CmsInitException("OpenCms servlet mapping not configured in 'web.xml', please set the 'OpenCmsServlet' parameter.");
-  }
-  getSystemInfo().setServletPath(servletPath);
-  String defaultWebApplication=context.getInitParameter("DefaultWebApplication");
-  if (defaultWebApplication == null) {
-    defaultWebApplication="ROOT";
-  }
-  getSystemInfo().setDefaultWebApplicationName(defaultWebApplication);
-  getSystemInfo().setOpenCmsContext("/" + getSystemInfo().getWebApplicationName() + "/"+ getSystemInfo().getServletPath());
-  System.err.println("\n\nStarting OpenCms, version " + OpenCms.getSystemInfo().getVersionName() + " in context '"+ getSystemInfo().getWebApplicationName()+ "'");
+  m_log.init(configuration,getSystemInfo().getConfigurationFileRfsPath());
+  System.err.println("\n\nStarting OpenCms, version " + OpenCms.getSystemInfo().getVersionName() + " in web application '"+ getSystemInfo().getWebApplicationName()+ "'");
   for (int i=0; i < I_CmsConstants.C_COPYRIGHT.length; i++) {
     System.err.println(I_CmsConstants.C_COPYRIGHT[i]);
   }
@@ -58,9 +57,9 @@
     getLog(CmsLog.CHANNEL_INIT).info(". OpenCms webapp name  : " + getSystemInfo().getWebApplicationName());
     getLog(CmsLog.CHANNEL_INIT).info(". OpenCms servlet path : " + getSystemInfo().getServletPath());
     getLog(CmsLog.CHANNEL_INIT).info(". OpenCms context      : " + getSystemInfo().getOpenCmsContext());
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms base path    : " + getSystemInfo().getWebInfPath());
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms property file: " + getSystemInfo().getConfigurationFilePath());
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms logfile      : " + getSystemInfo().getLogFileName());
+    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms base path    : " + getSystemInfo().getWebInfRfsPath());
+    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms property file: " + getSystemInfo().getConfigurationFileRfsPath());
+    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms logfile      : " + getSystemInfo().getLogFileRfsName());
   }
   try {
     initConfiguration(configuration);
