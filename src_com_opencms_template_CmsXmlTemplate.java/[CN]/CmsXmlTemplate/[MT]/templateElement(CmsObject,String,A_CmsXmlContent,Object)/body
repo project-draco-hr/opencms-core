@@ -42,10 +42,20 @@
     }
   }
   parameterHashtable.put("_ELEMENT_",tagcontent);
-  if (subTemplate.isCacheable(cms,templateFilename,tagcontent,parameterHashtable,null)) {
+  if (subTemplate.getCacheDirectives(cms,templateFilename,tagcontent,parameterHashtable,null).isInternalCacheable()) {
     subTemplateKey=subTemplate.getKey(cms,templateFilename,parameterHashtable,null);
     if (m_cache.has(subTemplateKey) && (!subTemplate.shouldReload(cms,templateFilename,tagcontent,parameterHashtable,null))) {
       result=m_cache.get(subTemplateKey);
+      if (cms.getRequestContext().isStreaming()) {
+        try {
+          cms.getRequestContext().getResponse().getOutputStream().write(result);
+        }
+ catch (        Exception e) {
+          if (A_OpenCms.isLogging()) {
+            A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + "Error while streaming!");
+          }
+        }
+      }
     }
   }
   if (result == null) {
@@ -58,6 +68,16 @@
         A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + e);
       }
       if (isAnonymousUser) {
+        if (cms.getRequestContext().isStreaming()) {
+          try {
+            cms.getRequestContext().getResponse().getOutputStream().write(C_ERRORTEXT.getBytes());
+          }
+ catch (          Exception e2) {
+            if (A_OpenCms.isLogging()) {
+              A_OpenCms.log(C_OPENCMS_CRITICAL,getClassName() + "Error while streaming!");
+            }
+          }
+        }
         return C_ERRORTEXT;
       }
  else {
@@ -70,9 +90,9 @@
         }
       }
     }
-    if (subTemplate.isCacheable(cms,templateFilename,tagcontent,parameterHashtable,null)) {
+    if (subTemplate.getCacheDirectives(cms,templateFilename,tagcontent,parameterHashtable,null).isInternalCacheable()) {
       m_cache.put(subTemplateKey,result);
     }
   }
-  return result;
+  return new CmsProcessedString(result);
 }

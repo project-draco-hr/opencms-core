@@ -1,0 +1,133 @@
+{
+  Node child=null;
+  String childName=null;
+  Node nextchild=null;
+  NodeList newnodes=null;
+  Node insert=null;
+  Method callMethod=null;
+  Object methodResult=null;
+  boolean newnodesAreAlreadyProcessed=false;
+  Node startingNode=n;
+  if (n != null && n.hasChildNodes()) {
+    child=n.getFirstChild();
+    while (child != null) {
+      childName=child.getNodeName().toLowerCase();
+      nextchild=treeWalker(startingNode,child);
+      if (child.getNodeType() == Node.ELEMENT_NODE) {
+        newnodes=null;
+        callMethod=null;
+        newnodesAreAlreadyProcessed=false;
+        if (keys.containsKey(childName)) {
+          callMethod=(Method)keys.get(childName);
+        }
+ else {
+          if (!m_knownTags.contains(childName)) {
+            callMethod=defaultMethod;
+          }
+        }
+        if (callMethod != null) {
+          methodResult=null;
+          try {
+            if (C_DEBUG && A_OpenCms.isLogging()) {
+              A_OpenCms.log(C_OPENCMS_DEBUG,"<" + childName + "> tag found. Value: "+ child.getNodeValue());
+              A_OpenCms.log(C_OPENCMS_DEBUG,"Tag will be handled by method [" + callMethod.getName() + "]. Invoking method NOW.");
+            }
+            methodResult=callMethod.invoke(this,new Object[]{child,callingObject,userObj});
+          }
+ catch (          Exception e) {
+            if (e instanceof InvocationTargetException) {
+              Throwable thrown=((InvocationTargetException)e).getTargetException();
+              if (thrown instanceof CmsException) {
+                throw (CmsException)thrown;
+              }
+ else {
+                thrown.printStackTrace();
+                throwException("processNode received an exception while handling XML tag \"" + childName + "\" by \""+ callMethod.getName()+ "\" for file "+ getFilename()+ ": "+ e,CmsException.C_XML_PROCESS_ERROR);
+              }
+            }
+ else {
+              throwException("processNode could not invoke the XML tag handling method " + callMethod.getName() + "\" for file "+ getFilename()+ ": "+ e,CmsException.C_XML_PROCESS_ERROR);
+            }
+          }
+          if (methodResult == null) {
+            newnodes=null;
+          }
+ else {
+            if (methodResult instanceof NodeList) {
+              newnodes=(NodeList)methodResult;
+            }
+ else {
+              if (methodResult instanceof String) {
+                newnodes=stringToNodeList((String)methodResult);
+              }
+ else {
+                if (methodResult instanceof CmsProcessedString) {
+                  newnodes=stringToNodeList(((CmsProcessedString)methodResult).toString());
+                  newnodesAreAlreadyProcessed=true;
+                }
+ else {
+                  if (methodResult instanceof Integer) {
+                    newnodes=stringToNodeList(((Integer)methodResult).toString());
+                  }
+ else {
+                    if (methodResult instanceof byte[]) {
+                      newnodes=stringToNodeList(new String((byte[])methodResult));
+                    }
+ else {
+                      if (A_OpenCms.isLogging()) {
+                        A_OpenCms.log(C_OPENCMS_CRITICAL,"Return type of method " + callMethod.getName() + " not recognized. Cannot insert value.");
+                      }
+                      newnodes=null;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (newnodes != null) {
+            int numNewChilds=newnodes.getLength();
+            if (numNewChilds > 0) {
+              for (int j=0; j < numNewChilds; j++) {
+                insert=parser.importNode(child.getOwnerDocument(),newnodes.item(j));
+                if (j == 0 && !newnodesAreAlreadyProcessed) {
+                  nextchild=insert;
+                }
+                child.getParentNode().insertBefore(insert,child);
+              }
+              if (newnodesAreAlreadyProcessed) {
+                nextchild=treeWalkerWidth(startingNode,child);
+              }
+            }
+ else {
+              nextchild=treeWalkerWidth(startingNode,child);
+            }
+            child.getParentNode().removeChild(child);
+          }
+        }
+      }
+ else       if (stream != null) {
+        String streamResults=null;
+        if (child.getNodeType() == n.CDATA_SECTION_NODE) {
+          streamResults=child.getNodeValue();
+        }
+ else {
+          if (child.getNodeType() == n.TEXT_NODE) {
+            String s=child.getNodeValue().trim();
+            if (!"".equals(s)) {
+              streamResults=child.getNodeValue();
+            }
+          }
+        }
+        if (streamResults != null) {
+          try {
+            stream.write(streamResults.getBytes());
+          }
+ catch (          Exception e) {
+            throw new CmsException(CmsException.C_UNKNOWN_EXCEPTION,e);
+          }
+        }
+      }
+      child=nextchild;
+    }
+  }
+}
