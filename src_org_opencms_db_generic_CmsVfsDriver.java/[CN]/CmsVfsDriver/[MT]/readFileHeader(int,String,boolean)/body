@@ -1,28 +1,30 @@
 {
-  CmsFolder folder=null;
+  CmsFile file=null;
   ResultSet res=null;
   PreparedStatement stmt=null;
   Connection conn=null;
   try {
     conn=m_sqlManager.getConnection(projectId);
     stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_RESOURCES_READ");
-    stmt.setString(1,foldername);
-    stmt.setString(2,parentId.toString());
+    stmt.setString(1,path);
     res=stmt.executeQuery();
     if (res.next()) {
-      folder=createFolder(res,projectId,true);
+      file=createFile(res,projectId,false);
       while (res.next()) {
+      }
+      if ((file.getState() == org.opencms.main.I_CmsConstants.C_STATE_DELETED) && !includeDeleted) {
+        throw new CmsException("[" + this.getClass().getName() + ".readFileHeader/3] "+ file.getName(),CmsException.C_RESOURCE_DELETED);
       }
     }
  else {
-      throw new CmsVfsResourceNotFoundException("[" + this.getClass().getName() + ".readFolder/2] "+ foldername);
+      throw new CmsVfsResourceNotFoundException("[" + this.getClass().getName() + ".readFileHeader/3] "+ path);
     }
   }
  catch (  SQLException e) {
     throw m_sqlManager.getCmsException(this,null,CmsException.C_SQL_ERROR,e,false);
   }
-catch (  CmsException exc) {
-    throw exc;
+catch (  CmsException ex) {
+    throw ex;
   }
 catch (  Exception exc) {
     throw m_sqlManager.getCmsException(this,null,CmsException.C_UNKNOWN_EXCEPTION,exc,false);
@@ -30,5 +32,5 @@ catch (  Exception exc) {
  finally {
     m_sqlManager.closeAll(conn,stmt,res);
   }
-  return folder;
+  return file;
 }

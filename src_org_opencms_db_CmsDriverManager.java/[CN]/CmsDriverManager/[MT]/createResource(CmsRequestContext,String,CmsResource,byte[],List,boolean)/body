@@ -4,13 +4,13 @@
     boolean useLostAndFound=importCase && !OpenCms.getImportExportManager().overwriteCollidingResources();
     CmsResource currentResource=null;
     try {
-      currentResource=readResource(context,resourcename,CmsResourceFilter.ALL);
+      currentResource=readResource(context,resourcePath,CmsResourceFilter.ALL);
     }
  catch (    CmsVfsResourceNotFoundException e) {
     }
     CmsResource parentFolder;
     String parentFolderName;
-    String createdResourceName=resourcename;
+    String createdResourceName=resourcePath;
     int contentLength;
     if (currentResource != null) {
       if (currentResource.getState() == I_CmsConstants.C_STATE_DELETED) {
@@ -20,10 +20,10 @@
       }
  else {
         if (!importCase) {
-          throw new CmsVfsException("Resource '" + context.removeSiteRoot(resourcename) + "' already exists",CmsVfsException.C_VFS_RESOURCE_ALREADY_EXISTS);
+          throw new CmsVfsException("Resource '" + context.removeSiteRoot(resourcePath) + "' already exists",CmsVfsException.C_VFS_RESOURCE_ALREADY_EXISTS);
         }
         if (!resource.isFolder() && useLostAndFound && (!currentResource.getResourceId().equals(resource.getResourceId()))) {
-          createdResourceName=moveToLostAndFound(context,resourcename,false);
+          createdResourceName=moveToLostAndFound(context,resourcePath,false);
           currentResource=null;
         }
       }
@@ -70,13 +70,12 @@
         resourceId=new CmsUUID();
       }
     }
-    newResource=new CmsResource(structureId,resourceId,parentFolder.getStructureId(),targetName,resource.getTypeId(),resource.getFlags(),context.currentProject().getId(),resource.getState(),resource.getDateCreated(),resource.getUserCreated(),resource.getDateLastModified(),resource.getUserLastModified(),resource.getDateReleased(),resource.getDateExpired(),1,contentLength);
+    newResource=new CmsResource(structureId,resourceId,parentFolder.getStructureId(),createdResourceName,resource.getTypeId(),resource.getFlags(),context.currentProject().getId(),resource.getState(),resource.getDateCreated(),resource.getUserCreated(),resource.getDateLastModified(),resource.getUserLastModified(),resource.getDateReleased(),resource.getDateExpired(),1,contentLength);
     if (resource.isTouched()) {
       newResource.setDateLastModified(resource.getDateLastModified());
     }
-    newResource.setRootPath(createdResourceName);
     if (resource.isFile()) {
-      if (labelResource(context,resource,resourcename,2)) {
+      if (labelResource(context,resource,resourcePath,2)) {
         int flags=resource.getFlags();
         flags|=I_CmsConstants.C_RESOURCEFLAG_LABELLINK;
         resource.setFlags(flags);
@@ -94,7 +93,6 @@
         m_vfsDriver.writeContent(context.currentProject(),currentResource.getResourceId(),content,false);
       }
     }
-    newResource.setRootPath(createdResourceName);
     internalWritePropertyObjects(context,newResource,properties);
     internalLockResource(context,newResource,CmsLock.C_MODE_COMMON);
   }
