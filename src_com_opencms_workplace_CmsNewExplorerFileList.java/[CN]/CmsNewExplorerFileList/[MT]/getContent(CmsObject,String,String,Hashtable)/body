@@ -6,15 +6,44 @@
   String lang=CmsXmlLanguageFile.getCurrentUserLanguage(cms);
   CmsMessages messages=new CmsMessages("com.opencms.workplace.workplace",new Locale(lang,"",""));
   String currentFolder=(String)parameters.get("folder");
-  if ((currentFolder != null) && (!"".equals(currentFolder)) && folderExists(cms,currentFolder)) {
-    session.putValue(C_PARA_FILELIST,currentFolder);
+  if ((currentFolder != null) && (currentFolder.startsWith("vfslink:"))) {
+    parameters.put("mode","vfslink");
+    parameters.put("file",currentFolder.substring(8));
   }
  else {
-    currentFolder=(String)session.getValue(C_PARA_FILELIST);
-    if ((currentFolder == null) || (!folderExists(cms,currentFolder))) {
-      currentFolder=cms.rootFolder().getAbsolutePath();
+    if ((currentFolder != null) && (!"".equals(currentFolder)) && folderExists(cms,currentFolder)) {
       session.putValue(C_PARA_FILELIST,currentFolder);
     }
+ else {
+      currentFolder=(String)session.getValue(C_PARA_FILELIST);
+      if ((currentFolder == null) || (!folderExists(cms,currentFolder))) {
+        currentFolder=cms.rootFolder().getAbsolutePath();
+        session.putValue(C_PARA_FILELIST,currentFolder);
+      }
+    }
+  }
+  String mode=(String)parameters.get("mode");
+  boolean listonly="listonly".equals(mode);
+  boolean projectView="projectview".equals(mode);
+  boolean vfslinkView="vfslink".equals(mode);
+  if (vfslinkView) {
+    String file=(String)parameters.get("file");
+    boolean found=true;
+    try {
+      CmsResource res=cms.readFileHeader(file);
+    }
+ catch (    CmsException e) {
+      found=false;
+    }
+    if (found) {
+      currentFolder="vfslink:" + file;
+    }
+ else {
+      currentFolder=cms.rootFolder().getAbsolutePath();
+      vfslinkView=false;
+      parameters.remove("mode");
+    }
+    session.putValue(C_PARA_FILELIST,currentFolder);
   }
   if (DEBUG > 2) {
     System.err.println("[" + System.currentTimeMillis() + "] CmsNewExplorerFileList.getContent() called");
@@ -27,9 +56,6 @@
     }
     System.err.println();
   }
-  String mode=(String)parameters.get("mode");
-  boolean listonly="listonly".equals(mode);
-  boolean projectView="projectview".equals(mode);
   boolean noKontext="false".equals(parameters.get("kontext"));
   String flaturl=(String)parameters.get("flaturl");
   String checksum=(String)parameters.get("check");
@@ -44,7 +70,13 @@
  catch (  Exception e) {
   }
   check=cms.getFileSystemFolderChanges();
-  int currentFolderId=(cms.readFolder(currentFolder)).getResourceId();
+  int currentFolderId;
+  if (!vfslinkView) {
+    currentFolderId=(cms.readFolder(currentFolder)).getResourceId();
+  }
+ else {
+    currentFolderId=-1;
+  }
   StringBuffer content=new StringBuffer(2048);
   content.append("<html> \n<head> \n");
   content.append("<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=");
@@ -58,7 +90,7 @@
  else {
     content.append("top.openfolderMethod='openthisfolder';\n");
   }
-  if (projectView) {
+  if (projectView || vfslinkView) {
     content.append("top.projectView=true;\n");
   }
  else {
@@ -88,8 +120,11 @@
   content.append("top.setChecksum(");
   content.append(check);
   content.append(");\n");
-  CmsFolder test=cms.readFolder(currentFolder);
-  boolean writeAccess=test.getProjectId() == cms.getRequestContext().currentProject().getId();
+  boolean writeAccess=true;
+  if (!vfslinkView) {
+    CmsFolder test=cms.readFolder(currentFolder);
+    writeAccess=test.getProjectId() == cms.getRequestContext().currentProject().getId();
+  }
   content.append("top.enableNewButton(");
   content.append(writeAccess);
   content.append(");\n");
@@ -111,7 +146,7 @@
   int selectedPage=1;
   int numberOfPages=0;
   int maxEntrys=C_ENTRYS_PER_PAGE;
-  if (!(listonly || projectView)) {
+  if (!(listonly || projectView || vfslinkView)) {
     String selPage=(String)parameters.get("selPage");
     if (selPage == null || "".equals(selPage)) {
       selPage=(String)session.getValue(C_SESSION_CURRENT_PAGE);
@@ -141,7 +176,7 @@
     content.append("\"");
     content.append(res.getName());
     content.append("\",");
-    if (projectView) {
+    if (projectView || vfslinkView) {
       content.append("\"");
       content.append(res.getPath());
       content.append("\",");
@@ -228,7 +263,7 @@
     content.append(lockedInProject);
     content.append(");\n");
   }
-  if (newTreePlease && (!listonly)) {
+  if (newTreePlease && (!(listonly || vfslinkView))) {
     content.append("\n top.rT();\n");
     Vector tree=cms.getFolderTree();
     int startAt=1;

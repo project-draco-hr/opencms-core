@@ -1,0 +1,98 @@
+{
+  if (CmsAdminVfsLinkManagement.DEBUG) {
+    System.err.println("[" + this.getClass().getName() + ".()] enter");
+  }
+  ArrayList brokenLinks=new ArrayList(0);
+  String siteRoot=cms.getSiteRoot("");
+  int siteRootLen=siteRoot.length();
+  CmsResourceTypeLink resourceTypeLink=(CmsResourceTypeLink)this.getResourceType(theUser,theProject,CmsResourceTypeLink.C_TYPE_RESOURCE_NAME);
+  int resourceTypeLinkID=resourceTypeLink.getResourceType();
+  m_dbAccess.updateAllResourceFlags(theProject,0);
+  ArrayList linkIDs=new ArrayList();
+  ArrayList linkContents=new ArrayList();
+  ArrayList linkResources=new ArrayList();
+  int fetchedLinkCount=m_dbAccess.fetchAllVfsLinks(theProject,linkIDs,linkContents,linkResources,resourceTypeLinkID);
+  if (CmsAdminVfsLinkManagement.DEBUG) {
+    System.err.println("[" + this.getClass().getName() + "] found "+ fetchedLinkCount+ " VFS links in project "+ theProject.getName());
+  }
+  if (fetchedLinkCount == 0) {
+    return new ArrayList(0);
+  }
+  for (int i=0; i < fetchedLinkCount; i++) {
+    linkContents.set(i,siteRoot + linkContents.get(i));
+    if (CmsAdminVfsLinkManagement.DEBUG) {
+      System.err.println("link " + i + ": "+ linkResources.get(i)+ " -> "+ linkContents.get(i));
+    }
+  }
+  int[] linksPerTarget=new int[fetchedLinkCount];
+  ArrayList targetResources=new ArrayList();
+  targetResources.ensureCapacity(fetchedLinkCount);
+  for (int i=0; i < fetchedLinkCount; i++) {
+    linksPerTarget[i]=0;
+  }
+  for (int i=0; i < fetchedLinkCount; i++) {
+    String currentResource=(String)linkContents.get(i);
+    if (!targetResources.contains(currentResource)) {
+      targetResources.add((String)currentResource);
+    }
+    linksPerTarget[targetResources.indexOf((String)currentResource)]+=1;
+  }
+  int targetCount=targetResources.size();
+  int dummy=0;
+  int[] targetIDs=new int[targetCount];
+  for (int i=0; i < targetCount; i++) {
+    String currentTarget=(String)targetResources.get(i);
+    int targetID=m_dbAccess.fetchResourceID(theProject,currentTarget,resourceTypeLinkID);
+    targetIDs[i]=targetID;
+    if (targetID > 0) {
+      dummy++;
+    }
+  }
+  if (CmsAdminVfsLinkManagement.DEBUG) {
+    System.err.println("[" + this.getClass().getName() + "] found "+ dummy+ " resources with VFS links in project "+ theProject.getName());
+  }
+  for (int i=0; i < fetchedLinkCount; i++) {
+    if (linksPerTarget[i] > 0 && targetIDs[i] > 0) {
+      m_dbAccess.updateResourceFlags(theProject,targetIDs[i],linksPerTarget[i]);
+      if (CmsAdminVfsLinkManagement.DEBUG) {
+        System.err.println(i + ": updating link count for " + ((String)targetResources.get(i)).substring(siteRootLen)+ " ("+ targetIDs[i]+ "/"+ linksPerTarget[i]+ ")");
+      }
+    }
+  }
+  for (int i=0; i < fetchedLinkCount; i++) {
+    String linkTarget=(String)linkContents.get(i);
+    int linkID=((Integer)linkIDs.get(i)).intValue();
+    int targetID=targetIDs[targetResources.indexOf(linkTarget)];
+    String currentVfsLink=((String)linkResources.get(i)).substring(siteRootLen);
+    String currentVfsLinkTarget=linkTarget.substring(siteRootLen);
+    if (targetID > 0) {
+      m_dbAccess.updateResourceFlags(theProject,linkID,targetID);
+      if (CmsAdminVfsLinkManagement.DEBUG) {
+        System.err.println(i + ": updating target ID for " + ((String)linkResources.get(i)).substring(siteRootLen)+ " ("+ linkID+ "->"+ targetID+ ")");
+      }
+    }
+ else     if (!linkTarget.substring(siteRootLen).startsWith("/")) {
+      theReport.println(theReport.key("report.link_check_vfs_external_link") + ": " + currentVfsLink+ " -> "+ currentVfsLinkTarget,I_CmsReport.C_FORMAT_WARNING);
+      if (CmsAdminVfsLinkManagement.DEBUG) {
+        System.err.println(i + ": skipping " + currentVfsLink+ " -> "+ currentVfsLinkTarget+ " (external link)");
+      }
+    }
+ else     if (targetID == 0) {
+      theReport.println(theReport.key("report.link_check_vfs_broken_link") + ": " + currentVfsLink+ " -> "+ currentVfsLinkTarget,I_CmsReport.C_FORMAT_WARNING);
+      brokenLinks.add(linkTarget.substring(siteRootLen));
+      if (CmsAdminVfsLinkManagement.DEBUG) {
+        System.err.println(i + ": skipping " + currentVfsLink+ " -> "+ currentVfsLinkTarget+ " (broken link)");
+      }
+    }
+ else     if (targetID < 0) {
+      theReport.println(theReport.key("report.link_check_vfs_link2link") + ": " + currentVfsLink+ " -> "+ currentVfsLinkTarget,I_CmsReport.C_FORMAT_WARNING);
+      if (CmsAdminVfsLinkManagement.DEBUG) {
+        System.err.println(i + ": skipping " + currentVfsLink+ " ->"+ currentVfsLinkTarget+ " (link -> link)");
+      }
+    }
+  }
+  if (CmsAdminVfsLinkManagement.DEBUG) {
+    System.err.println("[" + this.getClass().getName() + ".()] exit");
+  }
+  return brokenLinks;
+}
