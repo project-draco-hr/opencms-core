@@ -1,18 +1,28 @@
 {
-  List output=new Vector();
+  List output=new ArrayList();
   String key;
   CmsSessionInfo sessionInfo;
-  Hashtable userentry;
+  Map userentry;
 synchronized (m_sessions) {
     Iterator i=m_sessions.keySet().iterator();
     while (i.hasNext()) {
-      userentry=new Hashtable(4);
+      userentry=new HashMap(4);
       key=(String)i.next();
       sessionInfo=(CmsSessionInfo)m_sessions.get(key);
-      userentry.put(I_CmsConstants.C_SESSION_USERNAME,sessionInfo.getUserName());
-      userentry.put(I_CmsConstants.C_SESSION_PROJECT,sessionInfo.getProject());
-      userentry.put(I_CmsConstants.C_SESSION_MESSAGEPENDING,new Boolean(sessionInfo.getSession().getAttribute(I_CmsConstants.C_SESSION_BROADCASTMESSAGE) != null));
-      output.add(userentry);
+      HttpSession session=sessionInfo.getSession();
+      long creationTime=0;
+      try {
+        creationTime=session.getCreationTime();
+      }
+ catch (      IllegalStateException e) {
+        m_sessions.remove(key);
+      }
+      if (creationTime != 0) {
+        userentry.put(I_CmsConstants.C_SESSION_USERNAME,sessionInfo.getUserName());
+        userentry.put(I_CmsConstants.C_SESSION_PROJECT,sessionInfo.getProject());
+        userentry.put(I_CmsConstants.C_SESSION_MESSAGEPENDING,new Boolean(session.getAttribute(I_CmsConstants.C_SESSION_BROADCASTMESSAGE) != null));
+        output.add(userentry);
+      }
     }
   }
   return output;

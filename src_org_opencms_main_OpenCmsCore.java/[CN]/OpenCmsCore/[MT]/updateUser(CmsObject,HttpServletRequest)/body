@@ -4,22 +4,19 @@
   }
   HttpSession session=req.getSession(false);
   if (session != null) {
-    if (!cms.getRequestContext().currentUser().getName().equals(OpenCms.getDefaultUsers().getUserGuest())) {
-      CmsSessionInfo sessionInfo=new CmsSessionInfo();
-      sessionInfo.setUserName(cms.getRequestContext().currentUser().getName());
-      sessionInfo.setUserId(cms.getRequestContext().currentUser().getId());
-      sessionInfo.setProject(new Integer(cms.getRequestContext().currentProject().getId()));
-      sessionInfo.setCurrentSite(cms.getRequestContext().getSiteRoot());
-      sessionInfo.setSession(session);
-      m_sessionInfoManager.putUser(session.getId(),sessionInfo);
-      CmsSessionBindingListener notify=null;
-      Object sessionValue=session.getAttribute("NOTIFY");
-      if (sessionValue instanceof CmsSessionBindingListener) {
-        notify=(CmsSessionBindingListener)sessionValue;
+    if (!cms.getRequestContext().currentUser().isGuestUser()) {
+      String sessionId=session.getId();
+      CmsSessionInfo sessionInfo=m_sessionInfoManager.getUserInfo(sessionId);
+      if (sessionInfo != null) {
+        sessionInfo.update(cms.getRequestContext());
       }
-      if (notify == null) {
-        notify=new CmsSessionBindingListener(session.getId());
-        session.setAttribute("NOTIFY",notify);
+ else {
+        sessionInfo=new CmsSessionInfo();
+        sessionInfo.update(cms.getRequestContext());
+        sessionInfo.setSession(session);
+        m_sessionInfoManager.putUser(sessionId,sessionInfo);
+        CmsSessionBindingListener sessionInfoRemover=new CmsSessionBindingListener(sessionId);
+        session.setAttribute("SESSION_INFO_REMOVER",sessionInfoRemover);
       }
     }
   }
