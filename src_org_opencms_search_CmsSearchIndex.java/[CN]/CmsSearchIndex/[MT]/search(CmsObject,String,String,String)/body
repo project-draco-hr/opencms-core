@@ -1,0 +1,70 @@
+{
+  ArrayList result=null;
+  Query query=null;
+  Searcher searcher=null;
+  Hits hits=null;
+  Document doc=null;
+  A_CmsIndexResource resource=null;
+  Map searchCache=OpenCms.getSearchManager().getResultCache();
+  String key=cms.getRequestContext().currentUser().getName() + "_" + cms.getRequestContext().getRemoteAddress()+ "_"+ m_name+ "_"+ searchQuery+ "_"+ searchRoot+ "_"+ fields;
+  result=(ArrayList)searchCache.get(key);
+  if (result != null) {
+    return result;
+  }
+  CmsRequestContext context=cms.getRequestContext();
+  CmsProject currentProject=context.currentProject();
+  context.setCurrentProject(cms.readProject(m_project));
+  if (searchRoot != null && !"".equals(searchRoot)) {
+    searchRoot=cms.getRequestContext().getSiteRoot() + searchRoot;
+  }
+ else {
+    searchRoot=cms.getRequestContext().getSiteRoot();
+  }
+  if (OpenCms.getLog(this).isDebugEnabled()) {
+    OpenCms.getLog(this).debug("Searching for \"" + searchQuery + "\" in fields \""+ fields+ "\" of index "+ m_name);
+  }
+  try {
+    if (fields != null) {
+      BooleanQuery fieldsQuery=new BooleanQuery();
+      String fList[]=org.opencms.util.CmsStringSubstitution.split(fields," ");
+      for (int i=0; i < fList.length; i++) {
+        fieldsQuery.add(QueryParser.parse(searchQuery,fList[i],OpenCms.getSearchManager().getAnalyzer(m_locale)),false,false);
+      }
+      query=fieldsQuery;
+    }
+ else {
+      query=QueryParser.parse(searchQuery,I_CmsDocumentFactory.DOC_CONTENT,OpenCms.getSearchManager().getAnalyzer(m_locale));
+    }
+    searcher=new IndexSearcher(m_path);
+    hits=searcher.search(query);
+    double maxScore=-1.0;
+    result=new ArrayList(hits.length());
+    for (int i=0, n=hits.length(); i < n; i++) {
+      try {
+        doc=hits.doc(i);
+        resource=getIndexResource(cms,searchRoot,doc);
+        if (resource != null) {
+          maxScore=(maxScore < hits.score(i)) ? hits.score(i) : maxScore;
+          result.add(new CmsSearchResult(this,searchQuery,resource,doc,(int)((hits.score(i) / maxScore) * 100.0)));
+        }
+      }
+ catch (      Exception exc) {
+      }
+    }
+  }
+ catch (  Exception exc) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ "Search on "+ m_path+ " failed. ",exc);
+  }
+ finally {
+    if (searcher != null) {
+      try {
+        searcher.close();
+      }
+ catch (      IOException exc) {
+      }
+    }
+    context.setCurrentProject(currentProject);
+  }
+  searchCache.put(key,result);
+  return result;
+}
