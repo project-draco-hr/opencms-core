@@ -1,0 +1,49 @@
+{
+  Digester digester=new Digester();
+  digester.setValidating(false);
+  digester.setRuleNamespaceURI(null);
+  digester.setErrorHandler(new CmsXmlValidationErrorHandler());
+  CmsModuleImportExportHandler handler=new CmsModuleImportExportHandler();
+  digester.push(handler);
+  CmsModuleXmlHandler.addXmlDigesterRules(digester);
+  InputStream stream=null;
+  ZipFile importZip=null;
+  try {
+    File file=new File(importResource);
+    if (file.isFile()) {
+      importZip=new ZipFile(importResource);
+      ZipEntry entry=importZip.getEntry("manifest.xml");
+      stream=importZip.getInputStream(entry);
+    }
+ else     if (file.isDirectory()) {
+      file=new File(file,"manifest.xml");
+      stream=new FileInputStream(file);
+    }
+    digester.parse(stream);
+  }
+ catch (  IOException e) {
+    OpenCms.getLog(CmsModuleImportExportHandler.class).error("IO error reading module import",e);
+    throw new CmsConfigurationException(CmsConfigurationException.C_CONFIGURATION_ERROR,e);
+  }
+catch (  SAXException e) {
+    OpenCms.getLog(CmsModuleImportExportHandler.class).error("SAX error reading module import",e);
+    throw new CmsConfigurationException(CmsConfigurationException.C_CONFIGURATION_ERROR,e);
+  }
+ finally {
+    try {
+      if (importZip != null) {
+        importZip.close();
+      }
+      if (stream != null) {
+        stream.close();
+      }
+    }
+ catch (    Exception e) {
+    }
+  }
+  CmsModule importedModule=handler.getModule();
+  if (importedModule == null) {
+    throw new CmsConfigurationException("Could not import module from source '" + importResource + "' is already installed",CmsConfigurationException.C_CONFIGURATION_ERROR);
+  }
+  return importedModule;
+}

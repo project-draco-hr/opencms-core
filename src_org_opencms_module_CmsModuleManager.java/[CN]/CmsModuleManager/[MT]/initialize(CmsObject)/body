@@ -1,0 +1,45 @@
+{
+  Iterator it;
+  it=m_modules.keySet().iterator();
+  while (it.hasNext()) {
+    CmsModule module=(CmsModule)m_modules.get(it.next());
+    if (module.getActionClass() != null) {
+      I_CmsModuleAction moduleInstance=null;
+      try {
+        moduleInstance=(I_CmsModuleAction)Class.forName(module.getActionClass()).newInstance();
+      }
+ catch (      InstantiationException e) {
+        OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Module configuration : could not create instance for module " + module.getName(),e);
+      }
+catch (      IllegalAccessException e) {
+        OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Module configuration : could not create instance for module " + module.getName(),e);
+      }
+catch (      ClassNotFoundException e) {
+        OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Module configuration : could not create instance for module " + module.getName(),e);
+      }
+catch (      ClassCastException e) {
+        OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Module configuration : could not create instance for module " + module.getName(),e);
+      }
+      m_moduleInstances.put(module.getName(),moduleInstance);
+    }
+  }
+  initModuleExportPoints();
+  it=m_moduleInstances.keySet().iterator();
+  while (it.hasNext()) {
+    I_CmsModuleAction moduleAction=(I_CmsModuleAction)m_moduleInstances.get(it.next());
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Module configuration : initializing module class " + moduleAction.getClass().getName());
+    }
+    try {
+      CmsContextInfo contextInfo=new CmsContextInfo(adminCms.getRequestContext().currentUser(),adminCms.getRequestContext().currentProject(),adminCms.getRequestContext().getUri(),adminCms.getRequestContext().getSiteRoot(),adminCms.getRequestContext().getLocale(),adminCms.getRequestContext().getEncoding(),adminCms.getRequestContext().getRemoteAddress());
+      CmsObject adminCmsCopy=OpenCms.initCmsObject(adminCms,contextInfo);
+      moduleAction.initialize(adminCmsCopy);
+    }
+ catch (    Throwable t) {
+      OpenCms.getLog(this).error("Error during module action instance initialize for class '" + moduleAction.getClass().getName() + "'",t);
+    }
+  }
+  if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    OpenCms.getLog(CmsLog.CHANNEL_INIT).info(". Module configuration : " + m_moduleInstances.size() + " module classes initialized");
+  }
+}

@@ -1,0 +1,50 @@
+{
+  CmsProject previousProject=cms.getRequestContext().currentProject();
+  try {
+    CmsProject importProject=null;
+    try {
+      cms.getRequestContext().saveSiteRoot();
+      cms.getRequestContext().setSiteRoot("/");
+      try {
+        importProject=cms.readProject(C_IMPORT_MODULE_PROJECT_NAME);
+      }
+ catch (      CmsException e) {
+        importProject=cms.createProject(C_IMPORT_MODULE_PROJECT_NAME,"A System generated project to import the module " + getModuleName(),OpenCms.getDefaultUsers().getGroupAdministrators(),OpenCms.getDefaultUsers().getGroupAdministrators(),I_CmsConstants.C_PROJECT_TYPE_TEMPORARY);
+      }
+      cms.getRequestContext().setCurrentProject(importProject);
+      cms.copyResourceToProject("/");
+    }
+  finally {
+      cms.getRequestContext().restoreSiteRoot();
+    }
+    importFile=importFile.replace('\\','/');
+    String moduleZipName=importFile.substring(importFile.lastIndexOf('/') + 1);
+    String modulePackageName;
+    if (moduleZipName.toLowerCase().endsWith(".zip")) {
+      modulePackageName=moduleZipName.substring(0,moduleZipName.lastIndexOf('.'));
+      int pos=modulePackageName.lastIndexOf('_');
+      if (pos > 0) {
+        modulePackageName=modulePackageName.substring(0,pos);
+      }
+    }
+ else {
+      modulePackageName=moduleZipName;
+    }
+    report.print(report.key("report.import_module_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+    if (report instanceof CmsHtmlReport) {
+      report.println(" <i>" + modulePackageName + "</i>",I_CmsReport.C_FORMAT_HEADLINE);
+    }
+ else {
+      report.println(" " + modulePackageName,I_CmsReport.C_FORMAT_HEADLINE);
+    }
+    importModule(cms,importFile,report);
+    report.println(report.key("report.publish_project_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+    cms.unlockProject(importProject.getId());
+    cms.publishProject(report);
+    report.println(report.key("report.publish_project_end"),I_CmsReport.C_FORMAT_HEADLINE);
+    report.println(report.key("report.import_module_end"),I_CmsReport.C_FORMAT_HEADLINE);
+  }
+  finally {
+    cms.getRequestContext().setCurrentProject(previousProject);
+  }
+}
