@@ -1,7 +1,6 @@
 {
   PreparedStatement stmt=null;
   Connection conn=null;
-  CmsUUID modifiedByUserId=userId;
   long dateModified=resource.isTouched() ? resource.getDateLastModified() : System.currentTimeMillis();
   boolean isFolder=false;
   if (resource.getType() == I_CmsConstants.C_TYPE_FOLDER) {
@@ -11,7 +10,7 @@
     filecontent=new byte[0];
   }
   if (project.getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
-    modifiedByUserId=resource.getResourceLastModifiedBy();
+    userId=resource.getResourceLastModifiedBy();
   }
   try {
     conn=m_sqlManager.getConnection(project);
@@ -30,23 +29,25 @@
     stmt.executeUpdate();
     m_sqlManager.closeAll(null,stmt,null);
     stmt=m_sqlManager.getPreparedStatement(conn,project,"C_RESOURCES_UPDATE_STRUCTURE");
-    stmt.setInt(1,resource.getProjectId());
+    stmt.setString(1,resource.getParentId().toString());
+    stmt.setInt(2,resource.getProjectId());
+    stmt.setString(3,resource.getResourceName());
+    stmt.setInt(4,0);
     int state=resource.getState();
     if ((state == I_CmsConstants.C_STATE_NEW) || (state == I_CmsConstants.C_STATE_CHANGED)) {
-      stmt.setInt(2,state);
+      stmt.setInt(5,state);
     }
  else {
       if (isChanged == true) {
-        stmt.setInt(2,I_CmsConstants.C_STATE_CHANGED);
+        stmt.setInt(5,I_CmsConstants.C_STATE_CHANGED);
       }
  else {
-        stmt.setInt(2,resource.getState());
+        stmt.setInt(5,resource.getState());
       }
     }
-    stmt.setString(3,resource.isLockedBy().toString());
-    stmt.setString(4,modifiedByUserId.toString());
-    stmt.setString(5,resource.getResourceName());
-    stmt.setString(6,resource.getId().toString());
+    stmt.setString(6,resource.isLockedBy().toString());
+    stmt.setString(7,userId.toString());
+    stmt.setString(8,resource.getId().toString());
     stmt.executeUpdate();
   }
  catch (  SQLException e) {
