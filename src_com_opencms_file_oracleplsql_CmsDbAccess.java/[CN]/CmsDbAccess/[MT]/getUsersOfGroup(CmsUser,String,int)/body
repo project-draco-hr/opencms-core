@@ -1,0 +1,37 @@
+{
+  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
+  com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
+  CmsGroup group;
+  Vector users=new Vector();
+  CallableStatement statement=null;
+  ResultSet res=null;
+  try {
+    statement=(CallableStatement)pool.getPreparedStatement(cq.C_PLSQL_GROUPS_GETUSERSOFGROUP_KEY);
+    statement.setInt(2,currentUser.getId());
+    statement.setString(3,name);
+    statement.setInt(4,type);
+    statement.execute();
+    res=(ResultSet)statement.getObject(1);
+    while (res.next()) {
+      byte[] value=res.getBytes(m_cq.C_USERS_USER_INFO);
+      ByteArrayInputStream bin=new ByteArrayInputStream(value);
+      ObjectInputStream oin=new ObjectInputStream(bin);
+      Hashtable info=(Hashtable)oin.readObject();
+      CmsUser user=new CmsUser(res.getInt(m_cq.C_USERS_USER_ID),res.getString(m_cq.C_USERS_USER_NAME),res.getString(m_cq.C_USERS_USER_PASSWORD),res.getString(m_cq.C_USERS_USER_RECOVERY_PASSWORD),res.getString(m_cq.C_USERS_USER_DESCRIPTION),res.getString(m_cq.C_USERS_USER_FIRSTNAME),res.getString(m_cq.C_USERS_USER_LASTNAME),res.getString(m_cq.C_USERS_USER_EMAIL),SqlHelper.getTimestamp(res,m_cq.C_USERS_USER_LASTLOGIN).getTime(),SqlHelper.getTimestamp(res,m_cq.C_USERS_USER_LASTUSED).getTime(),res.getInt(m_cq.C_USERS_USER_FLAGS),info,new CmsGroup(res.getInt(m_cq.C_USERS_USER_DEFAULT_GROUP_ID),res.getInt(m_cq.C_GROUPS_PARENT_GROUP_ID),res.getString(m_cq.C_GROUPS_GROUP_NAME),res.getString(m_cq.C_GROUPS_GROUP_DESCRIPTION),res.getInt(m_cq.C_GROUPS_GROUP_FLAGS)),res.getString(m_cq.C_USERS_USER_ADDRESS),res.getString(m_cq.C_USERS_USER_SECTION),res.getInt(m_cq.C_USERS_USER_TYPE));
+      users.addElement(user);
+    }
+    res.close();
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+catch (  Exception e) {
+    throw new CmsException("[" + this.getClass().getName() + "]",e);
+  }
+ finally {
+    if (statement != null) {
+      pool.putPreparedStatement(cq.C_PLSQL_GROUPS_GETUSERSOFGROUP_KEY,statement);
+    }
+  }
+  return users;
+}
