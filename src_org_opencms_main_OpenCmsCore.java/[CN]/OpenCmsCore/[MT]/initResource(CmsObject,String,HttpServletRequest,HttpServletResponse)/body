@@ -1,74 +1,62 @@
 {
-  CmsFile file=null;
+  CmsResource resource=null;
   CmsException tmpException=null;
   try {
-    file=cms.readFile(resourceName);
-  }
- catch (  CmsException e) {
-    if (e.getType() == CmsException.C_NOT_FOUND) {
+    resource=cms.readFileHeader(resourceName);
+    if (resource.isFolder()) {
       try {
-        CmsFolder folder=cms.readFolder(resourceName);
-        String defaultFileName=cms.readProperty(CmsResource.getFolderPath(cms.readAbsolutePath(folder)),I_CmsConstants.C_PROPERTY_DEFAULT_FILE);
+        String defaultFileName=cms.readProperty(CmsResource.getFolderPath(cms.readAbsolutePath(resource)),I_CmsConstants.C_PROPERTY_DEFAULT_FILE);
         if (defaultFileName != null) {
-          String tmpResourceName=CmsResource.getFolderPath(cms.readAbsolutePath(folder)) + defaultFileName;
+          String tmpResourceName=CmsResource.getFolderPath(cms.readAbsolutePath(resource)) + defaultFileName;
+          resource=cms.readFileHeader(tmpResourceName);
+          cms.getRequestContext().setUri(tmpResourceName);
+        }
+      }
+ catch (      CmsSecurityException se) {
+        throw se;
+      }
+catch (      CmsException e) {
+      }
+      if (resource.isFolder()) {
+        for (int i=0; i < m_defaultFilenames.length; i++) {
+          String tmpResourceName=CmsResource.getFolderPath(cms.readAbsolutePath(resource)) + m_defaultFilenames[i];
           try {
-            file=cms.readFile(tmpResourceName);
+            resource=cms.readFileHeader(tmpResourceName);
             cms.getRequestContext().setUri(tmpResourceName);
+            break;
           }
  catch (          CmsSecurityException se) {
             throw se;
           }
-catch (          CmsException exc) {
+catch (          CmsException e) {
           }
-        }
-        if (file == null) {
-          for (int i=0; i < m_defaultFilenames.length; i++) {
-            String tmpResourceName=CmsResource.getFolderPath(cms.readAbsolutePath(folder)) + m_defaultFilenames[i];
-            try {
-              file=cms.readFile(tmpResourceName);
-              cms.getRequestContext().setUri(tmpResourceName);
-              break;
-            }
- catch (            CmsSecurityException se) {
-              throw se;
-            }
-catch (            CmsException exc) {
-            }
-          }
-        }
-        if (file == null) {
-          throw e;
-        }
-      }
- catch (      CmsException ex) {
-        if (ex.getType() == CmsException.C_NOT_FOUND) {
-          tmpException=e;
-        }
- else {
-          throw ex;
         }
       }
     }
- else {
-      throw e;
+    if (resource.isFolder()) {
+      resource=null;
     }
   }
-  if (file != null) {
-    if ((file.getFlags() & I_CmsConstants.C_ACCESS_INTERNAL_READ) > 0) {
+ catch (  CmsException e) {
+    tmpException=e;
+    resource=null;
+  }
+  if (resource != null) {
+    if ((resource.getFlags() & I_CmsConstants.C_ACCESS_INTERNAL_READ) > 0) {
       throw new CmsException(CmsException.C_ERROR_DESCRIPTION[CmsException.C_INTERNAL_FILE] + cms.getRequestContext().getUri(),CmsException.C_INTERNAL_FILE);
     }
   }
   Iterator i=m_resourceInitHandlers.iterator();
   while (i.hasNext()) {
     try {
-      file=((I_CmsResourceInit)i.next()).initResource(file,cms,req,res);
+      resource=((I_CmsResourceInit)i.next()).initResource(resource,cms,req,res);
     }
  catch (    CmsResourceInitException e) {
       break;
     }
   }
-  if (file == null && tmpException != null) {
+  if (resource == null && tmpException != null) {
     throw tmpException;
   }
-  return file;
+  return resource;
 }
