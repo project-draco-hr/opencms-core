@@ -1,31 +1,36 @@
 {
   getJsp().getRequest().setAttribute(C_SESSION_WORKPLACE_CLASS,this);
   try {
-    if (lockResource(getCms())) {
+    String resName=getParamResource();
+    CmsResource res=getCms().readFileHeader(resName);
+    if (res.isFolder() && !resName.endsWith("/")) {
+      resName+="/";
+    }
+switch (getDialogAction(getCms())) {
+case TYPE_LOCK:
       getCms().lockResource(getParamResource());
-    }
+    break;
+case TYPE_LOCKCHANGE:
+  getCms().changeLock(resName);
+break;
+case TYPE_UNLOCK:
+default :
+getCms().unlockResource(resName,false);
+}
+Map params=new HashMap();
+params.put(I_CmsWpConstants.C_PARA_RESOURCE,"");
+getJsp().include(C_FILE_EXPLORER_FILELIST,null,params);
+}
+ catch (CmsException e) {
+setParamErrorstack(e.getStackTraceAsString());
+if (e instanceof CmsSecurityException) {
+setParamMessage(key("error.message.accessdenied"));
+setParamReasonSuggestion(key("error.reason.accessdenied") + "<br>\n" + key("error.suggestion.accessdenied")+ "\n");
+}
  else {
-      String resName=getParamResource();
-      CmsResource res=getCms().readFileHeader(resName);
-      if (res.isFolder() && !resName.endsWith("/")) {
-        resName+="/";
-      }
-      getCms().unlockResource(resName,false);
-    }
-    Map params=new HashMap();
-    params.put(I_CmsWpConstants.C_PARA_RESOURCE,"");
-    getJsp().include(C_FILE_EXPLORER_FILELIST,null,params);
-  }
- catch (  CmsException e) {
-    setParamErrorstack(e.getStackTraceAsString());
-    if (e instanceof CmsSecurityException) {
-      setParamMessage(key("error.message.accessdenied"));
-      setParamReasonSuggestion(key("error.reason.accessdenied") + "<br>\n" + key("error.suggestion.accessdenied")+ "\n");
-    }
- else {
-      setParamMessage(key("error.message." + getParamDialogtype()));
-      setParamReasonSuggestion(getErrorSuggestionDefault());
-    }
-    getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
-  }
+setParamMessage(key("error.message." + getParamDialogtype()));
+setParamReasonSuggestion(getErrorSuggestionDefault());
+}
+getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
+}
 }
