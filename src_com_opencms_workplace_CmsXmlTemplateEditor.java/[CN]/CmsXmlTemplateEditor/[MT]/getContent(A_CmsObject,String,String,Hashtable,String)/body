@@ -24,7 +24,7 @@
   String tempPageFilename=(String)session.getValue("te_temppagefile");
   String tempBodyFilename=(String)session.getValue("te_tempbodyfile");
   String style=(String)session.getValue("te_stylesheet");
-  boolean existsContentParam=(content != null && (!"".equals(content)));
+  boolean existsContentParam=content != null;
   boolean existsFileParam=(file != null && (!"".equals(file)));
   boolean saveRequested=((action != null) && (C_EDIT_ACTION_SAVE.equals(action) || C_EDIT_ACTION_SAVEEXIT.equals(action)));
   boolean exitRequested=((action != null) && (C_EDIT_ACTION_EXIT.equals(action) || C_EDIT_ACTION_SAVEEXIT.equals(action)));
@@ -66,6 +66,7 @@
     }
     if (editor == null || "".equals(editor)) {
       editor=this.C_SELECTBOX_EDITORVIEWS[C_SELECTBOX_EDITORVIEWS_DEFAULT[browserId]];
+      session.putValue("te_pageeditor",editor);
       parameters.put("editor",editor);
     }
     title=cms.readProperty(file,C_PROPERTY_TITLE);
@@ -92,7 +93,7 @@
  else {
       body=(String)allBodys.elementAt(0);
     }
-    bodytitle=bodyTemplateFile.getSectionTitle(body);
+    bodytitle=body.equals("(default)") ? "" : body;
     temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
     temporaryControlFile.setElementTemplate(C_BODY_ELEMENT,tempBodyFilename);
     temporaryControlFile.write();
@@ -133,19 +134,53 @@
       session.putValue("te_stylesheet",style);
     }
     if (bodytitlechangeRequested) {
-      bodyTemplateFile.setSectionTitle(oldBody,bodytitle);
+      if ((!oldBody.equals("(default)")) && (!oldBody.equals("script"))) {
+        if (bodytitle.toLowerCase().equals("script")) {
+          bodytitle="script";
+        }
+        try {
+          bodyTemplateFile.renameSection(oldBody,bodytitle);
+          oldBody=bodytitle;
+          if (!bodychangeRequested) {
+            body=bodytitle;
+          }
+        }
+ catch (        Exception e) {
+          bodytitle=oldBodytitle;
+        }
+        if (bodytitle.equals("script")) {
+          session.putValue("te_pageeditor",editor);
+          editor=C_SELECTBOX_EDITORVIEWS[1];
+          parameters.put("editor",editor);
+        }
+      }
+ else {
+        bodytitle=oldBodytitle;
+      }
     }
     if (bodychangeRequested) {
       temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
-      bodytitle=bodyTemplateFile.getSectionTitle(body);
+      bodytitle=body.equals("(default)") ? "" : body;
+      if (body.equals("script")) {
+        session.putValue("te_pageeditor",editor);
+        editor=C_SELECTBOX_EDITORVIEWS[1];
+        parameters.put("editor",editor);
+      }
+ else       if (oldBody.equals("script")) {
+        editor=(String)session.getValue("te_pageeditor");
+        parameters.put("editor",editor);
+      }
     }
     if (newbodyRequested) {
       body=C_BODY_ELEMENT + bodyTemplateFile.createNewSection(C_BODY_ELEMENT);
+      bodytitle=body;
       temporaryControlFile.setElementTemplSelector(C_BODY_ELEMENT,body);
       temporaryControlFile.setElementTemplate(C_BODY_ELEMENT,tempBodyFilename);
     }
     content=encoder.unescape(content);
-    bodyTemplateFile.setEditedTemplateContent(content,oldBody,oldEdit.equals(C_SELECTBOX_EDITORVIEWS[0]));
+    if ((!exitRequested) || saveRequested) {
+      bodyTemplateFile.setEditedTemplateContent(content,oldBody,oldEdit.equals(C_SELECTBOX_EDITORVIEWS[0]));
+    }
     bodyTemplateFile.write();
     temporaryControlFile.write();
   }
@@ -202,6 +237,7 @@
   session.putValue("te_templateclass",layoutTemplateClassName);
   CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
   xmlTemplateDocument.setData("editor",editor);
+  xmlTemplateDocument.setData("jsfile",editor.equals(C_SELECTBOX_EDITORVIEWS[2]) ? C_SELECTBOX_EDITORVIEWS[1] : editor);
   xmlTemplateDocument.setData("bodyfile",bodyElementFilename);
   xmlTemplateDocument.setData("bodyclass",bodyElementClassName);
   xmlTemplateDocument.setData("editorframe",(String)parameters.get("root.editorframe"));
