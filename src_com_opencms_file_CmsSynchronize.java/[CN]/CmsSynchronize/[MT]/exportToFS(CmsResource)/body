@@ -1,0 +1,51 @@
+{
+  CmsFile vfsFile;
+  File fsFile;
+  String resourcename;
+  CmsSynchronizeList sync=(CmsSynchronizeList)m_syncList.get(translate(m_cms.readAbsolutePath(res)));
+  if (sync != null) {
+    resourcename=sync.getResName();
+  }
+ else {
+    resourcename=m_cms.readAbsolutePath(res);
+    String parent=res.getParent();
+    CmsSynchronizeList parentSync=(CmsSynchronizeList)m_newSyncList.get(parent);
+    if (parentSync != null) {
+      resourcename=parentSync.getResName() + res.getName();
+    }
+  }
+  if ((res.isFolder()) && (!resourcename.endsWith("/"))) {
+    resourcename+="/";
+  }
+  fsFile=getFileInFs(resourcename);
+  try {
+    if (res.getState() != C_STATE_DELETED) {
+      if (res.isFile()) {
+        if (!fsFile.exists()) {
+          createNewLocalFile(fsFile);
+        }
+        vfsFile=m_cms.readFile(m_cms.readAbsolutePath(res));
+        writeFileByte(vfsFile.getContents(),fsFile);
+        Iterator i=m_checkFile.iterator();
+        while (i.hasNext()) {
+          try {
+            ((I_CmsSyncModification)i.next()).modifyFs(m_cms,vfsFile,fsFile);
+          }
+ catch (          CmsSyncModificationException e) {
+            break;
+          }
+        }
+      }
+ else {
+        fsFile.mkdir();
+      }
+      CmsSynchronizeList syncList=new CmsSynchronizeList(resourcename,translate(resourcename),res.getDateLastModified(),fsFile.lastModified());
+      m_newSyncList.put(translate(resourcename),syncList);
+      m_syncList.remove(translate(resourcename));
+    }
+    vfsFile=null;
+  }
+ catch (  Exception e) {
+    throw new CmsException(e.getMessage());
+  }
+}

@@ -1,0 +1,41 @@
+{
+  CmsFile vfsFile;
+  String resourcename=m_cms.readAbsolutePath(res);
+  CmsSynchronizeList sync=(CmsSynchronizeList)m_syncList.get(translate(resourcename));
+  File fsFile=getFileInFs(sync.getResName());
+  try {
+    m_cms.lockResource(resourcename);
+    vfsFile=m_cms.readFile(resourcename);
+    vfsFile.setContents(getFileBytes(fsFile));
+    m_cms.writeFile(vfsFile);
+    Iterator i=m_checkFile.iterator();
+    while (i.hasNext()) {
+      try {
+        ((I_CmsSyncModification)i.next()).modifyVfs(m_cms,vfsFile,fsFile);
+      }
+ catch (      CmsSyncModificationException e) {
+        break;
+      }
+    }
+    m_cms.unlockResource(resourcename);
+    res=m_cms.readFileHeader(resourcename);
+    CmsSynchronizeList syncList=new CmsSynchronizeList(sync.getResName(),translate(resourcename),res.getDateLastModified(),fsFile.lastModified());
+    m_newSyncList.put(translate(resourcename),syncList);
+    m_syncList.remove(translate(resourcename));
+    vfsFile=null;
+  }
+ catch (  CmsException ex) {
+    if (ex.getType() == 13) {
+      CmsSynchronizeList syncList=(CmsSynchronizeList)m_syncList.get(translate(resourcename));
+      m_newSyncList.put(translate(resourcename),syncList);
+      m_errorList.put(translate(resourcename),syncList);
+      m_syncList.remove(translate(resourcename));
+    }
+ else {
+      throw ex;
+    }
+  }
+catch (  Exception e) {
+    throw new CmsException(e.getMessage());
+  }
+}
