@@ -18,10 +18,7 @@
   if (parameters.get("ok") != null) {
     if (action == null) {
       project=cms.readProject(Integer.parseInt(projectId));
-      if (session.getValue(C_SESSION_THREAD_ERROR) != null) {
-        session.removeValue(C_SESSION_THREAD_ERROR);
-      }
-      A_CmsReportThread doDelete=new CmsAdminProjectDeleteThread(cms,Integer.parseInt(projectId),session);
+      A_CmsReportThread doDelete=new CmsProjectDeleteThread(cms,Integer.parseInt(projectId));
       doDelete.start();
       session.putValue(C_DELETE_THREAD,doDelete);
       xmlTemplateDocument.setData("time","10");
@@ -37,8 +34,8 @@
         templateSelector="wait";
       }
  else {
-        String errordetails=(String)session.getValue(C_SESSION_THREAD_ERROR);
-        if (errordetails == null) {
+        Throwable error=doDelete.getError();
+        if (error == null) {
           CmsXmlWpTemplateFile.clearcache();
           templateSelector="done";
           if (cms.getRequestContext().currentProject().getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
@@ -51,9 +48,8 @@
           session.removeValue("delprojectid");
         }
  else {
-          xmlTemplateDocument.setData("details",errordetails);
+          xmlTemplateDocument.setData("details",Utils.getStackTrace(error));
           templateSelector="error";
-          session.removeValue(C_SESSION_THREAD_ERROR);
           session.removeValue("delprojectid");
         }
       }
