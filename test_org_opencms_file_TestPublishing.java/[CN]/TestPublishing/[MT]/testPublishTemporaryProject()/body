@@ -1,0 +1,37 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing publish temporary project");
+  String source="/folder1/testfile.txt";
+  CmsProject onlineProject=cms.readProject("Online");
+  CmsProject offlineProject=cms.readProject("Offline");
+  CmsProject tempProject=cms.createProject("deleteme","Temp project to be deleted after publish","Users","Projectmanagers",I_CmsConstants.C_PROJECT_TYPE_TEMPORARY);
+  cms.copyResourceToProject("/");
+  cms.getRequestContext().setCurrentProject(tempProject);
+  cms.createResource(source,CmsResourceTypePlain.C_RESOURCE_TYPE_ID);
+  cms.unlockResource(source);
+  storeResources(cms,source);
+  cms.readResource(source);
+  cms.publishProject();
+  try {
+    cms.readResource(source);
+  }
+ catch (  CmsException e) {
+    fail("Resource " + source + " not found in project "+ cms.getRequestContext().currentProject().toString()+ ":"+ e);
+  }
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  try {
+    cms.readResource(source);
+  }
+ catch (  CmsException e) {
+    fail("Resource " + source + " not found in project "+ cms.getRequestContext().currentProject().toString()+ ":"+ e);
+  }
+  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_PUBLISHRESOURCE);
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  assertState(cms,source,I_CmsConstants.C_STATE_UNCHANGED);
+  try {
+    cms.readProject("deleteme");
+    fail("Temporary project still existing");
+  }
+ catch (  CmsException e) {
+  }
+}
