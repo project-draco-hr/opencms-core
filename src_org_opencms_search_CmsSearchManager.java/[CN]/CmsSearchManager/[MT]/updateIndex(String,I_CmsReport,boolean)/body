@@ -1,0 +1,64 @@
+{
+  CmsSearchIndex index=null;
+  IndexWriter writer=null;
+  if (report == null) {
+    report=(I_CmsReport)new CmsLogReport();
+  }
+  if (report != null) {
+    report.print(report.key("search.indexing_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+    report.print(indexName,I_CmsReport.C_FORMAT_HEADLINE);
+    report.println(report.key("search.dots"),I_CmsReport.C_FORMAT_HEADLINE);
+  }
+  index=getIndex(indexName);
+  CmsRequestContext context=m_cms.getRequestContext();
+  int currentProject=context.currentProject().getId();
+  int indexProject=m_cms.readProject(index.getProject()).getId();
+  String currentSiteRoot=context.getSiteRoot();
+  context.setSiteRoot(index.getSite());
+  context.setCurrentProject(indexProject);
+  if (report != null) {
+    report.println(report.key("search.indexing_context") + context.getSiteRoot() + ", "+ context.currentProject().getName(),I_CmsReport.C_FORMAT_NOTE);
+  }
+  try {
+    CmsIndexingThreadManager threadManager=new CmsIndexingThreadManager(this,report,Long.parseLong(m_timeout));
+    writer=index.getIndexWriter();
+    List folders=index.getFolders();
+    for (Iterator i=folders.iterator(); i.hasNext(); ) {
+      String vfsPath=(String)i.next();
+      m_vfsIndexer.init(m_cms,null,writer,index,report,threadManager);
+      m_vfsIndexer.updateIndex(vfsPath);
+    }
+    List channels=index.getChannels();
+    for (Iterator i=channels.iterator(); i.hasNext(); ) {
+      String cosChannel=(String)i.next();
+      String documenttype=(String)(index.getDocumenttypes(cosChannel).toArray())[0];
+      String resourcetype=(String)((List)m_resourcetypes.get(documenttype)).get(0);
+      m_cosIndexer.init(m_cms,resourcetype,writer,index,report,threadManager);
+      m_cosIndexer.updateIndex(cosChannel);
+    }
+    while (wait && threadManager.isRunning()) {
+      Thread.sleep(1000);
+    }
+    threadManager.reportStatistics();
+  }
+ catch (  Exception exc) {
+    if (report != null) {
+      report.println(report.key("search.indexing_failed"),I_CmsReport.C_FORMAT_WARNING);
+    }
+    if (OpenCms.getLog(this).isWarnEnabled()) {
+      OpenCms.getLog(this).warn("Rebuilding index " + index.getName() + " failed.",exc);
+    }
+  }
+ finally {
+    if (writer != null) {
+      try {
+        writer.close();
+      }
+ catch (      IOException exc) {
+      }
+    }
+    context.setSiteRoot(currentSiteRoot);
+    context.setCurrentProject(currentProject);
+  }
+  m_resultCache.clear();
+}
