@@ -1,41 +1,15 @@
 {
-  int oldProjectId=m_context.currentProject().getId();
-  int retValue=-1;
-  CmsResource res=readFileHeader(resourcename,true);
-  if (res.isFolder())   res=readFolder(resourcename,true);
-  CmsLock lock=getLock(resourcename);
-  if (!lock.isNullLock()) {
-    throw new CmsSecurityException("[CmsObject] cannot publish locked resource",CmsSecurityException.C_SECURITY_NO_PERMISSIONS);
+  int oldProjectType=m_context.currentProject().getType();
+  CmsResource resource=resource=readFileHeader(resourcename,true);
+  try {
+    m_context.currentProject().setType(I_CmsConstants.C_PROJECT_TYPE_DIRECT_PUBLISH);
+    publishProject(report,resource);
   }
-  if (res.getState() == I_CmsConstants.C_STATE_NEW) {
-    try {
-      m_driverManager.readFolder(m_context,res.getParentId(),false);
-    }
- catch (    CmsException ex) {
-      throw new CmsException("[CmsObject] cannot read parent folder in online project",CmsException.C_NOT_FOUND);
-    }
+ catch (  CmsException e) {
+    throw e;
   }
-  if (oldProjectId != I_CmsConstants.C_PROJECT_ONLINE_ID) {
-    if (isAdmin() || isManagerOfProject()) {
-      String projectName=justPrepare ? "Check direct publish" : "Direct publish";
-      int newProjectId=m_driverManager.createDirectPublishProject(m_context,projectName,"",OpenCms.getDefaultUsers().getGroupUsers(),OpenCms.getDefaultUsers().getGroupProjectmanagers(),I_CmsConstants.C_PROJECT_TYPE_TEMPORARY).getId();
-      retValue=newProjectId;
-      getRequestContext().setCurrentProject(newProjectId);
-      I_CmsResourceType rt=getResourceType(res.getType());
-      rt.copyResourceToProject(this,resourcename);
-      rt.changeLockedInProject(this,newProjectId,resourcename);
-      if (!justPrepare) {
-        publishProject(report);
-      }
-      getRequestContext().setCurrentProject(oldProjectId);
-    }
- else {
-      throw new CmsSecurityException("[CmsObject] cannot publish resource in current project",CmsSecurityException.C_SECURITY_PROJECTMANAGER_PRIVILEGES_REQUIRED);
-    }
+ finally {
+    m_context.currentProject().setType(oldProjectType);
+    OpenCms.fireCmsEvent(new CmsEvent(this,I_CmsEventListener.EVENT_PUBLISH_RESOURCE,Collections.singletonMap("resource",resource)));
   }
- else {
-    throw new CmsSecurityException("[CmsObject] cannot publish resource in online project",CmsSecurityException.C_SECURITY_NO_MODIFY_IN_ONLINE_PROJECT);
-  }
-  OpenCms.fireCmsEvent(new CmsEvent(this,I_CmsEventListener.EVENT_PUBLISH_RESOURCE,Collections.singletonMap("resource",res)));
-  return retValue;
 }

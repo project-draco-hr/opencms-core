@@ -23,36 +23,6 @@
     xmlTemplateDocument.setData("USER",cms.readUser(file.getUserLastModified()).getName());
     xmlTemplateDocument.setData("FILENAME",file.getResourceName());
   }
- else   if ("showResult".equals(action)) {
-    A_CmsReportThread doTheWork=(A_CmsReportThread)session.getValue(C_PUBLISH_LINKCHECK_THREAD);
-    if (doTheWork.isAlive()) {
-      xmlTemplateDocument.setData("endMethod","");
-      xmlTemplateDocument.setData("text",lang.getLanguageValue("project.publish.message_linkcheck"));
-    }
- else {
-      if (doTheWork.brokenLinksFound()) {
-        xmlTemplateDocument.setData("endMethod",xmlTemplateDocument.getDataValue("endMethod2"));
-        xmlTemplateDocument.setData("autoUpdate","");
-        xmlTemplateDocument.setData("text",lang.getLanguageValue("project.publish.message_brokenlinks") + "<br>" + lang.getLanguageValue("project.publish.message_brokenlinks2"));
-      }
- else {
-        xmlTemplateDocument.setData("endMethod",xmlTemplateDocument.getDataValue("endMethod3"));
-        xmlTemplateDocument.setData("autoUpdate","");
-        xmlTemplateDocument.setData("text","");
-      }
-      session.removeValue(C_PUBLISH_LINKCHECK_THREAD);
-    }
-    xmlTemplateDocument.setData("data",doTheWork.getReportUpdate());
-    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"updateReport");
-  }
- else   if ("doThePublish".equals(action)) {
-    CmsResource file=readResource(cms,filename);
-    A_CmsReportThread doPublish=new CmsPublishResourceThread(cms,cms.readAbsolutePath(file));
-    doPublish.start();
-    session.putValue(C_PUBLISH_THREAD,doPublish);
-    xmlTemplateDocument.setData("actionParameter","showPublishResult");
-    return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"showresult");
-  }
  else   if ("showPublishResult".equals(action)) {
     A_CmsReportThread doTheWork=(A_CmsReportThread)session.getValue(C_PUBLISH_THREAD);
     if (doTheWork.isAlive()) {
@@ -88,9 +58,12 @@
  else {
     CmsResource file=readResource(cms,filename);
     String lasturl=getLastUrl(cms,parameters);
+    if (file.isFolder() && !filename.endsWith(I_CmsConstants.C_FOLDER_SEPARATOR)) {
+      filename+=I_CmsConstants.C_FOLDER_SEPARATOR;
+    }
     if ("check".equals(action)) {
       if (file.getState() != C_STATE_DELETED) {
-        if (checkLocked(cms,file)) {
+        if (cms.countLockedResources(filename) == 0) {
           action="ok";
         }
  else {
@@ -103,7 +76,8 @@
     }
  else     if ("rmlocks".equals(action)) {
       try {
-        cms.unlockResource(filename,true);
+        cms.lockResource(filename);
+        cms.unlockResource(filename,false);
         action="ok";
       }
  catch (      CmsException exc) {
@@ -113,23 +87,12 @@
       }
     }
     if ("ok".equals(action)) {
-      try {
-        int tempProjectId=cms.publishResource(cms.readAbsolutePath(file),true);
-        if (lasturl == null) {
-          lasturl="";
-        }
-        session.putValue(C_PUBLISH_LASTURL,lasturl);
-        A_CmsReportThread doCheck=new CmsAdminLinkmanagementThread(cms,tempProjectId,cms.readAbsolutePath(file));
-        doCheck.start();
-        session.putValue(C_PUBLISH_LINKCHECK_THREAD,doCheck);
-        template="showresult";
-      }
- catch (      CmsException e) {
-        session.removeValue(C_PARA_RESOURCE);
-        xmlTemplateDocument.setData("details",Utils.getStackTrace(e));
-        xmlTemplateDocument.setData("lasturl",lasturl);
-        return startProcessing(cms,xmlTemplateDocument,"",parameters,"error");
-      }
+      file=readResource(cms,filename);
+      A_CmsReportThread doPublish=new CmsPublishResourceThread(cms,cms.readAbsolutePath(file));
+      doPublish.start();
+      session.putValue(C_PUBLISH_THREAD,doPublish);
+      xmlTemplateDocument.setData("actionParameter","showPublishResult");
+      return startProcessing(cms,xmlTemplateDocument,elementName,parameters,"showresult");
     }
   }
   return startProcessing(cms,xmlTemplateDocument,"",parameters,template);

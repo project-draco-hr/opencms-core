@@ -1,0 +1,75 @@
+{
+  Vector newResources=null;
+  Vector deletedResources=null;
+  Vector changedResources=null;
+  Vector changedModuleMasters=null;
+  boolean success=false;
+  CmsPublishedResources publishedResources=null;
+  clearcache();
+  publishedResources=new CmsPublishedResources(m_context.currentProject());
+  try {
+    newResources=m_driverManager.readPublishProjectView(m_context,m_context.currentProject().getId(),"new");
+    deletedResources=m_driverManager.readPublishProjectView(m_context,m_context.currentProject().getId(),"deleted");
+    changedResources=m_driverManager.readPublishProjectView(m_context,m_context.currentProject().getId(),"changed");
+    updateOnlineProjectLinks(deletedResources,changedResources,null,CmsResourceTypePage.C_RESOURCE_TYPE_ID);
+    publishedResources=m_driverManager.publishProject(this,m_context,report,directPublishResource);
+    updateOnlineProjectLinks(null,null,newResources,CmsResourceTypePage.C_RESOURCE_TYPE_ID);
+    changedResources.clear();
+    changedResources=null;
+    newResources=null;
+    changedResources=publishedResources.getChangedVfsResources();
+    changedModuleMasters=publishedResources.getChangedCosResources();
+    if (CmsXmlTemplateLoader.getOnlineElementCache() != null) {
+      CmsXmlTemplateLoader.getOnlineElementCache().cleanupCache(changedResources,changedModuleMasters);
+    }
+    clearcache();
+    success=true;
+  }
+ catch (  Exception e) {
+    String stamp1="[" + this.getClass().getName() + ".publishProject()/1] Project:"+ m_context.currentProject().getId()+ " Time:"+ new Date();
+    String stamp2="[" + this.getClass().getName() + ".publishProject()/1] User: "+ m_context.currentUser().toString();
+    if (DEBUG > 0) {
+      System.err.println("###################################");
+      System.err.println(stamp1);
+      System.err.println(stamp2);
+      e.printStackTrace();
+      System.err.println("Vector of changed resources:");
+      if (changedResources != null) {
+        for (int i=0; i < changedResources.size(); i++) {
+          System.err.println("    -- " + i + " -->"+ (String)changedResources.get(i)+ "<--");
+        }
+      }
+    }
+    if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_CRITICAL)) {
+      OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,stamp1);
+      OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,stamp2);
+      OpenCms.log(I_CmsLogChannels.C_OPENCMS_CRITICAL,"[" + this.getClass().getName() + ".publishProject()/1] Exception: "+ e);
+    }
+  }
+ finally {
+    if (changedResources == null || changedResources.size() < 1) {
+      String stamp1="[" + this.getClass().getName() + ".publishProject()/2] Project:"+ m_context.currentProject().getId()+ " Time:"+ new Date();
+      String stamp2="[" + this.getClass().getName() + ".publishProject()/2] User: "+ m_context.currentUser().toString();
+      String stamp3="[" + this.getClass().getName() + ".publishProject()/2] Vector was null or empty";
+      if (DEBUG > 0) {
+        System.err.println("###################################");
+        System.err.println(stamp1);
+        System.err.println(stamp2);
+        System.err.println(stamp3);
+      }
+      if (OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_DEBUG)) {
+        OpenCms.log(I_CmsLogChannels.C_OPENCMS_DEBUG,stamp1);
+        OpenCms.log(I_CmsLogChannels.C_OPENCMS_DEBUG,stamp2);
+        OpenCms.log(I_CmsLogChannels.C_OPENCMS_DEBUG,stamp3);
+      }
+      success=false;
+    }
+    if (!success) {
+      if (CmsXmlTemplateLoader.getOnlineElementCache() != null)       CmsXmlTemplateLoader.getOnlineElementCache().clearCache();
+    }
+    if (m_context.currentProject().getId() == m_context.currentProject().getId() && (m_context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_TEMPORARY)) {
+      m_context.setCurrentProject(I_CmsConstants.C_PROJECT_ONLINE_ID);
+    }
+    this.fireEvent(I_CmsEventListener.EVENT_PUBLISH_PROJECT,publishedResources);
+  }
+}

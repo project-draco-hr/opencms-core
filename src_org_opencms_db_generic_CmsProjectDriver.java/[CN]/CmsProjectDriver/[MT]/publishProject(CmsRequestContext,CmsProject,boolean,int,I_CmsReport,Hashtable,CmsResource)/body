@@ -47,11 +47,14 @@
       currentResourceName=(String)i.next();
       currentFolder=(CmsFolder)sortedFolderMap.get(currentResourceName);
       currentLock=m_driverManager.getLock(context,currentResourceName);
-      publishCurrentResource=currentFolder.getState() > I_CmsConstants.C_STATE_CHANGED;
-      if (currentFolder.getState() == I_CmsConstants.C_STATE_CHANGED) {
-        publishCurrentResource=currentFolder.getProjectId() == context.currentProject().getId();
+      publishCurrentResource=currentFolder.getState() > I_CmsConstants.C_STATE_UNCHANGED;
+      if (context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_DIRECT_PUBLISH && directPublishResource != null) {
+        publishCurrentResource=publishCurrentResource && currentResourceName.startsWith(directPublishResource.getFullResourceName());
       }
-      publishCurrentResource=publishCurrentResource && CmsProject.isInsideProject(projectResources,currentFolder);
+ else {
+        publishCurrentResource=publishCurrentResource && currentFolder.getProjectId() == context.currentProject().getId();
+        publishCurrentResource=publishCurrentResource && CmsProject.isInsideProject(projectResources,currentFolder);
+      }
       publishCurrentResource=publishCurrentResource && currentLock.isNullLock();
       if (publishCurrentResource) {
         currentExportKey=checkExport(currentResourceName,exportpoints);
@@ -188,7 +191,12 @@ default :
 publishCurrentResource=false;
 break;
 }
+if (context.currentProject().getType() == I_CmsConstants.C_PROJECT_TYPE_DIRECT_PUBLISH && directPublishResource != null) {
+publishCurrentResource=publishCurrentResource && currentResourceName.startsWith(directPublishResource.getFullResourceName());
+}
+ else {
 publishCurrentResource=publishCurrentResource && CmsProject.isInsideProject(projectResources,currentFileHeader);
+}
 publishCurrentResource=publishCurrentResource && currentLock.isNullLock();
 if (publishCurrentResource) {
 currentFile=m_driverManager.getVfsDriver().readFile(context.currentProject().getId(),true,currentFileHeader.getId());
