@@ -1,20 +1,26 @@
 {
   int vfsLinkType=I_CmsConstants.C_UNKNOWN_ID;
   int newState=0;
-  CmsUUID modifiedByUserId=userId;
-  long dateModified=System.currentTimeMillis();
+  CmsUUID modifiedByUserId=null, createdByUserId=null;
+  long dateModified=0, dateCreated=0;
   Connection conn=null;
   PreparedStatement stmt=null;
   if (filename.length() > I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME) {
     throw new CmsException("The resource name '" + filename + "' is too long! (max. allowed length must be <= "+ I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME+ " chars.!)",CmsException.C_BAD_NAME);
   }
   if (project.getId() == I_CmsConstants.C_PROJECT_ONLINE_ID) {
-    newState=file.getState();
-    modifiedByUserId=file.getUserLastModified();
+    newState=I_CmsConstants.C_STATE_UNCHANGED;
+    dateCreated=file.getDateCreated();
+    createdByUserId=file.getUserCreated();
     dateModified=file.getDateLastModified();
+    modifiedByUserId=file.getUserLastModified();
   }
  else {
     newState=I_CmsConstants.C_STATE_NEW;
+    dateCreated=System.currentTimeMillis();
+    createdByUserId=userId;
+    dateModified=dateCreated;
+    modifiedByUserId=createdByUserId;
   }
   try {
     readFileHeader(project.getId(),parentId,filename,false);
@@ -46,8 +52,8 @@
       stmt.setInt(3,file.getFlags());
       stmt.setString(4,file.getFileId().toString());
       stmt.setInt(5,file.getLauncherType());
-      stmt.setTimestamp(6,new Timestamp(file.getDateCreated()));
-      stmt.setString(7,userId.toString());
+      stmt.setTimestamp(6,new Timestamp(dateCreated));
+      stmt.setString(7,createdByUserId.toString());
       stmt.setTimestamp(8,new Timestamp(dateModified));
       stmt.setString(9,modifiedByUserId.toString());
       stmt.setInt(10,newState);
