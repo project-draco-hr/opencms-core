@@ -1,0 +1,329 @@
+{
+  boolean listonly="listonly".equals(getSettings().getExplorerMode());
+  boolean projectView="projectview".equals(getSettings().getExplorerMode());
+  boolean vfslinkView="vfslink".equals(getSettings().getExplorerMode());
+  String currentFolder=getSettings().getExplorerFolder();
+  if (vfslinkView) {
+    boolean found=true;
+    try {
+      getCms().readFileHeader(currentFolder);
+    }
+ catch (    CmsException e) {
+      found=false;
+    }
+    if (found) {
+      currentFolder="vfslink:" + currentFolder;
+    }
+ else {
+      currentFolder="/";
+      vfslinkView=false;
+    }
+  }
+  long check=getCms().getFileSystemFolderChanges();
+  boolean newTreePlease=getSettings().getExplorerChecksum() != check;
+  CmsUUID currentFolderId=CmsUUID.getNullUUID();
+  if (!vfslinkView) {
+    try {
+      currentFolderId=(getCms().readFolder(currentFolder)).getResourceId();
+    }
+ catch (    CmsException e) {
+    }
+  }
+  StringBuffer content=new StringBuffer(2048);
+  content.append("function initialize() {\n");
+  if (listonly) {
+    content.append("top.openfolderMethod='openthisfolderflat';\n");
+  }
+ else {
+    content.append("top.openfolderMethod='openthisfolder';\n");
+  }
+  if (projectView || vfslinkView) {
+    content.append("top.projectView=true;\n");
+  }
+ else {
+    content.append("top.projectView=false;\n");
+  }
+  if (getSettings().getExplorerContext()) {
+    content.append("top.showKon=true;\n");
+  }
+ else {
+    content.append("top.showKon=false;\n");
+  }
+  if (getSettings().getExplorerFlaturl() != null) {
+    content.append("top.flaturl='");
+    content.append(getSettings().getExplorerFlaturl());
+    content.append("';\n");
+  }
+ else   if (!listonly) {
+    content.append("top.flaturl='';\n");
+  }
+  content.append("top.head.helpUrl='explorer/index.html';\n");
+  content.append("top.setProject(");
+  content.append(getSettings().getProject());
+  content.append(");\n");
+  content.append("top.setOnlineProject(");
+  content.append(I_CmsConstants.C_PROJECT_ONLINE_ID);
+  content.append(");\n");
+  content.append("top.setChecksum(");
+  content.append(check);
+  content.append(");\n");
+  boolean writeAccess=true;
+  if (!vfslinkView) {
+    try {
+      CmsFolder test=getCms().readFolder(currentFolder);
+      writeAccess=test.getProjectId() == getSettings().getProject();
+    }
+ catch (    CmsException e) {
+      writeAccess=false;
+    }
+  }
+  content.append("top.enableNewButton(");
+  content.append(writeAccess);
+  content.append(");\n");
+  content.append("top.setDirectory(\"");
+  content.append(currentFolderId.hashCode());
+  content.append("\",\"");
+  content.append(currentFolder);
+  content.append("\");\n");
+  content.append("top.rD();\n\n");
+  int filelist=getDefaultPreferences(getCms());
+  boolean showTitle=(filelist & I_CmsWpConstants.C_FILELIST_TITLE) > 0;
+  boolean showDateChanged=(filelist & I_CmsWpConstants.C_FILELIST_CHANGED) > 0;
+  boolean showOwner=(filelist & I_CmsWpConstants.C_FILELIST_OWNER) > 0;
+  boolean showGroup=(filelist & I_CmsWpConstants.C_FILELIST_GROUP) > 0;
+  boolean showSize=(filelist & I_CmsWpConstants.C_FILELIST_SIZE) > 0;
+  Vector resources=getRessources(getCms(),getSettings().getExplorerMode(),getSettings().getExplorerFolder());
+  int startat=0;
+  int stopat=resources.size();
+  int selectedPage=1;
+  int numberOfPages=0;
+  int maxEntrys=C_ENTRYS_PER_PAGE;
+  if (!(listonly || projectView || vfslinkView)) {
+    selectedPage=getSettings().getExplorerPage();
+    if (stopat > maxEntrys) {
+      numberOfPages=(stopat / maxEntrys) + 1;
+      if (selectedPage > numberOfPages) {
+        selectedPage=1;
+      }
+      startat=(selectedPage - 1) * maxEntrys;
+      if ((startat + maxEntrys) < stopat) {
+        stopat=startat + maxEntrys;
+      }
+    }
+  }
+  for (int i=startat; i < stopat; i++) {
+    CmsResource res=(CmsResource)resources.elementAt(i);
+    content.append("top.aF(");
+    content.append("\"");
+    content.append(res.getName());
+    content.append("\",");
+    if (projectView || vfslinkView) {
+      content.append("\"");
+      content.append(res.getPath());
+      content.append("\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    if (showTitle) {
+      String title="";
+      try {
+        title=getCms().readProperty(res.getAbsolutePath(),I_CmsConstants.C_PROPERTY_TITLE);
+      }
+ catch (      CmsException e) {
+      }
+      if (title == null) {
+        title="";
+      }
+      content.append("\"");
+      if (title != null)       content.append(Encoder.escapeHtml(title));
+      content.append("\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    content.append(res.getType());
+    content.append(",");
+    if (showDateChanged) {
+      content.append("\"");
+      content.append(getSettings().getMessages().getDateTime(res.getDateLastModified()));
+      content.append("\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    content.append("\"\",");
+    content.append("\"\",");
+    if (res.isFolder() || (!showSize)) {
+      content.append("\"\",");
+    }
+ else {
+      content.append(res.getLength());
+      content.append(",");
+    }
+    content.append(res.getState());
+    content.append(",");
+    content.append(res.getProjectId());
+    content.append(",");
+    if (showOwner) {
+      content.append("\"");
+      try {
+        content.append(getCms().readUser(res.getOwnerId()).getName());
+      }
+ catch (      CmsException e) {
+        content.append(e.getMessage());
+      }
+      content.append("\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    if (showGroup) {
+      content.append("\"");
+      try {
+        content.append(getCms().readGroup(res).getName());
+      }
+ catch (      CmsException e) {
+        content.append(e.getMessage());
+      }
+      content.append("\",");
+    }
+ else {
+      content.append("\"\",");
+    }
+    content.append(res.getAccessFlags());
+    content.append(",");
+    if (res.isLockedBy().isNullUUID()) {
+      content.append("\"\",");
+    }
+ else {
+      content.append("\"");
+      try {
+        content.append(getCms().lockedBy(res).getName());
+      }
+ catch (      CmsException e) {
+        content.append(e.getMessage());
+      }
+      content.append("\",");
+    }
+    int lockedInProject=res.getLockedInProject();
+    String lockedInProjectName="";
+    try {
+      lockedInProjectName=getCms().readProject(lockedInProject).getName();
+    }
+ catch (    CmsException exc) {
+    }
+    content.append("\"");
+    content.append(lockedInProjectName);
+    content.append("\",");
+    content.append(lockedInProject);
+    content.append(");\n");
+  }
+  if (newTreePlease && (!(listonly || vfslinkView))) {
+    content.append("\ntop.rT();\n");
+    Vector tree;
+    try {
+      tree=getCms().getFolderTree();
+    }
+ catch (    CmsException e) {
+      tree=new Vector();
+    }
+    int startAt=1;
+    CmsUUID parentId=CmsUUID.getNullUUID();
+    boolean grey=false;
+    if (CmsProject.isOnlineProject(getSettings().getProject())) {
+      CmsFolder rootFolder=(CmsFolder)tree.elementAt(0);
+      content.append("top.aC(\"");
+      content.append(rootFolder.getResourceId().hashCode());
+      content.append("\", ");
+      content.append("\"");
+      content.append(getSettings().getMessages().key("title.rootfolder"));
+      content.append("\", \"");
+      content.append(rootFolder.getParentId().hashCode());
+      content.append("\", false);\n");
+      for (int i=startAt; i < tree.size(); i++) {
+        CmsFolder folder=(CmsFolder)tree.elementAt(i);
+        content.append("top.aC(\"");
+        content.append(folder.getResourceId().hashCode());
+        content.append("\", ");
+        content.append("\"");
+        content.append(folder.getName());
+        content.append("\", \"");
+        content.append(folder.getParentId().hashCode());
+        content.append("\", false);\n");
+      }
+    }
+ else {
+      Hashtable idMixer=new Hashtable();
+      CmsFolder rootFolder=(CmsFolder)tree.elementAt(0);
+      String folderToIgnore=null;
+      if (!CmsProject.isOnlineProject(rootFolder.getProjectId())) {
+        startAt=2;
+        grey=false;
+        idMixer.put((CmsFolder)tree.elementAt(1),rootFolder.getResourceId());
+      }
+ else {
+        grey=true;
+      }
+      content.append("top.aC(\"");
+      content.append(rootFolder.getResourceId().hashCode());
+      content.append("\", ");
+      content.append("\"");
+      content.append(getSettings().getMessages().key("title.rootfolder"));
+      content.append("\", \"");
+      content.append(rootFolder.getParentId().hashCode());
+      content.append("\", ");
+      content.append(grey);
+      content.append(");\n");
+      for (int i=startAt; i < tree.size(); i++) {
+        CmsFolder folder=(CmsFolder)tree.elementAt(i);
+        if ((folder.getState() == I_CmsConstants.C_STATE_DELETED) || (folder.getAbsolutePath().equals(folderToIgnore))) {
+          folderToIgnore=folder.getAbsolutePath();
+        }
+ else {
+          if (!CmsProject.isOnlineProject(folder.getProjectId())) {
+            grey=false;
+            parentId=folder.getParentId();
+            try {
+              if (folder.getAbsolutePath().equals(((CmsFolder)tree.elementAt(i + 1)).getAbsolutePath())) {
+                i++;
+                idMixer.put((CmsFolder)tree.elementAt(i),folder.getResourceId());
+              }
+            }
+ catch (            IndexOutOfBoundsException exc) {
+            }
+          }
+ else {
+            grey=true;
+            parentId=folder.getParentId();
+            if (idMixer.containsKey(parentId)) {
+              parentId=(CmsUUID)idMixer.get(parentId);
+            }
+          }
+          content.append("top.aC(\"");
+          content.append(folder.getResourceId().hashCode());
+          content.append("\", ");
+          content.append("\"");
+          content.append(folder.getName());
+          content.append("\", \"");
+          content.append(parentId.hashCode());
+          content.append("\", ");
+          content.append(grey);
+          content.append(");\n");
+        }
+      }
+    }
+  }
+  if (listonly || projectView) {
+    content.append("top.dUL(document);\n");
+  }
+ else {
+    content.append("top.dU(document,");
+    content.append(numberOfPages);
+    content.append(",");
+    content.append(selectedPage);
+    content.append("); \n");
+  }
+  content.append("}\n");
+  return content.toString();
+}
