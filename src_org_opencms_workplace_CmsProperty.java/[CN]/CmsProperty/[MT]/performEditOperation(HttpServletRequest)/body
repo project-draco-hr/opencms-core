@@ -1,35 +1,46 @@
 {
   Vector propertyDef=getPropertyDefinitions();
-  Map activeProperties=getCms().readProperties(getParamResource());
-  boolean lockChecked=false;
-  for (int i=0; i < propertyDef.size(); i++) {
-    CmsPropertydefinition curProperty=(CmsPropertydefinition)propertyDef.elementAt(i);
-    String propName=Encoder.escapeXml(curProperty.getName());
-    String paramValue=request.getParameter(PREFIX_VALUE + propName);
-    boolean emptyParam=true;
-    if (paramValue != null) {
-      if (!"".equals(paramValue.trim())) {
-        emptyParam=false;
-      }
+  boolean useTempfileProject="true".equals(getParamUsetempfileproject());
+  try {
+    if (useTempfileProject) {
+      switchToTempProject();
     }
-    if (emptyParam) {
-      if (activeProperties.containsKey(curProperty.getName())) {
-        if (!lockChecked) {
-          checkLock(getParamResource());
-          lockChecked=true;
+    Map activeProperties=getCms().readProperties(getParamResource());
+    boolean lockChecked=false;
+    for (int i=0; i < propertyDef.size(); i++) {
+      CmsPropertydefinition curProperty=(CmsPropertydefinition)propertyDef.elementAt(i);
+      String propName=Encoder.escapeXml(curProperty.getName());
+      String paramValue=request.getParameter(PREFIX_VALUE + propName);
+      boolean emptyParam=true;
+      if (paramValue != null) {
+        if (!"".equals(paramValue.trim())) {
+          emptyParam=false;
         }
-        getCms().deleteProperty(getParamResource(),curProperty.getName());
       }
-    }
+      if (emptyParam) {
+        if (activeProperties.containsKey(curProperty.getName())) {
+          if (!lockChecked) {
+            checkLock(getParamResource());
+            lockChecked=true;
+          }
+          getCms().deleteProperty(getParamResource(),curProperty.getName());
+        }
+      }
  else {
-      String oldValue=request.getParameter(PREFIX_HIDDEN + propName);
-      if (!paramValue.equals(oldValue)) {
-        if (!lockChecked) {
-          checkLock(getParamResource());
-          lockChecked=true;
+        String oldValue=request.getParameter(PREFIX_HIDDEN + propName);
+        if (!paramValue.equals(oldValue)) {
+          if (!lockChecked) {
+            checkLock(getParamResource());
+            lockChecked=true;
+          }
+          getCms().writeProperty(getParamResource(),curProperty.getName(),paramValue);
         }
-        getCms().writeProperty(getParamResource(),curProperty.getName(),paramValue);
       }
+    }
+  }
+  finally {
+    if (useTempfileProject) {
+      switchToCurrentProject();
     }
   }
   return true;
