@@ -5,17 +5,27 @@
   List allConfigurations=new ArrayList();
   allConfigurations.add(manager);
   allConfigurations.addAll(manager.getConfigurations());
+  NodeComparator comparator=new NodeComparator();
   Iterator i=allConfigurations.iterator();
   while (i.hasNext()) {
     I_CmsXmlConfiguration config=(I_CmsXmlConfiguration)i.next();
+    String xmlOrigFile=inputUrl.getFile() + config.getXmlFileName();
     System.out.println("\n\nConfiguration instance: " + config + ":\n");
-    Document doc=manager.generateXml(config);
+    Document outputDoc=manager.generateXml(config);
+    InputSource source=new InputSource(new FileInputStream(xmlOrigFile));
+    Document inputDoc=CmsXmlUtils.unmarshalHelper(source,new CmsXmlEntityResolver(null));
+    int result=comparator.compare(outputDoc,inputDoc);
     XMLWriter writer;
     OutputFormat format=OutputFormat.createPrettyPrint();
     format.setIndentSize(4);
     format.setTrimText(false);
     format.setEncoding("UTF-8");
     writer=new XMLWriter(System.out,format);
-    writer.write(doc);
+    writer.write("\n");
+    writer.write(outputDoc);
+    if (result != 0) {
+      System.out.println("\n\nTest failed for configuration instance: " + config + ":\n");
+      fail("Generated output for configuration '" + config.getXmlFileName() + "' differs from input!");
+    }
   }
 }
