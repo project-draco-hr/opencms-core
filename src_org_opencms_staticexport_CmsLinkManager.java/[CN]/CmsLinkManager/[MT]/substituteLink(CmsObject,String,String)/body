@@ -1,0 +1,102 @@
+{
+  if (CmsStringUtil.isEmpty(link)) {
+    return "";
+  }
+  String absoluteLink=CmsLinkManager.getAbsoluteUri(link,cms.getRequestContext().getUri());
+  String vfsName;
+  String parameters;
+  int pos=absoluteLink.indexOf('?');
+  if (pos >= 0) {
+    vfsName=absoluteLink.substring(0,pos);
+    parameters=absoluteLink.substring(pos);
+  }
+ else {
+    vfsName=absoluteLink;
+    parameters=null;
+  }
+  String resultLink=null;
+  String uriBaseName=null;
+  boolean useRelativeLinks=false;
+  CmsSite targetSite;
+  if (CmsStringUtil.isNotEmpty(siteRoot)) {
+    targetSite=CmsSiteManager.getSite(siteRoot);
+  }
+ else {
+    targetSite=CmsSiteManager.getCurrentSite(cms);
+  }
+  String serverPrefix="";
+  if (targetSite != CmsSiteManager.getCurrentSite(cms)) {
+    serverPrefix=targetSite.getUrl();
+  }
+  if (cms.getRequestContext().currentProject().isOnlineProject()) {
+    if (OpenCms.getStaticExportManager().relativLinksInExport()) {
+      uriBaseName=OpenCms.getStaticExportManager().getCachedOnlineLink(OpenCms.getStaticExportManager().getCacheKey(cms.getRequestContext().getSiteRoot(),cms.getRequestContext().getUri()));
+      if (uriBaseName == null) {
+        if (exportRequired(cms,cms.getRequestContext().getUri())) {
+          uriBaseName=OpenCms.getStaticExportManager().getRfsName(cms,cms.getRequestContext().getUri());
+        }
+ else {
+          uriBaseName=OpenCms.getStaticExportManager().getVfsPrefix() + cms.getRequestContext().getUri();
+        }
+        OpenCms.getStaticExportManager().cacheOnlineLink(OpenCms.getStaticExportManager().getCacheKey(cms.getRequestContext().getSiteRoot(),cms.getRequestContext().getUri()),uriBaseName);
+      }
+      useRelativeLinks=uriBaseName.startsWith(OpenCms.getStaticExportManager().getRfsPrefix());
+    }
+    resultLink=OpenCms.getStaticExportManager().getCachedOnlineLink(cms.getRequestContext().getSiteRoot() + ":" + absoluteLink);
+    if (resultLink == null) {
+      if (exportRequired(cms,vfsName)) {
+        if (parameters != null) {
+          resultLink=OpenCms.getStaticExportManager().getTranslatedRfsName(cms,vfsName,parameters);
+          parameters=null;
+        }
+ else {
+          resultLink=OpenCms.getStaticExportManager().getRfsName(cms,vfsName);
+        }
+      }
+ else {
+        resultLink=OpenCms.getStaticExportManager().getVfsPrefix().concat(vfsName);
+        if (parameters != null) {
+          resultLink=resultLink.concat(parameters);
+        }
+      }
+      OpenCms.getStaticExportManager().cacheOnlineLink(cms.getRequestContext().getSiteRoot() + ":" + absoluteLink,resultLink);
+    }
+    if (useRelativeLinks) {
+      resultLink=getRelativeUri(uriBaseName,resultLink);
+    }
+    if (targetSite.hasSecureServer() && CmsSiteManager.getCurrentSite(cms).hasSecureServer()) {
+      if (!link.startsWith(I_CmsWpConstants.C_VFS_PATH_SYSTEM)) {
+        boolean secureLink=false;
+        boolean secureRequest=false;
+        int linkType=-1;
+        try {
+          secureLink=OpenCms.getStaticExportManager().isSecureLink(cms,link,siteRoot);
+          secureRequest=OpenCms.getStaticExportManager().isSecureLink(cms,cms.getRequestContext().getUri(),null);
+          linkType=cms.readResource(link).getTypeId();
+        }
+ catch (        CmsException e) {
+          if (OpenCms.getLog(this).isInfoEnabled()) {
+            OpenCms.getLog(this).info(e);
+          }
+        }
+        if (linkType != CmsResourceTypeImage.getStaticTypeId()) {
+          if (secureLink && !secureRequest) {
+            serverPrefix=targetSite.getSecureUrl();
+          }
+ else           if (!secureLink && secureRequest) {
+            serverPrefix=targetSite.getUrl();
+          }
+        }
+      }
+    }
+  }
+ else {
+    if (OpenCms.getRunLevel() >= OpenCms.RUNLEVEL_3_SHELL_ACCESS) {
+      resultLink=OpenCms.getStaticExportManager().getVfsPrefix().concat(vfsName);
+    }
+    if (parameters != null) {
+      resultLink=resultLink.concat(parameters);
+    }
+  }
+  return serverPrefix.concat(resultLink);
+}
