@@ -1,0 +1,84 @@
+{
+  String navigation="";
+  String buildquery="";
+  String tempNaviagtion="";
+  int result=0;
+  int site=1;
+  int constant=0;
+  int factor=0;
+  int loop=0;
+  int startloop=0;
+  int range=c_navigationRange;
+  String matchPerPage=(String)parameters.get(C_PARAM_SEARCHFORM_MATCH_PER_PAGE);
+  String serverpath=cms.getRequestContext().getRequest().getServletUrl() + "" + cms.getRequestContext().getUri();
+  if (matchPerPage == null) {
+    matchPerPage=(c_match.indexOf(C_PARAM_SEARCHENGINE_TOKEN) == -1) ? c_match : c_match.substring(0,c_match.indexOf(C_PARAM_SEARCHENGINE_TOKEN));
+  }
+  try {
+    cd=searchModul.newInstance();
+    cd=(I_CmsSearchEngine)getResult.elementAt(0);
+    site=((I_CmsSearchEngine)cd).getPages();
+  }
+ catch (  Exception e) {
+    System.out.println("setSearchResultNavigation:: Fatal Error to create new Instance, print stack trace now...");
+    e.printStackTrace();
+  }
+  page=(page == null) ? "1" : page;
+  result=(Integer.parseInt(page) - 1) / (range);
+  constant=site / range;
+  factor=(constant > 0) ? result : 0;
+  startloop=((factor * range) + 1);
+  loop=(((factor * range) + range) > site) ? site : ((factor * range) + range);
+  if (result >= 1) {
+    buildquery=setQuery(cms,parameters,matchPerPage,String.valueOf(startloop - 1));
+    template.setData("query_back",buildquery);
+    try {
+      tempNaviagtion=template.getProcessedDataValue("back");
+    }
+ catch (    Exception e) {
+      System.out.println("setSearchResultNavigation:: Fatal Error to Process navigation forward, print stack trace now...");
+      e.printStackTrace();
+    }
+    navigation+=tempNaviagtion;
+  }
+  for (int i=startloop; i <= loop; i++) {
+    if (Integer.parseInt(page) == i) {
+      template.setData("currentpage",String.valueOf(i));
+      try {
+        tempNaviagtion=template.getProcessedDataValue("currentnav");
+      }
+ catch (      Exception e) {
+        System.out.println("setSearchResultNavigation:: Fatal Error to Process current site, print stack trace now...");
+        e.printStackTrace();
+      }
+      navigation+=tempNaviagtion;
+    }
+ else {
+      buildquery=setQuery(cms,parameters,matchPerPage,String.valueOf(i));
+      template.setData("server",serverpath);
+      template.setData("query",buildquery);
+      template.setData("numberurl",String.valueOf(i));
+      try {
+        tempNaviagtion=template.getProcessedDataValue("nav");
+      }
+ catch (      Exception e) {
+        System.out.println("setSearchResultNavigation:: Fatal Error to Process navigation, print stack trace now...");
+        e.printStackTrace();
+      }
+      navigation+=tempNaviagtion;
+    }
+  }
+  if ((constant >= 1) && (site != loop)) {
+    buildquery=setQuery(cms,parameters,matchPerPage,String.valueOf(loop + 1));
+    template.setData("query_next",buildquery);
+    try {
+      tempNaviagtion=template.getProcessedDataValue("next");
+    }
+ catch (    Exception e) {
+      System.out.println("setSearchResultNavigation:: Fatal Error to Process navigation back, print stack trace now...");
+      e.printStackTrace();
+    }
+    navigation+=tempNaviagtion;
+  }
+  template.setData("navigation",navigation);
+}
