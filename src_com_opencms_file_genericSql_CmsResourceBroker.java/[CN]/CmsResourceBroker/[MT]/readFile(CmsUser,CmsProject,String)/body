@@ -1,23 +1,23 @@
 {
   CmsFile cmsFile=null;
   try {
-    cmsFile=m_dbAccess.readFile(currentProject.getId(),onlineProject(currentUser,currentProject).getId(),filename);
+    cmsFile=m_dbAccess.readFile(currentProject.getId(),filename);
   }
- catch (  CmsException exc) {
-    if (exc.getType() == CmsException.C_RESOURCE_DELETED) {
-      throw exc;
-    }
- else     if (currentProject.equals(onlineProject(currentUser,currentProject))) {
-      throw exc;
-    }
+ catch (  SQLException se) {
+    throw new CmsException(CmsException.C_SQL_ERROR,se);
+  }
+  if (cmsFile != null) {
+    if (cmsFile.getState() == C_STATE_DELETED)     return null;
+    if (accessRead(currentUser,currentProject,(CmsResource)cmsFile))     return cmsFile;
  else {
-      cmsFile=m_dbAccess.readFile(onlineProject(currentUser,currentProject).getId(),onlineProject(currentUser,currentProject).getId(),filename);
+      throw new CmsException("[" + this.getClass().getName() + "] "+ filename,CmsException.C_ACCESS_DENIED);
     }
-  }
-  if (accessRead(currentUser,currentProject,(CmsResource)cmsFile)) {
-    return cmsFile;
   }
  else {
-    throw new CmsException("[" + this.getClass().getName() + "] "+ filename,CmsException.C_ACCESS_DENIED);
+    if (currentProject.getParentId() != -1) {
+      CmsProject pp=readProject(currentUser,currentProject,currentProject.getParentId());
+      return readFile(currentUser,pp,filename);
+    }
+ else     return null;
   }
 }
