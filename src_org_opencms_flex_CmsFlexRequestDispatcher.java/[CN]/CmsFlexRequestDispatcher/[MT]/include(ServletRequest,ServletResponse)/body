@@ -46,6 +46,7 @@
           if (DEBUG > 0) {
             System.err.println("FlexDispatcher: Loading file from cache for " + m_vfsTarget);
           }
+          controller.updateDateLastModified(entry.getDateLastModified());
           entry.service(w_req,w_res);
         }
  catch (        CmsException e) {
@@ -68,7 +69,10 @@
  else {
           String cacheProperty=null;
           try {
-            cacheProperty=cms.readProperty(m_vfsTarget,org.opencms.loader.I_CmsResourceLoader.C_LOADER_CACHEPROPERTY);
+            cacheProperty=cms.readProperty(m_vfsTarget,I_CmsResourceLoader.C_LOADER_CACHEPROPERTY);
+            if (cacheProperty == null) {
+              cacheProperty=cms.getResourceType(resource.getType()).getCachePropertyDefault();
+            }
             cache.putKey(w_res.setCmsCacheKey(cms.getRequestContext().addSiteRoot(m_vfsTarget),cacheProperty,f_req.isOnline(),f_req.isWorkplace()));
           }
  catch (          CmsException e) {
@@ -90,7 +94,7 @@
       }
     }
     if (entry == null) {
-      org.opencms.loader.I_CmsResourceLoader loader=null;
+      I_CmsResourceLoader loader=null;
       String variation=null;
       if (w_req.isCacheable()) {
         variation=w_res.getCmsCacheKey().matchRequestKey(w_req.getCmsCacheKey());
@@ -126,7 +130,11 @@ catch (      CmsException e) {
       }
       entry=w_res.processCacheEntry();
       if ((entry != null) && (variation != null) && w_req.isCacheable()) {
+        entry.updateDateLastModified(w_res.getDateLastModified());
         cache.put(w_res.getCmsCacheKey(),entry,variation);
+      }
+ else {
+        controller.updateDateLastModified(-1);
       }
     }
     if (f_res.hasIncludeList()) {

@@ -1,6 +1,6 @@
 {
   try {
-    CmsResource res=cmsObject.readFileHeader(filename);
+    CmsResource resource=cmsObject.readFileHeader(filename);
     int currentProject=cmsObject.getRequestContext().currentProject().getId();
     CmsUUID userId=cmsObject.getRequestContext().currentUser().getId();
     CmsLock lock=cmsObject.getLock(filename);
@@ -8,16 +8,16 @@
     if (currentProject == I_CmsConstants.C_PROJECT_ONLINE_ID) {
       return null;
     }
- else     if (!cmsObject.getResourceType(res.getType()).isDirectEditable()) {
+ else     if (!cmsObject.getResourceType(resource.getType()).isDirectEditable()) {
       return null;
     }
  else     if (CmsResource.getName(filename).startsWith(org.opencms.main.I_CmsConstants.C_TEMP_PREFIX)) {
       return C_DIRECT_EDIT_MODE_INACTIVE;
     }
- else     if (!cmsObject.isInsideCurrentProject(res)) {
+ else     if (!cmsObject.isInsideCurrentProject(resource)) {
       return C_DIRECT_EDIT_MODE_INACTIVE;
     }
- else     if (!cmsObject.hasPermissions(res,new CmsPermissionSet(I_CmsConstants.C_PERMISSION_WRITE))) {
+ else     if (!cmsObject.hasPermissions(resource,new CmsPermissionSet(I_CmsConstants.C_PERMISSION_WRITE))) {
       if (locked) {
         return C_DIRECT_EDIT_MODE_DISABLED;
       }
@@ -28,7 +28,12 @@
  else     if (locked) {
       return C_DIRECT_EDIT_MODE_DISABLED;
     }
-    if (page != null && element != null) {
+    if ((element != null) && (resource.getType() == CmsResourceTypeXmlPage.C_RESOURCE_TYPE_ID)) {
+      CmsXmlPage page=(CmsXmlPage)req.getAttribute(filename);
+      if (page == null) {
+        page=CmsXmlPage.read(cmsObject,cmsObject.readFile(filename));
+        req.setAttribute(filename,page);
+      }
       Locale locale=OpenCms.getLocaleManager().getBestMatchingLocale(null,OpenCms.getLocaleManager().getDefaultLocales(cmsObject,filename),page.getLocales());
       if (!page.hasElement(element,locale) || !page.isEnabled(element,locale)) {
         return C_DIRECT_EDIT_MODE_INACTIVE;
@@ -36,7 +41,10 @@
     }
     return C_DIRECT_EDIT_MODE_ENABLED;
   }
- catch (  CmsException exc) {
+ catch (  CmsException e) {
+    if (OpenCms.getLog(this).isWarnEnabled()) {
+      OpenCms.getLog(this).warn("Error while calculation edit mode for " + filename,e);
+    }
     return C_DIRECT_EDIT_MODE_INACTIVE;
   }
 }
