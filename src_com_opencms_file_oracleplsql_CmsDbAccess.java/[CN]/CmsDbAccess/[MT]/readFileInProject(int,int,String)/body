@@ -1,19 +1,24 @@
 {
-  com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
   CmsFile file=null;
-  CallableStatement statement=null;
-  Connection con=null;
+  PreparedStatement statement=null;
   ResultSet res=null;
+  Connection con=null;
+  String usedPool;
+  String usedStatement;
+  if (projectId == onlineProjectId) {
+    usedPool=m_poolNameOnline;
+    usedStatement="_ONLINE";
+  }
+ else {
+    usedPool=m_poolName;
+    usedStatement="";
+  }
   try {
-    con=DriverManager.getConnection(m_poolName);
-    statement=con.prepareCall(cq.get("C_PLSQL_RESOURCES_READFILE"));
-    statement.registerOutParameter(1,oracle.jdbc.driver.OracleTypes.CURSOR);
-    statement.setInt(2,currentUserId);
-    statement.setInt(3,currentProjectId);
-    statement.setInt(4,onlineProjectId);
-    statement.setString(5,filename);
-    statement.execute();
-    res=(ResultSet)statement.getObject(1);
+    con=DriverManager.getConnection(usedPool);
+    statement=con.prepareStatement(m_cq.get("C_FILES_READINPROJECT" + usedStatement));
+    statement.setString(1,filename);
+    statement.setInt(2,projectId);
+    res=statement.executeQuery();
     if (res.next()) {
       int resId=res.getInt(m_cq.get("C_RESOURCES_RESOURCE_ID"));
       int parentId=res.getInt(m_cq.get("C_RESOURCES_PARENT_ID"));
@@ -31,19 +36,18 @@
       long modified=SqlHelper.getTimestamp(res,m_cq.get("C_RESOURCES_DATE_LASTMODIFIED")).getTime();
       int modifiedBy=res.getInt(m_cq.get("C_RESOURCES_LASTMODIFIED_BY"));
       int resSize=res.getInt(m_cq.get("C_RESOURCES_SIZE"));
-      int resProjectId=res.getInt(m_cq.get("C_RESOURCES_PROJECT_ID"));
       oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB(m_cq.get("C_RESOURCES_FILE_CONTENT"));
       byte[] content=new byte[(int)blob.length()];
       content=blob.getBytes(1,(int)blob.length());
-      file=new CmsFile(resId,parentId,fileId,filename,resType,resFlags,userId,groupId,resProjectId,accessFlags,state,lockedBy,launcherType,launcherClass,created,modified,modifiedBy,content,resSize);
+      int lockedInProject=res.getInt("LOCKED_IN_PROJECT");
+      file=new CmsFile(resId,parentId,fileId,filename,resType,resFlags,userId,groupId,projectId,accessFlags,state,lockedBy,launcherType,launcherClass,created,modified,modifiedBy,content,resSize,lockedInProject);
     }
  else {
       throw new CmsException("[" + this.getClass().getName() + "] "+ filename,CmsException.C_NOT_FOUND);
     }
   }
  catch (  SQLException e) {
-    CmsException cmsException=getCmsException("[" + this.getClass().getName() + "] ",e);
-    throw cmsException;
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
   }
 catch (  CmsException ex) {
     throw ex;
@@ -56,7 +60,7 @@ catch (  Exception exc) {
       try {
         res.close();
       }
- catch (      SQLException se) {
+ catch (      SQLException exc) {
       }
     }
     if (statement != null) {
@@ -70,7 +74,7 @@ catch (  Exception exc) {
       try {
         con.close();
       }
- catch (      SQLException se) {
+ catch (      SQLException exc) {
       }
     }
   }
