@@ -1,15 +1,37 @@
 {
+  if (DEBUG > 1)   System.err.println("\nCmsLoginNew: Login process started");
+  Vector v=cms.getRequestContext().getAcceptedLanguages();
+  for (int i=0; i < v.size(); i++) {
+    m_messages=new CmsMessages("workplace",new Locale((String)v.get(i),"",""));
+    if (m_messages.isInitialized())     break;
+  }
+  if (!m_messages.isInitialized()) {
+    m_messages=new CmsMessages("workplace",new Locale("en","",""));
+  }
+  boolean logout=(null != (String)parameters.get("logout"));
   I_CmsSession session=cms.getRequestContext().getSession(false);
   if (session != null) {
-    session.invalidate();
+    if (logout) {
+      session.invalidate();
+      if (DEBUG > 2)       System.err.println("CmsLoginNew: logout, trashed old session");
+    }
+ else {
+      if (DEBUG > 2)       System.err.println("CmsLoginNew: kept old session, no logout parameter found");
+    }
+  }
+ else {
+    if (DEBUG > 2)     System.err.println("CmsLoginNew: no current active session");
   }
   CmsXmlTemplateFile xmlTemplateDocument=new CmsXmlTemplateFile(cms,templateFile);
   String username=null;
   CmsUser user;
-  String name=(String)parameters.get("NAME");
-  String password=(String)parameters.get("PASSWORD");
-  if (DEBUG > 1)   System.err.println("CmsLoginNew: name=" + name + " password="+ password);
+  String name=(String)parameters.get("OPENCMSUSERNAME");
+  String password=(String)parameters.get("OPENCMSPASSWORD");
+  String startTaskId=(String)parameters.get(I_CmsWpConstants.C_PARA_STARTTASKID);
+  String startProjectId=(String)parameters.get(I_CmsWpConstants.C_PARA_STARTPROJECTID);
+  if (DEBUG > 1)   System.err.println("CmsLoginNew: name=" + name + " password="+ password+ " task="+ startTaskId+ " project="+ startProjectId);
   if ((name != null) && (password != null)) {
+    if (DEBUG > 1)     System.err.println("CmsLoginNew: trying to log in");
     boolean validLogin;
     try {
       username=cms.loginUser(name,password);
@@ -37,28 +59,27 @@
       A_OpenCms.log(C_OPENCMS_INFO,"[CmsLogin] Login user " + username);
     }
     user=cms.readUser(username);
-    int currentProject=cms.onlineProject().getId();
-    Hashtable startSettings=(Hashtable)cms.getRequestContext().currentUser().getAdditionalInfo(C_ADDITIONAL_INFO_STARTSETTINGS);
-    if (startSettings != null) {
-      Integer i=(Integer)startSettings.get(C_START_PROJECT);
-      if (i != null)       currentProject=i.intValue();
-    }
-    try {
-      if (!cms.accessProject(currentProject)) {
-        currentProject=cms.onlineProject().getId();
-      }
-    }
- catch (    Exception e) {
-      currentProject=cms.onlineProject().getId();
-    }
-    cms.getRequestContext().setCurrentProject(currentProject);
+    setStartProjectId(cms,session,startProjectId);
+    setStartTaskId(cms,session,startTaskId);
     Hashtable preferences=(Hashtable)user.getAdditionalInfo(C_ADDITIONAL_INFO_PREFERENCES);
     if (preferences == null) {
       preferences=getDefaultPreferences();
     }
     session.putValue(C_ADDITIONAL_INFO_PREFERENCES,preferences);
+    xmlTemplateDocument.setData("onload","onload='login();'");
+  }
+ else   if ((!logout) && ((cms.getRequestContext().currentUser()) != null) && ((cms.userInGroup(cms.getRequestContext().currentUser().getName(),cms.C_GROUP_USERS)) || (cms.userInGroup(cms.getRequestContext().currentUser().getName(),cms.C_GROUP_PROJECTLEADER)) || (cms.userInGroup(cms.getRequestContext().currentUser().getName(),cms.C_GROUP_ADMIN)))) {
+    if (DEBUG > 1)     System.err.println("CmsLoginNew: re-using old login");
+    xmlTemplateDocument.setData("onload","onload='login();'");
+  }
+ else {
+    if (DEBUG > 1)     System.err.println("CmsLoginNew: no login or logout, displaying template");
+    xmlTemplateDocument.setData("onload","onload='init();'");
   }
   long id=System.currentTimeMillis();
-  xmlTemplateDocument.setData("ID",new Long(id).toString());
+  xmlTemplateDocument.setData("windowId",new Long(id).toString());
+  xmlTemplateDocument.setData("startTaskId",startTaskId);
+  xmlTemplateDocument.setData("startProjectId",startProjectId);
+  if (DEBUG > 1)   System.err.println("CmsLoginNew: Login process finished");
   return startProcessing(cms,xmlTemplateDocument,"",parameters,templateSelector);
 }
