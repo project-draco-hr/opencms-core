@@ -1,0 +1,63 @@
+{
+  m_cms=cms;
+  m_startpoints=startpoints;
+  m_changedLinks=changedLinks;
+  m_exportPath=A_OpenCms.getStaticExportProperties().getExportPath();
+  m_perlUtil=new Perl5Util();
+  m_report=report;
+  m_afterPublish=(changedResources != null);
+  if (!doTheExport) {
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_INIT)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INIT,". Generating rulesets  : ok");
+    }
+    createDynamicRules();
+    return;
+  }
+  if (cms.getRequestContext().getRequest() == null) {
+    return;
+  }
+  m_servletUrl=cms.getRequestContext().getRequest().getServletUrl();
+  m_webAppUrl=cms.getRequestContext().getRequest().getWebAppUrl();
+  try {
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_STATICEXPORT)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] Starting the static export.");
+    }
+    createDynamicRules();
+    checkExportPath();
+    Vector exportLinks=null;
+    if (m_afterPublish) {
+      exportLinks=getChangedLinks(changedResources);
+    }
+ else {
+      exportLinks=getStartLinks();
+    }
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_STATICEXPORT)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] got " + exportLinks.size() + " links to start with.");
+    }
+    boolean doExport=(exportLinks.size() > 0);
+    if (doExport) {
+      m_report.print(m_report.key("report.static_export_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+      m_report.println(" " + exportLinks.size(),I_CmsReport.C_FORMAT_HEADLINE);
+      for (int i=0; i < exportLinks.size(); i++) {
+        String aktLink=(String)exportLinks.elementAt(i);
+        exportLink(aktLink,exportLinks,true);
+      }
+    }
+    setChangedLinkVector(exportLinks);
+    if (doExport) {
+      m_report.println(m_report.key("report.static_export_end"),I_CmsReport.C_FORMAT_HEADLINE);
+    }
+ else {
+      m_report.println(m_report.key("report.static_export_none"),I_CmsReport.C_FORMAT_HEADLINE);
+    }
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_STATICEXPORT)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] all done.");
+    }
+  }
+ catch (  NullPointerException e) {
+    m_report.println(e);
+    if (I_CmsLogChannels.C_LOGGING && A_OpenCms.isLogging(I_CmsLogChannels.C_OPENCMS_STATICEXPORT)) {
+      A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_STATICEXPORT,"[CmsStaticExport] Nothing found to export.");
+    }
+  }
+}
