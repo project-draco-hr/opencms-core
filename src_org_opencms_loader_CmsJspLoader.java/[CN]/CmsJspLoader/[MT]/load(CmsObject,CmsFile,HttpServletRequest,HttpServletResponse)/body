@@ -1,93 +1,85 @@
 {
   int oldMode=exportCheckMode(cms,req);
+  long timer1;
+  if (DEBUG > 0) {
+    timer1=System.currentTimeMillis();
+    System.err.println("========== JspLoader loading: " + cms.readAbsolutePath(file));
+    System.err.println("JspLoader.load()  cms uri is: " + cms.getRequestContext().getUri());
+  }
+  boolean streaming=false;
+  boolean bypass=false;
+  boolean exportmode=(cms.getMode() == I_CmsConstants.C_MODUS_EXPORT);
   try {
-    long timer1;
-    if (DEBUG > 0) {
-      timer1=System.currentTimeMillis();
-      System.err.println("========== JspLoader loading: " + cms.readAbsolutePath(file));
-      System.err.println("JspLoader.load()  cms uri is: " + cms.getRequestContext().getUri());
+    String stream=cms.readProperty(cms.readAbsolutePath(file),I_CmsResourceLoader.C_LOADER_STREAMPROPERTY);
+    if (stream != null) {
+      if ("yes".equalsIgnoreCase(stream) || "true".equalsIgnoreCase(stream)) {
+        streaming=!exportmode;
+      }
+ else       if ("bypass".equalsIgnoreCase(stream) || "bypasscache".equalsIgnoreCase(stream)) {
+        bypass=!exportmode;
+      }
     }
-    boolean streaming=false;
-    boolean bypass=false;
-    boolean exportmode=(cms.getMode() == I_CmsConstants.C_MODUS_EXPORT);
+  }
+ catch (  CmsException e) {
+    throw new ServletException("FlexJspLoader: Error while loading stream properties for " + cms.readAbsolutePath(file) + "\n"+ e,e);
+  }
+  if (DEBUG > 1)   System.err.println("========== JspLoader stream=" + streaming + " bypass="+ bypass);
+  CmsFlexController controller=(CmsFlexController)req.getAttribute(CmsFlexController.ATTRIBUTE_NAME);
+  CmsFlexRequest f_req;
+  CmsFlexResponse f_res;
+  if (controller != null) {
+    f_req=controller.getCurrentRequest();
+    f_res=controller.getCurrentResponse();
+  }
+ else {
+    controller=new CmsFlexController(cms,file,m_cache,req,res);
+    req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,controller);
+    f_req=new CmsFlexRequest(req,controller);
+    f_res=new CmsFlexResponse(res,controller,streaming,true);
+    controller.pushRequest(f_req);
+    controller.pushResponse(f_res);
+  }
+  if (bypass) {
+    if (DEBUG > 1)     System.err.println("JspLoader.load() bypassing cache for file " + cms.readAbsolutePath(file));
+    String target=updateJsp(cms,file,f_req,controller,new HashSet(11));
+    req.getRequestDispatcher(target).forward(f_req,res);
+    if (DEBUG > 1)     System.err.println("JspLoader.load() cache was bypassed!");
+  }
+ else {
     try {
-      String stream=cms.readProperty(cms.readAbsolutePath(file),I_CmsResourceLoader.C_LOADER_STREAMPROPERTY);
-      if (stream != null) {
-        if ("yes".equalsIgnoreCase(stream) || "true".equalsIgnoreCase(stream)) {
-          streaming=!exportmode;
-        }
- else         if ("bypass".equalsIgnoreCase(stream) || "bypasscache".equalsIgnoreCase(stream)) {
-          bypass=!exportmode;
-        }
-      }
+      f_req.getRequestDispatcher(cms.readAbsolutePath(file)).include(f_req,f_res);
     }
- catch (    CmsException e) {
-      throw new ServletException("FlexJspLoader: Error while loading stream properties for " + cms.readAbsolutePath(file) + "\n"+ e,e);
+ catch (    java.net.SocketException e) {
+      if (DEBUG > 1)       System.err.println("JspLoader.load() ignoring SocketException " + e);
     }
-    if (DEBUG > 1)     System.err.println("========== JspLoader stream=" + streaming + " bypass="+ bypass);
-    CmsFlexController controller=(CmsFlexController)req.getAttribute(CmsFlexController.ATTRIBUTE_NAME);
-    CmsFlexRequest f_req;
-    CmsFlexResponse f_res;
-    if (controller != null) {
-      f_req=controller.getCurrentRequest();
-      f_res=controller.getCurrentResponse();
-    }
- else {
-      controller=new CmsFlexController(cms,file,m_cache,req,res);
-      req.setAttribute(CmsFlexController.ATTRIBUTE_NAME,controller);
-      f_req=new CmsFlexRequest(req,controller);
-      f_res=new CmsFlexResponse(res,controller,streaming,true);
-      controller.pushRequest(f_req);
-      controller.pushResponse(f_res);
-    }
-    if (bypass) {
-      if (DEBUG > 1)       System.err.println("JspLoader.load() bypassing cache for file " + cms.readAbsolutePath(file));
-      String target=updateJsp(cms,file,f_req,controller,new HashSet(11));
-      req.getRequestDispatcher(target).forward(f_req,res);
-      if (DEBUG > 1)       System.err.println("JspLoader.load() cache was bypassed!");
-    }
- else {
+    if (!streaming && !f_res.isSuspended()) {
       try {
-        f_req.getRequestDispatcher(cms.readAbsolutePath(file)).include(f_req,f_res);
+        if (!res.isCommitted() || m_errorPagesAreNotCommited) {
+          byte[] result=f_res.getWriterBytes();
+          result=Encoder.changeEncoding(result,A_OpenCms.getDefaultEncoding(),cms.getRequestContext().getEncoding());
+          if (exportmode) {
+            exportSetLinkHeader(cms,f_res);
+          }
+          res.setContentLength(result.length);
+          CmsFlexResponse.processHeaders(f_res.getHeaders(),res);
+          res.getOutputStream().write(result);
+          res.getOutputStream().flush();
+        }
+ else         if (DEBUG > 1) {
+          System.err.println("JspLoader.load() resource is already commited!");
+        }
       }
- catch (      java.net.SocketException e) {
+ catch (      IllegalStateException e) {
+        if (DEBUG > 1)         System.err.println("JspLoader.load() ignoring IllegalStateException " + e);
+      }
+catch (      java.net.SocketException e) {
         if (DEBUG > 1)         System.err.println("JspLoader.load() ignoring SocketException " + e);
       }
-      if (!streaming && !f_res.isSuspended()) {
-        try {
-          if (!res.isCommitted() || m_errorPagesAreNotCommited) {
-            byte[] result=f_res.getWriterBytes();
-            result=Encoder.changeEncoding(result,A_OpenCms.getDefaultEncoding(),cms.getRequestContext().getEncoding());
-            if (exportmode) {
-              exportSetLinkHeader(cms,f_res);
-            }
-            res.setContentLength(result.length);
-            CmsFlexResponse.processHeaders(f_res.getHeaders(),res);
-            res.getOutputStream().write(result);
-            res.getOutputStream().flush();
-          }
- else           if (DEBUG > 1) {
-            System.err.println("JspLoader.load() resource is already commited!");
-          }
-        }
- catch (        IllegalStateException e) {
-          if (DEBUG > 1)           System.err.println("JspLoader.load() ignoring IllegalStateException " + e);
-        }
-catch (        java.net.SocketException e) {
-          if (DEBUG > 1)           System.err.println("JspLoader.load() ignoring SocketException " + e);
-        }
-      }
-    }
-    if (DEBUG > 0) {
-      long timer2=System.currentTimeMillis() - timer1;
-      System.err.println("========== JspLoader time delivering JSP for " + cms.readAbsolutePath(file) + ": "+ timer2+ "ms");
     }
   }
- catch (  Throwable t) {
-    if (DEBUG > 1)     System.err.println("Error in Flex loader: " + t + Utils.getStackTrace(t));
-    throw new ServletException("Error in Flex loader",t);
+  if (DEBUG > 0) {
+    long timer2=System.currentTimeMillis() - timer1;
+    System.err.println("========== JspLoader time delivering JSP for " + cms.readAbsolutePath(file) + ": "+ timer2+ "ms");
   }
- finally {
-    exportResetMode(cms,oldMode);
-  }
+  exportResetMode(cms,oldMode);
 }

@@ -1,0 +1,85 @@
+{
+  boolean canWrite=!res.isCommitted() && !res.containsHeader("Location");
+  int status=-1;
+  boolean isNotGuest=false;
+  if (t instanceof ServletException) {
+    ServletException s=(ServletException)t;
+    t=s.getRootCause();
+  }
+  if (t instanceof CmsException) {
+    CmsException e=(CmsException)t;
+    int exceptionType=e.getType();
+switch (exceptionType) {
+case CmsException.C_ACCESS_DENIED:
+case CmsException.C_NO_ACCESS:
+      if (C_LOGGING && A_OpenCms.isLogging(C_OPENCMS_INFO)) {
+        A_OpenCms.log(C_OPENCMS_INFO,"[OpenCmsServlet] Access denied: " + e.getMessage());
+      }
+    if (canWrite) {
+      try {
+        requestAuthorization(req,res);
+      }
+ catch (      IOException ioe) {
+      }
+      return;
+    }
+  break;
+case CmsException.C_NOT_FOUND:
+status=HttpServletResponse.SC_NOT_FOUND;
+break;
+case CmsException.C_SERVICE_UNAVAILABLE:
+status=HttpServletResponse.SC_SERVICE_UNAVAILABLE;
+break;
+case CmsException.C_NO_USER:
+case CmsException.C_NO_GROUP:
+status=HttpServletResponse.SC_SERVICE_UNAVAILABLE;
+isNotGuest=true;
+break;
+case CmsException.C_HTTPS_PAGE_ERROR:
+status=HttpServletResponse.SC_NOT_FOUND;
+if (C_LOGGING && A_OpenCms.isLogging(C_OPENCMS_INFO)) {
+A_OpenCms.log(C_OPENCMS_INFO,"[OpenCmsServlet] Trying to get a http page with a https request. " + e.getMessage());
+}
+break;
+case CmsException.C_HTTPS_REQUEST_ERROR:
+status=HttpServletResponse.SC_NOT_FOUND;
+if (C_LOGGING && A_OpenCms.isLogging(C_OPENCMS_INFO)) {
+A_OpenCms.log(C_OPENCMS_INFO,"[OpenCmsServlet] Trying to get a https page with a http request. " + e.getMessage());
+}
+break;
+default :
+break;
+}
+if (e.getRootCause() != null) {
+t=e.getRootCause();
+}
+}
+if (status > 0) {
+res.setStatus(status);
+}
+try {
+isNotGuest=isNotGuest || (((cms.getRequestContext().currentUser()) != null) && (!C_USER_GUEST.equals(cms.getRequestContext().currentUser().getName())) && ((cms.userInGroup(cms.getRequestContext().currentUser().getName(),C_GROUP_USERS)) || (cms.userInGroup(cms.getRequestContext().currentUser().getName(),C_GROUP_PROJECTLEADER)) || (cms.userInGroup(cms.getRequestContext().currentUser().getName(),C_GROUP_ADMIN))));
+}
+ catch (CmsException e) {
+}
+if (canWrite) {
+res.setContentType("text/HTML");
+res.setHeader("Cache-Control","no-cache");
+res.setHeader("Pragma","no-cache");
+if (isNotGuest) {
+try {
+res.getWriter().print(createErrorBox(t,cms.getRequestContext().getRequest().getWebAppUrl()));
+}
+ catch (IOException e) {
+}
+}
+ else {
+if (status < 1) status=HttpServletResponse.SC_NOT_FOUND;
+try {
+res.sendError(status);
+}
+ catch (IOException e) {
+}
+}
+}
+}
