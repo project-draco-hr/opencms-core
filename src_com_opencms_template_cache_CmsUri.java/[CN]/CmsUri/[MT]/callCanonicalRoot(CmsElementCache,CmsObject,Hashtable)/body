@@ -3,12 +3,21 @@
   A_CmsElement elem=elementCache.getElementLocator().get(cms,m_startingElement,parameters);
   CmsCacheDirectives proxySettings=new CmsCacheDirectives(true);
   elem.checkProxySettings(cms,proxySettings,parameters);
+  if (m_elementDefinitions != null) {
+    Enumeration elementNames=m_elementDefinitions.getAllElementNames();
+    while (elementNames.hasMoreElements()) {
+      String name=(String)elementNames.nextElement();
+      CmsElementDefinition currentDef=m_elementDefinitions.get(name);
+      A_CmsElement currentEle=elementCache.getElementLocator().get(cms,new CmsElementDescriptor(currentDef.getClassName(),currentDef.getTemplateName()),parameters);
+      currentEle.checkProxySettings(cms,proxySettings,parameters);
+    }
+  }
   I_CmsResponse resp=cms.getRequestContext().getResponse();
   cms.getRequestContext().setStreaming(cms.getRequestContext().isStreaming() && proxySettings.isStreamable());
   if (!resp.containsHeader("Cache-Control")) {
-    if (proxySettings.isProxyPublicCacheable() || proxySettings.isProxyPrivateCacheable()) {
+    if (proxySettings.isProxyPrivateCacheable()) {
       resp.setHeader("Cache-Control","max-age=300");
-      if (proxySettings.isProxyPrivateCacheable()) {
+      if (!proxySettings.isProxyPublicCacheable()) {
         resp.addHeader("Cache-Control","private");
       }
     }
