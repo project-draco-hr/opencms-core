@@ -23,7 +23,7 @@
     }
  else     if (currentFolder.getState() == C_STATE_DELETED) {
       deletedFolders.addElement(currentFolder);
-      changedResources.addElement(currentFolder.getAbsolutePath());
+      changedResources.addElement(currentFolder.getResourceName());
     }
  else     if (currentFolder.getState() == C_STATE_NEW) {
       String exportKey=checkExport(currentFolder.getAbsolutePath());
@@ -32,12 +32,12 @@
       }
       Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFolder.getParentId()));
       if (parentId == null) {
-        CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFolder.getParent());
+        CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFolder.getRootName() + currentFolder.getParent());
         parentId=new Integer(currentOnlineParent.getResourceId());
         folderIdIndex.put(new Integer(currentFolder.getParentId()),parentId);
       }
       try {
-        newFolder=createFolder(user,onlineProject,onlineProject,currentFolder,parentId.intValue(),currentFolder.getAbsolutePath());
+        newFolder=createFolder(user,onlineProject,onlineProject,currentFolder,parentId.intValue(),currentFolder.getResourceName());
         newFolder.setState(C_STATE_UNCHANGED);
         updateResourcestate(newFolder);
       }
@@ -45,7 +45,7 @@
         if (e.getType() == CmsException.C_FILE_EXISTS) {
           CmsFolder onlineFolder=null;
           try {
-            onlineFolder=readFolder(onlineProject.getId(),currentFolder.getAbsolutePath());
+            onlineFolder=readFolder(onlineProject.getId(),currentFolder.getResourceName());
           }
  catch (          CmsException exc) {
             throw exc;
@@ -71,7 +71,7 @@
             statement.setInt(14,onlineFolder.getFileId());
             statement.setInt(15,onlineFolder.getResourceId());
             statement.executeUpdate();
-            newFolder=readFolder(onlineProject.getId(),currentFolder.getAbsolutePath());
+            newFolder=readFolder(onlineProject.getId(),currentFolder.getResourceName());
           }
  catch (          SQLException sqle) {
             throw new CmsException("[" + this.getClass().getName() + "] "+ sqle.getMessage(),CmsException.C_SQL_ERROR,sqle);
@@ -115,24 +115,24 @@
       updateResourcestate(currentFolder);
     }
  else     if (currentFolder.getState() == C_STATE_CHANGED) {
-      changedResources.addElement(currentFolder.getAbsolutePath());
+      changedResources.addElement(currentFolder.getResourceName());
       String exportKey=checkExport(currentFolder.getAbsolutePath());
       if (exportKey != null) {
         discAccess.createFolder(currentFolder.getAbsolutePath(),exportKey);
       }
       CmsFolder onlineFolder=null;
       try {
-        onlineFolder=readFolder(onlineProject.getId(),currentFolder.getAbsolutePath());
+        onlineFolder=readFolder(onlineProject.getId(),currentFolder.getResourceName());
       }
  catch (      CmsException exc) {
         if (exc.getType() == CmsException.C_NOT_FOUND) {
           Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFolder.getParentId()));
           if (parentId == null) {
-            CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFolder.getParent());
+            CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFolder.getRootName() + currentFolder.getParent());
             parentId=new Integer(currentOnlineParent.getResourceId());
             folderIdIndex.put(new Integer(currentFolder.getParentId()),parentId);
           }
-          onlineFolder=createFolder(user,onlineProject,onlineProject,currentFolder,parentId.intValue(),currentFolder.getAbsolutePath());
+          onlineFolder=createFolder(user,onlineProject,onlineProject,currentFolder,parentId.intValue(),currentFolder.getResourceName());
           onlineFolder.setState(C_STATE_UNCHANGED);
           updateResourcestate(onlineFolder);
         }
@@ -210,10 +210,10 @@
     }
  else     if (currentFile.getName().startsWith(C_TEMP_PREFIX)) {
       deleteAllProperties(projectId,currentFile.getResourceId());
-      removeFile(projectId,currentFile.getAbsolutePath());
+      removeFile(projectId,currentFile.getResourceName());
     }
  else     if (currentFile.getState() == C_STATE_DELETED) {
-      changedResources.addElement(currentFile.getAbsolutePath());
+      changedResources.addElement(currentFile.getResourceName());
       String exportKey=checkExport(currentFile.getAbsolutePath());
       if (exportKey != null) {
         try {
@@ -227,7 +227,7 @@
         backupResource(projectId,currentFile,currentFile.getContents(),props,versionId,publishDate);
       }
       try {
-        CmsFile currentOnlineFile=readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getAbsolutePath());
+        CmsFile currentOnlineFile=readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getResourceName());
         try {
           deleteAllProperties(onlineProject.getId(),currentOnlineFile);
           deleteAllProperties(projectId,currentFile);
@@ -251,25 +251,25 @@
       }
     }
  else     if (currentFile.getState() == C_STATE_CHANGED) {
-      changedResources.addElement(currentFile.getAbsolutePath());
+      changedResources.addElement(currentFile.getResourceName());
       String exportKey=checkExport(currentFile.getAbsolutePath());
       if (exportKey != null) {
         discAccess.writeFile(currentFile.getAbsolutePath(),exportKey,readFileContent(projectId,currentFile.getFileId()));
       }
       CmsFile onlineFile=null;
       try {
-        onlineFile=readFileHeader(onlineProject.getId(),currentFile.getAbsolutePath());
+        onlineFile=readFileHeader(onlineProject.getId(),currentFile.getResourceName());
       }
  catch (      CmsException exc) {
         if (exc.getType() == CmsException.C_NOT_FOUND) {
           Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFile.getParentId()));
           if (parentId == null) {
-            CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFolder.getParent());
+            CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFolder.getRootName() + currentFolder.getParent());
             parentId=new Integer(currentOnlineParent.getResourceId());
             folderIdIndex.put(new Integer(currentFile.getParentId()),parentId);
           }
           currentFile.setState(C_STATE_UNCHANGED);
-          onlineFile=createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getAbsolutePath(),false);
+          onlineFile=createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getResourceName(),false);
         }
       }
       PreparedStatement statement=null;
@@ -343,12 +343,12 @@
       }
       Integer parentId=(Integer)folderIdIndex.get(new Integer(currentFile.getParentId()));
       if (parentId == null) {
-        CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFile.getParent());
+        CmsFolder currentOnlineParent=readFolder(onlineProject.getId(),currentFile.getRootName() + currentFile.getParent());
         parentId=new Integer(currentOnlineParent.getResourceId());
         folderIdIndex.put(new Integer(currentFile.getParentId()),parentId);
       }
       try {
-        newFile=createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getAbsolutePath(),false);
+        newFile=createFile(onlineProject,onlineProject,currentFile,user.getId(),parentId.intValue(),currentFile.getResourceName(),false);
         newFile.setState(C_STATE_UNCHANGED);
         updateResourcestate(newFile);
       }
@@ -356,7 +356,7 @@
         if (e.getType() == CmsException.C_FILE_EXISTS) {
           CmsFile onlineFile=null;
           try {
-            onlineFile=readFileHeader(onlineProject.getId(),currentFile.getAbsolutePath());
+            onlineFile=readFileHeader(onlineProject.getId(),currentFile.getResourceName());
           }
  catch (          CmsException exc) {
             throw exc;
@@ -387,7 +387,7 @@
             statement.setInt(2,onlineFile.getFileId());
             statement.executeUpdate();
             statement.close();
-            newFile=readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getAbsolutePath());
+            newFile=readFile(onlineProject.getId(),onlineProject.getId(),currentFile.getResourceName());
           }
  catch (          SQLException sqle) {
             throw new CmsException("[" + this.getClass().getName() + "] "+ sqle.getMessage(),CmsException.C_SQL_ERROR,sqle);
@@ -440,7 +440,7 @@
       Hashtable props=readAllProperties(projectId,currentFolder,currentFolder.getType());
       backupResource(projectId,currentFolder,new byte[0],props,versionId,publishDate);
     }
-    CmsResource delOnlineFolder=readFolder(onlineProject.getId(),currentFolder.getAbsolutePath());
+    CmsResource delOnlineFolder=readFolder(onlineProject.getId(),currentFolder.getResourceName());
     try {
       deleteAllProperties(onlineProject.getId(),delOnlineFolder);
       deleteAllProperties(projectId,currentFolder);
@@ -450,8 +450,8 @@
         A_OpenCms.log(I_CmsLogChannels.C_OPENCMS_INFO,"[CmsDbAccess] error publishing, deleting properties for " + currentFolder.toString() + " Message= "+ exc.getMessage());
       }
     }
-    removeFolderForPublish(onlineProject.getId(),currentFolder.getAbsolutePath());
-    removeFolderForPublish(projectId,currentFolder.getAbsolutePath());
+    removeFolderForPublish(onlineProject.getId(),currentFolder.getResourceName());
+    removeFolderForPublish(projectId,currentFolder.getResourceName());
   }
   return changedResources;
 }
