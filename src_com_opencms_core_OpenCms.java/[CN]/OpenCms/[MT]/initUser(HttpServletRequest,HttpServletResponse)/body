@@ -1,0 +1,54 @@
+{
+  HttpSession session;
+  String user=null;
+  CmsObject cms=new CmsObject();
+  try {
+    cms.init(null,null,C_USER_GUEST,C_GROUP_GUEST,C_PROJECT_ONLINE);
+    PrintWriter out=res.getWriter();
+    if (req.getParameter("LOGIN") != null) {
+      session=req.getSession(true);
+      String u=req.getParameter("LOGIN");
+      m_sessionStorage.putUser(session,u);
+      out.println("Adding user <br><br><br>");
+      out.println(m_sessionStorage.toString() + "<br><br>");
+    }
+    session=req.getSession(false);
+    if (session != null) {
+      out.println("Got session: " + session.getId() + "<br>");
+      user=m_sessionStorage.getUserName(session);
+      out.println("Got user: " + user + "<br>");
+    }
+    if (user == null) {
+      out.println("No Session found, trying HTTP Authent<br>");
+      String auth=req.getHeader("Authorization");
+      if (auth != null) {
+        if (auth.toUpperCase().startsWith("BASIC ")) {
+          String userpassEncoded=auth.substring(6);
+          sun.misc.BASE64Decoder dec=new sun.misc.BASE64Decoder();
+          String userstr=new String(dec.decodeBuffer(userpassEncoded));
+          String username=null;
+          String password=null;
+          StringTokenizer st=new StringTokenizer(userstr,":");
+          if (st.hasMoreTokens()) {
+            username=st.nextToken();
+          }
+          if (st.hasMoreTokens()) {
+            password=st.nextToken();
+          }
+          user=cms.loginUser(username,password);
+          out.println(user);
+          if (user == null) {
+            out.println("Unknown user");
+            requestAuthorization(req,res);
+          }
+        }
+      }
+    }
+    if (user == null) {
+      out.println("User not logged in");
+    }
+  }
+ catch (  CmsException e) {
+    errorHandling(req,res,e);
+  }
+}
