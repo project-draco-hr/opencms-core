@@ -1,0 +1,68 @@
+{
+  if (I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging() && C_DEBUG) {
+    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "getting content of element " + ((elementName == null) ? "<root>" : elementName));
+    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "template file is: " + templateFile);
+    A_OpenCms.log(C_OPENCMS_DEBUG,getClassName() + "selected template section is: " + ((templateSelector == null) ? "<default>" : templateSelector));
+  }
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  try {
+    cms.readFileHeader(C_LINKGALLERY_ROOTFOLDER);
+  }
+ catch (  CmsException e) {
+    xmlTemplateDocument.setData("ERRORDETAILS",Utils.getStackTrace(e));
+    templateSelector="error";
+  }
+  if (!"error".equals(templateSelector)) {
+    if (parameters.get(C_PARA_INITIAL) != null) {
+      session.removeValue(C_PARA_FOLDER);
+      session.removeValue("htmlBrowser_for_ext_nav");
+    }
+    String setOnClick=(String)parameters.get("setonclick");
+    if (setOnClick != null) {
+      session.putValue("htmlBrowser_for_ext_nav",setOnClick);
+    }
+    setOnClick=(String)session.getValue("htmlBrowser_for_ext_nav");
+    String folder=(String)parameters.get(C_PARA_FOLDER);
+    if (folder != null) {
+      session.putValue(C_PARA_FOLDER,folder);
+    }
+    folder=(String)session.getValue(C_PARA_FOLDER);
+    if (folder == null || "".equals(folder)) {
+      Vector galleries=cms.getSubFolders(getConfigFile(cms).getHtmlGalleryPath());
+      if (galleries.size() > 0) {
+        folder=((CmsResource)galleries.elementAt(0)).getAbsolutePath();
+        session.putValue(C_PARA_FOLDER,folder);
+      }
+ else {
+        templateSelector="error_no_gallery";
+      }
+    }
+    if (!"error_no_gallery".equals(templateSelector)) {
+      String pageText=(String)parameters.get(C_PARA_PAGE);
+      String filter=(String)parameters.get(C_PARA_FILTER);
+      if (pageText == null || "".equals(pageText)) {
+        pageText="1";
+        parameters.put(C_PARA_PAGE,pageText);
+      }
+      if (filter == null) {
+        filter="";
+        parameters.put(C_PARA_FILTER,filter);
+      }
+      Vector filteredLinks=getFilteredHtmlList(cms,folder,filter);
+      int maxpage=((filteredLinks.size() - 1) / C_PICBROWSER_MAXIMAGES) + 1;
+      xmlTemplateDocument.setData(C_PARA_FOLDER,Encoder.escape(folder));
+      xmlTemplateDocument.setData(C_PARA_PAGE,pageText);
+      xmlTemplateDocument.setData(C_PARA_FILTER,filter);
+      xmlTemplateDocument.setData(C_PARA_MAXPAGE,"" + maxpage);
+      if (setOnClick == null || !"true".equals(setOnClick)) {
+        xmlTemplateDocument.setData("setonclick","");
+      }
+ else {
+        xmlTemplateDocument.setData("setonclick","true");
+      }
+      parameters.put("_HTMLLIST_",filteredLinks);
+    }
+  }
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}

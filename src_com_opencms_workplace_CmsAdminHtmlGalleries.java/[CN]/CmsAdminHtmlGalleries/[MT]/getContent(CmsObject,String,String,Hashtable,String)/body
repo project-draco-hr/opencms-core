@@ -1,0 +1,138 @@
+{
+  I_CmsSession session=cms.getRequestContext().getSession(true);
+  CmsXmlWpTemplateFile xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,templateFile,elementName,parameters,templateSelector);
+  String initial=(String)parameters.get(C_PARA_INITIAL);
+  if (initial != null) {
+    session.removeValue(C_PARA_FOLDER);
+    session.removeValue("lasturl");
+  }
+  String foldername=(String)parameters.get(C_PARA_FOLDER);
+  if (foldername != null) {
+    String htmlRootFolder=getConfigFile(cms).getHtmlGalleryPath();
+    try {
+      CmsFolder fold=cms.readFolder(foldername);
+      if (!(fold.getParent().equals(htmlRootFolder))) {
+        foldername=htmlRootFolder;
+      }
+      if (fold.getState() == C_STATE_DELETED) {
+        foldername=htmlRootFolder;
+      }
+    }
+ catch (    CmsException exc) {
+      foldername=htmlRootFolder;
+    }
+    session.putValue("lastgallery",foldername);
+  }
+ else {
+    foldername=(String)session.getValue(C_PARA_FOLDER);
+    String tmpFolder=(String)session.getValue("lastgallery");
+    if (foldername == null) {
+      if (tmpFolder != null) {
+        try {
+          CmsFolder testfolder=cms.readFolder(tmpFolder);
+          foldername=tmpFolder;
+        }
+ catch (        CmsException e) {
+          foldername=getConfigFile(cms).getHtmlGalleryPath();
+        }
+      }
+ else {
+        foldername=getConfigFile(cms).getHtmlGalleryPath();
+      }
+    }
+  }
+  parameters.put(C_PARA_FOLDER,foldername);
+  session.putValue(C_PARA_FOLDER,foldername);
+  CmsFolder thefolder=cms.readFolder(foldername);
+  if (foldername.equals("/htmlgalleries/") && templateFile.endsWith("administration_head_htmlgalleries2")) {
+    xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,"/system/workplace/administration/htmlgallery/administration_head_htmlgalleries1",elementName,parameters,templateSelector);
+  }
+  try {
+    if (foldername.startsWith("/htmlgalleries/") && (thefolder.getParent().equals("/htmlgalleries/")) && templateFile.endsWith("administration_head_htmlgalleries1")) {
+      xmlTemplateDocument=(CmsXmlWpTemplateFile)getOwnTemplateFile(cms,"/system/workplace/administration/htmlgallery/administration_head_htmlgalleries2",elementName,parameters,templateSelector);
+    }
+  }
+ catch (  Exception e) {
+  }
+  String lasturl=getLastUrl(cms,parameters);
+  String action=(String)parameters.get("action");
+  String newname=(String)parameters.get(C_PARA_NAME);
+  String title=(String)parameters.get("TITLE");
+  String step=(String)parameters.get("step");
+  String imagedescription=(String)parameters.get("DESCRIPTION");
+  if ("new".equals(action)) {
+    String galleryname=(String)parameters.get("NAME");
+    String group=(String)parameters.get("GROUP");
+    if (galleryname != null && group != null && galleryname != "" && group != "") {
+      boolean read=parameters.get("READ") != null;
+      boolean write=parameters.get("WRITE") != null;
+      try {
+        String superfolder=getConfigFile(cms).getHtmlGalleryPath();
+        CmsResource folder=cms.createResource(superfolder,galleryname,C_TYPE_FOLDER_NAME);
+        if (title != null) {
+          cms.writeProperty(folder.getAbsolutePath(),C_PROPERTY_TITLE,title);
+        }
+        cms.chgrp(folder.getAbsolutePath(),group);
+        int flag=folder.getAccessFlags();
+        if (read != ((flag & C_ACCESS_PUBLIC_READ) != 0)) {
+          flag^=C_ACCESS_PUBLIC_READ;
+        }
+        if (write != ((flag & C_ACCESS_PUBLIC_WRITE) != 0)) {
+          flag^=C_ACCESS_PUBLIC_WRITE;
+        }
+        if ((flag & C_ACCESS_GROUP_READ) == 0) {
+          flag^=C_ACCESS_GROUP_READ;
+        }
+        if ((flag & C_ACCESS_GROUP_WRITE) == 0) {
+          flag^=C_ACCESS_GROUP_WRITE;
+        }
+        if ((flag & C_ACCESS_GROUP_VISIBLE) == 0) {
+          flag^=C_ACCESS_GROUP_VISIBLE;
+        }
+        if ((flag & C_ACCESS_OWNER_READ) == 0) {
+          flag^=C_ACCESS_OWNER_READ;
+        }
+        if ((flag & C_ACCESS_OWNER_WRITE) == 0) {
+          flag^=C_ACCESS_OWNER_WRITE;
+        }
+        if ((flag & C_ACCESS_OWNER_VISIBLE) == 0) {
+          flag^=C_ACCESS_OWNER_VISIBLE;
+        }
+        if ((flag & C_ACCESS_PUBLIC_VISIBLE) == 0) {
+          flag^=C_ACCESS_PUBLIC_VISIBLE;
+        }
+        cms.chmod(folder.getAbsolutePath(),flag);
+        try {
+          cms.unlockResource(folder.getAbsolutePath());
+        }
+ catch (        CmsException e) {
+          cms.unlockResource(folder.getParent());
+          cms.unlockResource(folder.getAbsolutePath());
+        }
+      }
+ catch (      CmsException ex) {
+        xmlTemplateDocument.setData("ERRORDETAILS",Utils.getStackTrace(ex));
+        templateSelector="error";
+      }
+    }
+ else {
+      templateSelector="datamissing";
+    }
+  }
+ else   if ("snippet".equalsIgnoreCase(action)) {
+    if (foldername != null) {
+      String filename=(String)parameters.get("NEUNAME");
+      String pagetitle=(String)parameters.get("NEUTITEL");
+      String type=(String)parameters.get("type");
+      if (filename != null && !"".equals(filename)) {
+        Hashtable prop=new Hashtable();
+        prop.put(C_PROPERTY_TITLE,pagetitle);
+        cms.createResource(foldername,filename,type,prop,new byte[0]);
+      }
+    }
+  }
+  xmlTemplateDocument.setData("link_value",foldername);
+  xmlTemplateDocument.setData("lasturl",lasturl);
+  xmlTemplateDocument.setData("htmlGalleryRootFolder",getConfigFile(cms).getHtmlGalleryPath());
+  return startProcessing(cms,xmlTemplateDocument,elementName,parameters,templateSelector);
+}
