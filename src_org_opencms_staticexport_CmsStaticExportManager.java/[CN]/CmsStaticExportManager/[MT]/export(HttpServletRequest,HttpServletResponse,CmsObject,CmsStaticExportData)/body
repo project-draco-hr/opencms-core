@@ -1,4 +1,5 @@
 {
+  int status=-1;
   CmsFile file;
   cms.getRequestContext().setSiteRoot("/");
   String vfsName=data.getVfsName();
@@ -27,7 +28,11 @@
   String exportFileName=CmsLinkManager.normalizeRfsPath(getExportPath() + rfsName.substring(1));
   if (OpenCms.getLinkManager().exportRequired(cms,vfsName)) {
     createExportFolder(rfsName);
+    status=HttpServletResponse.SC_OK;
     exportFile=new File(exportFileName);
+  }
+ else {
+    status=HttpServletResponse.SC_SEE_OTHER;
   }
   if (exportOnDemand) {
     String mimetype=OpenCms.getLoaderManager().getMimeType(file.getName(),cms.getRequestContext().getEncoding());
@@ -38,20 +43,29 @@
   byte[] result=loader.export(cms,file,req,res);
   file=null;
   if (result != null) {
-    try {
-      exportStream=new FileOutputStream(exportFile);
-      exportStream.write(result);
-      exportStream.close();
-    }
- catch (    Throwable t) {
-      throw new CmsException("Creation of static export output stream failed for RFS file " + exportFileName);
-    }
-    if (req != null) {
-      Long dateLastModified=(Long)req.getAttribute(I_CmsConstants.C_HEADER_OPENCMS_EXPORT);
-      if (dateLastModified != null) {
-        exportFile.setLastModified((dateLastModified.longValue() / 1000) * 1000);
+    if (exportFile != null) {
+      try {
+        exportStream=new FileOutputStream(exportFile);
+        exportStream.write(result);
+        exportStream.close();
+        status=HttpServletResponse.SC_OK;
+      }
+ catch (      Throwable t) {
+        throw new CmsException("Creation of static export output stream failed for RFS file " + exportFileName);
+      }
+      if (req != null) {
+        Long dateLastModified=(Long)req.getAttribute(I_CmsConstants.C_HEADER_OPENCMS_EXPORT);
+        if (dateLastModified != null) {
+          exportFile.setLastModified((dateLastModified.longValue() / 1000) * 1000);
+        }
+      }
+ else {
+        exportFile.setLastModified((resource.getDateLastModified() / 1000) * 1000);
       }
     }
+  }
+ else {
+    status=HttpServletResponse.SC_NOT_MODIFIED;
   }
   if (exportOnDemand) {
     cms.getRequestContext().setUri(oldUri);
@@ -59,4 +73,5 @@
   if (OpenCms.getLog(this).isInfoEnabled()) {
     OpenCms.getLog(this).info("Static exported vfs file '" + vfsName + "' to rfs file '"+ exportFileName+ "'");
   }
+  return status;
 }

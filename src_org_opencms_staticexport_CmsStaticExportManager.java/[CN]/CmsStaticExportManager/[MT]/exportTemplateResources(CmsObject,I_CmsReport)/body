@@ -4,6 +4,9 @@
   List publishedTemplateResources=cms.readStaticExportResources(false);
   int size=publishedTemplateResources.size();
   int count=1;
+  if (OpenCms.getLog(this).isDebugEnabled()) {
+    OpenCms.getLog(this).debug("Starting export of template resources. " + size + " possible canditates in list.");
+  }
   report.println(report.key("report.staticexport.templateresources_begin"),I_CmsReport.C_FORMAT_HEADLINE);
   Iterator i=publishedTemplateResources.iterator();
   try {
@@ -16,6 +19,9 @@
       report.print(rfsName);
       report.print(report.key("report.dots"));
       url=getExportUrl() + getRfsPrefix() + rfsName;
+      if (OpenCms.getLog(this).isDebugEnabled()) {
+        OpenCms.getLog(this).debug("Sending request for " + rfsName + " with url ("+ url+ ")...");
+      }
       if (url != null) {
         try {
           URL export=new URL(url);
@@ -30,16 +36,22 @@
             urlcon.setIfModifiedSince(dateLastModified);
           }
           urlcon.connect();
-          int result=urlcon.getResponseCode();
+          int status=urlcon.getResponseCode();
           urlcon.disconnect();
-          if (result == HttpServletResponse.SC_OK) {
+          if (OpenCms.getLog(this).isInfoEnabled()) {
+            OpenCms.getLog(this).info("Requested " + rfsName + " with url ("+ url+ ") [STATUS"+ status+ "]");
+          }
+          if (status == HttpServletResponse.SC_OK) {
             report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
           }
- else           if (result == HttpServletResponse.SC_NOT_MODIFIED) {
-            report.println(report.key("search.indexing_file_skipped"),I_CmsReport.C_FORMAT_NOTE);
+ else           if (status == HttpServletResponse.SC_NOT_MODIFIED) {
+            report.println(report.key("report.skipped"),I_CmsReport.C_FORMAT_NOTE);
+          }
+ else           if (status == HttpServletResponse.SC_SEE_OTHER) {
+            report.println(report.key("report.ignored"),I_CmsReport.C_FORMAT_NOTE);
           }
  else {
-            report.println(String.valueOf(result),I_CmsReport.C_FORMAT_OK);
+            report.println(String.valueOf(status),I_CmsReport.C_FORMAT_OK);
           }
         }
  catch (        IOException e) {
