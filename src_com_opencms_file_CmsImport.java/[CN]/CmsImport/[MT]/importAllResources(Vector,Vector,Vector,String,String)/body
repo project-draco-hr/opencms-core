@@ -1,7 +1,7 @@
 {
   NodeList fileNodes, propertyNodes;
   Element currentElement, currentProperty;
-  String source, destination, type, user, group, access, launcherStartClass, dummy;
+  String source, destination, type, user, group, access, launcherStartClass, timestamp;
   long lastmodified=0;
   Map properties;
   Vector types=new Vector();
@@ -19,6 +19,9 @@
   }
   List deleteProperties=(List)A_OpenCms.getRuntimeProperty("compatibility.support.import.remove.propertytags");
   if (deleteProperties == null)   deleteProperties=new ArrayList();
+  List immutableResources=(List)A_OpenCms.getRuntimeProperty("import.immutable.resources");
+  if (immutableResources == null)   immutableResources=new ArrayList();
+  if (DEBUG > 0)   System.err.println("Import: Immutable resources size is " + immutableResources.size());
   try {
     fileNodes=m_docXml.getElementsByTagName(C_EXPORT_TAG_FILE);
     int importSize=fileNodes.getLength();
@@ -33,8 +36,8 @@
       group=getTextNodeValue(currentElement,C_EXPORT_TAG_GROUP);
       access=getTextNodeValue(currentElement,C_EXPORT_TAG_ACCESS);
       launcherStartClass=getTextNodeValue(currentElement,C_EXPORT_TAG_LAUNCHER_START_CLASS);
-      if ((dummy=getTextNodeValue(currentElement,C_EXPORT_TAG_LASTMODIFIED)) != null) {
-        lastmodified=Long.parseLong(dummy);
+      if ((timestamp=getTextNodeValue(currentElement,C_EXPORT_TAG_LASTMODIFIED)) != null) {
+        lastmodified=Long.parseLong(timestamp);
       }
  else {
         lastmodified=System.currentTimeMillis();
@@ -47,8 +50,21 @@
         translatedName+=C_FOLDER_SEPARATOR;
       }
       translatedName=m_cms.getRequestContext().getDirectoryTranslator().translateResource(translatedName);
+      if (DEBUG > 3)       System.err.println("Import: Translated resource name is " + translatedName);
+      boolean resourceNotImmutable=true;
+      if (immutableResources.contains(translatedName)) {
+        if (DEBUG > 1)         System.err.println("Import: Translated resource name is immutable");
+        try {
+          m_cms.readFileHeader("//" + translatedName);
+          resourceNotImmutable=false;
+          if (DEBUG > 0)           System.err.println("Import: Immutable flag set for resource");
+        }
+ catch (        CmsException e) {
+          if (DEBUG > 0)           System.err.println("Import: Immutable test caused exception " + e);
+        }
+      }
       translatedName=translatedName.substring(root.length());
-      if (!excludeList.contains(translatedName)) {
+      if (resourceNotImmutable && (!excludeList.contains(translatedName))) {
         m_report.print(m_report.key("report.importing"),I_CmsReport.C_FORMAT_NOTE);
         m_report.print(translatedName + " ");
         propertyNodes=currentElement.getElementsByTagName(C_EXPORT_TAG_PROPERTY);
