@@ -1,0 +1,89 @@
+{
+  byte[] result=null;
+  A_CmsCacheDirectives cd=getCacheDirectives();
+  boolean streamable=cms.getRequestContext().isStreaming();
+  String cacheKey=cd.getCacheKey(cms,parameters);
+  if (cacheKey != null) {
+    cacheKey+=methodParameter;
+  }
+  CmsElementVariant variant=null;
+  if (cd.isInternalCacheable()) {
+    if (cd.isTimeCritical() && (m_timestamp < cd.getTimeout().getLastChange())) {
+      clearVariantCache();
+    }
+ else {
+      variant=getVariant(cacheKey);
+    }
+    if (variant != null) {
+      result=(byte[])variant.get(0);
+    }
+  }
+  if (variant == null) {
+    I_CmsTemplate templateClass=null;
+    try {
+      templateClass=getTemplateClass(cms,m_className);
+    }
+ catch (    Throwable e) {
+      if (com.opencms.core.I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_CRITICAL,toString() + " Could not load my template class \"" + m_className+ "\". ");
+        A_OpenCms.log(C_OPENCMS_CRITICAL,e.toString());
+        return e.toString().getBytes();
+      }
+    }
+    Object methodResult=null;
+    try {
+      methodResult=templateClass.getClass().getMethod(m_methodName,new Class[]{CmsObject.class,String.class,A_CmsXmlContent.class,Object.class}).invoke(templateClass,new Object[]{cms,methodParameter,null,parameters});
+    }
+ catch (    NoSuchMethodException exc) {
+      throwException("[CmsMethodElemtent] User method " + m_methodName + " was not found in class "+ templateClass.getClass().getName()+ ".",CmsException.C_XML_NO_USER_METHOD);
+    }
+catch (    InvocationTargetException targetEx) {
+      Throwable e=targetEx.getTargetException();
+      if (!(e instanceof CmsException)) {
+        throwException("User method " + m_methodName + " throwed an exception. "+ e,CmsException.C_UNKNOWN_EXCEPTION);
+      }
+ else {
+        throw (CmsException)e;
+      }
+    }
+catch (    Exception exc2) {
+      throwException("User method " + m_methodName + " was found but could not be invoked. "+ exc2,CmsException.C_XML_NO_USER_METHOD);
+    }
+    if (methodResult != null) {
+      if (methodResult instanceof String) {
+        result=((String)methodResult).getBytes();
+      }
+ else       if (methodResult instanceof byte[]) {
+        result=(byte[])methodResult;
+      }
+ else       if (methodResult instanceof Integer) {
+        result=((Integer)methodResult).toString().getBytes();
+      }
+ else       if (methodResult instanceof CmsProcessedString) {
+        variant=new CmsElementVariant();
+        variant.add(((CmsProcessedString)methodResult).toString().getBytes());
+        addVariant(cacheKey,variant);
+      }
+ else {
+        throwException("User method " + m_methodName + " in class "+ templateClass.getClass().getName()+ " returned an unsupported Object: "+ methodResult.getClass().getName(),CmsException.C_XML_PROCESS_ERROR);
+      }
+    }
+    if ((result != null) && (cacheKey != null) && (cd.isInternalCacheable())) {
+      variant=new CmsElementVariant();
+      variant.add(result);
+      addVariant(cacheKey,variant);
+    }
+  }
+  if (streamable) {
+    try {
+      cms.getRequestContext().getResponse().getOutputStream().write(result);
+    }
+ catch (    Exception e) {
+      if (com.opencms.core.I_CmsLogChannels.C_PREPROCESSOR_IS_LOGGING && A_OpenCms.isLogging()) {
+        A_OpenCms.log(C_OPENCMS_CRITICAL,this.toString() + " Error while streaming!");
+      }
+    }
+    result=null;
+  }
+  return result;
+}
