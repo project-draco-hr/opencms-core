@@ -1,0 +1,48 @@
+{
+  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
+  com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
+  PreparedStatement statement=null;
+  PreparedStatement nextStatement=null;
+  OraclePreparedStatement trimStatement=null;
+  try {
+    writeFileHeader(project,file,changed);
+    statement=pool.getPreparedStatement(cq.C_PLSQL_FILESFORUPDATE_KEY);
+    statement.setInt(1,file.getFileId());
+    Connection conn=pool.getConnectionOfStatement(statement);
+    conn.setAutoCommit(false);
+    ResultSet res=statement.executeQuery();
+    try {
+      while (res.next()) {
+        oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("FILE_CONTENT");
+        trimStatement=(OraclePreparedStatement)pool.getNextPreparedStatement(statement,cq.C_TRIMBLOB_KEY);
+        trimStatement.setBLOB(1,blobnew);
+        trimStatement.setInt(2,0);
+        trimStatement.execute();
+        ByteArrayInputStream instream=new ByteArrayInputStream(file.getContents());
+        OutputStream outstream=blobnew.getBinaryOutputStream();
+        byte[] chunk=new byte[blobnew.getChunkSize()];
+        int i=-1;
+        while ((i=instream.read(chunk)) != -1) {
+          outstream.write(chunk,0,i);
+        }
+        instream.close();
+        outstream.close();
+      }
+      res.close();
+      nextStatement=pool.getNextPreparedStatement(statement,cq.C_COMMIT_KEY);
+      nextStatement.execute();
+      conn.setAutoCommit(true);
+    }
+ catch (    IOException e) {
+      throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),e);
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    if (statement != null) {
+      pool.putPreparedStatement(cq.C_PLSQL_FILESFORUPDATE_KEY,statement);
+    }
+  }
+}

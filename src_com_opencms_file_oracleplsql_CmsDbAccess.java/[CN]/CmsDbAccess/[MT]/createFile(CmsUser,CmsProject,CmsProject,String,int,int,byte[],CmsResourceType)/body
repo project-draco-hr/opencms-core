@@ -1,0 +1,78 @@
+{
+  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
+  com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
+  if (contents.length == 0) {
+    contents=" ".getBytes();
+  }
+  int state=C_STATE_NEW;
+  CmsResource resource=readFileHeader(project.getId(),filename);
+  if ((resource != null) && (resource.getState() == C_STATE_DELETED)) {
+    removeFile(project.getId(),filename);
+    state=C_STATE_CHANGED;
+  }
+  int resourceId=nextId(C_TABLE_RESOURCES);
+  int fileId=nextId(C_TABLE_FILES);
+  PreparedStatement statement=null;
+  PreparedStatement statementFileIns=null;
+  PreparedStatement statementFileUpd=null;
+  PreparedStatement nextStatement=null;
+  try {
+    statement=m_pool.getPreparedStatement(m_cq.C_RESOURCES_WRITE_KEY);
+    statement.setInt(1,resourceId);
+    statement.setInt(2,parentId);
+    statement.setString(3,filename);
+    statement.setInt(4,resourceType.getResourceType());
+    statement.setInt(5,flags);
+    statement.setInt(6,user.getId());
+    statement.setInt(7,user.getDefaultGroupId());
+    statement.setInt(8,project.getId());
+    statement.setInt(9,fileId);
+    statement.setInt(10,C_ACCESS_DEFAULT_FLAGS);
+    statement.setInt(11,state);
+    statement.setInt(12,C_UNKNOWN_ID);
+    statement.setInt(13,resourceType.getLauncherType());
+    statement.setString(14,resourceType.getLauncherClass());
+    statement.setTimestamp(15,new Timestamp(System.currentTimeMillis()));
+    statement.setTimestamp(16,new Timestamp(System.currentTimeMillis()));
+    statement.setInt(17,contents.length);
+    statement.setInt(18,user.getId());
+    statement.executeUpdate();
+    statementFileIns=pool.getNextPreparedStatement(statement,cq.C_PLSQL_FILESFORINSERT_KEY);
+    statementFileIns.setInt(1,fileId);
+    statementFileIns.executeUpdate();
+    statementFileUpd=pool.getNextPreparedStatement(statement,cq.C_PLSQL_FILESFORUPDATE_KEY);
+    statementFileUpd.setInt(1,fileId);
+    Connection conn=pool.getConnectionOfStatement(statement);
+    conn.setAutoCommit(false);
+    ResultSet res=statementFileUpd.executeQuery();
+    try {
+      while (res.next()) {
+        oracle.sql.BLOB blobnew=((OracleResultSet)res).getBLOB("FILE_CONTENT");
+        ByteArrayInputStream instream=new ByteArrayInputStream(contents);
+        OutputStream outstream=blobnew.getBinaryOutputStream();
+        byte[] chunk=new byte[blobnew.getChunkSize()];
+        int i=-1;
+        while ((i=instream.read(chunk)) != -1) {
+          outstream.write(chunk,0,i);
+        }
+        instream.close();
+        outstream.close();
+      }
+      nextStatement=pool.getNextPreparedStatement(statement,cq.C_COMMIT_KEY);
+      nextStatement.execute();
+      conn.setAutoCommit(true);
+    }
+ catch (    IOException e) {
+      throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),e);
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    if (statement != null) {
+      m_pool.putPreparedStatement(m_cq.C_RESOURCES_WRITE_KEY,statement);
+    }
+  }
+  return readFile(user.getId(),project.getId(),onlineProject.getId(),filename);
+}

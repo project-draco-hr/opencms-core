@@ -1,0 +1,57 @@
+{
+  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
+  com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
+  CmsFile file=null;
+  CallableStatement statement=null;
+  ResultSet res;
+  try {
+    statement=(CallableStatement)pool.getPreparedStatement(cq.C_PLSQL_RESOURCES_READFILEACC_KEY);
+    statement.setInt(2,currentUserId);
+    statement.setInt(3,currentProjectId);
+    statement.setString(4,filename);
+    statement.execute();
+    res=(ResultSet)statement.getObject(1);
+    if (res.next()) {
+      int resId=res.getInt(m_cq.C_RESOURCES_RESOURCE_ID);
+      int parentId=res.getInt(m_cq.C_RESOURCES_PARENT_ID);
+      int resType=res.getInt(m_cq.C_RESOURCES_RESOURCE_TYPE);
+      int resFlags=res.getInt(m_cq.C_RESOURCES_RESOURCE_FLAGS);
+      int userId=res.getInt(m_cq.C_RESOURCES_USER_ID);
+      int groupId=res.getInt(m_cq.C_RESOURCES_GROUP_ID);
+      int fileId=res.getInt(m_cq.C_RESOURCES_FILE_ID);
+      int accessFlags=res.getInt(m_cq.C_RESOURCES_ACCESS_FLAGS);
+      int state=res.getInt(m_cq.C_RESOURCES_STATE);
+      int lockedBy=res.getInt(m_cq.C_RESOURCES_LOCKED_BY);
+      int launcherType=res.getInt(m_cq.C_RESOURCES_LAUNCHER_TYPE);
+      String launcherClass=res.getString(m_cq.C_RESOURCES_LAUNCHER_CLASSNAME);
+      long created=SqlHelper.getTimestamp(res,m_cq.C_RESOURCES_DATE_CREATED).getTime();
+      long modified=SqlHelper.getTimestamp(res,m_cq.C_RESOURCES_DATE_LASTMODIFIED).getTime();
+      int modifiedBy=res.getInt(m_cq.C_RESOURCES_LASTMODIFIED_BY);
+      int resSize=res.getInt(m_cq.C_RESOURCES_SIZE);
+      oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB(m_cq.C_RESOURCES_FILE_CONTENT);
+      byte[] content=new byte[(int)blob.length()];
+      content=blob.getBytes(1,(int)blob.length());
+      file=new CmsFile(resId,parentId,fileId,filename,resType,resFlags,userId,groupId,currentProjectId,accessFlags,state,lockedBy,launcherType,launcherClass,created,modified,modifiedBy,content,resSize);
+      res.close();
+    }
+ else {
+      throw new CmsException("[" + this.getClass().getName() + "] "+ filename,CmsException.C_NOT_FOUND);
+    }
+  }
+ catch (  SQLException e) {
+    CmsException cmsException=getCmsException("[" + this.getClass().getName() + "] ",e);
+    throw cmsException;
+  }
+catch (  CmsException ex) {
+    throw ex;
+  }
+catch (  Exception exc) {
+    throw new CmsException("readFile " + exc.getMessage(),CmsException.C_UNKNOWN_EXCEPTION,exc);
+  }
+ finally {
+    if (statement != null) {
+      pool.putPreparedStatement(cq.C_PLSQL_RESOURCES_READFILEACC_KEY,statement);
+    }
+  }
+  return file;
+}

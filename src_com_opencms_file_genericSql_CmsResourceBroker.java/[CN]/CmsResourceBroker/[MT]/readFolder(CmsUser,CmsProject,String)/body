@@ -1,14 +1,35 @@
 {
-  CmsFolder cmsFolder=readFolder(currentUser,currentProject,currentProject.getId(),folder);
-  if (cmsFolder == null) {
-    if (currentProject.getParentId() != -1) {
-      CmsProject pp=readProject(currentUser,currentProject,currentProject.getParentId());
-      return readFolder(currentUser,pp,folder);
+  CmsFolder cmsFolder;
+  try {
+    cmsFolder=(CmsFolder)m_resourceCache.get(C_FOLDER + currentProject.getId() + folder);
+    if (cmsFolder == null) {
+      cmsFolder=m_dbAccess.readFolder(currentProject.getId(),folder);
+      if (cmsFolder.getState() != C_STATE_DELETED) {
+        m_resourceCache.put(C_FOLDER + currentProject.getId() + folder,(CmsFolder)cmsFolder);
+      }
     }
- else     throw new CmsException("[" + this.getClass().getName() + "] "+ folder,CmsException.C_NOT_FOUND);
+  }
+ catch (  CmsException exc) {
+    if (currentProject.equals(onlineProject(currentUser,currentProject))) {
+      throw exc;
+    }
+ else {
+      cmsFolder=(CmsFolder)m_resourceCache.get(C_FOLDER + C_PROJECT_ONLINE_ID + folder);
+      if (cmsFolder == null) {
+        cmsFolder=cmsFolder=m_dbAccess.readFolder(C_PROJECT_ONLINE_ID,folder);
+        m_resourceCache.put(C_FOLDER + currentProject.getId() + folder,(CmsFolder)cmsFolder);
+      }
+    }
+  }
+  if (accessRead(currentUser,currentProject,(CmsResource)cmsFolder)) {
+    if (cmsFolder.getState() == C_STATE_DELETED) {
+      throw new CmsException("[" + this.getClass().getName() + "]"+ cmsFolder.getAbsolutePath(),CmsException.C_RESOURCE_DELETED);
+    }
+ else {
+      return cmsFolder;
+    }
   }
  else {
-    if (cmsFolder.getState() == CmsConstants.C_STATE_DELETED)     return null;
- else     return cmsFolder;
+    throw new CmsException("[" + this.getClass().getName() + "] "+ folder,CmsException.C_ACCESS_DENIED);
   }
 }

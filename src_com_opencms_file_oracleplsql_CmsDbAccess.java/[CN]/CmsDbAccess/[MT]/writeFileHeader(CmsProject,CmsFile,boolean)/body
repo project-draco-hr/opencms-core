@@ -1,0 +1,100 @@
+{
+  com.opencms.file.oracleplsql.CmsDbPool pool=(com.opencms.file.oracleplsql.CmsDbPool)m_pool;
+  com.opencms.file.oracleplsql.CmsQueries cq=(com.opencms.file.oracleplsql.CmsQueries)m_cq;
+  ResultSet res;
+  ResultSet tmpres;
+  byte[] content;
+  PreparedStatement statementFileRead=null;
+  PreparedStatement statementResourceUpdate=null;
+  PreparedStatement statementFileIns=null;
+  PreparedStatement statementFileUpd=null;
+  PreparedStatement commitStatement=null;
+  try {
+    if ((file.getState() == C_STATE_UNCHANGED) && (changed == true)) {
+      statementFileRead=m_pool.getPreparedStatement(m_cq.C_FILE_READ_KEY);
+      statementFileRead.setInt(1,file.getFileId());
+      res=statementFileRead.executeQuery();
+      if (res.next()) {
+        oracle.sql.BLOB blob=((OracleResultSet)res).getBLOB(m_cq.C_RESOURCES_FILE_CONTENT);
+        content=new byte[(int)blob.length()];
+        content=blob.getBytes(1,(int)blob.length());
+      }
+ else {
+        throw new CmsException("[" + this.getClass().getName() + "]"+ file.getAbsolutePath(),CmsException.C_NOT_FOUND);
+      }
+      res.close();
+      file.setFileId(nextId(C_TABLE_FILES));
+      statementFileIns=pool.getPreparedStatement(cq.C_PLSQL_FILESFORINSERT_KEY);
+      statementFileIns.setInt(1,file.getFileId());
+      statementFileIns.executeUpdate();
+      try {
+        statementFileUpd=pool.getNextPreparedStatement(statementFileIns,cq.C_PLSQL_FILESFORUPDATE_KEY);
+        statementFileUpd.setInt(1,file.getFileId());
+        Connection conn=pool.getConnectionOfStatement(statementFileIns);
+        conn.setAutoCommit(false);
+        ResultSet resUpd=statementFileUpd.executeQuery();
+        while (resUpd.next()) {
+          oracle.sql.BLOB blobnew=((OracleResultSet)resUpd).getBLOB("FILE_CONTENT");
+          ByteArrayInputStream instream=new ByteArrayInputStream(content);
+          OutputStream outstream=blobnew.getBinaryOutputStream();
+          byte[] chunk=new byte[blobnew.getChunkSize()];
+          int i=-1;
+          while ((i=instream.read(chunk)) != -1) {
+            outstream.write(chunk,0,i);
+          }
+          instream.close();
+          outstream.close();
+        }
+        resUpd.close();
+        commitStatement=pool.getNextPreparedStatement(statementFileIns,cq.C_COMMIT_KEY);
+        commitStatement.execute();
+        conn.setAutoCommit(true);
+      }
+ catch (      IOException e) {
+        throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),e);
+      }
+    }
+    statementResourceUpdate=m_pool.getPreparedStatement(m_cq.C_RESOURCES_UPDATE_KEY);
+    statementResourceUpdate.setInt(1,file.getType());
+    statementResourceUpdate.setInt(2,file.getFlags());
+    statementResourceUpdate.setInt(3,file.getOwnerId());
+    statementResourceUpdate.setInt(4,file.getGroupId());
+    statementResourceUpdate.setInt(5,file.getProjectId());
+    statementResourceUpdate.setInt(6,file.getAccessFlags());
+    int state=file.getState();
+    if ((state == C_STATE_NEW) || (state == C_STATE_CHANGED)) {
+      statementResourceUpdate.setInt(7,state);
+    }
+ else {
+      if (changed == true) {
+        statementResourceUpdate.setInt(7,C_STATE_CHANGED);
+      }
+ else {
+        statementResourceUpdate.setInt(7,file.getState());
+      }
+    }
+    statementResourceUpdate.setInt(8,file.isLockedBy());
+    statementResourceUpdate.setInt(9,file.getLauncherType());
+    statementResourceUpdate.setString(10,file.getLauncherClassname());
+    statementResourceUpdate.setTimestamp(11,new Timestamp(System.currentTimeMillis()));
+    statementResourceUpdate.setInt(12,file.getResourceLastModifiedBy());
+    statementResourceUpdate.setInt(13,file.getLength());
+    statementResourceUpdate.setInt(14,file.getFileId());
+    statementResourceUpdate.setInt(15,file.getResourceId());
+    statementResourceUpdate.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw new CmsException("[" + this.getClass().getName() + "] "+ e.getMessage(),CmsException.C_SQL_ERROR,e);
+  }
+ finally {
+    if (statementFileRead != null) {
+      m_pool.putPreparedStatement(m_cq.C_FILE_READ_KEY,statementFileRead);
+    }
+    if (statementFileIns != null) {
+      pool.putPreparedStatement(cq.C_PLSQL_FILESFORINSERT_KEY,statementFileIns);
+    }
+    if (statementResourceUpdate != null) {
+      m_pool.putPreparedStatement(m_cq.C_RESOURCES_UPDATE_KEY,statementResourceUpdate);
+    }
+  }
+}
