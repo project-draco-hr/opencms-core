@@ -1,0 +1,31 @@
+{
+  CmsRequestContext context=cms.getRequestContext();
+  int publishProjectId=context.currentProject().getId();
+  boolean hasPublishPermissions=false;
+  hasPublishPermissions|=isAdmin(context);
+  hasPublishPermissions|=isManagerOfProject(context);
+  if (publishList.isDirectPublish()) {
+    CmsResource directPublishResource=publishList.getDirectPublishResource();
+    hasPublishPermissions|=(CmsDriverManager.PERM_ALLOWED == hasPermissions(context,directPublishResource,CmsPermissionSet.ACCESS_DIRECT_PUBLISH,true,CmsResourceFilter.ALL));
+  }
+  hasPublishPermissions&=(publishProjectId != I_CmsConstants.C_PROJECT_ONLINE_ID);
+  hasPublishPermissions&=(context.currentProject().getFlags() == I_CmsConstants.C_PROJECT_STATE_UNLOCKED);
+  if (hasPublishPermissions) {
+    I_CmsRuntimeInfo runtimeInfo=m_runtimeInfoFactory.getRuntimeInfo(m_driverManager,I_CmsRuntimeInfo.C_RUNTIMEINFO_PUBLISH);
+    try {
+      m_driverManager.publishProject(cms,runtimeInfo,publishList,report);
+    }
+  finally {
+      runtimeInfo.clear();
+    }
+  }
+ else   if (publishProjectId == I_CmsConstants.C_PROJECT_ONLINE_ID) {
+    throw new CmsSecurityException("[" + getClass().getName() + "] could not publish project "+ publishProjectId,CmsSecurityException.C_SECURITY_NO_MODIFY_IN_ONLINE_PROJECT);
+  }
+ else   if (!isAdmin(context) && !isManagerOfProject(context)) {
+    throw new CmsSecurityException("[" + getClass().getName() + "] could not publish project "+ publishProjectId,CmsSecurityException.C_SECURITY_PROJECTMANAGER_PRIVILEGES_REQUIRED);
+  }
+ else {
+    throw new CmsSecurityException("[" + getClass().getName() + "] could not publish project "+ publishProjectId,CmsSecurityException.C_SECURITY_NO_PERMISSIONS);
+  }
+}
