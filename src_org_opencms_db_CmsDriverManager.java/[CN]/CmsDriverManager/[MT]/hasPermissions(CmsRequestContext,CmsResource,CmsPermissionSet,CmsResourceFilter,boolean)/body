@@ -1,11 +1,19 @@
 {
-  String cacheKey=m_keyGenerator.getCacheKeyForUserPermissions(new Boolean(strongCheck).toString(),context,resource,requiredPermissions);
-  Boolean cacheResult=(Boolean)m_permissionCache.get(cacheKey);
-  if (cacheResult != null) {
-    return cacheResult.booleanValue();
+  if (filter != CmsResourceFilter.ALL) {
+    if (!filter.isValid(context,resource)) {
+      return PERM_FILTERED;
+    }
+    if ((requiredPermissions.getPermissions() & I_CmsConstants.C_ACCESS_VISIBLE) > 0) {
+      if (!filter.includeVisiblePermission()) {
+        requiredPermissions.setPermissions(requiredPermissions.getAllowedPermissions() | I_CmsConstants.C_ACCESS_VISIBLE,requiredPermissions.getDeniedPermissions());
+      }
+    }
   }
-  CmsLock lock=getLock(context,resource);
-  CmsPermissionSet permissions=null;
+  String cacheKey=m_keyGenerator.getCacheKeyForUserPermissions(String.valueOf(strongCheck),context,resource,requiredPermissions);
+  Integer cacheResult=(Integer)m_permissionCache.get(cacheKey);
+  if (cacheResult != null) {
+    return cacheResult;
+  }
   int denied=0;
   if (context.currentProject().isOnlineProject()) {
     denied|=I_CmsConstants.C_PERMISSION_WRITE;
@@ -14,12 +22,13 @@
   if (!isAdmin && ((resource.getType() == CmsResourceTypeXMLTemplate.C_RESOURCE_TYPE_ID) || (resource.getType() == CmsResourceTypeJsp.C_RESOURCE_TYPE_ID))) {
     denied|=I_CmsConstants.C_PERMISSION_WRITE;
   }
-  int warning=0;
+  CmsLock lock=getLock(context,resource);
   if (!lock.isNullLock()) {
     if (!context.currentUser().getId().equals(lock.getUserId())) {
       denied|=I_CmsConstants.C_PERMISSION_WRITE;
     }
   }
+  CmsPermissionSet permissions;
   if (isAdmin) {
     permissions=new CmsPermissionSet(~0);
   }
@@ -28,15 +37,25 @@
     permissions=acl.getPermissions(context.currentUser(),getGroupsOfUser(context,context.currentUser().getName()));
   }
   permissions.denyPermissions(denied);
-  boolean result;
+  Integer result;
   if (strongCheck) {
-    result=(requiredPermissions.getPermissions() & (permissions.getPermissions())) == requiredPermissions.getPermissions();
+    if ((requiredPermissions.getPermissions() & (permissions.getPermissions())) == requiredPermissions.getPermissions()) {
+      result=PERM_ALLOWED;
+    }
+ else {
+      result=PERM_DENIED;
+    }
   }
  else {
-    result=(requiredPermissions.getPermissions() & (permissions.getPermissions())) > 0;
+    if ((requiredPermissions.getPermissions() & (permissions.getPermissions())) > 0) {
+      result=PERM_ALLOWED;
+    }
+ else {
+      result=PERM_DENIED;
+    }
   }
-  m_permissionCache.put(cacheKey,new Boolean(result));
-  if (!result && OpenCms.getLog(this).isDebugEnabled()) {
+  m_permissionCache.put(cacheKey,result);
+  if ((result != PERM_ALLOWED) && OpenCms.getLog(this).isDebugEnabled()) {
     OpenCms.getLog(this).debug("Access to resource " + resource.getRootPath() + " "+ "not permitted for user "+ context.currentUser().getName()+ ", "+ "required permissions "+ requiredPermissions.getPermissionString()+ " "+ "not satisfied by "+ permissions.getPermissionString()+ " "+ ((strongCheck) ? "(required all)" : "(required one)"));
   }
   return result;
