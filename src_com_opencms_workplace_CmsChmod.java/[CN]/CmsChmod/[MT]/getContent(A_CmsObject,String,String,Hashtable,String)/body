@@ -24,6 +24,16 @@
   String pw=(String)parameters.get("pw");
   String pv=(String)parameters.get("pv");
   String ir=(String)parameters.get("ir");
+  String allflag=(String)parameters.get(C_PARA_FLAGS);
+  if (allflag == null) {
+    allflag="false";
+  }
+  if (file.isFile()) {
+    template="file";
+  }
+ else {
+    template="folder";
+  }
   if (newaccess != null) {
     if ((cms.getRequestContext().currentUser().equals(cms.readOwner(file))) || (cms.userInGroup(cms.getRequestContext().currentUser().getName(),C_GROUP_ADMIN))) {
       int flag=0;
@@ -88,6 +98,35 @@
           }
           cms.chmod(hbodyPath,flag);
         }
+      }
+      if (allflag.equals("true")) {
+        Vector allFolders=new Vector();
+        Vector allFiles=new Vector();
+        getAllResources(cms,filename,allFiles,allFolders);
+        cms.unlockResource(file.getAbsolutePath());
+        for (int i=0; i < allFolders.size(); i++) {
+          CmsFolder folder=(CmsFolder)allFolders.elementAt(i);
+          cms.lockResource(folder.getAbsolutePath());
+          cms.chmod(folder.getAbsolutePath(),flag);
+          cms.unlockResource(folder.getAbsolutePath());
+        }
+        for (int i=0; i < allFiles.size(); i++) {
+          CmsFile newfile=(CmsFile)allFiles.elementAt(i);
+          cms.lockResource(newfile.getAbsolutePath());
+          cms.chmod(newfile.getAbsolutePath(),flag);
+          cms.unlockResource(newfile.getAbsolutePath());
+          if ((cms.getResourceType(newfile.getType()).getResourceName()).equals(C_TYPE_PAGE_NAME)) {
+            String bodyPath=getBodyPath(cms,(CmsFile)newfile);
+            int help=C_CONTENTBODYPATH.lastIndexOf("/");
+            String hbodyPath=(C_CONTENTBODYPATH.substring(0,help)) + (newfile.getAbsolutePath());
+            if (hbodyPath.equals(bodyPath)) {
+              cms.lockResource(hbodyPath);
+              cms.chmod(hbodyPath,flag);
+              cms.unlockResource(hbodyPath);
+            }
+          }
+        }
+        cms.lockResource(file.getAbsolutePath());
       }
       session.removeValue(C_PARA_FILE);
       try {
