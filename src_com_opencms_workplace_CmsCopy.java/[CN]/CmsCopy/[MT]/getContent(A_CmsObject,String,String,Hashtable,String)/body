@@ -1,0 +1,31 @@
+{
+  String result=null;
+  HttpSession session=((HttpServletRequest)cms.getRequestContext().getRequest().getOriginalRequest()).getSession(true);
+  String template=null;
+  String filename=(String)parameters.get(C_PARA_FILE);
+  if (filename != null) {
+    session.putValue(C_PARA_FILE,filename);
+  }
+  filename=(String)session.getValue(C_PARA_FILE);
+  String newFile=(String)parameters.get("newfile");
+  String newFolder=(String)parameters.get("newfolder");
+  CmsFile file=(CmsFile)cms.readFileHeader(filename);
+  System.err.println("#####newFile " + newFile);
+  System.err.println("#####newFolder " + newFolder);
+  if (newFile == null) {
+    session.putValue("name",file.getName());
+  }
+ else {
+    cms.copyFile(file.getAbsolutePath(),newFolder + newFile);
+    try {
+      cms.getRequestContext().getResponse().sendCmsRedirect(getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST);
+    }
+ catch (    Exception e) {
+      throw new CmsException("Redirect fails :" + getConfigFile(cms).getWorkplaceActionPath() + C_WP_EXPLORER_FILELIST,CmsException.C_UNKNOWN_EXCEPTION,e);
+    }
+  }
+  CmsXmlWpTemplateFile xmlTemplateDocument=new CmsXmlWpTemplateFile(cms,templateFile);
+  xmlTemplateDocument.setXmlData("OWNER",cms.readOwner(file).getName());
+  xmlTemplateDocument.setXmlData("GROUP",cms.readGroup(file).getName());
+  return startProcessing(cms,xmlTemplateDocument,"",parameters,template);
+}
