@@ -1,5 +1,6 @@
 {
   boolean removeEmptyElements=Boolean.valueOf(getParamRemoveEmptyElements()).booleanValue();
+  boolean validateNewElement=Boolean.valueOf(getParamValidateNewElement()).booleanValue();
   if (xmlPages != null && xmlPages.size() > 0) {
     m_report.println("processing rename element for language (" + locale.getLanguage() + ")",I_CmsReport.C_FORMAT_HEADLINE);
     if (!C_ALL.equals(getParamTemplate())) {
@@ -17,56 +18,51 @@
         m_report.print("( " + m + " / "+ n+ " ) "+ "processing page "+ getCms().getSitePath(res),I_CmsReport.C_FORMAT_NOTE);
         m_report.println(m_report.key("report.dots"));
         try {
-          file=getCms().readFile(getCms().getSitePath(res));
+          file=getCms().readFile(getCms().getSitePath(res),CmsResourceFilter.IGNORE_EXPIRATION);
         }
  catch (        CmsException e2) {
           if (OpenCms.getLog(this).isErrorEnabled()) {
             OpenCms.getLog(this).error(e2);
           }
-          m_report.println(" " + m_report.key("report.error") + e2.getMessage(),I_CmsReport.C_FORMAT_ERROR);
+          m_report.println(e2);
           continue;
         }
         try {
           page=CmsXmlPageFactory.unmarshal(getCms(),file);
         }
  catch (        CmsXmlException e) {
-          m_report.println(" " + m_report.key("report.error") + e.getMessage(),I_CmsReport.C_FORMAT_ERROR);
+          m_report.println(e);
           continue;
         }
         if (!page.hasValue(getParamOldElement(),locale)) {
-          m_report.println(m_report.key("report.dots") + "element " + getParamOldElement()+ " does not exist.",I_CmsReport.C_FORMAT_WARNING);
+          m_report.println(m_report.key("report.dots") + "element " + getParamOldElement()+ " does not exist.",I_CmsReport.C_FORMAT_NOTE);
           continue;
         }
-        boolean validateNewElement=Boolean.valueOf(getParamValidateNewElement()).booleanValue();
+        if (page.hasValue(getParamNewElement(),locale)) {
+          m_report.println(m_report.key("report.dots") + "the page contains already the new element that includes content",I_CmsReport.C_FORMAT_NOTE);
+          continue;
+        }
         if (validateNewElement) {
           if (!isValidElement(page,getParamNewElement())) {
-            m_report.println(m_report.key("report.dots") + "the new element " + getParamNewElement()+ " is not valid",I_CmsReport.C_FORMAT_WARNING);
+            m_report.println(m_report.key("report.dots") + "the new element " + getParamNewElement()+ " is not valid",I_CmsReport.C_FORMAT_NOTE);
             continue;
           }
         }
-        if (isEmptyElement(page,getParamOldElement(),locale)) {
-          m_report.println(m_report.key("report.dots") + "element " + getParamOldElement()+ " has no content.",I_CmsReport.C_FORMAT_WARNING);
-          continue;
-        }
         try {
-          if (page.hasValue(getParamNewElement(),locale)) {
-            if (!isEmptyElement(page,getParamNewElement(),locale)) {
-              m_report.println(m_report.key("report.dots") + "the page contains already the new element that includes content",I_CmsReport.C_FORMAT_WARNING);
-              continue;
-            }
-          }
           page.renameValue(getParamOldElement(),getParamNewElement(),locale);
           writePageAndReport(page,true);
         }
- catch (        CmsException e) {
-          if (OpenCms.getLog(this).isErrorEnabled()) {
-            OpenCms.getLog(this).error(e);
-          }
-          m_report.println(" " + m_report.key("report.error") + e.getMessage(),I_CmsReport.C_FORMAT_ERROR);
+ catch (        Throwable t) {
+          OpenCms.getLog(this).error(t);
+          m_report.println(t);
           continue;
         }
       }
-  finally {
+ catch (      Throwable t) {
+        OpenCms.getLog(this).error(t);
+        m_report.println(t);
+      }
+ finally {
         if (removeEmptyElements) {
           removeInValidElements(page,locale);
         }
