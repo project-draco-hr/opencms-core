@@ -1,32 +1,54 @@
 {
-  int todo=0;
-  if (DEBUG > 2) {
-    System.err.println("CmsWorkplaceMessages.key(): looking for " + keyName);
+  if (LOG.isDebugEnabled()) {
+    LOG.debug("Resolving workplace message key '" + keyName + "'");
   }
-  try {
-    return m_messages.getString(keyName);
+  String result=(String)m_messageCache.get(keyName);
+  if (result == NULL_STRING) {
+    return null;
   }
- catch (  MissingResourceException e) {
-    if (OpenCms.getLog(this).isDebugEnabled()) {
-      OpenCms.getLog(this).debug(e);
-    }
-  }
-  if (DEBUG > 1) {
-    System.err.println("CmsWorkplaceMessages.key(): '" + keyName + "' not found in workplace messages");
-  }
-  Iterator i=m_moduleMessages.iterator();
-  while (i.hasNext()) {
+  if (result == null) {
     try {
-      return ((ResourceBundle)i.next()).getString(keyName);
+      result=m_bundle.getString(keyName);
     }
  catch (    MissingResourceException e) {
-      if (OpenCms.getLog(this).isDebugEnabled()) {
-        OpenCms.getLog(this).debug(e);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(e);
       }
     }
   }
-  if (DEBUG > 1) {
-    System.err.println("CmsWorkplaceMessages.key(): '" + keyName + "' also not found in module messages (this is not good)");
+ else {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("'" + keyName + "' found in message cache, result is '"+ result+ "'");
+    }
+    return result;
   }
-  return null;
+  if (result == null) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("'" + keyName + "' not found in workplace messages");
+    }
+    Iterator i=m_moduleMessages.iterator();
+    while ((result == null) && i.hasNext()) {
+      try {
+        result=((ResourceBundle)i.next()).getString(keyName);
+      }
+ catch (      MissingResourceException e) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(e);
+        }
+      }
+    }
+  }
+  if (result == null) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("'" + keyName + "' also not found in module messages (this is not good)");
+    }
+    m_messageCache.put(keyName,NULL_STRING);
+  }
+ else {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Workplace message for key '" + keyName + "' is '"+ result+ "'");
+    }
+    m_messageCache.put(keyName,result);
+  }
+  return result;
 }
