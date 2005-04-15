@@ -1,0 +1,65 @@
+{
+  String errorMsgSuffix="";
+  try {
+    Iterator i=getMultiPartFileItems().iterator();
+    FileItem fi=null;
+    while (i.hasNext()) {
+      fi=(FileItem)i.next();
+      if (fi.getName() != null) {
+        break;
+      }
+ else {
+        continue;
+      }
+    }
+    if (fi != null) {
+      String fileName=fi.getName();
+      long size=fi.getSize();
+      long maxFileSizeBytes=OpenCms.getWorkplaceManager().getFileBytesMaxUploadSize(getCms());
+      if (maxFileSizeBytes > 0 && size > maxFileSizeBytes) {
+        errorMsgSuffix="size";
+        throw new CmsException("File size larger than maximum allowed upload size, currently set to " + (maxFileSizeBytes / 1024) + " kb");
+      }
+      byte[] content=fi.get();
+      fi.delete();
+      String newResname=getCms().getRequestContext().getFileTranslator().translateResource(CmsResource.getName(fileName.replace('\\','/')));
+      newResname=CmsStringUtil.changeFileNameSuffixTo(newResname,"html");
+      setParamNewResourceName(newResname);
+      setParamResource(newResname);
+      setParamResource(computeFullResourceName());
+      int resTypeId=OpenCms.getResourceManager().getDefaultTypeForName(newResname).getTypeId();
+      String xmlContent="";
+      CmsProperty styleProp=CmsProperty.getNullProperty();
+      try {
+        xmlContent=convertCsvToXml(new InputStreamReader(new ByteArrayInputStream(content),"ISO-8859-1"));
+      }
+ catch (      UnsupportedEncodingException e) {
+      }
+      if (CmsStringUtil.isNotEmpty(getParamXsltFile())) {
+        String m_xsltFilesPath=I_CmsWpConstants.C_VFS_PATH_MODULES + "de.bvi.internet.frontend/xslt/";
+        xmlContent=applyXslTransformation(m_xsltFilesPath + getParamXsltFile(),xmlContent);
+        styleProp=getCms().readPropertyObject(m_xsltFilesPath + getParamXsltFile(),I_CmsConstants.C_PROPERTY_STYLESHEET,true);
+      }
+      content=xmlContent.getBytes();
+      try {
+        getCms().createResource(getParamResource(),resTypeId,content,Collections.EMPTY_LIST);
+      }
+ catch (      CmsException e) {
+        getCms().lockResource(getParamResource());
+        getCms().replaceResource(getParamResource(),resTypeId,content,null);
+      }
+      getCms().writePropertyObject(getParamResource(),styleProp);
+    }
+ else {
+      throw new CmsException("Upload file not found");
+    }
+  }
+ catch (  CmsException e) {
+    setAction(ACTION_SHOWERROR);
+    getJsp().getRequest().setAttribute(C_SESSION_WORKPLACE_CLASS,this);
+    setParamErrorstack(e.getStackTraceAsString());
+    setParamMessage(key("error.message.upload"));
+    setParamReasonSuggestion(key("error.reason.upload" + errorMsgSuffix) + "<br>\n" + key("error.suggestion.upload" + errorMsgSuffix)+ "\n");
+    getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
+  }
+}
