@@ -15,68 +15,81 @@
     InputStream in=new ByteArrayInputStream(content.getBytes());
     String editString, templateString;
     try {
-      Document contentXml=A_CmsXmlContent.getXmlParser().parse(in);
+      InputSource source=new InputSource(in);
+      Document doc=CmsXmlUtils.unmarshalHelper(source,null);
+      System.err.println("document: \n" + content);
       nodeName="edittemplate";
-      NodeList editNodes=contentXml.getElementsByTagName(nodeName.toLowerCase());
-      if (editNodes == null || editNodes.getLength() == 0) {
-        editNodes=contentXml.getElementsByTagName(nodeName.toUpperCase());
-      }
-      if (editNodes.getLength() < 1) {
+      Element root=doc.getRootElement();
+      List editNodes=root.elements(nodeName.toLowerCase());
+      editNodes.addAll(root.elements(nodeName.toUpperCase()));
+      System.err.println("editNodes: " + editNodes.toString());
+      if (editNodes.size() < 1) {
         if (DEBUG > 0) {
           System.err.println("[" + this.getClass().getName() + ".convertPageBody()]: No <edittemplate> found, creating it.");
         }
         createTemplateTags=true;
         nodeName="TEMPLATE";
-        NodeList templateNodes=contentXml.getElementsByTagName(nodeName.toLowerCase());
-        if (templateNodes == null || templateNodes.getLength() == 0) {
-          templateNodes=contentXml.getElementsByTagName(nodeName.toUpperCase());
-        }
-        for (int i=0; i < templateNodes.getLength(); i++) {
-          editString=templateNodes.item(i).getFirstChild().getNodeValue();
+        List templateNodes=root.elements(nodeName.toLowerCase());
+        List attributes;
+        templateNodes.addAll(root.elements(nodeName.toUpperCase()));
+        System.err.println("templateNodes: " + templateNodes.toString());
+        Element templateTag;
+        for (int i=0; i < templateNodes.size(); i++) {
+          templateTag=(Element)templateNodes.get(i);
+          System.err.println("templateTag: " + templateTag.toString());
+          editString=templateTag.getText();
+          System.err.println("editString: " + editNodes.toString());
           templateString=editString;
           try {
             templateString=CmsXmlTemplateLinkConverter.convertFromImport(templateString,m_webappUrl,fileName);
+            System.err.println("templateSring: " + templateString);
           }
  catch (          CmsException e) {
             throw new CmsException("[" + this.getClass().getName() + ".convertPageBody()] can't parse the content: ",e);
           }
-          NamedNodeMap attrs=templateNodes.item(i).getAttributes();
+          attributes=((Element)templateNodes.get(i)).attributes();
           String templateName="";
-          if (attrs.getLength() > 0) {
-            templateName=attrs.item(0).getNodeValue();
+          if (attributes.size() > 0) {
+            templateName=((Attribute)attributes.get(0)).getName();
           }
           nodeName="edittemplate";
-          Element newNode=contentXml.createElement(nodeName.toLowerCase());
+          Element newNode=DocumentHelper.createElement(nodeName.toLowerCase());
           if (newNode == null) {
-            newNode=contentXml.createElement(nodeName.toUpperCase());
+            newNode=root.addElement(nodeName.toUpperCase());
           }
-          CDATASection newText=contentXml.createCDATASection(editString);
-          newNode.appendChild(newText);
-          attrs=newNode.getAttributes();
+          newNode.addCDATA(editString);
+          attributes=newNode.attributes();
           if (!templateName.equals("")) {
-            newNode.setAttribute("name",templateName);
+            newNode.addAttribute("name",templateName);
           }
-          contentXml.getElementsByTagName("XMLTEMPLATE").item(0).appendChild(newNode);
+          System.err.println("newNode: " + newNode.toString());
+          ((Element)root.elements("XMLTEMPLATE").get(0)).add(newNode);
+          System.err.println("root(newnode): " + root.toString());
           if (templateName.equals("")) {
             templateName="noNameKey";
           }
           templateElements.put(templateName,templateString);
         }
-        while (templateNodes.getLength() > 0) {
-          contentXml.getElementsByTagName("XMLTEMPLATE").item(0).removeChild(templateNodes.item(0));
+        while (templateNodes.size() > 0) {
+          ((Element)root.elements("XMLTEMPLATE").get(0)).remove((Element)templateNodes.get(0));
         }
+        System.err.println("root(after remove): " + root.toString());
       }
-      for (int i=0; i < editNodes.getLength(); i++) {
-        editString=editNodes.item(i).getFirstChild().getNodeValue();
+      Element editTemplate;
+      for (int i=0; i < editNodes.size(); i++) {
+        editTemplate=(Element)editNodes.get(i);
+        editString=editTemplate.getText();
+        System.err.println("editString: " + editNodes.toString());
         for (int k=0; k < m_webAppNames.size(); k++) {
           editString=CmsStringUtil.substitute(editString,(String)m_webAppNames.get(k),I_CmsWpConstants.C_MACRO_OPENCMS_CONTEXT + "/");
+          System.err.println("editString (mod): " + editNodes.toString());
         }
-        editNodes.item(i).getFirstChild().setNodeValue(editString);
+        editTemplate.clearContent();
+        editTemplate.addCDATA(editString);
+        System.err.println("editNodes.get(i): " + editNodes.get(i).toString());
       }
-      CmsXmlXercesParser parser=new CmsXmlXercesParser();
-      Writer out=new StringWriter();
-      parser.getXmlText(contentXml,out);
-      content=out.toString();
+      content=CmsXmlUtils.marshal(doc,OpenCms.getSystemInfo().getDefaultEncoding());
+      System.err.println("content: " + content.toString());
       if (createTemplateTags) {
         content=content.substring(0,content.lastIndexOf("</XMLTEMPLATE>"));
         Enumeration en=templateElements.keys();
