@@ -2,6 +2,7 @@
   CmsResource resource=(CmsResource)indexResource.getData();
   String result=null;
   try {
+    String path=cms.getRequestContext().removeSiteRoot(resource.getRootPath());
     CmsFile file=CmsFile.upgrade(resource,cms);
     String absolutePath=cms.getSitePath(file);
     CmsXmlPage page=CmsXmlPageFactory.unmarshal(cms,file);
@@ -19,9 +20,20 @@
       }
     }
     result=CmsHtmlExtractor.extractText(content.toString(),page.getEncoding());
+    CmsProperty extractionClass=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_SEARCH_EXTRACTIONCLASS,true);
+    if (extractionClass != CmsProperty.getNullProperty()) {
+      Object ext=Class.forName(extractionClass.getValue()).newInstance();
+      if (ext instanceof I_CmsSearchExtractor) {
+        I_CmsSearchExtractor extra=(I_CmsSearchExtractor)ext;
+        result=result + "\n" + extra.extractContent(cms,indexResource,language).getContent();
+      }
+ else {
+        throw new CmsIndexException("Extracting text from resource " + resource.getRootPath() + " failed: "+ "invalid extractionclass "+ ext.getClass().getName());
+      }
+    }
+    return new CmsExtractionResult(result);
   }
  catch (  Exception exc) {
     throw new CmsIndexException("Reading resource " + resource.getRootPath() + " failed",exc);
   }
-  return new CmsExtractionResult(result);
 }

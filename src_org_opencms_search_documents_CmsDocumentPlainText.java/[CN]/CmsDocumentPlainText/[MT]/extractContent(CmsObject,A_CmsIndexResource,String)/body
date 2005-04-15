@@ -1,11 +1,25 @@
 {
   CmsResource resource=(CmsResource)indexResource.getData();
-  CmsFile file=readFile(cms,resource);
+  String result=null;
   try {
     String path=cms.getRequestContext().removeSiteRoot(resource.getRootPath());
-    CmsProperty encoding=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,true);
-    String result=new String(file.getContents(),encoding.getValue(OpenCms.getSystemInfo().getDefaultEncoding()));
-    return new CmsExtractionResult(result);
+    CmsProperty extractionClass=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_SEARCH_EXTRACTIONCLASS,true);
+    if (extractionClass != CmsProperty.getNullProperty()) {
+      Object ext=Class.forName(extractionClass.getValue()).newInstance();
+      if (ext instanceof I_CmsSearchExtractor) {
+        I_CmsSearchExtractor extractor=(I_CmsSearchExtractor)ext;
+        return extractor.extractContent(cms,indexResource,language);
+      }
+ else {
+        throw new CmsIndexException("Extracting text from resource " + resource.getRootPath() + " failed: "+ "invalid extractionclass "+ ext.getClass().getName());
+      }
+    }
+ else {
+      CmsProperty encoding=cms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,true);
+      CmsFile file=readFile(cms,resource);
+      result=new String(file.getContents(),encoding.getValue(OpenCms.getSystemInfo().getDefaultEncoding()));
+      return new CmsExtractionResult(result);
+    }
   }
  catch (  Exception e) {
     throw new CmsIndexException("Extracting text from resource " + resource.getRootPath() + " failed: "+ e.getMessage(),e);
