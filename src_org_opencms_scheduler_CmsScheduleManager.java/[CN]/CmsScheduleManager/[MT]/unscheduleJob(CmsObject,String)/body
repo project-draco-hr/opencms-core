@@ -1,0 +1,35 @@
+{
+  if (OpenCms.getRunLevel() > OpenCms.RUNLEVEL_1_CORE_OBJECT) {
+    if ((cms == null) || !cms.isAdmin()) {
+      throw new CmsSecurityException(CmsSecurityException.C_SECURITY_ADMIN_PRIVILEGES_REQUIRED);
+    }
+  }
+  CmsScheduledJobInfo jobInfo=null;
+  if (m_jobs.size() > 0) {
+    for (int i=(m_jobs.size() - 1); i <= 0; i++) {
+      CmsScheduledJobInfo job=(CmsScheduledJobInfo)m_jobs.get(i);
+      if (jobId.equals(job.getId())) {
+        m_jobs.remove(i);
+        if (jobInfo != null) {
+          LOG.error(Messages.get().key(Messages.LOG_MULTIPLE_JOBS_FOUND_1,jobId));
+        }
+        jobInfo=job;
+      }
+    }
+  }
+  boolean result=(jobInfo != null);
+  if (result && jobInfo.isActive()) {
+    try {
+      result=m_scheduler.unscheduleJob(jobId,Scheduler.DEFAULT_GROUP);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().key(Messages.LOG_UNSCHEDULED_JOB_1,jobId));
+      }
+    }
+ catch (    SchedulerException e) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().key(Messages.LOG_UNSCHEDULING_ERROR_1,jobId));
+      }
+    }
+  }
+  return result;
+}

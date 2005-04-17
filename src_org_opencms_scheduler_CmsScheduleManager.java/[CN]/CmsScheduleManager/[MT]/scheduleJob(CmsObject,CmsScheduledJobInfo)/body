@@ -5,44 +5,69 @@
     }
   }
   if ((jobInfo == null) || (jobInfo.getClassName() == null)) {
-    OpenCms.getLog(this).error("Scheduler: Invalid job configuation provided");
-    return;
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_INVALID_JOB_CONFIGURATION_0);
+    LOG.error(message.key());
+    throw new CmsSchedulerException(message);
   }
   if (m_scheduler == null) {
-    OpenCms.getLog(this).error("Scheduler: No scheduler available to schedule job '" + jobInfo.getJobName() + "'");
-    return;
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_NO_SCHEDULER_1,jobInfo.getJobName());
+    LOG.error(message.key());
+    throw new CmsSchedulerException(message);
+  }
+  String jobId=jobInfo.getId();
+  if (jobId == null) {
+    CmsUUID jobUUID=new CmsUUID();
+    jobId="OpenCmsJob_".concat(jobUUID.toString());
+    jobInfo.setId(jobId);
+  }
+ else {
+    boolean foundJob=unscheduleJob(cms,jobId);
+    if (!foundJob) {
+      CmsMessageContainer message=Messages.get().container(Messages.ERR_JOB_WITH_ID_DOES_NOT_EXIST_1,jobId);
+      LOG.warn(message.key());
+      throw new CmsSchedulerException(message);
+    }
+    jobInfo.setFrozen(false);
   }
   try {
     Class.forName(jobInfo.getClassName());
   }
  catch (  ClassNotFoundException e) {
-    OpenCms.getLog(this).error("Scheduler: Class not found '" + jobInfo.getClassName() + "'",e);
-    return;
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_JOB_CLASS_NOT_FOUND_1,jobInfo.getClassName());
+    LOG.error(message.key());
+    throw new CmsSchedulerException(message);
   }
-  m_jobCount++;
-  JobDetail jobDetail=new JobDetail("cmsJob" + m_jobCount,Scheduler.DEFAULT_GROUP,CmsScheduleManager.class);
-  CronTrigger trigger=new CronTrigger("cmsTrigger" + m_jobCount,Scheduler.DEFAULT_GROUP);
+  CronTrigger trigger=new CronTrigger(jobId,Scheduler.DEFAULT_GROUP);
   try {
     trigger.setCronExpression(jobInfo.getCronExpression());
   }
  catch (  ParseException e) {
-    OpenCms.getLog(this).error("Scheduler: Bad cron expression for job '" + jobInfo.getJobName() + "': ["+ jobInfo.getCronExpression()+ "]",e);
-    return;
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_BAD_CRON_EXPRESSION_2,jobInfo.getJobName(),jobInfo.getCronExpression());
+    LOG.error(message.key());
+    throw new CmsSchedulerException(message);
   }
-  jobInfo.setTrigger(trigger);
-  JobDataMap jobData=new JobDataMap();
-  jobData.put(CmsScheduleManager.C_SCHEDULER_JOB_INFO,jobInfo);
-  jobDetail.setJobDataMap(jobData);
+  if (jobInfo.isActive()) {
+    JobDetail jobDetail=new JobDetail(jobId,Scheduler.DEFAULT_GROUP,CmsScheduleManager.class);
+    jobInfo.setTrigger(trigger);
+    JobDataMap jobData=new JobDataMap();
+    jobData.put(CmsScheduleManager.C_SCHEDULER_JOB_INFO,jobInfo);
+    jobDetail.setJobDataMap(jobData);
+    try {
+      m_scheduler.scheduleJob(jobDetail,trigger);
+    }
+ catch (    SchedulerException e) {
+      CmsMessageContainer message=Messages.get().container(Messages.ERR_COULD_NOT_SCHEDULE_JOB_2,jobInfo.getJobName(),jobInfo.getClassName());
+      LOG.error(message.key());
+      throw new CmsSchedulerException(message);
+    }
+  }
   jobInfo.initConfiguration();
-  try {
-    m_scheduler.scheduleJob(jobDetail,trigger);
-  }
- catch (  SchedulerException e) {
-    OpenCms.getLog(this).error("Scheduler: Could not schedule job '" + jobInfo.getJobName() + "' for class '"+ jobInfo.getClassName()+ "'",e);
-    return;
-  }
   m_jobs.add(jobInfo);
-  if (OpenCms.getLog(this).isInfoEnabled()) {
-    OpenCms.getLog(this).info("Scheduled job " + m_jobs.size() + " named '"+ jobInfo.getJobName()+ "' for class '"+ jobInfo.getClassName()+ "' with user "+ jobInfo.getContextInfo().getUserName()+ ", first execution "+ CmsDateUtil.getDateTime(jobInfo.getExecutionTimeNext(),DateFormat.MEDIUM,Locale.getDefault()));
+  if (LOG.isInfoEnabled()) {
+    LOG.info(Messages.get().key(Messages.LOG_JOB_SCHEDULED_4,new Object[]{new Integer(m_jobs.size()),jobInfo.getJobName(),jobInfo.getClassName(),jobInfo.getContextInfo().getUserName()}));
+    Date nextExecution=jobInfo.getExecutionTimeNext();
+    if (nextExecution != null) {
+      LOG.info(Messages.get().key(Messages.LOG_JOB_NEXT_EXECUTION_2,jobInfo.getJobName(),nextExecution));
+    }
   }
 }

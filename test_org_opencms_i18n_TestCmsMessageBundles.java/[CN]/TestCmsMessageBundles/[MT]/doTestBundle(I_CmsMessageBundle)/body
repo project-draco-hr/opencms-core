@@ -1,0 +1,59 @@
+{
+  List keys=new ArrayList();
+  System.out.println("\nValidating all key in bundle " + bundle.getBundleName() + ":");
+  Field[] fields=bundle.getClass().getDeclaredFields();
+  for (int i=0; i < fields.length; i++) {
+    Field field=fields[i];
+    if (field.getType().equals(String.class)) {
+      String key=field.getName();
+      String value;
+      try {
+        value=(String)field.get(bundle);
+      }
+ catch (      IllegalAccessException e) {
+        continue;
+      }
+      System.out.println("Validating key '" + key + "'");
+      if (!key.equals(value)) {
+        fail("Key '" + key + "' in bundle "+ bundle.getBundleName()+ " has bad value '"+ value+ "'");
+      }
+      String message=bundle.key(key,null);
+      if (CmsMessages.isUnknownKey(message)) {
+        fail("No message for '" + key + "' in bundle "+ bundle.getBundleName());
+      }
+      if (key.length() < 7) {
+        fail("Key '" + key + "' in bundle "+ bundle.getBundleName()+ " is to short (length must be at last 7)");
+      }
+      if (!key.equals(key.toUpperCase())) {
+        fail("Key '" + key + "' in bundle "+ bundle.getBundleName()+ " must be all upper case");
+      }
+      if ((key.charAt(key.length() - 2) != '_') || (!key.startsWith("ERR_") && !key.startsWith("LOG_") && !key.startsWith("INIT_"))) {
+        fail("Key '" + key + "' in bundle "+ bundle.getBundleName()+ " must have the form {ERR|LOG|INIT}_KEYNAME_{0-9}");
+      }
+      int argCount=Integer.valueOf(key.substring(key.length() - 1)).intValue();
+      for (int j=0; j < argCount; j++) {
+        String arg="{" + j;
+        int pos=message.indexOf(arg);
+        if (pos < 0) {
+          fail("Message '" + message + "' for key '"+ key+ "' in bundle "+ bundle.getBundleName()+ " misses argument {"+ j+ "}");
+        }
+      }
+      for (int j=argCount; j < 10; j++) {
+        String arg="{" + j;
+        int pos=message.indexOf(arg);
+        if (pos >= 0) {
+          fail("Message '" + message + "' for key '"+ key+ "' in bundle "+ bundle.getBundleName()+ " containes unused argument {"+ j+ "}");
+        }
+      }
+      keys.add(key);
+    }
+  }
+  CmsMessages messages=bundle.getBundle();
+  Enumeration bundleKeys=messages.m_bundle.getKeys();
+  while (bundleKeys.hasMoreElements()) {
+    String bundleKey=(String)bundleKeys.nextElement();
+    if (!keys.contains(bundleKey)) {
+      fail("Bundle " + bundle.getBundleName() + " contains unreferenced message "+ bundleKey);
+    }
+  }
+}

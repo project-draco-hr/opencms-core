@@ -1,0 +1,86 @@
+{
+  System.out.println("Trying to activate and deactivate an OpenCms job from the OpenCms scheduler.");
+  TestScheduledJob.m_runCount=0;
+  CmsScheduledJobInfo jobInfo=new CmsScheduledJobInfo();
+  CmsContextInfo contextInfo=new CmsContextInfo();
+  contextInfo.setUserName(OpenCms.getDefaultUsers().getUserAdmin());
+  jobInfo.setContextInfo(contextInfo);
+  jobInfo.setClassName(TestScheduledJob.class.getName());
+  jobInfo.setCronExpression("0/2 * * * * ?");
+  jobInfo.setActive(false);
+  List jobs=new ArrayList();
+  jobs.add(jobInfo);
+  CmsScheduleManager scheduler=new CmsScheduleManager(jobs);
+  scheduler.initialize(null);
+  int seconds=0;
+  do {
+    try {
+      Thread.sleep(1000);
+    }
+ catch (    InterruptedException e) {
+      fail("Something caused the waiting test thread to interrupt!");
+    }
+    seconds++;
+  }
+ while (seconds < 5);
+  if (TestScheduledJob.m_runCount > 0) {
+    fail("Test job was incorrectly run '" + TestScheduledJob.m_runCount + "' times in OpenCms scheduler.");
+  }
+  assertEquals(1,scheduler.getJobs().size());
+  CmsScheduledJobInfo info=(CmsScheduledJobInfo)scheduler.getJobs().get(0);
+  assertEquals(jobInfo.getId(),info.getId());
+  assertEquals(jobInfo.getClassName(),info.getClassName());
+  assertEquals(false,info.isActive());
+  assertNull(info.getExecutionTimeNext());
+  info=(CmsScheduledJobInfo)info.clone();
+  info.setActive(true);
+  scheduler.scheduleJob(null,info);
+  seconds=0;
+  do {
+    try {
+      Thread.sleep(1000);
+    }
+ catch (    InterruptedException e) {
+      fail("Something caused the waiting test thread to interrupt!");
+    }
+    seconds++;
+  }
+ while ((seconds < SECONDS_TO_WAIT) && (TestScheduledJob.m_runCount < 3));
+  if (TestScheduledJob.m_runCount == 3) {
+    System.out.println("Test job was correctly run 3 times in OpenCms scheduler.");
+  }
+ else {
+    fail("Test class not run after " + SECONDS_TO_WAIT + " seconds.");
+  }
+  assertEquals(1,scheduler.getJobs().size());
+  info=(CmsScheduledJobInfo)scheduler.getJobs().get(0);
+  assertEquals(jobInfo.getId(),info.getId());
+  assertEquals(jobInfo.getClassName(),info.getClassName());
+  assertEquals(true,info.isActive());
+  assertNotNull(info.getExecutionTimeNext());
+  TestScheduledJob.m_runCount=0;
+  info=(CmsScheduledJobInfo)info.clone();
+  info.setActive(false);
+  scheduler.scheduleJob(null,info);
+  seconds=0;
+  do {
+    try {
+      Thread.sleep(1000);
+    }
+ catch (    InterruptedException e) {
+      fail("Something caused the waiting test thread to interrupt!");
+    }
+    seconds++;
+  }
+ while (seconds < 5);
+  if (TestScheduledJob.m_runCount > 0) {
+    fail("Test job was incorrectly run '" + TestScheduledJob.m_runCount + "' times in OpenCms scheduler.");
+  }
+  assertEquals(1,scheduler.getJobs().size());
+  info=(CmsScheduledJobInfo)scheduler.getJobs().get(0);
+  assertEquals(jobInfo.getId(),info.getId());
+  assertEquals(jobInfo.getClassName(),info.getClassName());
+  assertEquals(false,info.isActive());
+  assertNull(info.getExecutionTimeNext());
+  scheduler.shutDown();
+}
