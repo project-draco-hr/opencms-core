@@ -1,13 +1,12 @@
 {
   String servletMapping=context.getInitParameter("OpenCmsServlet");
   if (servletMapping == null) {
-    m_instance=null;
-    throw new CmsInitException("OpenCms servlet mapping not configured in 'web.xml', please set the 'OpenCmsServlet' parameter.");
+    throwInitException(new CmsInitException("OpenCms servlet mapping not configured in 'web.xml', please set the 'OpenCmsServlet' parameter."));
   }
-  String base=context.getInitParameter("opencms.home");
-  if (base == null || "".equals(base)) {
-    base=searchWebInfFolder(context.getRealPath("/"));
-    if (base == null || "".equals(base)) {
+  String webInfPath=context.getInitParameter("opencms.home");
+  if (CmsStringUtil.isEmpty(webInfPath)) {
+    webInfPath=searchWebInfFolder(context.getRealPath("/"));
+    if (CmsStringUtil.isEmpty(webInfPath)) {
       throwInitException(new CmsInitException(C_ERRORMSG + "OpenCms base folder could not be guessed. Please define init parameter \"opencms.home\" in servlet engine configuration.\n\n"));
     }
   }
@@ -16,7 +15,7 @@
     defaultWebApplication="ROOT";
   }
   String webApplicationContext=context.getInitParameter("WebApplicationContext");
-  getSystemInfo().init(base,servletMapping,webApplicationContext,defaultWebApplication);
+  getSystemInfo().init(webInfPath,servletMapping,webApplicationContext,defaultWebApplication);
   ExtendedProperties configuration=null;
   try {
     configuration=CmsPropertyUtils.loadProperties(getSystemInfo().getConfigurationFileRfsPath());
@@ -25,60 +24,47 @@
     throwInitException(new CmsInitException(C_ERRORMSG + "Trouble reading property file " + getSystemInfo().getConfigurationFileRfsPath()+ ".\n\n",e));
   }
   if (configuration.getBoolean("wizard.enabled",true)) {
-    m_instance=null;
     throw new CmsInitException("OpenCms setup wizard is enabled, unable to start OpenCms",CmsInitException.C_INIT_WIZARD_ENABLED);
   }
-  String logfile=(String)configuration.get("log.file");
-  if (logfile != null) {
-    logfile=getSystemInfo().getAbsoluteRfsPathRelativeToWebInf(logfile);
-    configuration.put("log.file",logfile);
-  }
-  getSystemInfo().setLogFileRfsPath(logfile);
-  m_log.init(configuration,getSystemInfo().getConfigurationFileRfsPath());
   System.err.println("\n\nStarting OpenCms, version " + OpenCms.getSystemInfo().getVersionName() + " in web application '"+ getSystemInfo().getWebApplicationName()+ "'");
   for (int i=0; i < I_CmsConstants.C_COPYRIGHT.length; i++) {
     System.err.println(I_CmsConstants.C_COPYRIGHT[i]);
   }
   System.err.println();
-  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(".");
-    getLog(CmsLog.CHANNEL_INIT).info(".");
-    getLog(CmsLog.CHANNEL_INIT).info(".");
-    getLog(CmsLog.CHANNEL_INIT).info(".");
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms version " + OpenCms.getSystemInfo().getVersionName());
+  if (CmsLog.LOG.isInfoEnabled()) {
+    CmsLog.LOG.info(".");
+    CmsLog.LOG.info(".");
+    CmsLog.LOG.info(".");
+    CmsLog.LOG.info(".");
+    CmsLog.LOG.info(". OpenCms version " + OpenCms.getSystemInfo().getVersionName());
     for (int i=0; i < I_CmsConstants.C_COPYRIGHT.length; i++) {
-      getLog(CmsLog.CHANNEL_INIT).info(". " + I_CmsConstants.C_COPYRIGHT[i]);
+      CmsLog.LOG.info(". " + I_CmsConstants.C_COPYRIGHT[i]);
     }
-    getLog(CmsLog.CHANNEL_INIT).info(".                      ...............................................................");
-    getLog(CmsLog.CHANNEL_INIT).info(". Startup time         : " + (new Date(System.currentTimeMillis())));
-    getLog(CmsLog.CHANNEL_INIT).info(". Servlet container    : " + context.getServerInfo());
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms version      : " + getSystemInfo().getVersionName());
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms webapp name  : " + getSystemInfo().getWebApplicationName());
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms servlet path : " + getSystemInfo().getServletPath());
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms context      : " + getSystemInfo().getOpenCmsContext());
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms WEB-INF path : " + getSystemInfo().getWebInfRfsPath());
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms property file: " + getSystemInfo().getConfigurationFileRfsPath());
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms log file     : " + getSystemInfo().getLogFileRfsPath());
+    CmsLog.LOG.info(".                      ...............................................................");
+    CmsLog.LOG.info(". Startup time         : " + (new Date(System.currentTimeMillis())));
+    CmsLog.LOG.info(". Servlet container    : " + context.getServerInfo());
+    CmsLog.LOG.info(". OpenCms version      : " + getSystemInfo().getVersionName());
+    CmsLog.LOG.info(". OpenCms webapp name  : " + getSystemInfo().getWebApplicationName());
+    CmsLog.LOG.info(". OpenCms servlet path : " + getSystemInfo().getServletPath());
+    CmsLog.LOG.info(". OpenCms context      : " + getSystemInfo().getOpenCmsContext());
+    CmsLog.LOG.info(". OpenCms WEB-INF path : " + getSystemInfo().getWebInfRfsPath());
+    CmsLog.LOG.info(". OpenCms property file: " + getSystemInfo().getConfigurationFileRfsPath());
+    CmsLog.LOG.info(". OpenCms log file     : " + getSystemInfo().getLogFileRfsPath());
   }
   try {
     initConfiguration(configuration);
   }
- catch (  CmsException cmsex) {
-    if (cmsex.getType() == CmsException.C_RB_INIT_ERROR) {
-      throwInitException(new CmsInitException(C_ERRORMSG + "Could not connect to the database. Is the database up and running?\n\n",cmsex));
-    }
-  }
-catch (  Exception exc) {
-    throwInitException(new CmsInitException(C_ERRORMSG + "Trouble creating the com.opencms.core.CmsObject. Please check the root cause for more information.\n\n",exc));
+ catch (  Exception e) {
+    throwInitException(new CmsInitException(C_ERRORMSG + "Unable to initialize the OpenCms configuration",e));
   }
   m_useBasicAuthentication=configuration.getBoolean("auth.basic",true);
   m_authenticationFormURI=configuration.getString("auth.form_uri",I_CmsWpConstants.C_VFS_PATH_WORKPLACE + "action/authenticate.html");
   if (m_sessionManager != null) {
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". Session manager      : initialized");
+    if (CmsLog.LOG.isInfoEnabled()) {
+      CmsLog.LOG.info(". Session manager      : initialized");
     }
   }
  else {
-    getLog(CmsLog.CHANNEL_INIT).error(". Session manager      : NOT initialized");
+    CmsLog.LOG.error(". Session manager      : NOT initialized");
   }
 }

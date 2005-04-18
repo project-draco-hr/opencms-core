@@ -5,35 +5,32 @@
   }
  catch (  SecurityException se) {
   }
-  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(". System file.encoding : " + systemEncoding);
+  if (CmsLog.LOG.isInfoEnabled()) {
+    CmsLog.LOG.info(". System file.encoding : " + systemEncoding);
   }
   String ethernetAddress=configuration.getString("server.ethernet.address",CmsUUID.getDummyEthernetAddress());
-  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(". Ethernet address used: " + ethernetAddress);
+  if (CmsLog.LOG.isInfoEnabled()) {
+    CmsLog.LOG.info(". Ethernet address used: " + ethernetAddress);
   }
   CmsUUID.init(ethernetAddress);
   String serverName=configuration.getString("server.name","OpenCmsServer");
   getSystemInfo().setServerName(serverName);
   m_lockManager=CmsLockManager.getInstance();
   try {
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
+    if (CmsLog.LOG.isInfoEnabled()) {
       String jdkinfo=System.getProperty("java.vm.name") + " ";
       jdkinfo+=System.getProperty("java.vm.version") + " ";
       jdkinfo+=System.getProperty("java.vm.info") + " ";
       jdkinfo+=System.getProperty("java.vm.vendor") + " ";
-      getLog(CmsLog.CHANNEL_INIT).info(". Java VM in use       : " + jdkinfo);
+      CmsLog.LOG.info(". Java VM in use       : " + jdkinfo);
       String osinfo=System.getProperty("os.name") + " ";
       osinfo+=System.getProperty("os.version") + " ";
       osinfo+=System.getProperty("os.arch") + " ";
-      getLog(CmsLog.CHANNEL_INIT).info(". Operating sytem      : " + osinfo);
+      CmsLog.LOG.info(". Operating sytem      : " + osinfo);
     }
   }
  catch (  Exception e) {
-    if (getLog(this).isErrorEnabled()) {
-      getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "2",e);
-    }
-    throw e;
+    throwInitException(new CmsInitException(OpenCmsCore.C_MSG_CRITICAL_ERROR + "2",e));
   }
   m_memoryMonitor=new CmsMemoryMonitor();
   m_configurationManager=new CmsConfigurationManager(getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("config/"));
@@ -44,11 +41,10 @@
   String defaultEncoding=CmsEncoder.lookupEncoding(setEncoding,null);
   if (defaultEncoding == null) {
     String msg="OpenCms startup failure: Configured encoding '" + setEncoding + "' not supported by the Java VM";
-    getLog(this).fatal(OpenCmsCore.C_MSG_CRITICAL_ERROR + "1: " + msg);
-    throw new Exception(msg);
+    throwInitException(new CmsInitException(OpenCmsCore.C_MSG_CRITICAL_ERROR + "1: " + msg));
   }
-  if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-    getLog(CmsLog.CHANNEL_INIT).info(". OpenCms encoding     : " + defaultEncoding);
+  if (CmsLog.LOG.isInfoEnabled()) {
+    CmsLog.LOG.info(". OpenCms encoding     : " + defaultEncoding);
   }
   getSystemInfo().setDefaultEncoding(defaultEncoding);
   CmsMemoryMonitorConfiguration memoryMonitorConfiguration=systemConfiguration.getCmsMemoryMonitorConfiguration();
@@ -62,8 +58,8 @@
   while (it.hasNext()) {
     I_CmsRequestHandler handler=(I_CmsRequestHandler)it.next();
     addRequestHandler(handler);
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).warn(". Request handler class: " + handler.getClass().getName() + " activated");
+    if (CmsLog.LOG.isInfoEnabled()) {
+      CmsLog.LOG.warn(". Request handler class: " + handler.getClass().getName() + " activated");
     }
   }
   m_defaultUsers=systemConfiguration.getCmsDefaultUsers();
@@ -75,18 +71,18 @@
   m_resourceManager.setTranslators(vfsConfiguation.getFolderTranslator(),vfsConfiguation.getFileTranslator());
   CmsFlexCache flexCache=null;
   try {
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : starting");
+    if (CmsLog.LOG.isInfoEnabled()) {
+      CmsLog.LOG.info(". Flex cache init      : starting");
     }
     CmsFlexCacheConfiguration flexCacheConfiguration=systemConfiguration.getCmsFlexCacheConfiguration();
     flexCache=new CmsFlexCache(flexCacheConfiguration);
-    if (getLog(CmsLog.CHANNEL_INIT).isInfoEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).info(". Flex cache init      : finished");
+    if (CmsLog.LOG.isInfoEnabled()) {
+      CmsLog.LOG.info(". Flex cache init      : finished");
     }
   }
  catch (  Exception e) {
-    if (getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
-      getLog(CmsLog.CHANNEL_INIT).warn(". Flex cache init      : non-critical error " + e.toString());
+    if (CmsLog.LOG.isWarnEnabled()) {
+      CmsLog.LOG.warn(". Flex cache init      : non-critical error " + e.toString());
     }
   }
   if (flexCache != null) {
@@ -109,15 +105,7 @@
   CmsModuleConfiguration moduleConfiguration=(CmsModuleConfiguration)m_configurationManager.getConfiguration(CmsModuleConfiguration.class);
   m_moduleManager=moduleConfiguration.getModuleManager();
   m_passwordHandler=systemConfiguration.getPasswordHandler();
-  try {
-    m_securityManager=CmsSecurityManager.newInstance(m_configurationManager,systemConfiguration.getRuntimeInfoFactory());
-  }
- catch (  Exception e) {
-    if (getLog(this).isErrorEnabled()) {
-      getLog(this).error(OpenCmsCore.C_MSG_CRITICAL_ERROR + "3",e);
-    }
-    throw new CmsException("Database init failed",CmsException.C_RB_INIT_ERROR,e);
-  }
+  m_securityManager=CmsSecurityManager.newInstance(m_configurationManager,systemConfiguration.getRuntimeInfoFactory());
   m_threadStore=new CmsThreadStore();
   m_linkManager=new CmsLinkManager();
   if (m_runtimeProperties == null) {

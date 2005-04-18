@@ -1,12 +1,10 @@
 {
-synchronized (m_lock) {
+synchronized (LOCK) {
     if ((m_instance != null) && (getRunLevel() >= OpenCms.RUNLEVEL_4_SERVLET_ACCESS)) {
       return m_instance;
     }
     if (getRunLevel() != OpenCms.RUNLEVEL_1_CORE_OBJECT) {
-      if (getLog(CmsLog.CHANNEL_INIT).isErrorEnabled()) {
-        getLog(CmsLog.CHANNEL_INIT).error("Wrong init sequence, can not upgrade to runlevel 4 from runlevel " + getRunLevel());
-      }
+      CmsLog.LOG.error("Wrong init sequence, can not upgrade to runlevel 4 from runlevel " + getRunLevel());
       return m_instance;
     }
     try {
@@ -14,19 +12,10 @@ synchronized (m_lock) {
       m_instance.initContext(context);
       setRunLevel(OpenCms.RUNLEVEL_4_SERVLET_ACCESS);
     }
- catch (    CmsInitException e) {
-      if (e.getType() != CmsInitException.C_INIT_WIZARD_ENABLED) {
-        if (getLog(CmsLog.CHANNEL_INIT).isErrorEnabled()) {
-          getLog(CmsLog.CHANNEL_INIT).error("Critical error during OpenCms initialization",e);
-        }
-      }
+ catch (    Throwable t) {
+      CmsLog.LOG.fatal("Critical error during OpenCms initialization",t);
       m_instance=null;
-    }
-catch (    Throwable t) {
-      if (getLog(CmsLog.CHANNEL_INIT).isErrorEnabled()) {
-        getLog(CmsLog.CHANNEL_INIT).error("Critical error during OpenCms initialization",t);
-      }
-      m_instance=null;
+      m_lastInitErrorTime=System.currentTimeMillis();
     }
     return m_instance;
   }
