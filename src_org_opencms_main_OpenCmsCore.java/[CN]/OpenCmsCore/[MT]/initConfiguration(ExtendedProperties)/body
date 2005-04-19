@@ -12,7 +12,12 @@
   if (CmsLog.LOG.isInfoEnabled()) {
     CmsLog.LOG.info(". Ethernet address used: " + ethernetAddress);
   }
-  CmsUUID.init(ethernetAddress);
+  try {
+    CmsUUID.init(ethernetAddress);
+  }
+ catch (  CmsException e) {
+    throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_GENERIC_1,e.getMessage()),e);
+  }
   String serverName=configuration.getString("server.name","OpenCmsServer");
   getSystemInfo().setServerName(serverName);
   m_lockManager=CmsLockManager.getInstance();
@@ -30,18 +35,22 @@
     }
   }
  catch (  Exception e) {
-    throwInitException(new CmsInitException(OpenCmsCore.C_MSG_CRITICAL_ERROR + "2",e));
+    throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_PROP_0),e);
   }
   m_memoryMonitor=new CmsMemoryMonitor();
   m_configurationManager=new CmsConfigurationManager(getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("config/"));
-  m_configurationManager.loadXmlConfiguration();
+  try {
+    m_configurationManager.loadXmlConfiguration();
+  }
+ catch (  Exception e) {
+    throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_XML_0),e);
+  }
   m_configurationManager.setConfiguration(configuration);
   CmsSystemConfiguration systemConfiguration=(CmsSystemConfiguration)m_configurationManager.getConfiguration(CmsSystemConfiguration.class);
   String setEncoding=systemConfiguration.getDefaultContentEncoding();
   String defaultEncoding=CmsEncoder.lookupEncoding(setEncoding,null);
   if (defaultEncoding == null) {
-    String msg="OpenCms startup failure: Configured encoding '" + setEncoding + "' not supported by the Java VM";
-    throwInitException(new CmsInitException(OpenCmsCore.C_MSG_CRITICAL_ERROR + "1: " + msg));
+    throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_ENCODING_1,setEncoding));
   }
   if (CmsLog.LOG.isInfoEnabled()) {
     CmsLog.LOG.info(". OpenCms encoding     : " + defaultEncoding);
@@ -105,22 +114,38 @@
   CmsModuleConfiguration moduleConfiguration=(CmsModuleConfiguration)m_configurationManager.getConfiguration(CmsModuleConfiguration.class);
   m_moduleManager=moduleConfiguration.getModuleManager();
   m_passwordHandler=systemConfiguration.getPasswordHandler();
-  m_securityManager=CmsSecurityManager.newInstance(m_configurationManager,systemConfiguration.getRuntimeInfoFactory());
+  try {
+    m_securityManager=CmsSecurityManager.newInstance(m_configurationManager,systemConfiguration.getRuntimeInfoFactory());
+  }
+ catch (  CmsException e) {
+    throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_DATABASE_0),e);
+  }
   m_threadStore=new CmsThreadStore();
   m_linkManager=new CmsLinkManager();
   if (m_runtimeProperties == null) {
     m_runtimeProperties=Collections.synchronizedMap(new HashMap());
   }
   m_runtimeProperties.putAll(systemConfiguration.getRuntimeProperties());
-  CmsObject adminCms=initCmsObject(null,null,getDefaultUsers().getUserAdmin(),null);
-  m_scheduleManager.initialize(adminCms);
-  m_workplaceManager.initialize(adminCms);
-  m_localeManager=systemConfiguration.getLocaleManager();
-  m_localeManager.initialize(adminCms);
-  m_siteManager.initialize(adminCms);
-  m_staticExportManager.initialize(adminCms);
-  m_xmlContentTypeManager.initialize(adminCms);
-  m_moduleManager.initialize(adminCms,m_configurationManager);
-  m_resourceManager.initialize(adminCms);
-  m_searchManager.initialize(adminCms);
+  CmsObject adminCms;
+  try {
+    adminCms=initCmsObject(null,null,getDefaultUsers().getUserAdmin(),null);
+  }
+ catch (  CmsException e) {
+    throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_ADMINCMS_0),e);
+  }
+  try {
+    m_scheduleManager.initialize(adminCms);
+    m_workplaceManager.initialize(adminCms);
+    m_localeManager=systemConfiguration.getLocaleManager();
+    m_localeManager.initialize(adminCms);
+    m_siteManager.initialize(adminCms);
+    m_staticExportManager.initialize(adminCms);
+    m_xmlContentTypeManager.initialize(adminCms);
+    m_moduleManager.initialize(adminCms,m_configurationManager);
+    m_resourceManager.initialize(adminCms);
+    m_searchManager.initialize(adminCms);
+  }
+ catch (  CmsException e) {
+    throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_MANAGERS_0),e);
+  }
 }
