@@ -1,0 +1,71 @@
+{
+  String vfsFolderName=(String)m_fileIndex.get(foldername.replace('\\','/'));
+  m_report.print(m_wp.key("htmlimport.report.createfolder") + vfsFolderName,I_CmsReport.C_FORMAT_NOTE);
+  m_report.print(m_report.key("report.dots"));
+  if (vfsFolderName != null) {
+    String path=vfsFolderName.substring(0,vfsFolderName.substring(0,vfsFolderName.length() - 1).lastIndexOf("/"));
+    String folder=vfsFolderName.substring(path.length(),vfsFolderName.length());
+    try {
+      String propertyFileName=foldername + File.separator + C_META_PROPERTIES;
+      boolean metaPropertiesFound=false;
+      ExtendedProperties propertyFile=new ExtendedProperties();
+      try {
+        propertyFile.load(new FileInputStream(new File(propertyFileName)));
+        metaPropertiesFound=true;
+      }
+ catch (      Exception e1) {
+      }
+      if (metaPropertiesFound) {
+        Enumeration enu=propertyFile.keys();
+        String property="";
+        while (enu.hasMoreElements()) {
+          try {
+            property=(String)enu.nextElement();
+            String propertyvalue=(String)propertyFile.get(property);
+            properties.put(property,propertyvalue);
+          }
+ catch (          Exception e2) {
+            e2.printStackTrace();
+          }
+        }
+        if (properties.get(I_CmsConstants.C_PROPERTY_NAVPOS) == null) {
+          properties.put(I_CmsConstants.C_PROPERTY_NAVPOS,(position + 1) + "");
+        }
+        if (properties.get(I_CmsConstants.C_PROPERTY_NAVTEXT) == null) {
+          String navtext=folder.substring(1,2).toUpperCase() + folder.substring(2,folder.length() - 1);
+          properties.put(I_CmsConstants.C_PROPERTY_NAVTEXT,navtext);
+        }
+      }
+ else {
+        properties=new Hashtable();
+      }
+      try {
+        m_cmsObject.readFolder(path + folder);
+        m_cmsObject.lockResource(path + folder);
+      }
+ catch (      CmsException e1) {
+        m_cmsObject.createResource(path + folder,CmsResourceTypeFolder.getStaticTypeId());
+      }
+      Enumeration enu=properties.keys();
+      List propertyList=new ArrayList();
+      while (enu.hasMoreElements()) {
+        String propertyKey=(String)enu.nextElement();
+        String propertyVal=(String)properties.get(propertyKey);
+        CmsProperty property=new CmsProperty(propertyKey,propertyVal,propertyVal);
+        property.setAutoCreatePropertyDefinition(true);
+        propertyList.add(property);
+      }
+      try {
+        m_cmsObject.writePropertyObjects(path + folder,propertyList);
+      }
+ catch (      CmsException e1) {
+        e1.printStackTrace();
+      }
+      m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+    }
+ catch (    CmsException e) {
+      m_report.println(" " + m_report.key("report.error") + e,I_CmsReport.C_FORMAT_ERROR);
+      e.printStackTrace();
+    }
+  }
+}

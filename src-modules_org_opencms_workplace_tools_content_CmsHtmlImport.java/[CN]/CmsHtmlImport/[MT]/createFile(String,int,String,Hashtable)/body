@@ -1,0 +1,68 @@
+{
+  String vfsFileName=(String)m_fileIndex.get(filename.replace('\\','/'));
+  if (vfsFileName != null) {
+    try {
+      m_report.print(m_wp.key("htmlimport.report.createfile") + vfsFileName,I_CmsReport.C_FORMAT_NOTE);
+      m_report.print(m_report.key("report.dots"));
+      if ((properties.get(I_CmsConstants.C_PROPERTY_NAVPOS) == null) && (properties.get(I_CmsConstants.C_PROPERTY_NAVTEXT) != null)) {
+        properties.put(I_CmsConstants.C_PROPERTY_NAVPOS,(position + 1) + "");
+      }
+      CmsXmlPage page=new CmsXmlPage(m_locale,OpenCms.getSystemInfo().getDefaultEncoding());
+      page.addValue(m_element,m_locale);
+      page.setStringValue(m_cmsObject,m_element,m_locale,content);
+      CmsLinkTable linkTable=page.getLinkTable(m_element,m_locale);
+      Iterator i=linkTable.iterator();
+      while (i.hasNext()) {
+        CmsLink link=(CmsLink)i.next();
+        String target=link.getTarget();
+        if (target.indexOf("://") == 0) {
+          target=m_cmsObject.getRequestContext().getFileTranslator().translateResource(target);
+          link.updateLink(target,link.getAnchor(),link.getQuery());
+        }
+      }
+      byte[] contentByteArray=page.marshal();
+      List oldProperties=new ArrayList();
+      if (!m_overwriteMode) {
+        m_cmsObject.createResource(vfsFileName,CmsResourceTypeXmlPage.getStaticTypeId(),contentByteArray,new ArrayList());
+      }
+ else {
+        try {
+          oldProperties=m_cmsObject.readPropertyObjects(vfsFileName,false);
+          CmsLock lock=m_cmsObject.getLock(vfsFileName);
+          if (lock.getType() != CmsLock.C_TYPE_EXCLUSIVE) {
+            m_cmsObject.lockResource(vfsFileName);
+          }
+          m_cmsObject.deleteResource(vfsFileName,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
+        }
+ catch (        CmsException e) {
+        }
+ finally {
+          m_report.print(m_wp.key("htmlimport.report.overwrite"),I_CmsReport.C_FORMAT_NOTE);
+          m_report.print(m_report.key("report.dots"));
+          m_cmsObject.createResource(vfsFileName,CmsResourceTypeXmlPage.getStaticTypeId(),contentByteArray,new ArrayList());
+        }
+      }
+      Enumeration en=properties.keys();
+      List propertyList=new ArrayList();
+      while (en.hasMoreElements()) {
+        String propertyKey=(String)en.nextElement();
+        String propertyVal=(String)properties.get(propertyKey);
+        CmsProperty property=new CmsProperty(propertyKey,propertyVal,propertyVal);
+        property.setAutoCreatePropertyDefinition(true);
+        propertyList.add(property);
+      }
+      try {
+        m_cmsObject.writePropertyObjects(vfsFileName,propertyList);
+        m_cmsObject.writePropertyObjects(vfsFileName,oldProperties);
+      }
+ catch (      CmsException e1) {
+        e1.printStackTrace();
+      }
+      m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+    }
+ catch (    CmsException e) {
+      m_report.println(" " + m_report.key("report.error") + e,I_CmsReport.C_FORMAT_ERROR);
+      e.printStackTrace();
+    }
+  }
+}

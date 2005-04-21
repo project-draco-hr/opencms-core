@@ -1,0 +1,62 @@
+{
+  StringBuffer htmlString=new StringBuffer();
+  Node node;
+  String outString="";
+  try {
+    int c;
+    while ((c=input.read()) != -1) {
+      htmlString.append((char)c);
+    }
+  }
+ catch (  IOException e) {
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).warn("Conversion error: " + e.getMessage());
+    }
+    return;
+  }
+  outString=htmlString.toString();
+  if (CmsStringUtil.isNotEmpty(startPattern) && CmsStringUtil.isNotEmpty(endPattern)) {
+    String extractMain=extractHtml(outString,startPattern,endPattern);
+    if (extractMain.length() != outString.length()) {
+      String extractHead=extractHtml(outString,"<html>",CmsStringUtil.C_BODY_START_REGEX);
+      StringBuffer buffer=new StringBuffer(extractHead.length() + extractMain.length() + 255);
+      buffer.append("<html>");
+      buffer.append(extractHead);
+      buffer.append("<body>");
+      buffer.append(extractMain);
+      buffer.append("</body></html>");
+      outString=buffer.toString();
+    }
+  }
+  InputStream in;
+  try {
+    in=new ByteArrayInputStream(outString.getBytes(CmsEncoder.C_UTF8_ENCODING));
+  }
+ catch (  UnsupportedEncodingException e) {
+    in=new ByteArrayInputStream(outString.getBytes());
+  }
+  m_tidy.setInputEncoding(CmsEncoder.C_UTF8_ENCODING);
+  m_tidy.setOutputEncoding(CmsEncoder.C_UTF8_ENCODING);
+  PrintWriter errorLog=new PrintWriter(new ByteArrayOutputStream(),true);
+  m_tidy.setErrout(errorLog);
+  node=m_tidy.parseDOM(in,null);
+  if (m_tidy.getParseErrors() != 0) {
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).warn("Conversion error: HTML code has errors!");
+    }
+  }
+  this.printDocument(node,properties);
+  try {
+    String content=m_tempString.toString();
+    content=CmsStringUtil.substitute(content,"<br></br>","<br>");
+    content=CmsStringUtil.substitutePerl(content,"</a>(\\w+)","</a> $1","g");
+    output.write(content);
+    output.close();
+  }
+ catch (  IOException e) {
+    if (OpenCms.getLog(CmsLog.CHANNEL_INIT).isWarnEnabled()) {
+      OpenCms.getLog(CmsLog.CHANNEL_INIT).warn("Conversion error: " + e.getMessage());
+    }
+    return;
+  }
+}

@@ -1,0 +1,58 @@
+{
+  try {
+    File folder=new File(startfolder);
+    File[] subresources=folder.listFiles();
+    for (int i=0; i < subresources.length; i++) {
+      if (subresources[i].isDirectory()) {
+        copyOtherFiles(subresources[i].getAbsolutePath());
+      }
+ else {
+        if (!subresources[i].getName().equals(C_META_PROPERTIES)) {
+          String vfsFileName=(String)m_fileIndex.get(subresources[i].getAbsolutePath().replace('\\','/'));
+          int type=getFileType(vfsFileName);
+          if (CmsResourceTypePlain.getStaticTypeId() != type) {
+            if (isExternal(vfsFileName)) {
+              m_report.println(m_wp.key("htmlimport.report.skipexternal") + subresources[i] + " -> "+ vfsFileName,I_CmsReport.C_FORMAT_NOTE);
+            }
+ else {
+              m_report.print(m_wp.key("htmlimport.report.import") + vfsFileName,I_CmsReport.C_FORMAT_NOTE);
+              m_report.print(m_report.key("report.dots"));
+              byte[] content=getFileBytes(subresources[i]);
+              List properties=new ArrayList();
+              String altText=(String)m_imageInfo.get(subresources[i].getAbsolutePath().replace('\\','/'));
+              CmsProperty property1=new CmsProperty(I_CmsConstants.C_PROPERTY_DESCRIPTION,altText,altText);
+              CmsProperty property2=new CmsProperty(I_CmsConstants.C_PROPERTY_TITLE,altText,altText);
+              if (altText != null) {
+                properties.add(property1);
+                properties.add(property2);
+              }
+              if (!m_overwriteMode) {
+                m_cmsObject.createResource(vfsFileName,type,content,properties);
+              }
+ else {
+                try {
+                  CmsLock lock=m_cmsObject.getLock(vfsFileName);
+                  if (lock.getType() != CmsLock.C_TYPE_EXCLUSIVE) {
+                    m_cmsObject.lockResource(vfsFileName);
+                  }
+                  m_cmsObject.deleteResource(vfsFileName,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
+                }
+ catch (                CmsException e) {
+                }
+ finally {
+                  m_cmsObject.createResource(vfsFileName,type,content,properties);
+                }
+                m_report.print(m_wp.key("htmlimport.report.overwrite"),I_CmsReport.C_FORMAT_NOTE);
+                m_report.print(m_report.key("report.dots"));
+              }
+              m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
+            }
+          }
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    m_report.println(" " + m_report.key("report.error") + e,I_CmsReport.C_FORMAT_ERROR);
+  }
+}
