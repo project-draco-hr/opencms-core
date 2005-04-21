@@ -1,11 +1,11 @@
 {
-  if ((OpenCms.getRunLevel() > OpenCms.RUNLEVEL_1_CORE_OBJECT) || (adminCms != null)) {
-    if ((adminCms == null) || !adminCms.isAdmin()) {
-      throw new CmsSecurityException(CmsSecurityException.C_SECURITY_ADMIN_PRIVILEGES_REQUIRED);
+  if (OpenCms.getRunLevel() > OpenCms.RUNLEVEL_1_CORE_OBJECT) {
+    if ((cms == null) || !cms.isAdmin()) {
+      throw new CmsRoleViolationException(org.opencms.security.Messages.get().container(org.opencms.security.Messages.ERR_REQUIRED_ROLE_NOT_AVAILABLE_1,OpenCms.getDefaultUsers().getGroupAdministrators()));
     }
   }
   m_jobs=new ArrayList();
-  m_adminCms=adminCms;
+  m_adminCms=cms;
   Properties properties=new Properties();
   properties.put(StdSchedulerFactory.PROP_SCHED_INSTANCE_NAME,"OpenCmsScheduler");
   properties.put(StdSchedulerFactory.PROP_SCHED_THREAD_NAME,"OpenCms: Scheduler");
@@ -27,7 +27,12 @@
   }
   if (m_configuredJobs != null) {
     for (int i=0; i < m_configuredJobs.size(); i++) {
-      scheduleJob(adminCms,(CmsScheduledJobInfo)m_configuredJobs.get(i));
+      try {
+        CmsScheduledJobInfo job=(CmsScheduledJobInfo)m_configuredJobs.get(i);
+        scheduleJob(cms,job);
+      }
+ catch (      CmsSchedulerException e) {
+      }
     }
   }
   try {

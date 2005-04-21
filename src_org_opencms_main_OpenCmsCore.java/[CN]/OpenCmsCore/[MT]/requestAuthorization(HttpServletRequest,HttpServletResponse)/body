@@ -1,35 +1,36 @@
 {
-  String servletPath=null;
+  CmsObject adminCms;
+  try {
+    adminCms=initCmsObject(req,res,getDefaultUsers().getUserAdmin(),null);
+  }
+ catch (  CmsException e) {
+    throw new IOException(Messages.get().key(Messages.ERR_INVALID_INIT_USER_2,getDefaultUsers().getUserAdmin(),null));
+  }
+  String path=adminCms.getRequestContext().getUri();
+  CmsProperty propertyLoginForm=null;
   String redirectURL=null;
-  if (m_useBasicAuthentication) {
+  try {
+    propertyLoginForm=adminCms.readPropertyObject(path,I_CmsConstants.C_PROPERTY_LOGIN_FORM,true);
+  }
+ catch (  Throwable t) {
+    if (LOG.isWarnEnabled()) {
+      LOG.warn(Messages.get().key(Messages.LOG_ERROR_READING_AUTH_PROP_2,I_CmsConstants.C_PROPERTY_LOGIN_FORM,path),t);
+    }
+  }
+  if (propertyLoginForm != null && propertyLoginForm != CmsProperty.getNullProperty() && CmsStringUtil.isNotEmpty(propertyLoginForm.getValue())) {
+    redirectURL=propertyLoginForm.getValue() + "?__loginform=true&requestedResource=" + path;
+  }
+ else   if (!m_useBasicAuthentication && CmsStringUtil.isNotEmpty(m_authenticationFormURI)) {
+    redirectURL=m_authenticationFormURI + "?requestedResource=" + path;
+  }
+  if (redirectURL == null) {
     res.setHeader(I_CmsConstants.C_HEADER_WWW_AUTHENTICATE,"BASIC realm=\"" + getSystemInfo().getOpenCmsContext() + "\"");
-    res.setStatus(401);
+    res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
   }
  else {
-    servletPath=req.getContextPath() + req.getServletPath();
-    try {
-      CmsObject adminCms=initCmsObject(req,res,getDefaultUsers().getUserAdmin(),null);
-      CmsProperty propertyLoginForm=adminCms.readPropertyObject(req.getPathInfo(),I_CmsConstants.C_PROPERTY_LOGIN_FORM,true);
-      if (org.opencms.main.OpenCms.getLog(this).isDebugEnabled()) {
-        org.opencms.main.OpenCms.getLog(this).debug("resource: " + req.getPathInfo());
-        org.opencms.main.OpenCms.getLog(this).debug("property: " + propertyLoginForm);
-      }
-      if (propertyLoginForm != CmsProperty.getNullProperty() && propertyLoginForm.getValue() != null && !"".equals(propertyLoginForm.getValue())) {
-        redirectURL=servletPath + propertyLoginForm.getValue() + "?__loginform=true&requestedResource="+ req.getPathInfo();
-      }
-    }
- catch (    CmsException e) {
-      if (org.opencms.main.OpenCms.getLog(this).isErrorEnabled()) {
-        org.opencms.main.OpenCms.getLog(this).error("Error reading property \"" + I_CmsConstants.C_PROPERTY_LOGIN_FORM + "\"",e);
-      }
-    }
- finally {
-      if (redirectURL == null) {
-        redirectURL=servletPath + m_authenticationFormURI + "?requestedResource="+ req.getPathInfo();
-      }
-    }
-    if (org.opencms.main.OpenCms.getLog(this).isDebugEnabled()) {
-      org.opencms.main.OpenCms.getLog(this).debug("Redirecting response for authentication to: " + redirectURL);
+    redirectURL=m_linkManager.substituteLink(adminCms,redirectURL);
+    if (LOG.isDebugEnabled()) {
+      Messages.get().key(Messages.LOG_AUTHENTICATE_PROPERTY_2,redirectURL,path);
     }
     res.sendRedirect(redirectURL);
   }
