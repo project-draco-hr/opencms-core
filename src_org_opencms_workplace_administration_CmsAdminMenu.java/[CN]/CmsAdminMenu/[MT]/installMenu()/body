@@ -1,35 +1,33 @@
 {
   m_groupContainer.clear();
-  CmsAdminMenuGroup helpMenu=new CmsAdminMenuGroup(key("admin.menu.groups.help"));
+  CmsAdminMenuGroup helpMenu=new CmsAdminMenuGroup("help",key("admin.menu.groups.help"));
   helpMenu.addMenuItem(new CmsAdminContextHelpMenuItem());
   addGroup(helpMenu);
   Iterator itElems=getToolManager().getToolHandlers().iterator();
   while (itElems.hasNext()) {
     I_CmsToolHandler handler=(I_CmsToolHandler)itElems.next();
-    if (!getCms().existsResource(handler.getLink())) {
+    if (!getCms().existsResource(handler.getLink()) || !handler.isVisible(getCms())) {
       continue;
     }
-    Iterator itIPoints=handler.getInstallPoints().iterator();
-    while (itIPoints.hasNext()) {
-      CmsToolInstallPoint iPoint=(CmsToolInstallPoint)itIPoints.next();
-      if (!iPoint.getPath().startsWith(getToolManager().getRootToolPath(getCms()))) {
-        continue;
+    if (!handler.getPath().startsWith(getToolManager().getRootToolPath(getCms()))) {
+      continue;
+    }
+    String path=handler.getPath().substring(getToolManager().getRootToolPath(getCms()).length());
+    if (CmsStringUtil.isEmpty(path)) {
+      continue;
+    }
+    int pos=handler.getPath().indexOf(CmsToolManager.C_TOOLPATH_SEPARATOR);
+    if (path.indexOf(CmsToolManager.C_TOOLPATH_SEPARATOR,pos + 1) < 0) {
+      String groupName=resolveMacros(handler.getGroup());
+      CmsAdminMenuGroup group=getGroup(groupName);
+      if (group == null) {
+        String gid="group" + m_groupContainer.elementList().size();
+        group=new CmsAdminMenuGroup(gid,groupName);
+        addGroup(group,handler.getPosition());
       }
-      String path=iPoint.getPath().substring(getToolManager().getRootToolPath(getCms()).length());
-      if (CmsStringUtil.isEmpty(path)) {
-        continue;
-      }
-      int pos=iPoint.getPath().indexOf(CmsToolManager.C_TOOLPATH_SEPARATOR);
-      if (path.indexOf(CmsToolManager.C_TOOLPATH_SEPARATOR,pos + 1) < 0) {
-        String groupName=resolveMacros(iPoint.getGroup());
-        CmsAdminMenuGroup group=getGroup(groupName);
-        if (group == null) {
-          group=new CmsAdminMenuGroup(groupName);
-          addGroup(group,iPoint.getPosition());
-        }
-        CmsAdminMenuItem item=new CmsAdminMenuItem(handler.getName(),handler.getSmallIconPath(),getToolManager().linkForPath(iPoint.getPath()),handler.getHelpText(),handler.isEnabled(getCms()),CmsAdminMenu.DEFAULT_TARGET);
-        group.addMenuItem(item,iPoint.getPosition());
-      }
+      String id="item" + group.getMenuItems().size();
+      CmsAdminMenuItem item=new CmsAdminMenuItem(id,handler.getName(),handler.getSmallIconPath(),getToolManager().linkForPath(handler.getPath()),handler.getHelpText(),handler.isEnabled(getCms()),CmsAdminMenu.DEFAULT_TARGET);
+      group.addMenuItem(item,handler.getPosition());
     }
   }
 }
