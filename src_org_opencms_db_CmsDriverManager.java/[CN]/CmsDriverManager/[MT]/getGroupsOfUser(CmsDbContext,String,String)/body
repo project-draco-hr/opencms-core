@@ -2,21 +2,14 @@
   CmsUser user=readUser(dbc,username);
   String cacheKey=m_keyGenerator.getCacheKeyForUserGroups(remoteAddress,dbc,user);
   List allGroups=(List)m_userGroupsCache.get(cacheKey);
-  if ((allGroups == null) || (allGroups.size() == 0)) {
-    CmsGroup subGroup;
-    CmsGroup group;
+  if (allGroups == null) {
     List groups=m_userDriver.readGroupsOfUser(dbc,user.getId(),remoteAddress);
-    allGroups=new ArrayList();
-    Iterator it=groups.iterator();
-    while (it.hasNext()) {
-      group=(CmsGroup)it.next();
-      subGroup=getParent(dbc,group.getName());
-      while ((subGroup != null) && (!allGroups.contains(subGroup))) {
-        allGroups.add(subGroup);
-        subGroup=getParent(dbc,subGroup.getName());
-      }
-      if (!allGroups.contains(group)) {
-        allGroups.add(group);
+    allGroups=new ArrayList(groups);
+    for (int i=0; i < groups.size(); i++) {
+      CmsGroup parent=getParent(dbc,((CmsGroup)groups.get(i)).getName());
+      while ((parent != null) && (!allGroups.contains(parent))) {
+        allGroups.add(parent);
+        parent=getParent(dbc,parent.getName());
       }
     }
     m_userGroupsCache.put(cacheKey,allGroups);

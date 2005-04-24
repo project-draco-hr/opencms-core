@@ -1,34 +1,38 @@
 {
-  if (!filter.isValid(context.getRequestContext(),resource)) {
+  if (!filter.isValid(dbc.getRequestContext(),resource)) {
     return PERM_FILTERED;
   }
-  String cacheKey=m_keyGenerator.getCacheKeyForUserPermissions(String.valueOf(filter.requireVisible()),context,resource,requiredPermissions);
+  String cacheKey=m_keyGenerator.getCacheKeyForUserPermissions(String.valueOf(filter.requireVisible()),dbc,resource,requiredPermissions);
   Integer cacheResult=(Integer)m_permissionCache.get(cacheKey);
   if (cacheResult != null) {
     return cacheResult.intValue();
   }
   int denied=0;
-  if (context.currentProject().isOnlineProject()) {
+  if (dbc.currentProject().isOnlineProject()) {
     denied|=CmsPermissionSet.PERMISSION_WRITE;
   }
-  boolean isAdmin=m_driverManager.isAdmin(context);
-  if (!isAdmin && (resource.getTypeId() == CmsResourceTypeJsp.getStaticTypeId())) {
-    denied|=CmsPermissionSet.PERMISSION_WRITE;
+  boolean canIgnorePermissions=hasRole(dbc,CmsRole.VFS_MANAGER);
+  boolean writeRequired=requiredPermissions.requiresWritePermission() || requiredPermissions.requiresControlPermission();
+  if (writeRequired && !canIgnorePermissions && (resource.getTypeId() == CmsResourceTypeJsp.getStaticTypeId())) {
+    if (!hasRole(dbc,CmsRole.DEVELOPER)) {
+      denied|=CmsPermissionSet.PERMISSION_WRITE;
+      denied|=CmsPermissionSet.PERMISSION_CONTROL;
+    }
   }
-  if (requiredPermissions.requiresWritePermission() || requiredPermissions.requiresControlPermission()) {
-    CmsLock lock=m_driverManager.getLock(context,resource);
+  if (writeRequired) {
+    CmsLock lock=m_driverManager.getLock(dbc,resource);
     if (checkLock || !lock.isNullLock()) {
-      if (!context.currentUser().getId().equals(lock.getUserId())) {
+      if (!dbc.currentUser().getId().equals(lock.getUserId())) {
         return PERM_NOTLOCKED;
       }
     }
   }
   CmsPermissionSetCustom permissions;
-  if (isAdmin) {
+  if (canIgnorePermissions) {
     permissions=new CmsPermissionSetCustom(~0);
   }
  else {
-    permissions=m_driverManager.getPermissions(context,resource,context.currentUser());
+    permissions=m_driverManager.getPermissions(dbc,resource,dbc.currentUser());
   }
   permissions.denyPermissions(denied);
   if ((permissions.getPermissions() & CmsPermissionSet.PERMISSION_VIEW) == 0) {
@@ -48,7 +52,7 @@
   }
   m_permissionCache.put(cacheKey,result);
   if ((result != PERM_ALLOWED_INTEGER) && OpenCms.getLog(this).isDebugEnabled()) {
-    OpenCms.getLog(this).debug("Access to resource " + resource.getRootPath() + " "+ "not permitted for user "+ context.currentUser().getName()+ ", "+ "required permissions "+ requiredPermissions.getPermissionString()+ " "+ "not satisfied by "+ permissions.getPermissionString());
+    OpenCms.getLog(this).debug("Access to resource " + resource.getRootPath() + " "+ "not permitted for user "+ dbc.currentUser().getName()+ ", "+ "required permissions "+ requiredPermissions.getPermissionString()+ " "+ "not satisfied by "+ permissions.getPermissionString());
   }
   return result.intValue();
 }

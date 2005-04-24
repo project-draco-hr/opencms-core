@@ -1,26 +1,27 @@
 {
-  if ((!dbc.currentProject().isOnlineProject()) && (isManagerOfProject(dbc)) && (dbc.currentProject().getFlags() == I_CmsConstants.C_PROJECT_STATE_UNLOCKED)) {
-    if (!isInsideCurrentProject(dbc,resource.getRootPath())) {
-      if (resource.isFolder()) {
-        List projectResources=m_projectDriver.readProjectResources(dbc,dbc.currentProject());
-        for (int i=0; i < projectResources.size(); i++) {
-          String resname=(String)projectResources.get(i);
-          if (resname.startsWith(resource.getRootPath())) {
-            m_projectDriver.deleteProjectResource(dbc,dbc.currentProject().getId(),resname);
-          }
+  if (dbc.currentProject().isOnlineProject()) {
+    throw new CmsSecurityException("[" + this.getClass().getName() + "] "+ dbc.currentProject().getName(),CmsSecurityException.C_SECURITY_NO_MODIFY_IN_ONLINE_PROJECT);
+  }
+  if (dbc.currentProject().getFlags() != I_CmsConstants.C_PROJECT_STATE_UNLOCKED) {
+    throw new CmsLockException("[" + this.getClass().getName() + "] "+ dbc.currentProject().getName(),CmsLockException.C_RESOURCE_LOCKED);
+  }
+  if (!isInsideCurrentProject(dbc,resource.getRootPath())) {
+    if (resource.isFolder()) {
+      List projectResources=m_projectDriver.readProjectResources(dbc,dbc.currentProject());
+      for (int i=0; i < projectResources.size(); i++) {
+        String resname=(String)projectResources.get(i);
+        if (resname.startsWith(resource.getRootPath())) {
+          m_projectDriver.deleteProjectResource(dbc,dbc.currentProject().getId(),resname);
         }
       }
-      try {
-        m_projectDriver.createProjectResource(dbc,dbc.currentProject().getId(),resource.getRootPath(),null);
-      }
- catch (      CmsException exc) {
-      }
- finally {
-        OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_PROJECT_MODIFIED,Collections.singletonMap("project",dbc.currentProject())));
-      }
     }
-  }
- else {
-    throw new CmsSecurityException("[" + this.getClass().getName() + "] "+ dbc.currentProject().getName(),CmsSecurityException.C_SECURITY_NO_PERMISSIONS);
+    try {
+      m_projectDriver.createProjectResource(dbc,dbc.currentProject().getId(),resource.getRootPath(),null);
+    }
+ catch (    CmsException exc) {
+    }
+ finally {
+      OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_PROJECT_MODIFIED,Collections.singletonMap("project",dbc.currentProject())));
+    }
   }
 }

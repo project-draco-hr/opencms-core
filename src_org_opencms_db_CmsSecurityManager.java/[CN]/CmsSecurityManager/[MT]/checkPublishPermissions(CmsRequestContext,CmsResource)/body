@@ -1,0 +1,22 @@
+{
+  if (context.currentProject().isOnlineProject()) {
+    throw new CmsSecurityException("[" + this.getClass().getName() + "] "+ context.currentProject().getName(),CmsSecurityException.C_SECURITY_NO_MODIFY_IN_ONLINE_PROJECT);
+  }
+  if (context.currentProject().getFlags() != I_CmsConstants.C_PROJECT_STATE_UNLOCKED) {
+    throw new CmsLockException("[" + this.getClass().getName() + "] "+ context.currentProject().getName(),CmsLockException.C_RESOURCE_LOCKED);
+  }
+  if (directPublishResource != null) {
+    String parentFolder=CmsResource.getParentFolder(directPublishResource.getRootPath());
+    if (parentFolder != null) {
+      CmsResource parent=readResource(context,parentFolder,CmsResourceFilter.ALL);
+      if ((parent.getState() == I_CmsConstants.C_STATE_DELETED) || (parent.getState() == I_CmsConstants.C_STATE_NEW)) {
+        throw new CmsSecurityException("[" + this.getClass().getName() + "] "+ context.currentProject().getName(),CmsSecurityException.C_SECURITY_NO_PERMISSIONS);
+      }
+    }
+    if (PERM_ALLOWED == hasPermissions(context,directPublishResource,CmsPermissionSet.ACCESS_DIRECT_PUBLISH,true,CmsResourceFilter.ALL)) {
+      return;
+    }
+  }
+  CmsDbContext dbc=m_dbContextFactory.getDbContext(context);
+  checkManagerOfProjectRole(dbc,context.currentProject());
+}
