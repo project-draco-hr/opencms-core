@@ -3,47 +3,36 @@
   String resourcename=m_cms.getSitePath(res);
   CmsSynchronizeList sync=(CmsSynchronizeList)m_syncList.get(translate(resourcename));
   File fsFile=getFileInFs(sync.getResName());
+  m_report.print("( " + m_count++ + " ) ",I_CmsReport.C_FORMAT_NOTE);
+  m_report.print(m_report.key("report.sync_updating_file"),I_CmsReport.C_FORMAT_NOTE);
+  m_report.print(resourcename);
+  m_report.print(m_report.key("report.dots"));
+  m_cms.lockResource(resourcename);
+  vfsFile=m_cms.readFile(resourcename,CmsResourceFilter.IGNORE_EXPIRATION);
   try {
-    m_report.print("( " + m_count++ + " ) ",I_CmsReport.C_FORMAT_NOTE);
-    m_report.print(m_report.key("report.sync_updating_file"),I_CmsReport.C_FORMAT_NOTE);
-    m_report.print(resourcename);
-    m_report.print(m_report.key("report.dots"));
-    m_cms.lockResource(resourcename);
-    vfsFile=m_cms.readFile(resourcename,CmsResourceFilter.IGNORE_EXPIRATION);
     vfsFile.setContents(getFileBytes(fsFile));
-    m_cms.writeFile(vfsFile);
-    Iterator i=m_synchronizeModifications.iterator();
-    while (i.hasNext()) {
-      try {
-        ((I_CmsSynchonizeModification)i.next()).modifyVfs(m_cms,vfsFile,fsFile);
+  }
+ catch (  IOException e) {
+    throw new CmsSynchronizeException(Messages.get().container(Messages.ERR_IMPORT_1,fsFile.getName()));
+  }
+  m_cms.writeFile(vfsFile);
+  Iterator i=m_synchronizeModifications.iterator();
+  while (i.hasNext()) {
+    try {
+      ((I_CmsSynchonizeModification)i.next()).modifyVfs(m_cms,vfsFile,fsFile);
+    }
+ catch (    CmsSynchronizeException e) {
+      if (LOG.isInfoEnabled()) {
+        LOG.info(Messages.get().key(Messages.LOG_SYNCHRONIZE_UPDATE_FAILED_1,res.getRootPath()),e);
       }
- catch (      CmsSynchronizeException e) {
-        if (OpenCms.getLog(this).isInfoEnabled()) {
-          OpenCms.getLog(this).info(". CmsSyncModification class : updateFrom FS " + res.getRootPath() + ":"+ e.toString());
-        }
-        break;
-      }
-    }
-    m_cms.touch(resourcename,fsFile.lastModified(),I_CmsConstants.C_DATE_UNCHANGED,I_CmsConstants.C_DATE_UNCHANGED,false);
-    res=m_cms.readResource(resourcename);
-    CmsSynchronizeList syncList=new CmsSynchronizeList(sync.getResName(),translate(resourcename),res.getDateLastModified(),fsFile.lastModified());
-    m_newSyncList.put(translate(resourcename),syncList);
-    m_syncList.remove(translate(resourcename));
-    vfsFile=null;
-    m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
-  }
- catch (  CmsException ex) {
-    if (ex.getType() == 13) {
-      CmsSynchronizeList syncList=(CmsSynchronizeList)m_syncList.get(translate(resourcename));
-      m_newSyncList.put(translate(resourcename),syncList);
-      m_errorList.put(translate(resourcename),syncList);
-      m_syncList.remove(translate(resourcename));
-    }
- else {
-      throw ex;
+      break;
     }
   }
-catch (  Exception e) {
-    throw new CmsException(e.getMessage());
-  }
+  m_cms.touch(resourcename,fsFile.lastModified(),I_CmsConstants.C_DATE_UNCHANGED,I_CmsConstants.C_DATE_UNCHANGED,false);
+  res=m_cms.readResource(resourcename);
+  CmsSynchronizeList syncList=new CmsSynchronizeList(sync.getResName(),translate(resourcename),res.getDateLastModified(),fsFile.lastModified());
+  m_newSyncList.put(translate(resourcename),syncList);
+  m_syncList.remove(translate(resourcename));
+  vfsFile=null;
+  m_report.println(m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
 }
