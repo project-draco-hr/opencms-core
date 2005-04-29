@@ -1,20 +1,29 @@
 {
   try {
-    m_cms.readPropertyDefinition(I_CmsConstants.C_PROPERTY_TEMPLATE);
+    try {
+      m_cms.readPropertyDefinition(I_CmsConstants.C_PROPERTY_TEMPLATE);
+    }
+ catch (    CmsException e) {
+      m_cms.createPropertyDefinition(I_CmsConstants.C_PROPERTY_TEMPLATE);
+    }
+    List definitions=m_cms.readAllPropertyDefinitions();
+    Iterator j=definitions.iterator();
+    while (j.hasNext()) {
+      CmsPropertyDefinition definition=(CmsPropertyDefinition)j.next();
+      try {
+        m_cms.readPropertyDefinition(definition.getName());
+      }
+ catch (      Exception e) {
+        m_cms.createPropertyDefinition(definition.getName());
+      }
+    }
   }
  catch (  CmsException e) {
-    m_cms.createPropertyDefinition(I_CmsConstants.C_PROPERTY_TEMPLATE);
-  }
-  List definitions=m_cms.readAllPropertyDefinitions();
-  Iterator j=definitions.iterator();
-  while (j.hasNext()) {
-    CmsPropertyDefinition definition=(CmsPropertyDefinition)j.next();
-    try {
-      m_cms.readPropertyDefinition(definition.getName());
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_COPYING_PROPERTY_DEFINITIONS_0);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message,e);
     }
- catch (    Exception e) {
-      m_cms.createPropertyDefinition(definition.getName());
-    }
+    throw new CmsImportExportException(message);
   }
   int size=m_pageStorage.size();
   m_report.println(m_report.key("report.merge_start"),I_CmsReport.C_FORMAT_HEADLINE);
@@ -28,17 +37,9 @@
     m_report.print("( " + counter + " / "+ size+ " ) ",I_CmsReport.C_FORMAT_NOTE);
     m_report.print(m_report.key("report.merge") + " ",I_CmsReport.C_FORMAT_NOTE);
     m_report.print(resname,I_CmsReport.C_FORMAT_DEFAULT);
-    try {
-      mergePageFile(resname);
-      if (OpenCms.getLog(this).isInfoEnabled()) {
-        OpenCms.getLog(this).info("( " + counter + " / "+ size+ " ) "+ m_report.key("report.merge")+ " "+ resname+ " "+ m_report.key("report.ok"));
-      }
-    }
- catch (    Throwable t) {
-      if (OpenCms.getLog(this).isErrorEnabled()) {
-        OpenCms.getLog(this).error("Error merging page file " + resname,t);
-      }
-      m_report.println(t);
+    mergePageFile(resname);
+    if (OpenCms.getLog(this).isInfoEnabled()) {
+      OpenCms.getLog(this).info("( " + counter + " / "+ size+ " ) "+ m_report.key("report.merge")+ " "+ resname+ " "+ m_report.key("report.ok"));
     }
     counter++;
   }

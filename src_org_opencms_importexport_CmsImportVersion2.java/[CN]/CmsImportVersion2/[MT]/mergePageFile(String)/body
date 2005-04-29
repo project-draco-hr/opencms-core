@@ -1,113 +1,130 @@
 {
-  if (OpenCms.getLog(this).isDebugEnabled()) {
-    OpenCms.getLog(this).debug("Start merging " + resourcename);
-  }
-  CmsFile pagefile=m_cms.readFile(resourcename,CmsResourceFilter.ALL);
-  Document contentXml=CmsXmlUtils.unmarshalHelper(pagefile.getContents(),null);
-  String masterTemplateNodeName="//masterTemplate";
-  Node masterTemplateNode=contentXml.selectSingleNode(masterTemplateNodeName);
-  if (masterTemplateNode == null) {
-    masterTemplateNode=contentXml.selectSingleNode(masterTemplateNodeName.toLowerCase());
-  }
-  if (masterTemplateNode == null) {
-    masterTemplateNode=contentXml.selectSingleNode(masterTemplateNodeName.toUpperCase());
-  }
-  String mastertemplate=null;
-  if (masterTemplateNode != null) {
-    mastertemplate=masterTemplateNode.getText().trim();
-  }
-  String elementDefNodeName="//ELEMENTDEF";
-  Node bodyNode=contentXml.selectSingleNode(elementDefNodeName);
-  if (bodyNode == null) {
-    bodyNode=contentXml.selectSingleNode(elementDefNodeName.toLowerCase());
-  }
-  if (bodyNode != null) {
-    String bodyclass=null;
-    String bodyname=null;
-    Map bodyparams=null;
-    List nodes=((Element)bodyNode).elements();
-    for (int i=0, n=nodes.size(); i < n; i++) {
-      Node node=(Node)nodes.get(i);
-      if ("CLASS".equalsIgnoreCase(node.getName())) {
-        bodyclass=node.getText().trim();
-      }
- else       if ("TEMPLATE".equalsIgnoreCase(node.getName())) {
-        bodyname=node.getText().trim();
-        if (!bodyname.startsWith("/")) {
-          bodyname=CmsResource.getFolderPath(resourcename) + bodyname;
+  try {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().key(Messages.LOG_IMPORTEXPORT_START_MERGING_1,resourcename));
+    }
+    CmsFile pagefile=m_cms.readFile(resourcename,CmsResourceFilter.ALL);
+    Document contentXml=CmsXmlUtils.unmarshalHelper(pagefile.getContents(),null);
+    String masterTemplateNodeName="//masterTemplate";
+    Node masterTemplateNode=contentXml.selectSingleNode(masterTemplateNodeName);
+    if (masterTemplateNode == null) {
+      masterTemplateNode=contentXml.selectSingleNode(masterTemplateNodeName.toLowerCase());
+    }
+    if (masterTemplateNode == null) {
+      masterTemplateNode=contentXml.selectSingleNode(masterTemplateNodeName.toUpperCase());
+    }
+    String mastertemplate=null;
+    if (masterTemplateNode != null) {
+      mastertemplate=masterTemplateNode.getText().trim();
+    }
+    String elementDefNodeName="//ELEMENTDEF";
+    Node bodyNode=contentXml.selectSingleNode(elementDefNodeName);
+    if (bodyNode == null) {
+      bodyNode=contentXml.selectSingleNode(elementDefNodeName.toLowerCase());
+    }
+    if (bodyNode != null) {
+      String bodyclass=null;
+      String bodyname=null;
+      Map bodyparams=null;
+      List nodes=((Element)bodyNode).elements();
+      for (int i=0, n=nodes.size(); i < n; i++) {
+        Node node=(Node)nodes.get(i);
+        if ("CLASS".equalsIgnoreCase(node.getName())) {
+          bodyclass=node.getText().trim();
+        }
+ else         if ("TEMPLATE".equalsIgnoreCase(node.getName())) {
+          bodyname=node.getText().trim();
+          if (!bodyname.startsWith("/")) {
+            bodyname=CmsResource.getFolderPath(resourcename) + bodyname;
+          }
+        }
+ else         if ("PARAMETER".equalsIgnoreCase(node.getName())) {
+          Element paramElement=(Element)node;
+          if (bodyparams == null) {
+            bodyparams=new HashMap();
+          }
+          bodyparams.put((paramElement.attribute("name")).getText(),paramElement.getTextTrim());
         }
       }
- else       if ("PARAMETER".equalsIgnoreCase(node.getName())) {
-        Element paramElement=(Element)node;
-        if (bodyparams == null) {
-          bodyparams=new HashMap();
+      if (mastertemplate == null || bodyname == null) {
+        CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_CANNOT_MERGE_PAGE_FILE_3,resourcename,mastertemplate,bodyname);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(message);
         }
-        bodyparams.put((paramElement.attribute("name")).getText(),paramElement.getTextTrim());
+        throw new CmsImportExportException(message);
       }
-    }
-    if (mastertemplate == null || bodyname == null) {
-      throw new CmsException("Could not merge page file '" + resourcename + "', mastertemplate="+ mastertemplate+ ", bodyname="+ bodyname);
-    }
-    m_cms.lockResource(resourcename);
-    List properties=m_cms.readPropertyObjects(resourcename,false);
-    CmsFile bodyfile=m_cms.readFile(bodyname,CmsResourceFilter.IGNORE_EXPIRATION);
-    String encoding=CmsProperty.get(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,properties).getValue();
-    if (encoding == null) {
-      encoding=OpenCms.getSystemInfo().getDefaultEncoding();
-    }
-    if (m_convertToXmlPage) {
-      if (OpenCms.getLog(this).isDebugEnabled()) {
-        OpenCms.getLog(this).debug("Start converting to XML");
+      m_cms.lockResource(resourcename);
+      List properties=m_cms.readPropertyObjects(resourcename,false);
+      CmsFile bodyfile=m_cms.readFile(bodyname,CmsResourceFilter.IGNORE_EXPIRATION);
+      String encoding=CmsProperty.get(I_CmsConstants.C_PROPERTY_CONTENT_ENCODING,properties).getValue();
+      if (encoding == null) {
+        encoding=OpenCms.getSystemInfo().getDefaultEncoding();
       }
-      CmsXmlPage xmlPage=CmsXmlPageConverter.convertToXmlPage(m_cms,bodyfile.getContents(),getLocale(resourcename,properties),encoding);
-      if (OpenCms.getLog(this).isDebugEnabled()) {
-        OpenCms.getLog(this).debug("End converting to XML");
+      if (m_convertToXmlPage) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().key(Messages.LOG_IMPORTEXPORT_START_CONVERTING_TO_XML_0));
+        }
+        CmsXmlPage xmlPage=CmsXmlPageConverter.convertToXmlPage(m_cms,bodyfile.getContents(),getLocale(resourcename,properties),encoding);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().key(Messages.LOG_IMPORTEXPORT_END_CONVERTING_TO_XML_0));
+        }
+        if (xmlPage != null) {
+          pagefile.setContents(xmlPage.marshal());
+          pagefile.setType(CmsResourceTypeXmlPage.getStaticTypeId());
+        }
       }
-      if (xmlPage != null) {
-        pagefile.setContents(xmlPage.marshal());
-        pagefile.setType(CmsResourceTypeXmlPage.getStaticTypeId());
-      }
-    }
-    CmsProperty newProperty=new CmsProperty(I_CmsConstants.C_PROPERTY_TEMPLATE,mastertemplate,null);
-    properties.remove(newProperty);
-    properties.add(newProperty);
-    if (bodyclass != null && !"".equals(bodyclass)) {
-      newProperty=new CmsProperty(I_CmsConstants.C_PROPERTY_TEMPLATE,mastertemplate,null);
-      newProperty.setAutoCreatePropertyDefinition(true);
+      CmsProperty newProperty=new CmsProperty(I_CmsConstants.C_PROPERTY_TEMPLATE,mastertemplate,null);
       properties.remove(newProperty);
       properties.add(newProperty);
-    }
-    if (bodyparams != null) {
-      for (Iterator p=bodyparams.keySet().iterator(); p.hasNext(); ) {
-        String key=(String)p.next();
-        newProperty=new CmsProperty(key,(String)bodyparams.get(key),null);
+      if (bodyclass != null && !"".equals(bodyclass)) {
+        newProperty=new CmsProperty(I_CmsConstants.C_PROPERTY_TEMPLATE,mastertemplate,null);
         newProperty.setAutoCreatePropertyDefinition(true);
         properties.remove(newProperty);
         properties.add(newProperty);
       }
+      if (bodyparams != null) {
+        for (Iterator p=bodyparams.keySet().iterator(); p.hasNext(); ) {
+          String key=(String)p.next();
+          newProperty=new CmsProperty(key,(String)bodyparams.get(key),null);
+          newProperty.setAutoCreatePropertyDefinition(true);
+          properties.remove(newProperty);
+          properties.add(newProperty);
+        }
+      }
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().key(Messages.LOG_IMPORTEXPORT_START_IMPORTING_XML_PAGE_0));
+      }
+      m_cms.importResource(resourcename,pagefile,pagefile.getContents(),properties);
+      m_cms.lockResource(bodyname);
+      m_cms.deleteResource(bodyname,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().key(Messages.LOG_IMPORTEXPORT_END_IMPORTING_XML_PAGE_0));
+      }
+      m_report.println(" " + m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
     }
-    if (OpenCms.getLog(this).isDebugEnabled()) {
-      OpenCms.getLog(this).debug("Start importing XML page");
-    }
-    m_cms.importResource(resourcename,pagefile,pagefile.getContents(),properties);
-    m_cms.lockResource(bodyname);
-    m_cms.deleteResource(bodyname,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
-    if (OpenCms.getLog(this).isDebugEnabled()) {
-      OpenCms.getLog(this).debug("End importing XML page");
-    }
-    m_report.println(" " + m_report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
-  }
  else {
-    m_cms.lockResource(resourcename);
-    pagefile.setType(CmsResourceTypePlain.getStaticTypeId());
-    m_cms.writeFile(pagefile);
-    m_cms.unlockResource(resourcename);
-    if (OpenCms.getLog(this).isInfoEnabled()) {
-      OpenCms.getLog(this).info("Cannot convert XML structure of " + resourcename);
+      m_cms.lockResource(resourcename);
+      pagefile.setType(CmsResourceTypePlain.getStaticTypeId());
+      m_cms.writeFile(pagefile);
+      m_cms.unlockResource(resourcename);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().key(Messages.LOG_IMPORTEXPORT_CANNOT_CONVERT_XML_STRUCTURE_1,resourcename));
+      }
+      m_report.println(" " + m_report.key("report.notconverted"),I_CmsReport.C_FORMAT_OK);
     }
-    m_report.println(" " + m_report.key("report.notconverted"),I_CmsReport.C_FORMAT_OK);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().key(Messages.LOG_IMPORTEXPORT_END_MERGING_1,resourcename));
+    }
   }
-  if (OpenCms.getLog(this).isDebugEnabled()) {
-    OpenCms.getLog(this).debug("End merging " + resourcename);
+ catch (  CmsXmlException e) {
+    throw e;
+  }
+catch (  CmsException e) {
+    m_report.println(e);
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_MERGING_PAGE_FILE_1,resourcename);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message,e);
+    }
+    throw new CmsImportExportException(message,e);
   }
 }

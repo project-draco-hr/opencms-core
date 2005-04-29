@@ -3,41 +3,40 @@
   Element currentElement;
   String source, destination;
   Vector conflictNames=new Vector();
-  try {
-    if (m_docXml == null) {
-      openImportFile();
-    }
-    fileNodes=m_docXml.selectNodes("//" + I_CmsConstants.C_EXPORT_TAG_FILE);
-    for (int i=0; i < fileNodes.size(); i++) {
-      currentElement=(Element)fileNodes.get(i);
-      source=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_SOURCE);
-      destination=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DESTINATION);
-      if (source != null) {
-        boolean exists=true;
-        try {
-          CmsResource res=m_cms.readResource(m_importPath + destination);
-          if (res.getState() == I_CmsConstants.C_STATE_DELETED) {
-            exists=false;
-          }
-        }
- catch (        CmsException e) {
+  if (m_docXml == null) {
+    openImportFile();
+  }
+  fileNodes=m_docXml.selectNodes("//" + I_CmsConstants.C_EXPORT_TAG_FILE);
+  for (int i=0; i < fileNodes.size(); i++) {
+    currentElement=(Element)fileNodes.get(i);
+    source=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_SOURCE);
+    destination=CmsImport.getChildElementTextValue(currentElement,I_CmsConstants.C_EXPORT_TAG_DESTINATION);
+    if (source != null) {
+      boolean exists=true;
+      try {
+        CmsResource res=m_cms.readResource(m_importPath + destination);
+        if (res.getState() == I_CmsConstants.C_STATE_DELETED) {
           exists=false;
         }
-        if (exists) {
-          conflictNames.addElement(m_importPath + destination);
-        }
+      }
+ catch (      CmsException e) {
+        exists=false;
+      }
+      if (exists) {
+        conflictNames.addElement(m_importPath + destination);
       }
     }
-  }
- catch (  Exception exc) {
-    throw new CmsException(CmsException.C_IMPORT_ERROR,exc);
   }
   if (m_importZip != null) {
     try {
       m_importZip.close();
     }
- catch (    IOException exc) {
-      throw new CmsException(CmsException.C_IMPORT_ERROR,exc);
+ catch (    IOException e) {
+      CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_CLOSING_ZIP_ARCHIVE_1,m_importZip.getName());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(message,e);
+      }
+      throw new CmsImportExportException(message,e);
     }
   }
   return conflictNames;

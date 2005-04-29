@@ -1,29 +1,41 @@
 {
-  List subFolders=getCms().getSubFolders(folderName,CmsResourceFilter.IGNORE_EXPIRATION);
-  List subFiles=getCms().getFilesInFolder(folderName,CmsResourceFilter.IGNORE_EXPIRATION);
-  for (int i=0; i < subFiles.size(); i++) {
-    CmsResource file=(CmsResource)subFiles.get(i);
-    int state=file.getState();
-    long age=file.getDateLastModified();
-    if (getCms().getRequestContext().currentProject().isOnlineProject() || (!m_excludeUnchanged) || state == I_CmsConstants.C_STATE_NEW || state == I_CmsConstants.C_STATE_CHANGED) {
-      if ((state != I_CmsConstants.C_STATE_DELETED) && (!file.getName().startsWith("~")) && (age >= m_contentAge)) {
-        exportFile(getCms().readFile(getCms().getSitePath(file),CmsResourceFilter.IGNORE_EXPIRATION));
-      }
-    }
-    subFiles.set(i,null);
-  }
-  subFiles=null;
-  for (int i=0; i < subFolders.size(); i++) {
-    CmsResource folder=(CmsResource)subFolders.get(i);
-    if (folder.getState() != I_CmsConstants.C_STATE_DELETED) {
-      String export=getCms().getSitePath(folder);
-      if (export.equalsIgnoreCase(I_CmsWpConstants.C_VFS_PATH_SYSTEM) || export.startsWith(I_CmsWpConstants.C_VFS_PATH_BODIES) || export.startsWith(I_CmsWpConstants.C_VFS_PATH_GALLERIES)|| !(m_excludeSystem && export.startsWith(I_CmsWpConstants.C_VFS_PATH_SYSTEM))) {
-        if (folder.getDateLastModified() >= m_contentAge) {
-          appendResourceToManifest(folder,false);
+  try {
+    List subFolders=getCms().getSubFolders(folderName,CmsResourceFilter.IGNORE_EXPIRATION);
+    List subFiles=getCms().getFilesInFolder(folderName,CmsResourceFilter.IGNORE_EXPIRATION);
+    for (int i=0; i < subFiles.size(); i++) {
+      CmsResource file=(CmsResource)subFiles.get(i);
+      int state=file.getState();
+      long age=file.getDateLastModified();
+      if (getCms().getRequestContext().currentProject().isOnlineProject() || (!m_excludeUnchanged) || state == I_CmsConstants.C_STATE_NEW || state == I_CmsConstants.C_STATE_CHANGED) {
+        if ((state != I_CmsConstants.C_STATE_DELETED) && (!file.getName().startsWith("~")) && (age >= m_contentAge)) {
+          exportFile(getCms().readFile(getCms().getSitePath(file),CmsResourceFilter.IGNORE_EXPIRATION));
         }
-        addChildResources(getCms().getSitePath(folder));
       }
+      subFiles.set(i,null);
     }
-    subFolders.set(i,null);
+    subFiles=null;
+    for (int i=0; i < subFolders.size(); i++) {
+      CmsResource folder=(CmsResource)subFolders.get(i);
+      if (folder.getState() != I_CmsConstants.C_STATE_DELETED) {
+        String export=getCms().getSitePath(folder);
+        if (export.equalsIgnoreCase(I_CmsWpConstants.C_VFS_PATH_SYSTEM) || export.startsWith(I_CmsWpConstants.C_VFS_PATH_BODIES) || export.startsWith(I_CmsWpConstants.C_VFS_PATH_GALLERIES)|| !(m_excludeSystem && export.startsWith(I_CmsWpConstants.C_VFS_PATH_SYSTEM))) {
+          if (folder.getDateLastModified() >= m_contentAge) {
+            appendResourceToManifest(folder,false);
+          }
+          addChildResources(getCms().getSitePath(folder));
+        }
+      }
+      subFolders.set(i,null);
+    }
+  }
+ catch (  CmsImportExportException e) {
+    throw e;
+  }
+catch (  CmsException e) {
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_ADDING_CHILD_RESOURCES_1,folderName);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message,e);
+    }
+    throw new CmsImportExportException(message,e);
   }
 }
