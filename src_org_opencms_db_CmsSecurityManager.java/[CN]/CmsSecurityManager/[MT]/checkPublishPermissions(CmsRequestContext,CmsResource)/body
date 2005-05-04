@@ -1,16 +1,23 @@
 {
   if (context.currentProject().isOnlineProject()) {
-    throw new CmsSecurityException("[" + this.getClass().getName() + "] "+ context.currentProject().getName(),CmsSecurityException.C_SECURITY_NO_MODIFY_IN_ONLINE_PROJECT);
+    CmsMessageContainer errMsg=org.opencms.security.Messages.get().container(org.opencms.security.Messages.ERR_MODIFY_ONLINE_1,context.currentProject().getName());
+    throw new CmsSecurityException(errMsg);
   }
   if (context.currentProject().getFlags() != I_CmsConstants.C_PROJECT_STATE_UNLOCKED) {
-    throw new CmsLockException("[" + this.getClass().getName() + "] "+ context.currentProject().getName(),CmsLockException.C_RESOURCE_LOCKED);
+    CmsMessageContainer errMsg=org.opencms.security.Messages.get().container(org.opencms.security.Messages.ERR_RESOURCE_LOCKED_1,context.currentProject().getName());
+    throw new CmsLockException(errMsg);
   }
   if (directPublishResource != null) {
     String parentFolder=CmsResource.getParentFolder(directPublishResource.getRootPath());
     if (parentFolder != null) {
       CmsResource parent=readResource(context,parentFolder,CmsResourceFilter.ALL);
-      if ((parent.getState() == I_CmsConstants.C_STATE_DELETED) || (parent.getState() == I_CmsConstants.C_STATE_NEW)) {
-        throw new CmsSecurityException("[" + this.getClass().getName() + "] "+ context.currentProject().getName(),CmsSecurityException.C_SECURITY_NO_PERMISSIONS);
+      if (parent.getState() == I_CmsConstants.C_STATE_DELETED) {
+        CmsMessageContainer errMsg=Messages.get().container(Messages.ERR_DIRECT_PUBLISH_PARENT_DELETED_2,directPublishResource.getName(),parentFolder);
+        throw new CmsSecurityException(errMsg);
+      }
+      if (parent.getState() == I_CmsConstants.C_STATE_NEW) {
+        CmsMessageContainer errMsg=Messages.get().container(Messages.ERR_DIRECT_PUBLISH_PARENT_NEW_2,directPublishResource.getName(),parentFolder);
+        throw new CmsSecurityException(errMsg);
       }
     }
     if (PERM_ALLOWED == hasPermissions(context,directPublishResource,CmsPermissionSet.ACCESS_DIRECT_PUBLISH,true,CmsResourceFilter.ALL)) {
