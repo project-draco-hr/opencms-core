@@ -1,5 +1,4 @@
 {
-  String errorMsgSuffix="";
   String newResname="";
   try {
     if (CmsStringUtil.isNotEmpty(getParamCsvContent())) {
@@ -7,21 +6,10 @@
       setParamNewResourceName("");
     }
  else {
-      try {
-        setParamCsvContent(new String(getFileContentFromUpload(),CHARSET));
-        newResname=getCms().getRequestContext().getFileTranslator().translateResource(CmsResource.getName(getParamResource().replace('\\','/')));
-        newResname=CmsStringUtil.changeFileNameSuffixTo(newResname,"html");
-        setParamNewResourceName(newResname);
-      }
- catch (      UnsupportedEncodingException e) {
-      }
-catch (      CmsException e) {
-        errorMsgSuffix="size";
-        throw e;
-      }
-catch (      FileNotFoundException e) {
-        throw new CmsException(e.getMessage());
-      }
+      setParamCsvContent(new String(getFileContentFromUpload(),CHARSET));
+      newResname=getCms().getRequestContext().getFileTranslator().translateResource(CmsResource.getName(getParamResource().replace('\\','/')));
+      newResname=CmsStringUtil.changeFileNameSuffixTo(newResname,"html");
+      setParamNewResourceName(newResname);
     }
     setParamResource(newResname);
     setParamResource(computeFullResourceName());
@@ -34,7 +22,12 @@ catch (      FileNotFoundException e) {
  else     if (BEST_DELIMITER.equals(getParamDelimiter())) {
       setParamDelimiter(getPreferredDelimiter(getParamCsvContent()));
     }
-    xmlContent=convertCsvToXml(getParamCsvContent(),getParamDelimiter());
+    try {
+      xmlContent=convertCsvToXml(getParamCsvContent(),getParamDelimiter());
+    }
+ catch (    IOException e) {
+      throw new CmsXmlException(Messages.get().container(Messages.ERR_CSV_XML_TRANSFORMATION_FAILED_0));
+    }
     if (CmsStringUtil.isNotEmpty(getParamXsltFile())) {
       xmlContent=applyXslTransformation(getParamXsltFile(),xmlContent);
       styleProp=getCms().readPropertyObject(getParamXsltFile(),I_CmsConstants.C_PROPERTY_STYLESHEET,true);
@@ -54,12 +47,9 @@ catch (      FileNotFoundException e) {
  catch (  Exception e) {
     setAction(ACTION_SHOWERROR);
     getJsp().getRequest().setAttribute(C_SESSION_WORKPLACE_CLASS,this);
-    setParamErrorstack(CmsException.getStackTraceAsString(e));
-    setParamMessage(key("error.message.upload"));
-    setParamReasonSuggestion(key("error.reason.upload" + errorMsgSuffix) + "<br>\n" + key("error.suggestion.upload" + errorMsgSuffix)+ "\n");
+    CmsWorkplaceException we=new CmsWorkplaceException(Messages.get().container(Messages.ERR_TABLE_IMPORT_FAILED_0),e);
+    LOG.error(we);
+    getJsp().getRequest().setAttribute(ATTRIBUTE_THROWABLE,we);
     getJsp().include(C_FILE_DIALOG_SCREEN_ERROR);
-    if (OpenCms.getLog(this).isErrorEnabled()) {
-      OpenCms.getLog(this).error(e);
-    }
   }
 }
