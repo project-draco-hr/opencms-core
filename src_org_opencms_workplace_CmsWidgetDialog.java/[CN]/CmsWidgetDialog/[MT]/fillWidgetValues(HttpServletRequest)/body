@@ -1,27 +1,38 @@
 {
-  Iterator i=getWidgets().iterator();
   Map parameters=request.getParameterMap();
+  Map processedParamters=new HashMap();
+  Iterator p=parameters.keySet().iterator();
+  while (p.hasNext()) {
+    String key=(String)p.next();
+    String[] values=(String[])parameters.get(key);
+    if (key.startsWith(HIDDEN_PARAM_PREFIX)) {
+      key=key.substring(HIDDEN_PARAM_PREFIX.length());
+      String[] newValues=new String[values.length];
+      for (int l=0; l < values.length; l++) {
+        newValues[l]=CmsEncoder.decode(values[l],getCms().getRequestContext().getEncoding());
+      }
+      values=newValues;
+    }
+    processedParamters.put(key,values);
+  }
   m_paramValues=new HashMap();
+  Iterator i=getWidgets().iterator();
   while (i.hasNext()) {
     CmsWidgetParameter base=(CmsWidgetParameter)i.next();
     List params=new ArrayList();
-    int count=0;
-    for (int j=0; j < base.getMaxOccurs(); j++) {
+    int maxOccurs=base.getMaxOccurs() < CmsWidgetParameter.MAX_OCCURENCES ? base.getMaxOccurs() : CmsWidgetParameter.MAX_OCCURENCES;
+    for (int j=0; j < maxOccurs; j++) {
       String id=CmsWidgetParameter.createId(base.getName(),j);
-      String[] values=(String[])parameters.get(id);
-      String value=null;
-      if ((values != null) && (values.length > 0)) {
-        value=decodeParamValue(base.getName(),values[0]);
-      }
- else {
-        if (count < base.getMinOccurs()) {
-          value=base.getDefault(getCms());
+      boolean required=(params.size() < base.getMinOccurs()) || (processedParamters.get(id) != null) || base.hasValue(j);
+      if (required) {
+        CmsWidgetParameter param=new CmsWidgetParameter(base,params.size(),j);
+        try {
+          base.getWidget().setEditorValue(getCms(),processedParamters,this,param);
         }
-      }
-      if (value != null) {
-        CmsWidgetParameter param=new CmsWidgetParameter(base,value,count);
+ catch (        CmsXmlException e) {
+          int todo=0;
+        }
         params.add(param);
-        count++;
       }
     }
     m_paramValues.put(base.getName(),params);
