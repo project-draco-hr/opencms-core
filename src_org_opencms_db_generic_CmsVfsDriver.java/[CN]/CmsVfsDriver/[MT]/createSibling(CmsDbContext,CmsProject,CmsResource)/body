@@ -8,28 +8,25 @@
  else {
     newState=I_CmsConstants.C_STATE_NEW;
   }
-  CmsResource res=null;
+  CmsResource existingSibling=null;
   CmsUUID newStructureId=resource.getStructureId();
   try {
-    res=readResource(dbc,project.getId(),resource.getRootPath(),true);
-    if (res.getState() == I_CmsConstants.C_STATE_DELETED) {
-      newStructureId=res.getStructureId();
+    existingSibling=readResource(dbc,project.getId(),resource.getRootPath(),true);
+    if (existingSibling.getState() == I_CmsConstants.C_STATE_DELETED) {
+      newStructureId=existingSibling.getStructureId();
       newState=I_CmsConstants.C_STATE_CHANGED;
-      List modifiedResources=readSiblings(dbc,project,res,false);
-      int propertyDeleteOption=(res.getSiblingCount() > 1) ? CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_VALUES : CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES;
-      deletePropertyObjects(dbc,project.getId(),res,propertyDeleteOption);
-      removeFile(dbc,project,res,true);
+      List modifiedResources=readSiblings(dbc,project,existingSibling,false);
+      int propertyDeleteOption=(existingSibling.getSiblingCount() > 1) ? CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_VALUES : CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES;
+      deletePropertyObjects(dbc,project.getId(),existingSibling,propertyDeleteOption);
+      removeFile(dbc,project,existingSibling,true);
       OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCES_MODIFIED,Collections.singletonMap("resources",modifiedResources)));
-      OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",res)));
-    }
- else {
-      throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_SIBLING_WITH_NAME_ALREADY_EXISTS_1,dbc.removeSiteRoot(resource.getRootPath())));
+      OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",existingSibling)));
     }
   }
- catch (  CmsDataAccessException e) {
-    if (e instanceof CmsVfsResourceAlreadyExistsException) {
-      throw e;
-    }
+ catch (  CmsVfsResourceNotFoundException e) {
+  }
+  if (existingSibling != null && existingSibling.getState() != I_CmsConstants.C_STATE_DELETED) {
+    throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_RESOURCE_WITH_NAME_ALREADY_EXISTS_1,dbc.removeSiteRoot(resource.getRootPath())));
   }
   if (!validateResourceIdExists(dbc,project.getId(),resource.getResourceId())) {
     throw new CmsVfsResourceNotFoundException("[" + this.getClass().getName() + "] ");

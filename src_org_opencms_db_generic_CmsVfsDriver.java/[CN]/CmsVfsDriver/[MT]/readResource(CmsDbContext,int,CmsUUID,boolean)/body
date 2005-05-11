@@ -3,34 +3,30 @@
   ResultSet res=null;
   PreparedStatement stmt=null;
   Connection conn=null;
+  boolean found=false;
   try {
     conn=m_sqlManager.getConnection(dbc,projectId);
     stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_RESOURCES_READBYID");
     stmt.setString(1,structureId.toString());
     res=stmt.executeQuery();
     if (res.next()) {
+      found=true;
       resource=createResource(res,projectId);
       while (res.next()) {
       }
-      if ((resource.getState() == org.opencms.main.I_CmsConstants.C_STATE_DELETED) && !includeDeleted) {
-        throw new CmsVfsException("[" + this.getClass().getName() + ".readResource/2] "+ resource.getRootPath(),CmsVfsException.C_VFS_RESOURCE_DELETED);
-      }
-    }
- else {
-      throw new CmsVfsResourceNotFoundException("[" + this.getClass().getName() + ".readResource/2] "+ structureId);
     }
   }
  catch (  SQLException e) {
     throw new CmsSqlException(this,stmt,e);
   }
-catch (  CmsDataAccessException e) {
-    throw e;
-  }
-catch (  Exception e) {
-    throw new CmsDataAccessException(e);
-  }
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  if (resource == null && !found) {
+    throw new CmsVfsResourceNotFoundException("[" + this.getClass().getName() + ".readResource/2] "+ structureId);
+  }
+  if (resource != null && resource.getState() == org.opencms.main.I_CmsConstants.C_STATE_DELETED && !includeDeleted) {
+    throw new CmsVfsException("[" + this.getClass().getName() + ".readResource/2] "+ resource.getRootPath(),CmsVfsException.C_VFS_RESOURCE_DELETED);
   }
   return resource;
 }

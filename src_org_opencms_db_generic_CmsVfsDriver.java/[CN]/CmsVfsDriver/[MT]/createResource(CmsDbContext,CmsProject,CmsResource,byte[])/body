@@ -4,7 +4,8 @@
   PreparedStatement stmt=null;
   String resourcePath=removeTrailingSeparator(resource.getRootPath());
   if (resourcePath.length() > I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME) {
-    throw new CmsException("The resource path '" + resourcePath + "' is too long! (max. allowed length must be <= "+ I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME+ " chars.!)",CmsException.C_BAD_NAME);
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_RESOURCENAME_TOO_LONG_2,resourcePath,Integer.toString(I_CmsConstants.C_MAX_LENGTH_RESOURCE_NAME));
+    throw new CmsDataAccessException(message);
   }
   if (!resource.getRootPath().equals(I_CmsConstants.C_FOLDER_SEPARATOR)) {
     String parentFolderName=CmsResource.getParentFolder(resource.getRootPath());
@@ -33,28 +34,25 @@
       dateModified=dateCreated;
     }
   }
-  CmsResource res=null;
+  CmsResource existingResource=null;
   newStructureId=resource.getStructureId();
   try {
-    res=readResource(dbc,project.getId(),resourcePath,true);
-    if (res.getState() == I_CmsConstants.C_STATE_DELETED) {
-      newStructureId=res.getStructureId();
+    existingResource=readResource(dbc,project.getId(),resourcePath,true);
+    if (existingResource.getState() == I_CmsConstants.C_STATE_DELETED) {
+      newStructureId=existingResource.getStructureId();
       newState=I_CmsConstants.C_STATE_CHANGED;
-      List modifiedResources=readSiblings(dbc,project,res,false);
-      int propertyDeleteOption=(res.getSiblingCount() > 1) ? CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_VALUES : CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES;
-      deletePropertyObjects(dbc,project.getId(),res,propertyDeleteOption);
-      removeFile(dbc,project,res,true);
+      List modifiedResources=readSiblings(dbc,project,existingResource,false);
+      int propertyDeleteOption=(existingResource.getSiblingCount() > 1) ? CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_VALUES : CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES;
+      deletePropertyObjects(dbc,project.getId(),existingResource,propertyDeleteOption);
+      removeFile(dbc,project,existingResource,true);
       OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCES_MODIFIED,Collections.singletonMap("resources",modifiedResources)));
-      OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",res)));
-    }
- else {
-      throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_RESOURCE_WITH_NAME_ALREADY_EXISTS_1,dbc.removeSiteRoot(resource.getRootPath())));
+      OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",existingResource)));
     }
   }
- catch (  CmsDataAccessException e) {
-    if (e instanceof CmsVfsResourceAlreadyExistsException) {
-      throw e;
-    }
+ catch (  CmsVfsResourceNotFoundException e) {
+  }
+  if (existingResource != null && existingResource.getState() != I_CmsConstants.C_STATE_DELETED) {
+    throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_RESOURCE_WITH_NAME_ALREADY_EXISTS_1,dbc.removeSiteRoot(resource.getRootPath())));
   }
   try {
     String parentId=internalReadParentId(dbc,project.getId(),resourcePath);

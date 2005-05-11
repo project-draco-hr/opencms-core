@@ -1,5 +1,5 @@
 {
-  if ("/".equals(resourcename)) {
+  if (I_CmsConstants.C_FOLDER_SEPARATOR.equalsIgnoreCase(resourcename)) {
     return CmsUUID.getNullUUID().toString();
   }
   String parent=CmsResource.getParentFolder(resourcename);
@@ -7,23 +7,26 @@
   ResultSet res=null;
   PreparedStatement stmt=null;
   Connection conn=null;
+  String parentId=null;
+  boolean found=false;
   try {
     conn=m_sqlManager.getConnection(dbc,projectId);
     stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_RESOURCES_READ_PARENT_STRUCTURE_ID");
     stmt.setString(1,parent);
     res=stmt.executeQuery();
     if (res.next()) {
-      return res.getString(1);
+      found=true;
+      parentId=res.getString(1);
     }
   }
  catch (  SQLException e) {
     throw new CmsSqlException(this,stmt,e);
   }
-catch (  Exception ex) {
-    throw new CmsDataAccessException(ex);
-  }
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
   }
-  throw new CmsVfsResourceNotFoundException("Unable to read parent id of resource " + resourcename);
+  if (parentId == null && !found) {
+    throw new CmsVfsResourceNotFoundException("Unable to read parent id of resource " + resourcename);
+  }
+  return parentId;
 }
