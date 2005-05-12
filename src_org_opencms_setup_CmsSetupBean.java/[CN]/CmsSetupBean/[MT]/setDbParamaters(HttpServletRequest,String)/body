@@ -1,0 +1,92 @@
+{
+  String conStr=request.getParameter("dbCreateConStr");
+  boolean isFormSubmitted=((request.getParameter("submit") != null) && (conStr != null));
+  String database="";
+  if (provider.equals(C_MYSQL_PROVIDER)) {
+    database=request.getParameter("db");
+  }
+ else   if (provider.equals(C_POSTGRESQL_PROVIDER)) {
+    database=request.getParameter("dbName");
+  }
+  if (provider.equals(C_MYSQL_PROVIDER) || provider.equals(C_POSTGRESQL_PROVIDER)) {
+    isFormSubmitted=(isFormSubmitted && (database != null));
+  }
+  if (isInitialized()) {
+    String createDb=request.getParameter("createDb");
+    if (createDb == null) {
+      createDb="";
+    }
+    String createTables=request.getParameter("createTables");
+    if (createTables == null) {
+      createTables="";
+    }
+    if (isFormSubmitted) {
+      if (provider.equals(C_MYSQL_PROVIDER) || provider.equals(C_POSTGRESQL_PROVIDER)) {
+        if (!conStr.endsWith("/")) {
+          conStr+="/";
+        }
+        conStr+=database;
+      }
+      setDbWorkConStr(conStr);
+      if (provider.equals(C_POSTGRESQL_PROVIDER)) {
+        setDb(database);
+      }
+      String dbCreateUser=request.getParameter("dbCreateUser");
+      String dbCreatePwd=request.getParameter("dbCreatePwd");
+      String dbWorkUser=request.getParameter("dbWorkUser");
+      String dbWorkPwd=request.getParameter("dbWorkPwd");
+      setDbCreateUser(dbCreateUser);
+      setDbCreatePwd(dbCreatePwd);
+      if (dbWorkUser.equals("")) {
+        dbWorkUser=request.getContextPath();
+      }
+      if (dbWorkUser.equals("")) {
+        dbWorkUser="opencms";
+      }
+      if (dbWorkUser.startsWith("/")) {
+        dbWorkUser=dbWorkUser.substring(1,dbWorkUser.length());
+      }
+      setDbWorkUser(dbWorkUser);
+      setDbWorkPwd(dbWorkPwd);
+      if (provider.equals(C_ORACLE_PROVIDER)) {
+        String dbDefaultTablespace=request.getParameter("dbDefaultTablespace");
+        String dbTemporaryTablespace=request.getParameter("dbTemporaryTablespace");
+        String dbIndexTablespace=request.getParameter("dbIndexTablespace");
+        setDbProperty(getDatabase() + ".defaultTablespace",dbDefaultTablespace);
+        setDbProperty(getDatabase() + ".temporaryTablespace",dbTemporaryTablespace);
+        setDbProperty(getDatabase() + ".indexTablespace",dbIndexTablespace);
+      }
+      Map replacer=(Map)new HashMap();
+      if (!provider.equals(C_MYSQL_PROVIDER)) {
+        replacer.put("${user}",dbWorkUser);
+        replacer.put("${password}",dbWorkPwd);
+      }
+      if (provider.equals(C_MYSQL_PROVIDER) || provider.equals(C_POSTGRESQL_PROVIDER)) {
+        replacer.put("${database}",database);
+      }
+      if (provider.equals(C_ORACLE_PROVIDER)) {
+        replacer.put("${defaultTablespace}",getDbProperty(getDatabase() + ".defaultTablespace"));
+        replacer.put("${indexTablespace}",getDbProperty(getDatabase() + ".indexTablespace"));
+        replacer.put("${temporaryTablespace}",getDbProperty(getDatabase() + ".temporaryTablespace"));
+      }
+      setReplacer(replacer);
+      if (provider.equals(C_GENERIC_PROVIDER) || provider.equals(C_ORACLE_PROVIDER)) {
+        request.getSession().setAttribute("createTables",createTables);
+      }
+      request.getSession().setAttribute("createDb",createDb);
+    }
+ else {
+      String dbName="opencms";
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(request.getContextPath())) {
+        dbName=request.getContextPath().substring(1);
+      }
+      if (provider.equals(C_ORACLE_PROVIDER) || provider.equals(C_POSTGRESQL_PROVIDER)) {
+        setDbWorkUser(dbName);
+      }
+ else {
+        setDb(dbName);
+      }
+    }
+  }
+  return isFormSubmitted;
+}
