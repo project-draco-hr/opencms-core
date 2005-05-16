@@ -1,26 +1,43 @@
 {
-  if ((m_baseObject != null) && (m_baseObjectProperty != null)) {
+  if (m_baseCollection == null) {
     PropertyUtilsBean bean=new PropertyUtilsBean();
     ConvertUtilsBean conveter=new ConvertUtilsBean();
     Object value=null;
     try {
-      if (m_collectionObject == null) {
-        Class type=bean.getPropertyType(m_baseObject,m_baseObjectProperty);
-        value=conveter.convert(m_value,type);
-      }
- else {
-        value=m_collectionObject;
-      }
+      Class type=bean.getPropertyType(m_baseObject,m_baseObjectProperty);
+      value=conveter.convert(m_value,type);
       bean.setNestedProperty(m_baseObject,m_baseObjectProperty,value);
-      setError(false);
+      setError(null);
     }
  catch (    InvocationTargetException e) {
-      setError(true);
+      setError(e.getTargetException());
       throw new CmsWidgetException(Messages.get().container(Messages.ERR_PROPERTY_WRITE_3,value,dialog.key(A_CmsWidget.getLabelKey(this),getKey()),m_baseObject.getClass().getName()),e.getTargetException(),this);
     }
 catch (    Exception e) {
-      setError(true);
+      setError(e);
       throw new CmsWidgetException(Messages.get().container(Messages.ERR_PROPERTY_WRITE_3,value,dialog.key(A_CmsWidget.getLabelKey(this),getKey()),m_baseObject.getClass().getName()),e,this);
+    }
+  }
+ else   if (m_baseCollection instanceof SortedMap) {
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_value)) {
+      int pos=m_value.indexOf('=');
+      if ((pos > 0) && (pos < (m_value.length() - 1))) {
+        String key=m_value.substring(0,pos);
+        String value=m_value.substring(pos + 1);
+        SortedMap map=(SortedMap)m_baseCollection;
+        map.put(key,value);
+      }
+ else {
+        CmsWidgetException error=new CmsWidgetException(Messages.get().container(Messages.ERR_MAP_PARAMETER_FORM_1,dialog.key(A_CmsWidget.getLabelKey(this),getKey())),this);
+        setError(error);
+        throw error;
+      }
+    }
+  }
+ else   if (m_baseCollection instanceof List) {
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_value)) {
+      List list=(List)m_baseCollection;
+      list.add(m_value);
     }
   }
 }

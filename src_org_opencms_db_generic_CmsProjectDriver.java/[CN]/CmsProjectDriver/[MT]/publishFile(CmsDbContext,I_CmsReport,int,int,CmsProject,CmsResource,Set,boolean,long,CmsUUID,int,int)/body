@@ -5,35 +5,33 @@
   CmsProperty property=null;
   int propertyDeleteOption=-1;
   try {
-    if (offlineFileHeader.getState() == I_CmsConstants.C_STATE_DELETED) {
+    if (offlineResource.getState() == I_CmsConstants.C_STATE_DELETED) {
       report.print("( " + m + " / "+ n+ " ) "+ report.key("report.deleting.file"),I_CmsReport.C_FORMAT_NOTE);
-      report.print(dbc.removeSiteRoot(offlineFileHeader.getRootPath()));
+      report.print(dbc.removeSiteRoot(offlineResource.getRootPath()));
       report.print(report.key("report.dots"));
       try {
-        onlineFileHeader=m_driverManager.getVfsDriver().readResource(dbc,onlineProject.getId(),offlineFileHeader.getStructureId(),true);
+        onlineFileHeader=m_driverManager.getVfsDriver().readResource(dbc,onlineProject.getId(),offlineResource.getStructureId(),true);
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_READING_RESOURCE_1,offlineFileHeader.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_READING_RESOURCE_1,offlineResource.getRootPath()),e);
         }
         throw e;
       }
-      if (offlineFileHeader.isLabeled() && !m_driverManager.labelResource(dbc,offlineFileHeader,null,2)) {
-        int flags=offlineFileHeader.getFlags();
+      if (offlineResource.isLabeled() && !m_driverManager.labelResource(dbc,offlineResource,null,2)) {
+        int flags=offlineResource.getFlags();
         flags&=~I_CmsConstants.C_RESOURCEFLAG_LABELLINK;
-        offlineFileHeader.setFlags(flags);
+        offlineResource.setFlags(flags);
       }
       try {
         if (backupEnabled && !OpenCms.getSystemInfo().keepVersionHistory()) {
-          m_driverManager.deleteBackup(dbc,offlineFileHeader);
+          m_driverManager.deleteBackup(dbc,offlineResource);
         }
-        m_driverManager.getProjectDriver().writePublishHistory(dbc,dbc.currentProject(),publishHistoryId,backupTagId,offlineFileHeader);
+        m_driverManager.getProjectDriver().writePublishHistory(dbc,dbc.currentProject(),publishHistoryId,backupTagId,offlineResource);
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_WRITING_PUBLISHING_HISTORY_1,offlineFileHeader.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_WRITING_PUBLISHING_HISTORY_1,offlineResource.getRootPath()),e);
         }
         throw e;
       }
@@ -45,22 +43,21 @@
           propertyDeleteOption=CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES;
         }
         m_driverManager.getVfsDriver().deletePropertyObjects(dbc,onlineProject.getId(),onlineFileHeader,propertyDeleteOption);
-        m_driverManager.getVfsDriver().deletePropertyObjects(dbc,dbc.currentProject().getId(),offlineFileHeader,propertyDeleteOption);
-        if (!onlineFileHeader.getResourceId().equals(offlineFileHeader.getResourceId())) {
+        m_driverManager.getVfsDriver().deletePropertyObjects(dbc,dbc.currentProject().getId(),offlineResource,propertyDeleteOption);
+        if (!onlineFileHeader.getResourceId().equals(offlineResource.getResourceId())) {
           m_driverManager.getVfsDriver().deletePropertyObjects(dbc,dbc.currentProject().getId(),onlineFileHeader,CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
         }
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_DELETING_PROPERTIES_1,offlineFileHeader.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_DELETING_PROPERTIES_1,offlineResource.getRootPath()),e);
         }
         throw e;
       }
       try {
-        m_driverManager.getVfsDriver().removeFile(dbc,dbc.currentProject(),offlineFileHeader,true);
+        m_driverManager.getVfsDriver().removeFile(dbc,dbc.currentProject(),offlineResource,true);
         try {
-          m_driverManager.getVfsDriver().readResource(dbc,dbc.currentProject().getId(),offlineFileHeader.getStructureId(),true);
+          m_driverManager.getVfsDriver().readResource(dbc,dbc.currentProject().getId(),offlineResource.getStructureId(),true);
         }
  catch (        CmsVfsResourceNotFoundException e) {
           m_driverManager.getVfsDriver().removeFile(dbc,onlineProject,onlineFileHeader,true);
@@ -68,38 +65,36 @@
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_REMOVING_RESOURCE_1,offlineFileHeader.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_REMOVING_RESOURCE_1,offlineResource.getRootPath()),e);
         }
         throw e;
       }
       try {
         m_driverManager.getUserDriver().removeAccessControlEntries(dbc,onlineProject,onlineFileHeader.getResourceId());
-        m_driverManager.getUserDriver().removeAccessControlEntries(dbc,dbc.currentProject(),offlineFileHeader.getResourceId());
+        m_driverManager.getUserDriver().removeAccessControlEntries(dbc,dbc.currentProject(),offlineResource.getResourceId());
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_REMOVING_ACL_1,offlineFileHeader.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_REMOVING_ACL_1,offlineResource.toString()),e);
         }
         throw e;
       }
       report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
       if (OpenCms.getLog(this).isDebugEnabled()) {
-        OpenCms.getLog(this).debug("( " + m + " / "+ n+ " ) "+ report.key("report.deleting.file")+ offlineFileHeader.getRootPath()+ report.key("report.dots")+ report.key("report.ok"));
+        OpenCms.getLog(this).debug("( " + m + " / "+ n+ " ) "+ report.key("report.deleting.file")+ offlineResource.getRootPath()+ report.key("report.dots")+ report.key("report.ok"));
       }
     }
- else     if (offlineFileHeader.getState() == I_CmsConstants.C_STATE_CHANGED) {
+ else     if (offlineResource.getState() == I_CmsConstants.C_STATE_CHANGED) {
       report.print("( " + m + " / "+ n+ " ) "+ report.key("report.publishing.file"),I_CmsReport.C_FORMAT_NOTE);
-      report.print(dbc.removeSiteRoot(offlineFileHeader.getRootPath()));
+      report.print(dbc.removeSiteRoot(offlineResource.getRootPath()));
       report.print(report.key("report.dots"));
       try {
-        onlineFileHeader=m_driverManager.getVfsDriver().readResource(dbc,onlineProject.getId(),offlineFileHeader.getStructureId(),false);
-        int flags=offlineFileHeader.getFlags();
+        onlineFileHeader=m_driverManager.getVfsDriver().readResource(dbc,onlineProject.getId(),offlineResource.getStructureId(),false);
+        int flags=offlineResource.getFlags();
         flags&=~I_CmsConstants.C_RESOURCEFLAG_LABELLINK;
-        offlineFileHeader.setFlags(flags);
+        offlineResource.setFlags(flags);
         m_driverManager.getVfsDriver().deletePropertyObjects(dbc,onlineProject.getId(),onlineFileHeader,CmsProperty.C_DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
-        if (!onlineFileHeader.getResourceId().equals(offlineFileHeader.getResourceId())) {
+        if (!onlineFileHeader.getResourceId().equals(offlineResource.getResourceId())) {
           offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),onlineFileHeader);
           if (offlineProperties.size() > 0) {
             for (int i=0; i < offlineProperties.size(); i++) {
@@ -110,35 +105,32 @@
             m_driverManager.getVfsDriver().writePropertyObjects(dbc,dbc.currentProject(),onlineFileHeader,offlineProperties);
           }
         }
-        boolean removeContent=!publishedContentIds.contains(offlineFileHeader.getResourceId());
+        boolean removeContent=!publishedContentIds.contains(offlineResource.getResourceId());
         m_driverManager.getVfsDriver().removeFile(dbc,onlineProject,onlineFileHeader,removeContent);
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_DELETING_PROPERTIES_1,offlineFileHeader.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_DELETING_PROPERTIES_1,offlineResource.toString()),e);
         }
         throw e;
       }
       try {
-        newFile=m_driverManager.getProjectDriver().publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineFileHeader,publishedContentIds);
+        newFile=m_driverManager.getProjectDriver().publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineResource,publishedContentIds);
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_PUBLISHING_RESOURCE_1,offlineFileHeader.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_PUBLISHING_RESOURCE_1,offlineResource.getRootPath()),e);
         }
         throw e;
       }
       try {
-        offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),offlineFileHeader);
+        offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),offlineResource);
         CmsProperty.setAutoCreatePropertyDefinitions(offlineProperties,true);
         m_driverManager.getVfsDriver().writePropertyObjects(dbc,onlineProject,newFile,offlineProperties);
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_PUBLISHING_PROPERTIES_1,newFile.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_PUBLISHING_PROPERTIES_1,newFile.getRootPath()),e);
         }
         throw e;
       }
@@ -147,108 +139,101 @@
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_PUBLISHING_ACL_1,newFile.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_PUBLISHING_ACL_1,newFile.getRootPath()),e);
         }
         throw e;
       }
       try {
         if (backupEnabled) {
           if (offlineProperties == null) {
-            offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),offlineFileHeader);
+            offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),offlineResource);
           }
           m_driverManager.getBackupDriver().writeBackupResource(dbc,newFile,offlineProperties,backupTagId,publishDate,maxVersions);
         }
-        m_driverManager.getProjectDriver().writePublishHistory(dbc,dbc.currentProject(),publishHistoryId,backupTagId,offlineFileHeader);
+        m_driverManager.getProjectDriver().writePublishHistory(dbc,dbc.currentProject(),publishHistoryId,backupTagId,offlineResource);
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_WRITING_PUBLISHING_HISTORY_1,newFile.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_WRITING_PUBLISHING_HISTORY_1,newFile.getRootPath()),e);
         }
         throw e;
       }
       report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
       if (OpenCms.getLog(this).isDebugEnabled()) {
-        OpenCms.getLog(this).debug("( " + m + " / "+ n+ " ) "+ report.key("report.publishing.file")+ offlineFileHeader.getRootPath()+ report.key("report.dots")+ report.key("report.ok"));
+        OpenCms.getLog(this).debug("( " + m + " / "+ n+ " ) "+ report.key("report.publishing.file")+ offlineResource.getRootPath()+ report.key("report.dots")+ report.key("report.ok"));
       }
     }
- else     if (offlineFileHeader.getState() == I_CmsConstants.C_STATE_NEW) {
+ else     if (offlineResource.getState() == I_CmsConstants.C_STATE_NEW) {
       report.print("( " + m + " / "+ n+ " ) "+ report.key("report.publishing.file"),I_CmsReport.C_FORMAT_NOTE);
-      report.print(dbc.removeSiteRoot(offlineFileHeader.getRootPath()));
+      report.print(dbc.removeSiteRoot(offlineResource.getRootPath()));
       report.print(report.key("report.dots"));
       try {
-        int flags=offlineFileHeader.getFlags();
+        int flags=offlineResource.getFlags();
         flags&=~I_CmsConstants.C_RESOURCEFLAG_LABELLINK;
-        offlineFileHeader.setFlags(flags);
-        newFile=m_driverManager.getProjectDriver().publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineFileHeader,publishedContentIds);
+        offlineResource.setFlags(flags);
+        newFile=m_driverManager.getProjectDriver().publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineResource,publishedContentIds);
       }
  catch (      CmsVfsResourceAlreadyExistsException e) {
         try {
-          m_driverManager.getVfsDriver().removeFile(dbc,onlineProject,offlineFileHeader,true);
-          publishedContentIds.remove(offlineFileHeader.getResourceId());
-          newFile=m_driverManager.getProjectDriver().publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineFileHeader,publishedContentIds);
+          m_driverManager.getVfsDriver().removeFile(dbc,onlineProject,offlineResource,true);
+          publishedContentIds.remove(offlineResource.getResourceId());
+          newFile=m_driverManager.getProjectDriver().publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineResource,publishedContentIds);
         }
  catch (        CmsDataAccessException e1) {
           if (LOG.isErrorEnabled()) {
-            CmsMessageContainer message=Messages.get().container(Messages.ERR_PUBLISHING_RESOURCE_1,offlineFileHeader.toString());
-            LOG.error(message,e);
+            LOG.error(Messages.get().key(Messages.ERR_PUBLISHING_RESOURCE_1,offlineResource.getRootPath()),e);
           }
           throw e1;
         }
       }
 catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_PUBLISHING_RESOURCE_1,offlineFileHeader.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_PUBLISHING_RESOURCE_1,offlineResource.getRootPath()),e);
         }
         throw e;
       }
       try {
-        offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),offlineFileHeader);
+        offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),offlineResource);
         CmsProperty.setAutoCreatePropertyDefinitions(offlineProperties,true);
         m_driverManager.getVfsDriver().writePropertyObjects(dbc,onlineProject,newFile,offlineProperties);
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_PUBLISHING_PROPERTIES_1,newFile.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_PUBLISHING_PROPERTIES_1,newFile.getRootPath()),e);
         }
         throw e;
       }
       try {
-        m_driverManager.getUserDriver().publishAccessControlEntries(dbc,dbc.currentProject(),onlineProject,offlineFileHeader.getResourceId(),newFile.getResourceId());
+        m_driverManager.getUserDriver().publishAccessControlEntries(dbc,dbc.currentProject(),onlineProject,offlineResource.getResourceId(),newFile.getResourceId());
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_PUBLISHING_ACL_1,newFile.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_PUBLISHING_ACL_1,newFile.getRootPath()),e);
         }
         throw e;
       }
       try {
         if (backupEnabled) {
           if (offlineProperties == null) {
-            offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),offlineFileHeader);
+            offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),offlineResource);
           }
           m_driverManager.getBackupDriver().writeBackupResource(dbc,newFile,offlineProperties,backupTagId,publishDate,maxVersions);
         }
-        m_driverManager.getProjectDriver().writePublishHistory(dbc,dbc.currentProject(),publishHistoryId,backupTagId,offlineFileHeader);
+        m_driverManager.getProjectDriver().writePublishHistory(dbc,dbc.currentProject(),publishHistoryId,backupTagId,offlineResource);
       }
  catch (      CmsDataAccessException e) {
         if (LOG.isErrorEnabled()) {
-          CmsMessageContainer message=Messages.get().container(Messages.ERR_WRITING_PUBLISHING_HISTORY_1,newFile.toString());
-          LOG.error(message,e);
+          LOG.error(Messages.get().key(Messages.ERR_WRITING_PUBLISHING_HISTORY_1,newFile.getRootPath()),e);
         }
         throw e;
       }
       report.println(report.key("report.ok"),I_CmsReport.C_FORMAT_OK);
       if (OpenCms.getLog(this).isDebugEnabled()) {
-        OpenCms.getLog(this).debug("( " + m + " / "+ n+ " ) "+ report.key("report.publishing.file")+ offlineFileHeader.getRootPath()+ report.key("report.dots")+ report.key("report.ok"));
+        OpenCms.getLog(this).debug("( " + m + " / "+ n+ " ) "+ report.key("report.publishing.file")+ offlineResource.getRootPath()+ report.key("report.dots")+ report.key("report.ok"));
       }
     }
   }
   finally {
-    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",offlineFileHeader)));
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",offlineResource)));
   }
 }
