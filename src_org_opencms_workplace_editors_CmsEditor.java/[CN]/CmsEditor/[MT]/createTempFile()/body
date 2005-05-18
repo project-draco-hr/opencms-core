@@ -7,31 +7,29 @@
     getCms().copyResource(getCms().getSitePath(file),temporaryFilename,I_CmsConstants.C_COPY_AS_NEW);
     getCms().touch(temporaryFilename,System.currentTimeMillis(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,false);
   }
- catch (  CmsException e) {
-    if (e.getType() == CmsVfsException.C_VFS_RESOURCE_ALREADY_EXISTS) {
-      try {
-        CmsLock tempFileLock=getCms().getLock(temporaryFilename);
-        if (!tempFileLock.equals(CmsLock.getNullLock())) {
-          if (!tempFileLock.getUserId().equals(getCms().getRequestContext().currentUser().getId())) {
-            getCms().changeLock(temporaryFilename);
-          }
+ catch (  CmsVfsResourceNotFoundException e) {
+    try {
+      CmsLock tempFileLock=getCms().getLock(temporaryFilename);
+      if (!tempFileLock.equals(CmsLock.getNullLock())) {
+        if (!tempFileLock.getUserId().equals(getCms().getRequestContext().currentUser().getId())) {
+          getCms().changeLock(temporaryFilename);
         }
- else {
-          getCms().lockResource(temporaryFilename);
-        }
-        getCms().changeLastModifiedProjectId(temporaryFilename);
       }
- catch (      Exception ex) {
-        if (OpenCms.getLog(this).isInfoEnabled()) {
-          OpenCms.getLog(this).info(ex);
-        }
-        ok=false;
-      }
-    }
  else {
-      switchToCurrentProject();
-      throw e;
+        getCms().lockResource(temporaryFilename);
+      }
+      getCms().changeLastModifiedProjectId(temporaryFilename);
     }
+ catch (    Exception ex) {
+      if (LOG.isInfoEnabled()) {
+        LOG.info(ex);
+      }
+      ok=false;
+    }
+  }
+catch (  CmsException e) {
+    switchToCurrentProject();
+    throw e;
   }
   String extendedTempFile=temporaryFilename;
   int loop=0;
@@ -41,13 +39,13 @@
     try {
       getCms().copyResource(getCms().getSitePath(file),extendedTempFile);
     }
- catch (    CmsException e) {
-      if (e.getType() != CmsVfsException.C_VFS_RESOURCE_ALREADY_EXISTS) {
-        switchToCurrentProject();
-        throw e;
-      }
+ catch (    CmsVfsResourceNotFoundException e) {
       loop++;
       ok=false;
+    }
+catch (    CmsException e) {
+      switchToCurrentProject();
+      throw e;
     }
   }
   switchToCurrentProject();
