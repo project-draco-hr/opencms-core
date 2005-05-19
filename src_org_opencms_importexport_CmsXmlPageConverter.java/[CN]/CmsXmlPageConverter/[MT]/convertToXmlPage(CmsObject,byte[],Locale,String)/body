@@ -1,60 +1,55 @@
 {
   CmsXmlPage xmlPage=null;
-  try {
-    Document page=CmsXmlUtils.unmarshalHelper(content,null);
-    Element xmltemplate=page.getRootElement();
-    if (xmltemplate == null || !"XMLTEMPLATE".equals(xmltemplate.getName())) {
-      throw new Exception("Element XMLTEMPLATE not found");
+  Document page=CmsXmlUtils.unmarshalHelper(content,null);
+  Element xmltemplate=page.getRootElement();
+  if (xmltemplate == null || !"XMLTEMPLATE".equals(xmltemplate.getName())) {
+    throw new CmsImportExportException(Messages.get().container(Messages.ERR_NOT_FOUND_ELEM_XMLTEMPLATE_0));
+  }
+  Iterator i=xmltemplate.elementIterator("edittemplate");
+  boolean useEditTemplates=true;
+  if (!i.hasNext()) {
+    i=xmltemplate.elementIterator("TEMPLATE");
+    useEditTemplates=false;
+  }
+  xmlPage=new CmsXmlPage(locale,encoding);
+  while (i.hasNext()) {
+    Element currentTemplate=(Element)i.next();
+    String bodyName=currentTemplate.attributeValue("name");
+    if (bodyName == null || "".equals(bodyName)) {
+      bodyName="body";
     }
-    Iterator i=xmltemplate.elementIterator("edittemplate");
-    boolean useEditTemplates=true;
-    if (!i.hasNext()) {
-      i=xmltemplate.elementIterator("TEMPLATE");
-      useEditTemplates=false;
+    String bodyContent=null;
+    if (useEditTemplates) {
+      bodyContent=currentTemplate.getText();
     }
-    xmlPage=new CmsXmlPage(locale,encoding);
-    while (i.hasNext()) {
-      Element currentTemplate=(Element)i.next();
-      String bodyName=currentTemplate.attributeValue("name");
-      if (bodyName == null || "".equals(bodyName)) {
-        bodyName="body";
-      }
-      String bodyContent=null;
-      if (useEditTemplates) {
-        bodyContent=currentTemplate.getText();
-      }
  else {
-        if (currentTemplate != null) {
-          StringBuffer contentBuffer=new StringBuffer();
-          for (Iterator k=currentTemplate.nodeIterator(); k.hasNext(); ) {
-            Node n=(Node)k.next();
-            if (n.getNodeType() == Node.CDATA_SECTION_NODE) {
+      if (currentTemplate != null) {
+        StringBuffer contentBuffer=new StringBuffer();
+        for (Iterator k=currentTemplate.nodeIterator(); k.hasNext(); ) {
+          Node n=(Node)k.next();
+          if (n.getNodeType() == Node.CDATA_SECTION_NODE) {
+            contentBuffer.append(n.getText());
+            continue;
+          }
+ else           if (n.getNodeType() == Node.ELEMENT_NODE) {
+            if ("LINK".equals(n.getName())) {
+              contentBuffer.append(OpenCms.getSystemInfo().getOpenCmsContext());
               contentBuffer.append(n.getText());
               continue;
             }
- else             if (n.getNodeType() == Node.ELEMENT_NODE) {
-              if ("LINK".equals(n.getName())) {
-                contentBuffer.append(OpenCms.getSystemInfo().getOpenCmsContext());
-                contentBuffer.append(n.getText());
-                continue;
-              }
-            }
           }
-          bodyContent=contentBuffer.toString();
         }
-      }
-      if (bodyContent == null) {
-        throw new Exception("Body content not found");
-      }
-      bodyContent=CmsStringUtil.substitute(bodyContent,I_CmsWpConstants.C_MACRO_OPENCMS_CONTEXT,OpenCms.getSystemInfo().getOpenCmsContext());
-      if (!"".equals(bodyContent.trim())) {
-        xmlPage.addValue(bodyName,locale);
-        xmlPage.setStringValue(cms,bodyName,locale,bodyContent);
+        bodyContent=contentBuffer.toString();
       }
     }
-    return xmlPage;
+    if (bodyContent == null) {
+      throw new CmsImportExportException(Messages.get().container(Messages.ERR_BODY_CONTENT_NOT_FOUND_0));
+    }
+    bodyContent=CmsStringUtil.substitute(bodyContent,I_CmsWpConstants.C_MACRO_OPENCMS_CONTEXT,OpenCms.getSystemInfo().getOpenCmsContext());
+    if (!"".equals(bodyContent.trim())) {
+      xmlPage.addValue(bodyName,locale);
+      xmlPage.setStringValue(cms,bodyName,locale,bodyContent);
+    }
   }
- catch (  Exception exc) {
-    throw new CmsException(exc.toString());
-  }
+  return xmlPage;
 }
