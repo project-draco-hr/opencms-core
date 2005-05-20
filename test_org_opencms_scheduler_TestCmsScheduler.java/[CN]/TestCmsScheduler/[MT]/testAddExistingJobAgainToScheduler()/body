@@ -1,10 +1,11 @@
 {
-  System.out.println("Trying to add and remove an OpenCms job from the OpenCms scheduler.");
+  System.out.println("Trying to schedule an existing job again with the OpenCms scheduler.");
   TestScheduledJob.m_runCount=0;
   CmsScheduledJobInfo jobInfo=new CmsScheduledJobInfo();
   CmsContextInfo contextInfo=new CmsContextInfo();
   contextInfo.setUserName(OpenCms.getDefaultUsers().getUserAdmin());
   jobInfo.setContextInfo(contextInfo);
+  jobInfo.setJobName("My job");
   jobInfo.setClassName(TestScheduledJob.class.getName());
   jobInfo.setCronExpression("0/2 * * * * ?");
   List jobs=new ArrayList();
@@ -28,12 +29,15 @@
  else {
     fail("Test class not run after " + SECONDS_TO_WAIT + " seconds.");
   }
-  CmsScheduledJobInfo result;
+  jobInfo=scheduler.getJob(jobInfo.getId());
+  assertEquals("My job",jobInfo.getJobName());
+  CmsScheduledJobInfo newInfo=(CmsScheduledJobInfo)jobInfo.clone();
+  newInfo.setJobName("My CHANGED name");
   assertEquals(1,scheduler.getJobs().size());
-  result=scheduler.unscheduleJob(null,jobInfo.getId());
-  assertNotNull(result);
-  assertEquals(0,scheduler.getJobs().size());
-  result=scheduler.unscheduleJob(null,"iDontExist");
-  assertNull(result);
+  scheduler.scheduleJob(null,newInfo);
+  assertEquals(jobInfo.getId(),newInfo.getId());
+  assertEquals(1,scheduler.getJobs().size());
+  jobInfo=scheduler.getJob(newInfo.getId());
+  assertEquals("My CHANGED name",jobInfo.getJobName());
   scheduler.shutDown();
 }

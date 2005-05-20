@@ -12,6 +12,20 @@
     LOG.error(message.key());
     throw new CmsSchedulerException(message);
   }
+  Class jobClass;
+  try {
+    jobClass=Class.forName(jobInfo.getClassName());
+  }
+ catch (  ClassNotFoundException e) {
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_JOB_CLASS_NOT_FOUND_1,jobInfo.getClassName());
+    LOG.error(message.key());
+    throw new CmsSchedulerException(message);
+  }
+  if (!I_CmsScheduledJob.class.isAssignableFrom(jobClass)) {
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_JOB_CLASS_BAD_INTERFACE_2,jobInfo.getClassName(),I_CmsScheduledJob.class.getName());
+    LOG.error(message.key());
+    throw new CmsSchedulerException(message);
+  }
   String jobId=jobInfo.getId();
   boolean idCreated=false;
   if (jobId == null) {
@@ -19,21 +33,6 @@
     jobId="OpenCmsJob_".concat(jobUUID.toString());
     jobInfo.setId(jobId);
     idCreated=true;
-  }
- else {
-    unscheduleJob(cms,jobId);
-    jobInfo.setFrozen(false);
-  }
-  try {
-    Class.forName(jobInfo.getClassName());
-  }
- catch (  ClassNotFoundException e) {
-    if (idCreated) {
-      jobInfo.setId(null);
-    }
-    CmsMessageContainer message=Messages.get().container(Messages.ERR_JOB_CLASS_NOT_FOUND_1,jobInfo.getClassName());
-    LOG.error(message.key());
-    throw new CmsSchedulerException(message);
   }
   CronTrigger trigger=new CronTrigger(jobId,Scheduler.DEFAULT_GROUP);
   try {
@@ -47,8 +46,18 @@
     LOG.error(message.key());
     throw new CmsSchedulerException(message);
   }
+  CmsScheduledJobInfo oldJob=null;
+  if (!idCreated) {
+    oldJob=unscheduleJob(cms,jobId);
+    if (oldJob == null) {
+      CmsMessageContainer message=Messages.get().container(Messages.ERR_JOB_WITH_ID_DOES_NOT_EXIST_1,jobId);
+      LOG.warn(message.key());
+      throw new CmsSchedulerException(message);
+    }
+    jobInfo.setFrozen(false);
+  }
   if (jobInfo.isActive()) {
-    JobDetail jobDetail=new JobDetail(jobId,Scheduler.DEFAULT_GROUP,CmsScheduleManager.class);
+    JobDetail jobDetail=new JobDetail(jobInfo.getId(),Scheduler.DEFAULT_GROUP,CmsScheduleManager.class);
     jobInfo.setTrigger(trigger);
     JobDataMap jobData=new JobDataMap();
     jobData.put(CmsScheduleManager.C_SCHEDULER_JOB_INFO,jobInfo);
@@ -61,6 +70,16 @@
         jobInfo.setId(null);
       }
       CmsMessageContainer message=Messages.get().container(Messages.ERR_COULD_NOT_SCHEDULE_JOB_2,jobInfo.getJobName(),jobInfo.getClassName());
+      if (oldJob != null) {
+        jobDetail=new JobDetail(oldJob.getId(),Scheduler.DEFAULT_GROUP,CmsScheduleManager.class);
+        try {
+          m_scheduler.scheduleJob(jobDetail,oldJob.getTrigger());
+          m_jobs.add(oldJob);
+        }
+ catch (        SchedulerException e2) {
+          message=Messages.get().container(Messages.ERR_COULD_NOT_RESCHEDULE_JOB_2,jobInfo.getJobName(),jobInfo.getClassName());
+        }
+      }
       LOG.error(message.key());
       throw new CmsSchedulerException(message);
     }
