@@ -3,34 +3,38 @@
     if (LOG.isDebugEnabled()) {
       LOG.debug(Messages.get().key(Messages.LOG_DELETE_THREAD_STARTED_0));
     }
-    String moduleName=m_moduleName.replace('\\','/');
-    CmsProject project=null;
-    project=getCms().createProject("DeleteModule","A System generated project to delete the module " + moduleName,OpenCms.getDefaultUsers().getGroupAdministrators(),OpenCms.getDefaultUsers().getGroupAdministrators(),I_CmsConstants.C_PROJECT_TYPE_TEMPORARY);
-    getCms().getRequestContext().setCurrentProject(project);
-    getReport().print(getReport().key("report.delete_module_begin"),I_CmsReport.C_FORMAT_HEADLINE);
-    getReport().println(" <i>" + moduleName + "</i>",I_CmsReport.C_FORMAT_HEADLINE);
-    List projectFiles=OpenCms.getModuleManager().getModule(moduleName).getResources();
-    for (int i=0; i < projectFiles.size(); i++) {
-      try {
-        getCms().copyResourceToProject((String)projectFiles.get(i));
+    Iterator j=m_moduleNames.iterator();
+    while (j.hasNext()) {
+      String moduleName=(String)j.next();
+      moduleName=moduleName.replace('\\','/');
+      CmsProject project=null;
+      project=getCms().createProject("DeleteModule","A System generated project to delete the module " + moduleName,OpenCms.getDefaultUsers().getGroupAdministrators(),OpenCms.getDefaultUsers().getGroupAdministrators(),I_CmsConstants.C_PROJECT_TYPE_TEMPORARY);
+      getCms().getRequestContext().setCurrentProject(project);
+      getReport().print(getReport().key("report.delete_module_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+      getReport().println(" <i>" + moduleName + "</i>",I_CmsReport.C_FORMAT_HEADLINE);
+      List projectFiles=OpenCms.getModuleManager().getModule(moduleName).getResources();
+      for (int i=0; i < projectFiles.size(); i++) {
+        try {
+          getCms().copyResourceToProject((String)projectFiles.get(i));
+        }
+ catch (        CmsException e) {
+          LOG.error(Messages.get().key(Messages.LOG_MOVE_RESOURCE_FAILED_1,projectFiles.get(i)),e);
+          getReport().println(e);
+        }
       }
- catch (      CmsException e) {
-        LOG.error(Messages.get().key(Messages.LOG_MOVE_RESOURCE_FAILED_1,projectFiles.get(i)),e);
-        getReport().println(e);
+      OpenCms.getModuleManager().deleteModule(getCms(),moduleName,m_replaceMode,getReport());
+      getReport().println(getReport().key("report.publish_project_begin"),I_CmsReport.C_FORMAT_HEADLINE);
+      getCms().unlockProject(project.getId());
+      getCms().publishProject(getReport());
+      getReport().println(getReport().key("report.publish_project_end"),I_CmsReport.C_FORMAT_HEADLINE);
+      getReport().println(getReport().key("report.delete_module_end"),I_CmsReport.C_FORMAT_HEADLINE);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().key(Messages.LOG_DELETE_THREAD_FINISHED_0));
       }
-    }
-    OpenCms.getModuleManager().deleteModule(getCms(),moduleName,m_replaceMode,getReport());
-    getReport().println(getReport().key("report.publish_project_begin"),I_CmsReport.C_FORMAT_HEADLINE);
-    getCms().unlockProject(project.getId());
-    getCms().publishProject(getReport());
-    getReport().println(getReport().key("report.publish_project_end"),I_CmsReport.C_FORMAT_HEADLINE);
-    getReport().println(getReport().key("report.delete_module_end"),I_CmsReport.C_FORMAT_HEADLINE);
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(Messages.get().key(Messages.LOG_DELETE_THREAD_FINISHED_0));
     }
   }
  catch (  Exception e) {
     getReport().println(e);
-    LOG.error(Messages.get().key(Messages.LOG_MODULE_DELETE_FAILED_1,m_moduleName),e);
+    LOG.error(Messages.get().key(Messages.LOG_MODULE_DELETE_FAILED_1,m_moduleNames),e);
   }
 }
