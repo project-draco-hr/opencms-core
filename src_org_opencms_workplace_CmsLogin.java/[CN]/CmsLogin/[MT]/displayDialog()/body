@@ -1,27 +1,44 @@
 {
+  if (!OpenCms.getSiteManager().isWorkplaceRequest(getRequest())) {
+    StringBuffer loginLink=new StringBuffer();
+    loginLink.append(OpenCms.getSiteManager().getWorkplaceSiteMatcher().toString());
+    loginLink.append(getFormLink());
+    getResponse().sendRedirect(loginLink.toString());
+    return null;
+  }
   CmsObject cms=getCmsObject();
-  m_username=CmsRequestUtil.getParameter(getRequest(),PARAM_USERNAME);
-  m_password=CmsRequestUtil.getParameter(getRequest(),PARAM_PASSWORD);
-  m_actionLogin=CmsRequestUtil.getParameter(getRequest(),PARAM_ACTION_LOGIN);
-  m_actionLogout=CmsRequestUtil.getParameter(getRequest(),PARAM_ACTION_LOGOUT);
-  m_requestedResource=CmsRequestUtil.getParameter(getRequest(),CmsWorkplaceManager.PARAM_LOGIN_REQUESTED_RESOURCE);
   m_message=null;
+  m_requestedResource=CmsRequestUtil.getNotEmptyDecodedParameter(getRequest(),CmsWorkplaceManager.PARAM_LOGIN_REQUESTED_RESOURCE);
+  if (m_requestedResource == null) {
+    m_requestedResource=CmsWorkplaceAction.C_JSP_WORKPLACE_URI;
+  }
+  if (cms.getRequestContext().currentUser().isGuestUser()) {
+    m_action=ACTION_DISPLAY;
+    m_username=CmsRequestUtil.getNotEmptyParameter(getRequest(),PARAM_USERNAME);
+    if (m_username != null) {
+      m_username=m_username.trim();
+    }
+    m_password=CmsRequestUtil.getNotEmptyParameter(getRequest(),PARAM_PASSWORD);
+    m_actionLogin=CmsRequestUtil.getNotEmptyParameter(getRequest(),PARAM_ACTION_LOGIN);
+  }
+ else {
+    m_action=ACTION_LOGIN;
+    m_actionLogout=CmsRequestUtil.getNotEmptyParameter(getRequest(),PARAM_ACTION_LOGOUT);
+  }
   if (Boolean.valueOf(m_actionLogin).booleanValue()) {
     if ((m_username == null) && (m_password == null)) {
-      m_message="Please enter a user name and a password!";
+      m_message=Messages.get().container(Messages.GUI_LOGIN_NO_DATA_0);
     }
  else     if (m_username == null) {
-      m_message="Please enter a user name!";
+      m_message=Messages.get().container(Messages.GUI_LOGIN_NO_NAME_0);
     }
  else     if (m_password == null) {
-      m_message="Please enter a password!";
+      m_message=Messages.get().container(Messages.GUI_LOGIN_NO_PASSWORD_0);
     }
  else     if ((m_username != null) && (m_password != null)) {
-      if (m_requestedResource == null) {
-        m_requestedResource=CmsWorkplaceAction.C_JSP_WORKPLACE_URI;
-      }
       login(m_username,m_password);
       if (getLoginException() == null) {
+        m_action=ACTION_LOGIN;
         CmsUserSettings settings=new CmsUserSettings(cms.getRequestContext().currentUser());
         try {
           CmsProject project=cms.readProject(settings.getStartProject());
@@ -30,25 +47,18 @@
           }
         }
  catch (        Exception e) {
-          int todo=0;
-          e.printStackTrace();
+          LOG.warn(Messages.get().key(Messages.LOG_LOGIN_NO_STARTUP_PROJECT_2,m_username,settings.getStartProject()),e);
         }
-        return createWorkplaceOpenerScript();
       }
  else {
-        m_message="Login has failed!";
+        m_message=Messages.get().container(Messages.GUI_LOGIN_FAILED_0);
       }
     }
   }
  else   if (Boolean.valueOf(m_actionLogout).booleanValue()) {
-    try {
-      logout();
-      return null;
-    }
- catch (    IOException e) {
-      int todo=0;
-      e.printStackTrace();
-    }
+    m_action=ACTION_LOGOUT;
+    logout();
+    return null;
   }
   return displayLoginForm();
 }
