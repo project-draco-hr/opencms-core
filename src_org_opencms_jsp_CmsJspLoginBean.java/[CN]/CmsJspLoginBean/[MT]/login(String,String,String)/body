@@ -2,14 +2,14 @@
   HttpSession session=null;
   m_loginException=null;
   try {
-    getCmsObject().loginUser(username,password,getRequestContext().getRemoteAddress(),I_CmsConstants.C_USER_TYPE_SYSTEMUSER);
+    getCmsObject().loginUser(userName,password,getRequestContext().getRemoteAddress(),I_CmsConstants.C_USER_TYPE_SYSTEMUSER);
     session=getRequest().getSession(false);
     if (session != null) {
       session.invalidate();
     }
     session=getRequest().getSession(true);
-    if (login_project != null) {
-      getCmsObject().getRequestContext().setCurrentProject(getCmsObject().readProject(login_project));
+    if (projectName != null) {
+      getCmsObject().getRequestContext().setCurrentProject(getCmsObject().readProject(projectName));
     }
   }
  catch (  CmsException e) {
@@ -17,7 +17,7 @@
   }
   if (m_loginException == null) {
     if (LOG.isInfoEnabled()) {
-      LOG.info(Messages.get().key(Messages.LOG_LOGIN_SUCCESSFUL_2,username,getRequestContext().addSiteRoot(getRequestContext().getUri())));
+      LOG.info(Messages.get().key(Messages.LOG_LOGIN_SUCCESSFUL_3,userName,getRequestContext().addSiteRoot(getRequestContext().getUri()),getRequestContext().getRemoteAddress()));
     }
   }
  else {
@@ -25,33 +25,24 @@
       session.invalidate();
     }
     if (m_loginException instanceof CmsAuthentificationException) {
-      if (org.opencms.db.Messages.ERR_LOGIN_USER_DISABLED_1 == m_loginException.getMessageContainer().getKey()) {
-        LOG.info(Messages.get().key(Messages.LOG_LOGIN_FAILED_DISABLED_3,username,getRequestContext().addSiteRoot(getRequestContext().getUri()),getRequestContext().getRemoteAddress()));
+      if (org.opencms.security.Messages.ERR_LOGIN_FAILED_DISABLED_3 == m_loginException.getMessageContainer().getKey()) {
+        LOG.warn(Messages.get().key(Messages.LOG_LOGIN_FAILED_DISABLED_3,userName,getRequestContext().addSiteRoot(getRequestContext().getUri()),getRequestContext().getRemoteAddress()));
+      }
+ else       if (org.opencms.security.Messages.ERR_LOGIN_FAILED_NO_USER_3 == m_loginException.getMessageContainer().getKey()) {
+        LOG.warn(Messages.get().key(Messages.LOG_LOGIN_FAILED_NO_USER_3,userName,getRequestContext().addSiteRoot(getRequestContext().getUri()),getRequestContext().getRemoteAddress()));
       }
  else {
-        boolean userExists=true;
-        try {
-          getCmsObject().readUser(username);
-        }
- catch (        CmsException e) {
-          userExists=false;
-        }
-        if (userExists) {
-          CmsMessageContainer message=Messages.get().container(Messages.LOG_LOGIN_FAILED_3,username,getRequestContext().addSiteRoot(getRequestContext().getUri()),getRequestContext().getRemoteAddress());
-          if (username.equalsIgnoreCase(OpenCms.getDefaultUsers().getUserAdmin())) {
-            LOG.error(message.key());
-          }
- else {
-            LOG.info(message.key());
-          }
+        CmsMessageContainer message=Messages.get().container(Messages.LOG_LOGIN_FAILED_3,userName,getRequestContext().addSiteRoot(getRequestContext().getUri()),getRequestContext().getRemoteAddress());
+        if (userName.equalsIgnoreCase(OpenCms.getDefaultUsers().getUserAdmin())) {
+          LOG.error(message.key());
         }
  else {
-          LOG.info(Messages.get().key(Messages.LOG_LOGIN_FAILED_NO_USER_3,username,getRequestContext().addSiteRoot(getRequestContext().getUri()),getRequestContext().getRemoteAddress()));
+          LOG.warn(message.key());
         }
       }
     }
  else {
-      LOG.error(Messages.get().key(Messages.LOG_LOGIN_FAILED_DB_REASON_3,username,getRequestContext().addSiteRoot(getRequestContext().getUri()),getRequestContext().getRemoteAddress()),m_loginException);
+      LOG.error(Messages.get().key(Messages.LOG_LOGIN_FAILED_DB_REASON_3,userName,getRequestContext().addSiteRoot(getRequestContext().getUri()),getRequestContext().getRemoteAddress()),m_loginException);
     }
   }
 }
