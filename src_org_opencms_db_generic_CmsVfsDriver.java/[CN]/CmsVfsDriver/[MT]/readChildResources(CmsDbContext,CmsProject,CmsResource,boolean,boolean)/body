@@ -1,40 +1,38 @@
 {
+  List result=new ArrayList();
+  int projectId=currentProject.getId();
+  String resourceTypeClause;
+  if (getFolders && getFiles) {
+    resourceTypeClause=null;
+  }
+ else   if (getFolders) {
+    resourceTypeClause=m_sqlManager.readQuery(projectId,"C_RESOURCES_GET_SUBRESOURCES_GET_FOLDERS");
+  }
+ else {
+    resourceTypeClause=m_sqlManager.readQuery(projectId,"C_RESOURCES_GET_SUBRESOURCES_GET_FILES");
+  }
+  StringBuffer query=new StringBuffer();
+  query.append(m_sqlManager.readQuery(projectId,"C_RESOURCES_GET_SUBRESOURCES"));
+  if (resourceTypeClause != null) {
+    query.append(' ');
+    query.append(resourceTypeClause);
+  }
+  String typeColumn=m_sqlManager.readQuery("C_RESOURCES_RESOURCE_TYPE");
   Connection conn=null;
   PreparedStatement stmt=null;
   ResultSet res=null;
-  String query=null;
-  String resourceTypeClause;
-  List subFolders;
-  List subFiles;
-  String orderClause=m_sqlManager.readQuery(currentProject,"C_RESOURCES_GET_SUBRESOURCES_ORDER");
-  if (getFolders && getFiles) {
-    resourceTypeClause="";
-    subFolders=new ArrayList();
-    subFiles=new ArrayList();
-  }
- else   if (getFolders) {
-    resourceTypeClause=" " + m_sqlManager.readQuery(currentProject,"C_RESOURCES_GET_SUBRESOURCES_GET_FOLDERS");
-    subFolders=new ArrayList();
-    subFiles=null;
-  }
- else {
-    resourceTypeClause=" " + m_sqlManager.readQuery(currentProject,"C_RESOURCES_GET_SUBRESOURCES_GET_FILES");
-    subFolders=null;
-    subFiles=new ArrayList();
-  }
   try {
     conn=m_sqlManager.getConnection(dbc,currentProject.getId());
-    query=m_sqlManager.readQuery(currentProject,"C_RESOURCES_GET_SUBRESOURCES") + " " + resourceTypeClause+ " "+ orderClause;
-    stmt=m_sqlManager.getPreparedStatementForSql(conn,query);
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,query.toString());
     stmt.setString(1,resource.getStructureId().toString());
     res=stmt.executeQuery();
     while (res.next()) {
-      int type=res.getInt(m_sqlManager.readQuery("C_RESOURCES_RESOURCE_TYPE"));
+      int type=res.getInt(typeColumn);
       if (CmsFolder.isFolderType(type)) {
-        subFolders.add(createFolder(res,currentProject.getId(),false));
+        result.add(createFolder(res,projectId,false));
       }
  else {
-        subFiles.add(createFile(res,currentProject.getId(),false));
+        result.add(createFile(res,projectId,false));
       }
     }
   }
@@ -44,12 +42,6 @@
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
   }
-  if (getFolders && getFiles) {
-    subFolders.addAll(subFiles);
-    return subFolders;
-  }
- else   if (getFolders) {
-    return subFolders;
-  }
-  return subFiles;
+  Collections.sort(result,CmsResource.COMPARE_ROOT_PATH_IGNORE_CASE_FOLDERS_FIRST);
+  return result;
 }
