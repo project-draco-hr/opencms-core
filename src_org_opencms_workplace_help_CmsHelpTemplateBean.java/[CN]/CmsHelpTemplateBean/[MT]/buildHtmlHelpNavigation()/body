@@ -1,0 +1,50 @@
+{
+  StringBuffer result=new StringBuffer(16);
+  String currentUri=getParamHelpresource();
+  int helpLevel=CmsResource.getPathLevel(PATH_HELP);
+  String startFolder=CmsResource.getFolderPath(currentUri);
+  while (CmsStringUtil.isNotEmptyOrWhitespaceOnly(startFolder)) {
+    try {
+      String prop=getCms().readPropertyObject(startFolder,CmsJspNavElement.C_PROPERTY_NAVINFO,false).getValue(null);
+      if (PROPERTY_VALUE_HELPSTART.equals(prop)) {
+        helpLevel=CmsResource.getPathLevel(startFolder);
+        break;
+      }
+    }
+ catch (    CmsException e) {
+    }
+    startFolder=CmsResource.getParentFolder(startFolder);
+  }
+  List navList=getJsp().getNavigation().getNavigationTreeForFolder(currentUri,helpLevel,99);
+  Iterator i=navList.iterator();
+  while (i.hasNext()) {
+    CmsJspNavElement nav=(CmsJspNavElement)i.next();
+    int level=nav.getNavTreeLevel() - (helpLevel - 1);
+    if (nav.getResourceName().equals(currentUri) || (nav.isFolderLink() && currentUri.equals(nav.getResourceName() + "index.html"))) {
+      result.append("\t\t<span class=\"navhelpcurrent\" style=\"padding-left: ");
+      result.append(level * 10);
+      result.append("px; background-position: ");
+      result.append((level - 1) * 10);
+      result.append("px 1px;\">");
+      result.append(nav.getNavText());
+      result.append("</span><br style=\"clear:left\">\n");
+    }
+ else {
+      result.append("\t\t<a class=\"navhelp\" style=\"padding-left: ");
+      result.append(level * 10);
+      result.append("px; background-position: ");
+      result.append((level - 1) * 10);
+      result.append("px 1px;\" href=\"");
+      if (nav.isFolderLink()) {
+        result.append(getJsp().link(nav.getResourceName() + "index.html"));
+      }
+ else {
+        result.append(getJsp().link(nav.getResourceName()));
+      }
+      result.append("\">");
+      result.append(nav.getNavText());
+      result.append("</a><br style=\"clear:left\">\n");
+    }
+  }
+  return result.toString();
+}

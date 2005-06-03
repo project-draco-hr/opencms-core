@@ -1,0 +1,34 @@
+{
+  if (CmsStringUtil.isNotEmpty(getParamWorkplaceresource())) {
+    String helpResource=null;
+    if (getCms().existsResource(resolveMacros(getParamWorkplaceresource()),CmsResourceFilter.requireType(CmsResourceTypeXmlPage.getStaticTypeId()))) {
+      helpResource=resolveMacros(getParamWorkplaceresource());
+      setParamHomelink(getJsp().link(helpResource));
+    }
+ else {
+      try {
+        String absolutePath=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf(RFS_HELPMAPPINGS);
+        ExtendedProperties props=CmsPropertyUtils.loadProperties(absolutePath);
+        String wpResource=getParamWorkplaceresource();
+        if (wpResource.startsWith(OpenCms.getSystemInfo().getOpenCmsContext())) {
+          wpResource=wpResource.substring(OpenCms.getSystemInfo().getOpenCmsContext().length());
+        }
+        while (wpResource != null && CmsStringUtil.isEmpty(helpResource)) {
+          helpResource=props.getString(wpResource,null);
+          wpResource=CmsResource.getParentFolder(wpResource);
+        }
+      }
+ catch (      IOException e) {
+      }
+      if (CmsStringUtil.isEmpty(helpResource)) {
+        helpResource=DEFAULT_HELPFILE;
+      }
+      helpResource=resolveMacros(PATH_HELP) + helpResource;
+      if (!getCms().existsResource(helpResource,CmsResourceFilter.IGNORE_EXPIRATION)) {
+        helpResource=resolveMacros(PATH_HELP) + DEFAULT_HELPFILE;
+      }
+      setParamHomelink(getJsp().link(resolveMacros(PATH_HELP) + DEFAULT_HELPFILE));
+    }
+    getJsp().getRequestContext().setUri(helpResource);
+  }
+}
