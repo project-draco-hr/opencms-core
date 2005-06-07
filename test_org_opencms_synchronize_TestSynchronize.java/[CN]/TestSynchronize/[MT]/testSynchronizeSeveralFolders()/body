@@ -1,23 +1,29 @@
 {
-  String source="/";
   CmsSynchronizeSettings syncSettings=new CmsSynchronizeSettings();
   syncSettings.setDestinationPathInRfs(getTestDataPath("") + "sync" + File.separator);
   ArrayList sourceList=new ArrayList();
-  sourceList.add(source);
+  sourceList.add("/folder1/subfolder11/");
+  sourceList.add("/folder1/subfolder12/");
+  sourceList.add("/folder2/subfolder21/");
   syncSettings.setSourcePathInVfs(sourceList);
   syncSettings.setEnabled(true);
   try {
     CmsObject cms=getCmsObject();
-    echo("Testing synchronization of files and folders");
-    storeResources(cms,source);
-    echo("Synchronizing " + syncSettings.getSourcePathInVfs() + " with "+ syncSettings.getDestinationPathInRfs());
+    echo("Testing synchronization of several folders");
+    storeResources(cms,"/");
     new CmsSynchronize(cms,syncSettings,new CmsShellReport());
-    List tree=getSubtree(cms,source);
-    for (int i=0, n=tree.size(); i < n; i++) {
-      CmsResource resource=(CmsResource)tree.get(i);
-      int type=resource.getTypeId();
-      if (((type == CmsResourceTypePlain.getStaticTypeId())) || (type == CmsResourceTypeJsp.getStaticTypeId()) || (type == CmsResourceTypeXmlPage.getStaticTypeId())) {
-        touchResourceInRfs(cms,resource,syncSettings);
+    Iterator it=syncSettings.getSourcePathInVfs().iterator();
+    List tree=new ArrayList();
+    while (it.hasNext()) {
+      String source=(String)it.next();
+      List subTree=getSubtree(cms,source);
+      tree.addAll(subTree);
+      for (int i=0, n=subTree.size(); i < n; i++) {
+        CmsResource resource=(CmsResource)subTree.get(i);
+        int type=resource.getTypeId();
+        if (((type == CmsResourceTypePlain.getStaticTypeId())) || (type == CmsResourceTypeJsp.getStaticTypeId()) || (type == CmsResourceTypeXmlPage.getStaticTypeId())) {
+          touchResourceInRfs(cms,resource,syncSettings);
+        }
       }
     }
     Thread.sleep(4000);
