@@ -26,35 +26,38 @@
     if ("OK".equalsIgnoreCase(step)) {
       syncPath=(String)parameters.get(C_SYNCPATH);
       allResources=(String)parameters.get(C_SYNCRESOURCES);
+      Vector folders=null;
       if (((syncPath == null) || syncPath.equals("")) || ((allResources == null) || allResources.equals(""))) {
         templateSelector="datamissing";
       }
  else {
         session.putValue(C_SYNCPATH,syncPath);
         session.putValue(C_SYNCRESOURCES,allResources);
-        Vector folders=parseResources(allResources);
-        if (folders.size() >= 1) {
-          allResources=(String)folders.elementAt(0);
-        }
-        if (lang.getLanguageValue("title.rootfolder").equals(allResources)) {
-          allResources="/";
-        }
+        folders=parseResources(allResources);
+        checkRedundancies(folders);
         Vector notWriteable=new Vector();
-        if (!isReadable(cms,allResources)) {
-          notWriteable.addElement(allResources);
-          templateSelector="errorsyncproperties";
+        Iterator it=folders.iterator();
+        while (it.hasNext()) {
+          String source=(String)it.next();
+          if (lang.getLanguageValue("title.rootfolder").equals(source)) {
+            source="/";
+          }
+          if (!isReadable(cms,source)) {
+            notWriteable.addElement(source);
+            templateSelector="errorsyncproperties";
+          }
         }
         if ("errorsyncproperties".equals(templateSelector)) {
-          templateDocument.setData("details","The following folders were not writeable:" + notWriteable.toString());
+          templateDocument.setData("details","The following folders were not readable:" + notWriteable.toString());
         }
       }
       if (templateSelector == null || "".equals(templateSelector)) {
         CmsSynchronizeSettings settings=new CmsSynchronizeSettings();
-        settings.setEnabled(true);
+        settings.setEnabled(!"-".equals(syncPath));
         settings.setDestinationPathInRfs(syncPath);
-        ArrayList list=new ArrayList();
-        list.add(allResources);
-        settings.setSourcePathInVfs(list);
+        if (folders != null) {
+          settings.setSourceListInVfs(new ArrayList(folders));
+        }
         CmsUserSettings userSettings=new CmsUserSettings(cms.getRequestContext().currentUser());
         userSettings.setSynchronizeSettings(settings);
         userSettings.save(cms);
@@ -92,7 +95,17 @@
     }
   }
   if ((allResources == null) || ("".equals(allResources))) {
-    allResources=(String)settings.getSourcePathInVfs().get(0);
+    if (settings.getSourceListInVfs().size() > 0) {
+      StringBuffer result=new StringBuffer();
+      Iterator it=settings.getSourceListInVfs().iterator();
+      while (it.hasNext()) {
+        result.append(it.next());
+        if (it.hasNext()) {
+          result.append(';');
+        }
+      }
+      allResources=result.toString();
+    }
     if (allResources == null) {
       allResources="";
     }
