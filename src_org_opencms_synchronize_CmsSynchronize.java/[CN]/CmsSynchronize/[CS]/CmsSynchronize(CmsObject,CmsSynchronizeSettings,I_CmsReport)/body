@@ -4,16 +4,20 @@
   m_count=1;
   if ((settings != null) && (settings.isSyncEnabled())) {
     m_destinationPathInRfs=settings.getDestinationPathInRfs();
-    if (m_destinationPathInRfs.endsWith(File.separator) || m_destinationPathInRfs.endsWith("/")) {
-      m_destinationPathInRfs=m_destinationPathInRfs.substring(0,m_destinationPathInRfs.length() - 1);
+    File destinationFolder=new File(m_destinationPathInRfs);
+    if (!destinationFolder.exists() || !destinationFolder.isDirectory()) {
+      throw new CmsSynchronizeException(Messages.get().container(Messages.ERR_RFS_DESTINATION_NOT_THERE_1,m_destinationPathInRfs));
+    }
+    if (!destinationFolder.canWrite()) {
+      throw new CmsSynchronizeException(Messages.get().container(Messages.ERR_RFS_DESTINATION_NO_WRITE_1,m_destinationPathInRfs));
     }
     m_syncList=readSyncList();
     m_newSyncList=new HashMap();
     Iterator i=settings.getSourceListInVfs().iterator();
     while (i.hasNext()) {
       String sourcePathInVfs=(String)i.next();
-      report.println(org.opencms.workplace.threads.Messages.get().container(org.opencms.workplace.threads.Messages.RPT_SYNCHRONIZE_VFS_FOLDER_1,sourcePathInVfs),I_CmsReport.C_FORMAT_HEADLINE);
-      report.println(org.opencms.workplace.threads.Messages.get().container(org.opencms.workplace.threads.Messages.RPT_SYNCHRONIZE_RFS_FOLDER_1,m_destinationPathInRfs.replace('\\','/')),I_CmsReport.C_FORMAT_HEADLINE);
+      String destPath=m_destinationPathInRfs + sourcePathInVfs.replace('/',File.separatorChar);
+      report.println(org.opencms.workplace.threads.Messages.get().container(org.opencms.workplace.threads.Messages.RPT_SYNCHRONIZE_FOLDERS_2,sourcePathInVfs,destPath),I_CmsReport.C_FORMAT_HEADLINE);
       syncVfsToRfs(sourcePathInVfs);
     }
     removeFromRfs(m_destinationPathInRfs);
