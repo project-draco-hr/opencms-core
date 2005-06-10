@@ -1,0 +1,44 @@
+{
+  List errors=new ArrayList();
+  try {
+    if (m_project.getId() == 0) {
+      int type=isDeleteAfterPublishing() ? I_CmsConstants.C_PROJECT_TYPE_TEMPORARY : I_CmsConstants.C_PROJECT_TYPE_NORMAL;
+      CmsProject newProject=getCms().createProject(m_project.getName(),m_project.getDescription(),this.getUserGroup(),this.getManagerGroup(),type);
+      m_project=newProject;
+    }
+    CmsProject currentProject=getCms().getRequestContext().currentProject();
+    getCms().getRequestContext().setCurrentProject(m_project);
+    try {
+      Iterator it=this.getResources().iterator();
+      while (it.hasNext()) {
+        getCms().copyResourceToProject(it.next().toString());
+      }
+    }
+ catch (    CmsException e) {
+      List projectResources=getCms().readProjectResources(m_project);
+      if (projectResources == null || projectResources.isEmpty()) {
+        getCms().deleteProject(m_project.getId());
+      }
+      throw e;
+    }
+ finally {
+      getCms().getRequestContext().setCurrentProject(currentProject);
+    }
+    Map objects=(Map)getSettings().getListObject();
+    if (objects != null) {
+      objects.remove(CmsProjectsList.class.getName());
+    }
+  }
+ catch (  Throwable t) {
+    errors.add(t);
+  }
+  if (errors.isEmpty() && isNewProject()) {
+    if (getParamCloseLink() != null && getParamCloseLink().indexOf("path=/projects") > -1) {
+      Map argMap=new HashMap();
+      argMap.put(PARAM_PROJECTID,new Integer(m_project.getId()));
+      argMap.put(PARAM_PROJECTNAME,m_project.getName());
+      setParamCloseLink(getToolManager().linkForPath(getJsp(),"/projects/edit",argMap));
+    }
+  }
+  setCommitErrors(errors);
+}
