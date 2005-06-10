@@ -1,0 +1,32 @@
+{
+  if (CmsStringUtil.isEmpty(type)) {
+    type=req.getParameter(PARAM_NEWRESOURCETYPE);
+  }
+  String className=null;
+  CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(type);
+  if (CmsStringUtil.isNotEmpty(settings.getNewResourceHandlerClassName())) {
+    className=settings.getNewResourceHandlerClassName();
+  }
+ else {
+    className=defaultClassName;
+  }
+  Class clazz=null;
+  try {
+    clazz=Class.forName(className);
+  }
+ catch (  ClassNotFoundException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().key(Messages.ERR_NEW_RES_HANDLER_CLASS_NOT_FOUND_1,className),e);
+    }
+    throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_NEW_RES_HANDLER_CLASS_NOT_FOUND_1,className));
+  }
+  Object handler=null;
+  try {
+    Constructor constructor=clazz.getConstructor(new Class[]{PageContext.class,HttpServletRequest.class,HttpServletResponse.class});
+    handler=constructor.newInstance(new Object[]{context,req,res});
+  }
+ catch (  Exception e) {
+    throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_NEW_RES_CONSTRUCTOR_NOT_FOUND_1,className));
+  }
+  return handler;
+}
