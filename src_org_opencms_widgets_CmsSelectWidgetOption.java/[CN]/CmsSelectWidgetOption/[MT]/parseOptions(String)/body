@@ -1,0 +1,125 @@
+{
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(input)) {
+    return Collections.EMPTY_LIST;
+  }
+  String[] parts=CmsStringUtil.splitAsArray(input,INPUT_DELIMITER);
+  List result=new ArrayList();
+  boolean foundDefault=false;
+  for (int i=0; i < parts.length; i++) {
+    String part=parts[i].trim();
+    if (part.length() == 0) {
+      continue;
+    }
+    try {
+      String value=null;
+      String option=null;
+      String help=null;
+      boolean isDefault=false;
+      int posValue=part.indexOf(KEY_VALUE);
+      int posDefault=part.indexOf(KEY_DEFAULT);
+      int posOption=part.indexOf(KEY_OPTION);
+      int posHelp=part.indexOf(KEY_HELP);
+      boolean shortValue=false;
+      if (posValue < 0) {
+        if ((posDefault == 0) || (posOption == 0) || (posHelp == 0)) {
+          throw new CmsWidgetException(Messages.get().container(Messages.ERR_MALFORMED_SELECT_OPTIONS_0));
+        }
+        posValue=0;
+        shortValue=true;
+      }
+      int end=part.length();
+      if (posHelp > posValue) {
+        end=posHelp;
+      }
+      if ((posDefault > posValue) && (posDefault < end)) {
+        end=posDefault;
+      }
+      if ((posOption > posValue) && (posOption < end)) {
+        end=posOption;
+      }
+      if (shortValue) {
+        value=part.substring(0,end).trim();
+      }
+ else {
+        value=part.substring(posValue + KEY_VALUE.length(),end).trim();
+        value=value.substring(0,value.length() - 1);
+      }
+      boolean shortOption=false;
+      if ((shortValue) && (posOption < 0)) {
+        int pos=value.indexOf(OPTION_DELIMITER);
+        if (pos >= 0) {
+          posOption=pos;
+          shortOption=true;
+          value=value.substring(0,pos);
+        }
+      }
+      if (posDefault >= 0) {
+        end=part.length();
+        if (posHelp > posDefault) {
+          end=posHelp;
+        }
+        if ((posOption > posDefault) && (posOption < end)) {
+          end=posOption;
+        }
+        if ((posValue > posDefault) && (posValue < end)) {
+          end=posValue;
+        }
+        String sub=part.substring(posDefault + KEY_DEFAULT.length(),end).trim();
+        sub=sub.substring(0,sub.length() - 1);
+        isDefault=Boolean.valueOf(sub).booleanValue();
+      }
+ else {
+        if (value.charAt(value.length() - 1) == DEFAULT_MARKER) {
+          isDefault=true;
+          value=value.substring(0,value.length() - 1);
+        }
+      }
+      if (posOption >= 0) {
+        end=part.length();
+        if (posHelp > posOption) {
+          end=posHelp;
+        }
+        if ((posDefault > posOption) && (posDefault < end)) {
+          end=posDefault;
+        }
+        if ((posValue > posOption) && (posValue < end)) {
+          end=posValue;
+        }
+        if (shortOption) {
+          option=part.substring(posOption + 1,end).trim();
+        }
+ else {
+          option=part.substring(posOption + KEY_OPTION.length(),end).trim();
+          option=option.substring(0,option.length() - 1);
+        }
+      }
+      if (posHelp >= 0) {
+        end=part.length();
+        if (posOption > posHelp) {
+          end=posOption;
+        }
+        if ((posDefault > posHelp) && (posDefault < end)) {
+          end=posDefault;
+        }
+        if ((posValue > posHelp) && (posValue < end)) {
+          end=posValue;
+        }
+        help=part.substring(posHelp + KEY_HELP.length(),end).trim();
+        help=help.substring(0,help.length() - 1);
+      }
+      if (foundDefault) {
+        isDefault=false;
+      }
+ else       if (isDefault) {
+        foundDefault=true;
+      }
+      result.add(new CmsSelectWidgetOption(value,isDefault,option,help));
+    }
+ catch (    Exception e) {
+      if (LOG.isInfoEnabled()) {
+        LOG.info(Messages.get().key(Messages.ERR_MALFORMED_SELECT_OPTIONS_0),e);
+      }
+    }
+  }
+  return result;
+}
