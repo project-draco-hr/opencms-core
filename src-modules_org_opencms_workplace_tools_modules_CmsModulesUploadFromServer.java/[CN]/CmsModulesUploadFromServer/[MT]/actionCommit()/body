@@ -1,17 +1,10 @@
 {
   List errors=new ArrayList();
-  Map objects=(Map)getSettings().getListObject();
-  if (objects != null) {
-    objects.remove(CmsModulesList.class.getName());
-  }
+  CmsModule module=null;
   try {
-    Map param=new HashMap();
-    param.put(CmsModulesList.PARAM_MODULE,m_moduleupload);
-    param.put(PARAM_STYLE,"new");
-    param.put(PARAM_CLOSELINK,getToolManager().linkForPath(getJsp(),"/modules",null));
     String importpath=OpenCms.getSystemInfo().getPackagesRfsPath();
     importpath=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf(importpath + "modules/" + m_moduleupload);
-    CmsModule module=CmsModuleImportExportHandler.readModuleFromImport(importpath);
+    module=CmsModuleImportExportHandler.readModuleFromImport(importpath);
     List dependencies=OpenCms.getModuleManager().checkDependencies(module,CmsModuleManager.C_DEPENDENCY_MODE_IMPORT);
     if (!dependencies.isEmpty()) {
       StringBuffer dep=new StringBuffer(32);
@@ -27,7 +20,20 @@
       dep.append("</ul>");
       errors.add(new CmsRuntimeException(Messages.get().container(Messages.ERR_ACTION_MODULE_DEPENDENCY_2,m_moduleupload,new String(dep))));
     }
-    if (errors.isEmpty()) {
+  }
+ catch (  CmsConfigurationException e) {
+    errors.add(new CmsRuntimeException(Messages.get().container(Messages.ERR_ACTION_MODULE_UPLOAD_1,m_moduleupload),e));
+  }
+  if (errors.isEmpty()) {
+    Map objects=(Map)getSettings().getListObject();
+    if (objects != null) {
+      objects.remove(CmsModulesList.class.getName());
+    }
+    Map param=new HashMap();
+    param.put(CmsModulesList.PARAM_MODULE,m_moduleupload);
+    param.put(PARAM_STYLE,"new");
+    param.put(PARAM_CLOSELINK,getToolManager().linkForPath(getJsp(),"/modules",null));
+    try {
       if (OpenCms.getModuleManager().hasModule(module.getName())) {
         param.put(PARAM_MODULENAME,module.getName());
         getToolManager().jspRedirectPage(this,REPLACE_ACTION_REPORT,param);
@@ -36,12 +42,9 @@
         getToolManager().jspRedirectPage(this,IMPORT_ACTION_REPORT,param);
       }
     }
-  }
- catch (  IOException e) {
-    throw new CmsRuntimeException(Messages.get().container(Messages.ERR_ACTION_MODULE_UPLOAD_1,m_moduleupload),e);
-  }
-catch (  CmsConfigurationException e) {
-    throw new CmsRuntimeException(Messages.get().container(Messages.ERR_ACTION_MODULE_UPLOAD_1,m_moduleupload),e);
+ catch (    IOException e) {
+      errors.add(new CmsRuntimeException(Messages.get().container(Messages.ERR_ACTION_MODULE_UPLOAD_1,m_moduleupload),e));
+    }
   }
   setCommitErrors(errors);
 }
