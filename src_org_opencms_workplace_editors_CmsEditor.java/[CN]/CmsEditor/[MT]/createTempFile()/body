@@ -1,54 +1,24 @@
 {
   CmsResource file=getCms().readResource(getParamResource(),CmsResourceFilter.ALL);
   String temporaryFilename=CmsResource.getFolderPath(getCms().getSitePath(file)) + I_CmsConstants.C_TEMP_PREFIX + file.getName();
-  boolean ok=true;
+  if (getCms().existsResource(temporaryFilename,CmsResourceFilter.ALL)) {
+    if (!getCms().getLock(temporaryFilename).equals(CmsLock.getNullLock())) {
+      getCms().changeLock(temporaryFilename);
+    }
+ else {
+      getCms().lockResource(temporaryFilename);
+    }
+    getCms().deleteResource(temporaryFilename,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
+  }
   switchToTempProject();
   try {
     getCms().copyResource(getCms().getSitePath(file),temporaryFilename,I_CmsConstants.C_COPY_AS_NEW);
     getCms().touch(temporaryFilename,System.currentTimeMillis(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,false);
   }
- catch (  CmsVfsResourceNotFoundException e) {
-    try {
-      CmsLock tempFileLock=getCms().getLock(temporaryFilename);
-      if (!tempFileLock.equals(CmsLock.getNullLock())) {
-        if (!tempFileLock.getUserId().equals(getCms().getRequestContext().currentUser().getId())) {
-          getCms().changeLock(temporaryFilename);
-        }
-      }
- else {
-        getCms().lockResource(temporaryFilename);
-      }
-      getCms().changeLastModifiedProjectId(temporaryFilename);
-    }
- catch (    Exception ex) {
-      if (LOG.isInfoEnabled()) {
-        LOG.info(ex);
-      }
-      ok=false;
-    }
-  }
-catch (  CmsException e) {
+ catch (  CmsException e) {
     switchToCurrentProject();
     throw e;
   }
-  String extendedTempFile=temporaryFilename;
-  int loop=0;
-  while (!ok) {
-    ok=true;
-    extendedTempFile=temporaryFilename + loop;
-    try {
-      getCms().copyResource(getCms().getSitePath(file),extendedTempFile);
-    }
- catch (    CmsVfsResourceNotFoundException e) {
-      loop++;
-      ok=false;
-    }
-catch (    CmsException e) {
-      switchToCurrentProject();
-      throw e;
-    }
-  }
   switchToCurrentProject();
-  temporaryFilename=extendedTempFile;
   return temporaryFilename;
 }
