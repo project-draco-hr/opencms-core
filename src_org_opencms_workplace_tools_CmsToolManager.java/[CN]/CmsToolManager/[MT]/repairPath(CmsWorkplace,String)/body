@@ -2,8 +2,38 @@
   while (!validatePath(path,true)) {
     path=getParent(wp,path);
   }
-  while (!resolveAdminTool(path).getHandler().isEnabled(wp.getCms())) {
-    path=getParent(wp,path);
+  CmsTool adminTool=resolveAdminTool(path);
+  I_CmsToolHandler handler=null;
+  if (adminTool != null) {
+    handler=resolveAdminTool(path).getHandler();
   }
+ else {
+    LOG.warn(Messages.get().key(wp.getLocale(),Messages.LOG_MISSING_ADMIN_TOOL_1,new Object[]{path}));
+  }
+  boolean handlerEnabled=false;
+  CmsObject cms=wp.getCms();
+  do {
+    if (handler != null) {
+      handlerEnabled=handler.isEnabled(cms);
+    }
+ else {
+      LOG.warn(Messages.get().key(wp.getLocale(),Messages.LOG_MISSING_TOOL_HANDLER_2,new Object[]{resolveAdminTool(path),path}));
+      if (path.equals("/")) {
+        handlerEnabled=true;
+      }
+    }
+    if (handlerEnabled) {
+      break;
+    }
+    path=getParent(wp,path);
+    adminTool=resolveAdminTool(path);
+    if (adminTool != null) {
+      handler=resolveAdminTool(path).getHandler();
+    }
+ else {
+      LOG.warn(Messages.get().key(wp.getLocale(),Messages.LOG_MISSING_ADMIN_TOOL_1,new Object[]{path}));
+    }
+  }
+ while (true);
   return path;
 }
