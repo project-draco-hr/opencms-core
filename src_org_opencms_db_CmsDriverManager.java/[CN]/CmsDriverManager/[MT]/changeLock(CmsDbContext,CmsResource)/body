@@ -1,16 +1,29 @@
 {
-  if (getLock(dbc,resource).isNullLock()) {
+  CmsLock currentLock=getLock(dbc,resource);
+  if (currentLock.isNullLock()) {
     throw new CmsLockException(Messages.get().container(Messages.ERR_CHANGE_LOCK_UNLOCKED_RESOURCE_1,dbc.getRequestContext().getSitePath(resource)));
   }
-  CmsLock exclusiveLock=m_lockManager.getExclusiveLockedSibling(this,dbc,resource);
+ else   if (currentLock.getUserId().equals(dbc.currentUser().getId()) && (currentLock.getProjectId() == dbc.currentProject().getId()) && (currentLock.getType() == CmsLock.C_TYPE_EXCLUSIVE)) {
+    return;
+  }
+  int denied=0;
+  boolean canIgnorePermissions=m_securityManager.hasRole(dbc,CmsRole.VFS_MANAGER);
+  if (!canIgnorePermissions && (resource.getTypeId() == CmsResourceTypeJsp.getStaticTypeId())) {
+    if (!m_securityManager.hasRole(dbc,CmsRole.DEVELOPER)) {
+      denied|=CmsPermissionSet.PERMISSION_WRITE;
+    }
+  }
+  CmsPermissionSetCustom permissions;
+  if (canIgnorePermissions) {
+    permissions=new CmsPermissionSetCustom(~0);
+  }
+ else {
+    permissions=getPermissions(dbc,resource,dbc.currentUser());
+  }
+  permissions.denyPermissions(denied);
+  if ((CmsPermissionSet.ACCESS_WRITE.getPermissions() & permissions.getPermissions()) != CmsPermissionSet.ACCESS_WRITE.getPermissions()) {
+    m_securityManager.checkPermissions(dbc.getRequestContext(),resource,CmsPermissionSet.ACCESS_WRITE,CmsSecurityManager.PERM_DENIED);
+  }
   m_lockManager.removeResource(this,dbc,resource,true);
-  m_securityManager.clearPermissionCache();
-  try {
-    m_securityManager.checkPermissions(dbc,resource,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.ALL);
-    lockResource(dbc,resource,CmsLock.C_MODE_COMMON);
-  }
- catch (  CmsSecurityException e) {
-    m_lockManager.addResource(this,dbc,resource,exclusiveLock.getUserId(),exclusiveLock.getProjectId(),CmsLock.C_MODE_COMMON);
-    throw e;
-  }
+  lockResource(dbc,resource,CmsLock.C_MODE_COMMON);
 }
