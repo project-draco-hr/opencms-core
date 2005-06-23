@@ -1,7 +1,8 @@
 {
   getJsp().getRequest().setAttribute(C_SESSION_WORKPLACE_CLASS,this);
+  CmsResource sourceRes=null;
   try {
-    CmsResource sourceRes=getCms().readResource(getParamResource(),CmsResourceFilter.ALL);
+    sourceRes=getCms().readResource(getParamResource(),CmsResourceFilter.ALL);
     boolean isFolder=sourceRes.isFolder();
     if (performMoveOperation(isFolder)) {
       if (isFolder) {
@@ -20,12 +21,40 @@
       getJsp().include(C_FILE_DIALOG_SCREEN_WAIT);
     }
   }
- catch (  CmsVfsResourceAlreadyExistsException e) {
-    String message="<p>\n" + key("source") + ": "+ getParamResource()+ "<br>\n"+ key("target")+ ": "+ getParamTarget()+ "\n</p>\n";
-    setParamMessage(message + key("confirm.message.copy"));
-    getJsp().include(C_FILE_DIALOG_SCREEN_CONFIRM);
-  }
-catch (  Throwable e) {
-    includeErrorpage(this,e);
+ catch (  Throwable e) {
+    if ((e instanceof CmsVfsResourceAlreadyExistsException) && !(sourceRes.isFolder())) {
+      int targetType=-1;
+      boolean restoreSiteRoot=false;
+      try {
+        if (CmsSiteManager.getSiteRoot(getParamTarget()) != null) {
+          getCms().getRequestContext().saveSiteRoot();
+          getCms().getRequestContext().setSiteRoot("/");
+          restoreSiteRoot=true;
+        }
+        CmsResource targetRes=getCms().readResource(getParamTarget());
+        targetType=targetRes.getTypeId();
+      }
+ catch (      CmsException e2) {
+        if (LOG.isInfoEnabled()) {
+          LOG.info(e2.getLocalizedMessage());
+        }
+      }
+ finally {
+        if (restoreSiteRoot) {
+          getCms().getRequestContext().restoreSiteRoot();
+        }
+      }
+      if (sourceRes.getTypeId() == targetType) {
+        String message="<p>\n" + key("source") + ": "+ getParamResource()+ "<br>\n"+ key("target")+ ": "+ getParamTarget()+ "\n</p>\n";
+        setParamMessage(message + key("confirm.message.copy"));
+        getJsp().include(C_FILE_DIALOG_SCREEN_CONFIRM);
+      }
+ else {
+        includeErrorpage(this,e);
+      }
+    }
+ else {
+      includeErrorpage(this,e);
+    }
   }
 }
