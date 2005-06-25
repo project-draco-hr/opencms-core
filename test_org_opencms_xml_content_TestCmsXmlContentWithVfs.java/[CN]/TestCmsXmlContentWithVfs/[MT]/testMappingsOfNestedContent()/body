@@ -1,0 +1,33 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing mapping of values in the XML content with nested elements");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  String content;
+  CmsXmlContent xmlcontent;
+  content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-definition-7.xsd",CmsEncoder.C_UTF8_ENCODING);
+  CmsXmlEntityResolver.cacheSystemId(C_SCHEMA_SYSTEM_ID_7,content.getBytes(CmsEncoder.C_UTF8_ENCODING));
+  content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-7.xml",CmsEncoder.C_UTF8_ENCODING);
+  xmlcontent=CmsXmlContentFactory.unmarshal(content,CmsEncoder.C_UTF8_ENCODING,resolver);
+  String resourcename="/mappingtest_nested.html";
+  cms.createResource(resourcename,OpenCms.getResourceManager().getResourceType("xmlcontent").getTypeId(),content.getBytes(CmsEncoder.ENCODING_ISO_8859_1),Collections.EMPTY_LIST);
+  CmsFile file=cms.readFile(resourcename);
+  xmlcontent=CmsXmlContentFactory.unmarshal(cms,file);
+  CmsProperty titleProperty;
+  titleProperty=cms.readPropertyObject(resourcename,CmsPropertyDefinition.PROPERTY_TITLE,false);
+  assertSame(titleProperty,CmsProperty.getNullProperty());
+  String titleStr="This must be the Title (not nested)";
+  I_CmsXmlContentValue value;
+  value=xmlcontent.getValue("Test",Locale.ENGLISH);
+  assertEquals(value.getStringValue(cms),"Another Test");
+  value.setStringValue(cms,titleStr);
+  String descStr="This must be the Description (which IS nested)";
+  value=xmlcontent.getValue("Cascade/Toast",Locale.ENGLISH);
+  assertEquals(value.getStringValue(cms),"Toast");
+  value.setStringValue(cms,descStr);
+  file.setContents(xmlcontent.toString().getBytes(CmsEncoder.ENCODING_ISO_8859_1));
+  cms.writeFile(file);
+  titleProperty=cms.readPropertyObject(resourcename,CmsPropertyDefinition.PROPERTY_TITLE,false);
+  assertEquals(titleStr,titleProperty.getValue());
+  titleProperty=cms.readPropertyObject(resourcename,CmsPropertyDefinition.PROPERTY_DESCRIPTION,false);
+  assertEquals(descStr,titleProperty.getValue());
+}

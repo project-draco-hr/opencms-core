@@ -9,34 +9,49 @@
   if (file == null) {
     throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_RESOLVE_FILE_NOT_FOUND_0));
   }
-  String filename=cms.getSitePath(content.getFile());
-  String mapping=getMapping(value.getName());
+  String mapping=getMapping(value.getPath());
   if (CmsStringUtil.isNotEmpty(mapping)) {
-    String stringValue=value.getStringValue(cms);
-    if (mapping.startsWith(C_MAPTO_PROPERTY)) {
-      String property=mapping.substring(C_MAPTO_PROPERTY.length());
-      cms.writePropertyObject(filename,new CmsProperty(property,stringValue,null));
-    }
- else     if (mapping.startsWith(C_MAPTO_ATTRIBUTE)) {
-      String attribute=mapping.substring(C_MAPTO_ATTRIBUTE.length());
+    String rootPath=content.getFile().getRootPath();
+    try {
+      cms.getRequestContext().saveSiteRoot();
+      cms.getRequestContext().setSiteRoot("/");
+      List siblings=cms.readSiblings(rootPath,CmsResourceFilter.IGNORE_EXPIRATION);
+      for (int i=0; i < siblings.size(); i++) {
+        String filename=((CmsResource)siblings.get(i)).getRootPath();
+        Locale locale=OpenCms.getLocaleManager().getDefaultLocale(cms,filename);
+        if (!locale.equals(value.getLocale())) {
+          continue;
+        }
+        String stringValue=value.getStringValue(cms);
+        if (mapping.startsWith(C_MAPTO_PROPERTY)) {
+          String property=mapping.substring(C_MAPTO_PROPERTY.length());
+          cms.writePropertyObject(filename,new CmsProperty(property,stringValue,null));
+        }
+ else         if (mapping.startsWith(C_MAPTO_ATTRIBUTE)) {
+          String attribute=mapping.substring(C_MAPTO_ATTRIBUTE.length());
 switch (C_ATTRIBUTES_LIST.indexOf(attribute)) {
 case 0:
-        long date;
-      date=Long.valueOf(stringValue).longValue();
-    if (date == 0) {
-      date=CmsResource.DATE_RELEASED_DEFAULT;
-    }
-  file.setDateReleased(date);
-break;
+            long date;
+          date=Long.valueOf(stringValue).longValue();
+        if (date == 0) {
+          date=CmsResource.DATE_RELEASED_DEFAULT;
+        }
+      file.setDateReleased(date);
+    break;
 case 1:
-date=Long.valueOf(stringValue).longValue();
+  date=Long.valueOf(stringValue).longValue();
 if (date == 0) {
-date=CmsResource.DATE_EXPIRED_DEFAULT;
+  date=CmsResource.DATE_EXPIRED_DEFAULT;
 }
 file.setDateExpired(date);
 break;
 default :
 }
+}
+}
+}
+  finally {
+cms.getRequestContext().restoreSiteRoot();
 }
 }
 }
