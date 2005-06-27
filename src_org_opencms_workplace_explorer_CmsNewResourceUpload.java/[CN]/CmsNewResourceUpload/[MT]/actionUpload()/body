@@ -37,12 +37,28 @@
         setParamResource(newResname);
         setParamResource(computeFullResourceName());
         int resTypeId=OpenCms.getResourceManager().getDefaultTypeForName(newResname).getTypeId();
-        try {
-          getCms().createResource(getParamResource(),resTypeId,content,Collections.EMPTY_LIST);
+        if (!getCms().existsResource(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION)) {
+          try {
+            getCms().createResource(getParamResource(),resTypeId,content,Collections.EMPTY_LIST);
+          }
+ catch (          CmsDbSqlException sqlExc) {
+            getCms().lockResource(getParamResource());
+            getCms().deleteResource(getParamResource(),I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
+            throw sqlExc;
+          }
         }
- catch (        CmsException e) {
-          getCms().lockResource(getParamResource());
-          getCms().replaceResource(getParamResource(),resTypeId,content,null);
+ else {
+          checkLock(getParamResource());
+          CmsFile file=getCms().readFile(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
+          byte[] contents=file.getContents();
+          try {
+            getCms().replaceResource(getParamResource(),resTypeId,content,null);
+          }
+ catch (          CmsDbSqlException sqlExc) {
+            file.setContents(contents);
+            getCms().writeFile(file);
+            throw sqlExc;
+          }
         }
       }
     }
@@ -52,6 +68,7 @@
   }
  catch (  Throwable e) {
     setParamMessage(Messages.get().getBundle(getLocale()).key(Messages.ERR_UPLOAD_FILE_0));
+    setAction(ACTION_SHOWERROR);
     includeErrorpage(this,e);
   }
 }

@@ -110,11 +110,28 @@
       }
       if (resourceExists) {
         CmsResource res=m_cms.readResource(filename,CmsResourceFilter.ALL);
-        m_cms.replaceResource(filename,res.getTypeId(),buffer,Collections.EMPTY_LIST);
+        CmsFile file=CmsFile.upgrade(res,m_cms);
+        byte[] contents=file.getContents();
+        try {
+          m_cms.replaceResource(filename,res.getTypeId(),buffer,Collections.EMPTY_LIST);
+        }
+ catch (        CmsDbSqlException sqlExc) {
+          file.setContents(contents);
+          m_cms.writeFile(file);
+          throw sqlExc;
+        }
         OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",res)));
       }
  else {
-        m_cms.createResource(actImportPath + path[path.length - 1],type,buffer,Collections.EMPTY_LIST);
+        String newResName=actImportPath + path[path.length - 1];
+        try {
+          m_cms.createResource(newResName,type,buffer,Collections.EMPTY_LIST);
+        }
+ catch (        CmsDbSqlException sqlExc) {
+          m_cms.lockResource(newResName);
+          m_cms.deleteResource(newResName,I_CmsConstants.C_DELETE_OPTION_PRESERVE_SIBLINGS);
+          throw sqlExc;
+        }
       }
     }
     zipStreamIn.closeEntry();
