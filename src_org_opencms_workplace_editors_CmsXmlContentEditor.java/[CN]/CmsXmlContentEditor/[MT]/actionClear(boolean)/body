@@ -2,7 +2,24 @@
   deleteTempFile();
   boolean directEditMode=Boolean.valueOf(getParamDirectedit()).booleanValue();
   boolean modified=Boolean.valueOf(getParamModified()).booleanValue();
-  if (directEditMode || forceUnlock || !modified) {
+  if (directEditMode && !modified) {
+    try {
+      CmsFile templateFile=getCms().readFile(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
+      CmsXmlContent template=CmsXmlContentFactory.unmarshal(getCms(),templateFile);
+      Locale locale=(Locale)OpenCms.getLocaleManager().getDefaultLocales(getCms(),getParamResource()).get(0);
+      CmsXmlContent newContent=CmsXmlContentFactory.createDocument(getCms(),locale,template.getEncoding(),template.getContentDefinition());
+      String currentContents=new String(getCms().readFile(getParamResource()).getContents());
+      if (currentContents.equals(new String(newContent.marshal()))) {
+        getCms().deleteResource(getParamResource(),CmsResource.DELETE_PRESERVE_SIBLINGS);
+      }
+    }
+ catch (    CmsException e) {
+      if (LOG.isInfoEnabled()) {
+        LOG.info(e.getLocalizedMessage(),e);
+      }
+    }
+  }
+ else   if (directEditMode || forceUnlock || !modified) {
     try {
       getCms().unlockResource(getParamResource());
     }
