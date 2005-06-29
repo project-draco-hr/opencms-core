@@ -1,17 +1,28 @@
 {
   CmsObject cms=getCmsObject();
   echo("Testing copy of a file as new");
+  cms.createProject("testproject","a test project","Users","Users",CmsProject.PROJECT_TYPE_NORMAL);
+  cms.copyResourceToProject("/");
+  cms.addUserToGroup("test1",OpenCms.getDefaultUsers().getGroupAdministrators());
+  cms.loginUser("test1","test1");
+  cms.getRequestContext().setCurrentProject(cms.readProject("testproject"));
   String source="/index.html";
   String destination="/index_copy.html";
   long timestamp=System.currentTimeMillis();
+  CmsUser admin=cms.readUser("Admin");
+  assertUserCreated(cms,source,admin);
+  assertUserLastModified(cms,source,admin);
+  CmsResource original=cms.readResource(source);
   storeResources(cms,source);
   cms.copyResource(source,destination);
   assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_EQUAL);
   assertProject(cms,destination,cms.getRequestContext().currentProject());
   assertState(cms,destination,CmsResource.STATE_NEW);
   assertDateCreatedAfter(cms,destination,timestamp);
-  assertUserCreated(cms,source,cms.getRequestContext().currentUser());
-  assertLock(cms,destination,CmsLock.TYPE_EXCLUSIVE);
+  assertDateLastModified(cms,destination,original.getDateLastModified());
+  assertUserCreated(cms,destination,cms.getRequestContext().currentUser());
+  assertUserLastModified(cms,destination,cms.readUser(original.getUserLastModified()));
   setMapping(destination,source);
-  assertFilter(cms,destination,OpenCmsTestResourceFilter.FILTER_COPY_AS_NEW);
+  assertFilter(cms,destination,OpenCmsTestResourceFilter.FILTER_COPY_FILE_AS_NEW);
+  assertLock(cms,destination,CmsLock.TYPE_EXCLUSIVE);
 }
