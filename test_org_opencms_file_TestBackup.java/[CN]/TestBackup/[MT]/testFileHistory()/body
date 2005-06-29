@@ -1,0 +1,42 @@
+{
+  CmsObject cms=getCmsObject();
+  String filename="/testFileHistory1.txt";
+  String siblingname="/testFileHistory2.txt";
+  CmsProject offlineProject=cms.getRequestContext().currentProject();
+  int counter=5;
+  try {
+    cms.getRequestContext().saveSiteRoot();
+    cms.getRequestContext().setSiteRoot("/sites/default/");
+    cms.getRequestContext().setCurrentProject(offlineProject);
+    String contentStr="content version " + 0;
+    cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId(),contentStr.getBytes(),null);
+    for (int i=1; i <= counter; i++) {
+      contentStr="content version " + i;
+      CmsFile file=cms.readFile(filename);
+      file.setContents(contentStr.getBytes());
+      cms.lockResource(filename);
+      cms.writeFile(file);
+      cms.unlockResource(filename);
+      cms.publishResource(filename);
+    }
+    cms.copyResource(filename,siblingname,CmsResource.COPY_AS_SIBLING);
+    cms.unlockResource(siblingname);
+    cms.publishResource(siblingname);
+    for (int i=1; i <= counter; i++) {
+      contentStr="sibling content version " + (counter + i);
+      CmsFile file=cms.readFile(siblingname);
+      file.setContents(contentStr.getBytes());
+      cms.lockResource(siblingname);
+      cms.writeFile(file);
+      cms.unlockResource(siblingname);
+      cms.publishResource(siblingname);
+    }
+    List backupResourcesForFile=cms.readAllBackupFileHeaders(filename);
+    List backupResourcesForSibling=cms.readAllBackupFileHeaders(siblingname);
+    assertEquals(backupResourcesForFile,backupResourcesForSibling);
+    assertEquals(2 + counter + 1,backupResourcesForFile.size());
+  }
+  finally {
+    cms.getRequestContext().restoreSiteRoot();
+  }
+}
