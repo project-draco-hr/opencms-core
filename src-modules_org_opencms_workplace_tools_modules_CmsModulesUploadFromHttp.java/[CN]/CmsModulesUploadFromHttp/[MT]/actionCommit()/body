@@ -6,9 +6,44 @@
     setException(e);
     return;
   }
-  Map params=new HashMap();
-  params.put(PARAM_MODULE,getParamImportfile());
-  params.put(PARAM_STYLE,"new");
-  params.put(PARAM_CLOSELINK,CmsToolManager.linkForToolPath(getJsp(),"/modules"));
-  getToolManager().jspForwardPage(this,CmsModulesUploadFromServer.IMPORT_ACTION_REPORT,params);
+  List errors=new ArrayList();
+  CmsModule module=null;
+  try {
+    String importpath=OpenCms.getSystemInfo().getPackagesRfsPath();
+    importpath=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf(importpath + "modules/" + getParamImportfile());
+    module=CmsModuleImportExportHandler.readModuleFromImport(importpath);
+    List dependencies=OpenCms.getModuleManager().checkDependencies(module,CmsModuleManager.DEPENDENCY_MODE_IMPORT);
+    if (!dependencies.isEmpty()) {
+      StringBuffer dep=new StringBuffer(32);
+      for (int i=0; i < dependencies.size(); i++) {
+        CmsModuleDependency dependency=(CmsModuleDependency)dependencies.get(i);
+        dep.append("\n - ");
+        dep.append(dependency.getName());
+        dep.append(" (Version: ");
+        dep.append(dependency.getVersion());
+        dep.append(")");
+      }
+      errors.add(new CmsRuntimeException(Messages.get().container(Messages.ERR_ACTION_MODULE_DEPENDENCY_2,getParamImportfile(),new String(dep))));
+    }
+  }
+ catch (  CmsConfigurationException e) {
+    errors.add(new CmsRuntimeException(Messages.get().container(Messages.ERR_ACTION_MODULE_UPLOAD_1,getParamImportfile()),e));
+  }
+  if (errors.isEmpty()) {
+    Map objects=(Map)getSettings().getListObject();
+    if (objects != null) {
+      objects.remove(CmsModulesList.class.getName());
+    }
+    Map param=new HashMap();
+    param.put(CmsModulesList.PARAM_MODULE,getParamImportfile());
+    param.put(PARAM_STYLE,"new");
+    param.put(PARAM_CLOSELINK,CmsToolManager.linkForToolPath(getJsp(),"/modules"));
+    if (OpenCms.getModuleManager().hasModule(module.getName())) {
+      param.put(CmsModulesUploadFromServer.PARAM_MODULENAME,module.getName());
+      getToolManager().jspForwardPage(this,CmsModulesUploadFromServer.REPLACE_ACTION_REPORT,param);
+    }
+ else {
+      getToolManager().jspForwardPage(this,CmsModulesUploadFromServer.IMPORT_ACTION_REPORT,param);
+    }
+  }
 }
