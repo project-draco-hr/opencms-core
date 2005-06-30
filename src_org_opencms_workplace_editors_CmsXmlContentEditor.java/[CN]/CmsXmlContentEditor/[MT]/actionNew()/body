@@ -3,12 +3,13 @@
   String collectorName=m_paramNewLink.substring(0,pos);
   String param=m_paramNewLink.substring(pos + 1);
   I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(collectorName);
+  String newFileName="";
   try {
     CmsFile templateFile=getCms().readFile(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
     CmsXmlContent template=CmsXmlContentFactory.unmarshal(getCms(),templateFile);
     Locale locale=(Locale)OpenCms.getLocaleManager().getDefaultLocales(getCms(),getParamResource()).get(0);
     CmsXmlContent newContent=CmsXmlContentFactory.createDocument(getCms(),locale,template.getEncoding(),template.getContentDefinition());
-    String newFileName=collector.getCreateLink(getCms(),collectorName,param);
+    newFileName=collector.getCreateLink(getCms(),collectorName,param);
     getCms().createResource(newFileName,templateFile.getTypeId());
     CmsFile newFile=getCms().readFile(newFileName,CmsResourceFilter.ALL);
     newFile.setContents(newContent.marshal());
@@ -18,7 +19,7 @@
     setParamResource(newFileName);
     setAction(ACTION_DEFAULT);
     setParamTempfile(createTempFile());
-    m_file=newFile;
+    m_file=getCms().readFile(getParamTempfile(),CmsResourceFilter.ALL);
     m_content=newContent;
   }
  catch (  CmsException e) {
@@ -26,5 +27,12 @@
       LOG.error(Messages.get().key(Messages.LOG_CREATE_XML_CONTENT_ITEM_1,m_paramNewLink),e);
     }
     throw new JspException(e);
+  }
+ finally {
+    try {
+      getCms().deleteResource(newFileName,CmsResource.DELETE_PRESERVE_SIBLINGS);
+    }
+ catch (    CmsException e) {
+    }
   }
 }
