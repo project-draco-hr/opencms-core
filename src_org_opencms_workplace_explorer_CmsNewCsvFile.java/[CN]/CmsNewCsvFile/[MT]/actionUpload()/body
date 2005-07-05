@@ -14,23 +14,33 @@
     setParamResource(newResname);
     setParamResource(computeFullResourceName());
     int resTypeId=OpenCms.getResourceManager().getDefaultTypeForName(newResname).getTypeId();
-    String xmlContent="";
     CmsProperty styleProp=CmsProperty.getNullProperty();
-    if (TABULATOR.equals(getParamDelimiter())) {
-      setParamDelimiter("\t");
+    String delimiter=getParamDelimiter();
+    if (TABULATOR.equals(delimiter)) {
+      delimiter="\t";
     }
- else     if (BEST_DELIMITER.equals(getParamDelimiter())) {
-      setParamDelimiter(getPreferredDelimiter(getParamCsvContent()));
+ else     if (BEST_DELIMITER.equals(delimiter)) {
+      delimiter=getPreferredDelimiter(getParamCsvContent());
     }
+    setParamDelimiter(delimiter);
+    String csvContent=getParamCsvContent();
+    String colgroup="";
+    String lineSeparator=System.getProperty("line.separator");
+    String firstCsvLine=csvContent.substring(0,csvContent.indexOf(lineSeparator));
+    if (isFormattingInformation(firstCsvLine,delimiter)) {
+      colgroup=getColGroup(firstCsvLine,delimiter);
+      csvContent=csvContent.substring(firstCsvLine.length() + lineSeparator.length());
+    }
+    String xmlContent="";
     try {
-      xmlContent=convertCsvToXml(getParamCsvContent(),getParamDelimiter());
+      xmlContent=convertCsvToXml(csvContent,colgroup,getParamDelimiter());
     }
  catch (    IOException e) {
       throw new CmsXmlException(Messages.get().container(Messages.ERR_CSV_XML_TRANSFORMATION_FAILED_0));
     }
     if (CmsStringUtil.isNotEmpty(getParamXsltFile())) {
       xmlContent=applyXslTransformation(getParamXsltFile(),xmlContent);
-      styleProp=getCms().readPropertyObject(getParamXsltFile(),CmsPropertyDefinition.PROPERTY_STYLESHEET,true);
+      styleProp=getCms().readPropertyObject(getParamXsltFile(),CmsPropertyDefinition.PROPERTY_STYLE_SIDE_URI,true);
     }
     byte[] content=xmlContent.getBytes();
     try {
