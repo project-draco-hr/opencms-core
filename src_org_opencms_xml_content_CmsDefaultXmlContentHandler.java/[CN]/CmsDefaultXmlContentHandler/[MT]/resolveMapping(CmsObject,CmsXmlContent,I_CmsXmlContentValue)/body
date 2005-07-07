@@ -2,9 +2,6 @@
   if (!value.isSimpleType()) {
     return;
   }
-  if (value.getIndex() > 1) {
-    return;
-  }
   CmsFile file=content.getFile();
   if (file == null) {
     throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_RESOLVE_FILE_NOT_FOUND_0));
@@ -23,7 +20,22 @@
           continue;
         }
         String stringValue=value.getStringValue(cms);
-        if (mapping.startsWith(MAPTO_PROPERTY)) {
+        if (mapping.startsWith(MAPTO_PROPERTY_LIST) && (value.getIndex() == 0)) {
+          String property=mapping.substring(MAPTO_PROPERTY_LIST.length());
+          String path=CmsXmlUtils.removeXpathIndex(value.getPath());
+          List values=content.getValues(path,locale);
+          Iterator j=values.iterator();
+          StringBuffer result=new StringBuffer(values.size() * 64);
+          while (j.hasNext()) {
+            I_CmsXmlContentValue val=(I_CmsXmlContentValue)j.next();
+            result.append(val.getStringValue(cms));
+            if (j.hasNext()) {
+              result.append(CmsProperty.VALUE_LIST_DELIMITER);
+            }
+          }
+          cms.writePropertyObject(filename,new CmsProperty(property,result.toString(),null));
+        }
+ else         if (mapping.startsWith(MAPTO_PROPERTY)) {
           String property=mapping.substring(MAPTO_PROPERTY.length());
           cms.writePropertyObject(filename,new CmsProperty(property,stringValue,null));
         }
