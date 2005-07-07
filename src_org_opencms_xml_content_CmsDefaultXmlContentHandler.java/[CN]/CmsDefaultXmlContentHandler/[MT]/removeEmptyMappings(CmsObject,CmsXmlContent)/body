@@ -1,0 +1,42 @@
+{
+  Iterator mappings=m_elementMappings.keySet().iterator();
+  String rootPath=null;
+  List siblings=null;
+  while (mappings.hasNext()) {
+    String path=(String)mappings.next();
+    String mapping=(String)m_elementMappings.get(path);
+    if (mapping.startsWith(MAPTO_PROPERTY_LIST) || mapping.startsWith(MAPTO_PROPERTY)) {
+      if (rootPath == null) {
+        rootPath=content.getFile().getRootPath();
+      }
+      try {
+        cms.getRequestContext().saveSiteRoot();
+        cms.getRequestContext().setSiteRoot("/");
+        if (siblings == null) {
+          siblings=cms.readSiblings(rootPath,CmsResourceFilter.IGNORE_EXPIRATION);
+        }
+        for (int i=0; i < siblings.size(); i++) {
+          String filename=((CmsResource)siblings.get(i)).getRootPath();
+          Locale locale=OpenCms.getLocaleManager().getDefaultLocale(cms,filename);
+          if (!content.hasLocale(locale)) {
+            continue;
+          }
+          if (content.hasValue(path,locale)) {
+            continue;
+          }
+          String property;
+          if (mapping.startsWith(MAPTO_PROPERTY_LIST)) {
+            property=mapping.substring(MAPTO_PROPERTY_LIST.length());
+          }
+ else {
+            property=mapping.substring(MAPTO_PROPERTY.length());
+          }
+          cms.writePropertyObject(filename,new CmsProperty(property,CmsProperty.DELETE_VALUE,null));
+        }
+      }
+  finally {
+        cms.getRequestContext().restoreSiteRoot();
+      }
+    }
+  }
+}
