@@ -1,0 +1,37 @@
+{
+  try {
+    cms.getRequestContext().saveSiteRoot();
+    cms.getRequestContext().setSiteRoot("/");
+    if (publishedResources == null) {
+      return getAllResources(cms);
+    }
+ else {
+      Set resourceSet=new HashSet();
+      Iterator itPubRes=publishedResources.iterator();
+      while (itPubRes.hasNext()) {
+        CmsPublishedResource pubResource=(CmsPublishedResource)itPubRes.next();
+        CmsResource vfsResource=cms.readResource(pubResource.getRootPath());
+        if ((vfsResource.getFlags() & CmsResource.FLAG_INTERNAL) != CmsResource.FLAG_INTERNAL) {
+          resourceSet.add(pubResource);
+        }
+        boolean match=false;
+        Iterator itExportRules=OpenCms.getStaticExportManager().getExportRules().iterator();
+        while (itExportRules.hasNext()) {
+          CmsStaticExportExportRule rule=(CmsStaticExportExportRule)itExportRules.next();
+          Set relatedResources=rule.getRelatedResources(cms,pubResource);
+          if (relatedResources != null) {
+            resourceSet.addAll(relatedResources);
+            match=true;
+          }
+        }
+        if (!match) {
+          return getAllResources(cms);
+        }
+      }
+      return new ArrayList(resourceSet);
+    }
+  }
+  finally {
+    cms.getRequestContext().restoreSiteRoot();
+  }
+}

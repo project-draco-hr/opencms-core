@@ -1,13 +1,26 @@
 {
-  m_staticExportPath=insertContextStrings(m_staticExportPathConfigured);
-  m_staticExportPath=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebApplication(m_staticExportPath);
-  if (m_staticExportPath.endsWith(File.separator)) {
-    m_staticExportPath=m_staticExportPath.substring(0,m_staticExportPath.length() - 1);
+  m_staticExportPath=normalizeExportPath(m_staticExportPathConfigured);
+  if (m_staticExportPath.equals(OpenCms.getSystemInfo().getWebApplicationRfsPath())) {
+    throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_INVALID_EXPORT_PATH_0));
   }
-  m_rfsPrefix=insertContextStrings(m_rfsPrefixConfigured);
-  m_rfsPrefix=CmsFileUtil.normalizePath(m_rfsPrefix,'/');
-  if (CmsResource.isFolder(m_rfsPrefix)) {
-    m_rfsPrefix=m_rfsPrefix.substring(0,m_rfsPrefix.length() - 1);
+  m_rfsPrefix=normalizeRfsPrefix(m_rfsPrefixConfigured);
+  Iterator itRfsRules=m_rfsRules.iterator();
+  while (itRfsRules.hasNext()) {
+    CmsStaticExportRfsRule rule=(CmsStaticExportRfsRule)itRfsRules.next();
+    try {
+      rule.setExportPath(normalizeExportPath(rule.getExportPathConfigured()));
+    }
+ catch (    CmsIllegalArgumentException e) {
+      CmsLog.INIT.info(e.getMessageContainer());
+      rule.setExportPath(m_staticExportPath);
+    }
+    try {
+      rule.setRfsPrefix(normalizeRfsPrefix(rule.getRfsPrefixConfigured()));
+    }
+ catch (    CmsIllegalArgumentException e) {
+      CmsLog.INIT.info(e.getMessageContainer());
+      rule.setRfsPrefix(m_rfsPrefix);
+    }
   }
   m_vfsPrefix=insertContextStrings(m_vfsPrefixConfigured);
   m_vfsPrefix=CmsFileUtil.normalizePath(m_vfsPrefix,'/');
@@ -47,14 +60,46 @@
   setExportnames();
   m_defaultAcceptLanguageHeader=CmsAcceptLanguageHeaderParser.createLanguageHeader();
   m_defaultAcceptCharsetHeader=OpenCms.getSystemInfo().getDefaultEncoding();
+  int pos=m_exportUrl.indexOf("://");
+  if (pos > 0) {
+    int pos2=m_exportUrl.indexOf('/',pos + 3);
+    if (pos2 > 0) {
+      m_exportUrlPrefix=m_exportUrl.substring(pos2);
+    }
+ else {
+      m_exportUrlPrefix="";
+    }
+  }
+ else {
+    m_exportUrlPrefix=m_exportUrl;
+  }
   if (CmsLog.INIT.isInfoEnabled()) {
     if (isStaticExportEnabled()) {
       CmsLog.INIT.info(Messages.get().key(Messages.INIT_STATIC_EXPORT_ENABLED_0));
       CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_DEFAULT_1,new Boolean(getExportPropertyDefault())));
-      CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_PATH_1,getExportPath()));
-      CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_RFS_PREFIX_1,getRfsPrefix()));
+      itRfsRules=m_rfsRules.iterator();
+      while (itRfsRules.hasNext()) {
+        CmsStaticExportRfsRule rfsRule=(CmsStaticExportRfsRule)itRfsRules.next();
+        CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_RFS_RULE_EXPORT_PATH_2,rfsRule.getSource(),rfsRule.getExportPath()));
+        CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_RFS_RULE_RFS_PREFIX_2,rfsRule.getSource(),rfsRule.getRfsPrefix()));
+        if (rfsRule.getUseRelativeLinks() != null) {
+          if (rfsRule.getUseRelativeLinks().booleanValue()) {
+            CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_RFS_RULE_RELATIVE_LINKS_1,rfsRule.getSource()));
+          }
+ else {
+            CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_RFS_RULE_ABSOLUTE_LINKS_1,rfsRule.getSource()));
+          }
+        }
+      }
+      CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_RFS_RULE_EXPORT_PATH_2,"/",m_staticExportPath));
+      CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_RFS_RULE_RFS_PREFIX_2,"/",m_rfsPrefix));
+      if (m_exportRelativeLinks) {
+        CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_RFS_RULE_RELATIVE_LINKS_1,"/"));
+      }
+ else {
+        CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_RFS_RULE_ABSOLUTE_LINKS_1,"/"));
+      }
       CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_VFS_PREFIX_1,getVfsPrefix()));
-      CmsLog.INIT.info(Messages.get().key(relativLinksInExport() ? Messages.INIT_EXPORT_LINK_STYLE_RELATIVE_0 : Messages.INIT_EXPORT_LINK_STYLE_ABSOLUTE_0));
       CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_EXPORT_HANDLER_1,getHandler().getClass().getName()));
       CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_URL_1,getExportUrl()));
       CmsLog.INIT.info(Messages.get().key(Messages.INIT_EXPORT_OPTIMIZATION_1,getPlainExportOptimization()));

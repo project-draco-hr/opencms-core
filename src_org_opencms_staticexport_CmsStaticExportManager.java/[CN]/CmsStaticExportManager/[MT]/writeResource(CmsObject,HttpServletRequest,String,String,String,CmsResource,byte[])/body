@@ -1,0 +1,39 @@
+{
+  int status;
+  File exportFile=null;
+  String exportFileName=CmsFileUtil.normalizePath(exportPath + rfsName);
+  if (isExportLink(cms,vfsName)) {
+    createExportFolder(exportPath,rfsName);
+    status=HttpServletResponse.SC_OK;
+    exportFile=new File(exportFileName);
+  }
+ else {
+    status=HttpServletResponse.SC_SEE_OTHER;
+  }
+  if (exportFile != null) {
+    try {
+      FileOutputStream exportStream=new FileOutputStream(exportFile);
+      exportStream.write(content);
+      exportStream.close();
+      if (LOG.isInfoEnabled()) {
+        LOG.info(Messages.get().key(Messages.LOG_STATIC_EXPORTED_2,vfsName,exportFileName));
+      }
+    }
+ catch (    Throwable t) {
+      throw new CmsStaticExportException(Messages.get().container(Messages.ERR_OUTPUT_STREAM_1,exportFileName),t);
+    }
+    if (req != null) {
+      Long dateLastModified=(Long)req.getAttribute(CmsRequestUtil.HEADER_OPENCMS_EXPORT);
+      if ((dateLastModified != null) && (dateLastModified.longValue() != -1)) {
+        exportFile.setLastModified((dateLastModified.longValue() / 1000) * 1000);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().key(Messages.LOG_SET_LAST_MODIFIED_2,exportFile.getName(),new Long((dateLastModified.longValue() / 1000) * 1000)));
+        }
+      }
+    }
+ else {
+      exportFile.setLastModified((resource.getDateLastModified() / 1000) * 1000);
+    }
+  }
+  return status;
+}

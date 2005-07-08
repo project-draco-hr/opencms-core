@@ -46,17 +46,6 @@
     Object[] arguments=new Object[]{vfsName,new Integer(file.getTypeId())};
     throw new CmsStaticExportException(Messages.get().container(Messages.ERR_EXPORT_NOT_SUPPORTED_2,arguments));
   }
-  FileOutputStream exportStream=null;
-  File exportFile=null;
-  String exportFileName=CmsFileUtil.normalizePath(getExportPath() + rfsName);
-  if (isExportLink(cms,vfsName)) {
-    createExportFolder(rfsName);
-    status=HttpServletResponse.SC_OK;
-    exportFile=new File(exportFileName);
-  }
- else {
-    status=HttpServletResponse.SC_SEE_OTHER;
-  }
   if (exportOnDemand) {
     String mimetype=OpenCms.getResourceManager().getMimeType(file.getName(),cms.getRequestContext().getEncoding());
     if (wrapRes != null) {
@@ -68,26 +57,18 @@
   byte[] result=loader.export(cms,file,req,wrapRes);
   file=null;
   if (result != null) {
-    if (exportFile != null) {
-      try {
-        exportStream=new FileOutputStream(exportFile);
-        exportStream.write(result);
-        exportStream.close();
-      }
- catch (      Throwable t) {
-        throw new CmsStaticExportException(Messages.get().container(Messages.ERR_OUTPUT_STREAM_1,exportFileName),t);
-      }
-      if (req != null) {
-        Long dateLastModified=(Long)req.getAttribute(CmsRequestUtil.HEADER_OPENCMS_EXPORT);
-        if ((dateLastModified != null) && (dateLastModified.longValue() != -1)) {
-          exportFile.setLastModified((dateLastModified.longValue() / 1000) * 1000);
-          if (LOG.isDebugEnabled()) {
-            LOG.debug(Messages.get().key(Messages.LOG_SET_LAST_MODIFIED_2,exportFile.getName(),new Long((dateLastModified.longValue() / 1000) * 1000)));
+    String exportPath=getExportPath(siteRoot + vfsName);
+    status=writeResource(cms,req,exportPath,rfsName,vfsName,resource,result);
+    if (vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
+      Iterator it=getRfsRules().iterator();
+      while (it.hasNext()) {
+        CmsStaticExportRfsRule rule=(CmsStaticExportRfsRule)it.next();
+        if (rule.match(vfsName)) {
+          int stat=writeResource(cms,req,rule.getExportPath(),rfsName,vfsName,resource,result);
+          if (stat != HttpServletResponse.SC_OK) {
+            status=stat;
           }
         }
-      }
- else {
-        exportFile.setLastModified((resource.getDateLastModified() / 1000) * 1000);
       }
     }
     status=(wrapRes != null) ? wrapRes.getStatus() : -1;
@@ -100,9 +81,6 @@
   }
   if (exportOnDemand) {
     cms.getRequestContext().setUri(oldUri);
-  }
-  if (LOG.isInfoEnabled()) {
-    LOG.info(Messages.get().key(Messages.LOG_STATIC_EXPORTED_2,vfsName,exportFileName));
   }
   return status;
 }
