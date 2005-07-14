@@ -21,22 +21,29 @@
           return null;
         }
         result=f_res.getWriterBytes();
-        if (controller.getTopRequest().getHeader(CmsRequestUtil.HEADER_OPENCMS_EXPORT) != null) {
-          controller.getTopRequest().setAttribute(CmsRequestUtil.HEADER_OPENCMS_EXPORT,new Long(controller.getDateLastModified()));
+        HttpServletRequest req=controller.getTopRequest();
+        if (req.getHeader(CmsRequestUtil.HEADER_OPENCMS_EXPORT) != null) {
+          req.setAttribute(CmsRequestUtil.HEADER_OPENCMS_EXPORT,new Long(controller.getDateLastModified()));
         }
  else         if (controller.isTop()) {
           res.setContentLength(result.length);
-          if (isWorkplaceUser) {
-            res.setDateHeader(CmsRequestUtil.HEADER_LAST_MODIFIED,System.currentTimeMillis());
-            CmsRequestUtil.setNoCacheHeaders(res);
+          Integer errorCode=(Integer)req.getAttribute(CmsRequestUtil.ATTRIBUTE_ERRORCODE);
+          if (errorCode == null) {
+            if (isWorkplaceUser) {
+              res.setDateHeader(CmsRequestUtil.HEADER_LAST_MODIFIED,System.currentTimeMillis());
+              CmsRequestUtil.setNoCacheHeaders(res);
+            }
+ else {
+              CmsFlexController.setDateLastModifiedHeader(res,controller.getDateLastModified());
+              if ((f_req.getParameterMap().size() == 0) && (controller.getDateLastModified() > -1)) {
+                CmsFlexController.setDateExpiresHeader(res,controller.getDateExpires());
+              }
+            }
+            res.setStatus(HttpServletResponse.SC_OK);
           }
  else {
-            CmsFlexController.setDateLastModifiedHeader(res,controller.getDateLastModified());
-            if ((f_req.getParameterMap().size() == 0) && (controller.getDateLastModified() > -1)) {
-              CmsFlexController.setDateExpiresHeader(res,controller.getDateExpires());
-            }
+            res.setStatus(errorCode.intValue());
           }
-          res.setStatus(HttpServletResponse.SC_OK);
           CmsFlexResponse.processHeaders(f_res.getHeaders(),res);
           res.getOutputStream().write(result);
           res.getOutputStream().flush();
