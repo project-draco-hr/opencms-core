@@ -1,6 +1,4 @@
 {
-  int status=-1;
-  CmsFile file;
   String vfsName=data.getVfsName();
   String rfsName=data.getRfsName();
   CmsResource resource=data.getResource();
@@ -31,6 +29,7 @@
   if (LOG.isDebugEnabled()) {
     LOG.debug(Messages.get().key(Messages.LOG_SE_RESOURCE_START_1,data));
   }
+  CmsFile file;
   if (resource.isFile()) {
     file=cms.readFile(vfsName);
   }
@@ -56,24 +55,27 @@
   }
   byte[] result=loader.export(cms,file,req,wrapRes);
   file=null;
+  int status=-1;
   if (result != null) {
     String exportPath=getExportPath(siteRoot + vfsName);
-    status=writeResource(cms,req,exportPath,rfsName,vfsName,resource,result);
-    if (vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
-      Iterator it=getRfsRules().iterator();
-      while (it.hasNext()) {
-        CmsStaticExportRfsRule rule=(CmsStaticExportRfsRule)it.next();
-        if (rule.match(vfsName)) {
-          int stat=writeResource(cms,req,rule.getExportPath(),rfsName,vfsName,resource,result);
-          if (stat != HttpServletResponse.SC_OK) {
-            status=stat;
+    if (isExportLink(cms,vfsName)) {
+      writeResource(req,exportPath,rfsName,vfsName,resource,result);
+      if (vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
+        Iterator it=getRfsRules().iterator();
+        while (it.hasNext()) {
+          CmsStaticExportRfsRule rule=(CmsStaticExportRfsRule)it.next();
+          if (rule.match(vfsName)) {
+            writeResource(req,rule.getExportPath(),rfsName,vfsName,resource,result);
           }
         }
       }
+      status=(wrapRes != null) ? wrapRes.getStatus() : -1;
+      if (status < 0) {
+        status=HttpServletResponse.SC_OK;
+      }
     }
-    status=(wrapRes != null) ? wrapRes.getStatus() : -1;
-    if (status < 0) {
-      status=HttpServletResponse.SC_OK;
+ else {
+      status=HttpServletResponse.SC_SEE_OTHER;
     }
   }
  else {
