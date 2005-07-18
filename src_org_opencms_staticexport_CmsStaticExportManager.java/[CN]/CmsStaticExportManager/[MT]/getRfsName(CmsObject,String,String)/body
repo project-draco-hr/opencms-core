@@ -1,3 +1,78 @@
 {
-  return getRfsName(cms,siteRoot,vfsName,null);
+  String rfsName=vfsName;
+  try {
+    CmsProperty exportNameProperty=cms.readPropertyObject(CmsResource.getFolderPath(rfsName),CmsPropertyDefinition.PROPERTY_EXPORTNAME,true);
+    if (exportNameProperty.isNullProperty()) {
+      rfsName=cms.getRequestContext().addSiteRoot(rfsName);
+    }
+ else {
+      String exportname=exportNameProperty.getValue();
+      if (exportname.charAt(0) != '/') {
+        exportname='/' + exportname;
+      }
+      if (exportname.charAt(exportname.length() - 1) != '/') {
+        exportname=exportname + '/';
+      }
+      String value=null;
+      boolean cont;
+      String resourceName=rfsName;
+      do {
+        try {
+          CmsProperty prop=cms.readPropertyObject(resourceName,CmsPropertyDefinition.PROPERTY_EXPORTNAME,false);
+          if (prop.isIdentical(exportNameProperty)) {
+            value=prop.getValue();
+          }
+          cont=(value == null) && (resourceName.length() > 1);
+        }
+ catch (        CmsVfsResourceNotFoundException e) {
+          cont=(resourceName.length() > 1);
+        }
+catch (        CmsSecurityException se) {
+          cont=false;
+        }
+        if (cont) {
+          resourceName=CmsResource.getParentFolder(resourceName);
+        }
+      }
+ while (cont);
+      rfsName=exportname + rfsName.substring(resourceName.length());
+    }
+    int pos=rfsName.lastIndexOf('.');
+    String extension=(pos >= 0 ? rfsName.substring(pos).toLowerCase() : "");
+    boolean isJsp=extension.equals(".jsp");
+    if (isJsp) {
+      CmsResource res=cms.readResource(vfsName);
+      isJsp=res.getTypeId() == CmsResourceTypeJsp.getStaticTypeId();
+      if (isJsp) {
+        String suffix=cms.readPropertyObject(vfsName,CmsPropertyDefinition.PROPERTY_EXPORTSUFFIX,true).getValue(".html");
+        if (!extension.equals(suffix.toLowerCase())) {
+          rfsName+=suffix;
+          extension=suffix;
+        }
+      }
+    }
+    if (parameters != null) {
+      StringBuffer buf=new StringBuffer(128);
+      buf.append(rfsName);
+      buf.append('_');
+      buf.append(getExportParamId(parameters));
+      buf.append(extension);
+      rfsName=buf.toString();
+      try {
+        cms.writeStaticExportPublishedResource(rfsName,EXPORT_LINK_WITH_PARAMETER,parameters,System.currentTimeMillis());
+      }
+ catch (      CmsException e) {
+        LOG.error(Messages.get().key(Messages.LOG_WRITE_FAILED_1,rfsName),e);
+      }
+    }
+  }
+ catch (  CmsException e) {
+    rfsName=vfsName;
+  }
+  if (!vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
+    return getRfsPrefix(cms.getRequestContext().addSiteRoot(vfsName)).concat(rfsName);
+  }
+ else {
+    return getRfsPrefix(cms.getRequestContext().getSiteRoot() + "/").concat(rfsName);
+  }
 }

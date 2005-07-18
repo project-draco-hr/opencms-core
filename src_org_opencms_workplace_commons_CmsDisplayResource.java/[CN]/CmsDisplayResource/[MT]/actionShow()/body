@@ -1,5 +1,4 @@
 {
-  String url=getJsp().link(getParamResource());
   if (CmsStringUtil.isNotEmpty(getParamVersionid())) {
     byte[] result=getBackupResourceContent(getCms(),getParamResource(),getParamVersionid());
     if (result != null) {
@@ -19,6 +18,35 @@
   }
  else {
     if (getCms().existsResource(getParamResource(),CmsResourceFilter.DEFAULT)) {
+      String url=getJsp().link(getParamResource());
+      if (url.indexOf("//:") < 0 && getCms().getRequestContext().currentProject().isOnlineProject()) {
+        url=CmsSiteManager.getSite(getCms().getRequestContext().getSiteRoot()).getUrl() + url;
+        try {
+          CmsStaticExportManager manager=OpenCms.getStaticExportManager();
+          HttpURLConnection.setFollowRedirects(false);
+          URL exportUrl=new URL(manager.getExportUrl() + manager.getRfsName(getCms(),getParamResource()));
+          HttpURLConnection urlcon=(HttpURLConnection)exportUrl.openConnection();
+          urlcon.setRequestMethod("GET");
+          urlcon.setRequestProperty(CmsRequestUtil.HEADER_OPENCMS_EXPORT,"true");
+          if (manager.getAcceptLanguageHeader() != null) {
+            urlcon.setRequestProperty(CmsRequestUtil.HEADER_ACCEPT_LANGUAGE,manager.getAcceptLanguageHeader());
+          }
+ else {
+            urlcon.setRequestProperty(CmsRequestUtil.HEADER_ACCEPT_LANGUAGE,manager.getDefaultAcceptLanguageHeader());
+          }
+          if (manager.getAcceptCharsetHeader() != null) {
+            urlcon.setRequestProperty(CmsRequestUtil.HEADER_ACCEPT_CHARSET,manager.getAcceptCharsetHeader());
+          }
+ else {
+            urlcon.setRequestProperty(CmsRequestUtil.HEADER_ACCEPT_CHARSET,manager.getDefaultAcceptCharsetHeader());
+          }
+          urlcon.connect();
+          urlcon.getResponseCode();
+          urlcon.disconnect();
+        }
+ catch (        Exception e) {
+        }
+      }
       getJsp().getResponse().sendRedirect(url);
     }
  else {
