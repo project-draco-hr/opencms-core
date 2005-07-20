@@ -4,24 +4,40 @@
   int navSize=curNav.size();
   if (navSize > 0) {
     Map subNav=new HashMap();
+    Map subIndex=new HashMap();
     boolean entryPresent=false;
+    boolean manualConfig=CmsStringUtil.isNotEmpty(menuIndexes);
     for (int i=0; i < navSize; i++) {
       CmsJspNavElement ne=(CmsJspNavElement)curNav.get(i);
       String resName=ne.getResourceName();
+      String link=resName;
+      if (link.startsWith("/")) {
+        link=link(link);
+      }
       showItemProperty=property(PROPERTY_HEADNAV_USE,resName,getHeadNavItemDefaultStringValue());
-      boolean showEntry=Boolean.valueOf(showItemProperty).booleanValue();
+      boolean showEntry=manualConfig || Boolean.valueOf(showItemProperty).booleanValue();
       if (showEntry) {
         entryPresent=true;
         List navEntries=new ArrayList();
-        if (ne.isFolderLink() && currentDepth < getMenuDepth()) {
-          navEntries=getNavigation().getNavigationForFolder(resName);
+        if (currentDepth < getMenuDepth()) {
+          if (manualConfig) {
+            navEntries=getHeadNavItemsFromConfig(currentDepth + 1,menuIndexes + String.valueOf(i));
+          }
+ else           if (ne.isFolderLink()) {
+            navEntries=getNavigation().getNavigationForFolder(resName);
+          }
         }
-        result.append(" <a class=\"");
-        result.append("mI");
-        result.append("\" href=\"");
-        result.append(link(resName));
+        String target=ne.getInfo();
+        if (CmsStringUtil.isEmpty(target)) {
+          target="_self";
+        }
+        result.append(" <a class=\"mI\" href=\"");
+        result.append(link);
         result.append("\"");
-        if (ne.isFolderLink() && hasSubMenuEntries(navEntries)) {
+        result.append("\" target=\"");
+        result.append(target);
+        result.append("\"");
+        if ((ne.isFolderLink() && hasSubMenuEntries(navEntries)) || (manualConfig && navEntries.size() > 0)) {
           result.append(" onmouseover=\"menuItemMouseover(event, '");
           result.append(prefix);
           result.append("_");
@@ -31,6 +47,9 @@
           result.append(ne.getNavText());
           result.append("</span><span class=\"mIArrow\">&#9654;</span></a>");
           subNav.put(resName,navEntries);
+          if (manualConfig) {
+            subIndex.put(resName,menuIndexes + String.valueOf(i));
+          }
         }
  else {
           result.append(">");
@@ -65,7 +84,11 @@
     while (i.hasNext()) {
       String resName=(String)i.next();
       List navEntries=(List)subNav.get(resName);
-      result.append(getMenuNavigation(navEntries,styleClass,prefix + "_" + resName.hashCode(),currentDepth + 1));
+      String newIndex=menuIndexes;
+      if (manualConfig) {
+        newIndex=(String)subIndex.get(resName);
+      }
+      result.append(getMenuNavigation(navEntries,styleClass,prefix + "_" + resName.hashCode(),currentDepth + 1,newIndex));
     }
   }
   return result;

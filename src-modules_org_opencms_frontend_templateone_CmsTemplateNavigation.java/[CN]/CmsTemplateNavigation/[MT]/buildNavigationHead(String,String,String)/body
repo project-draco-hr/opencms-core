@@ -5,7 +5,6 @@
   result.append(styleLink);
   result.append("\">\n");
   result.append("\t<!-- Start Topnavigation -->\n");
-  List navElements=getNavigation().getNavigationForFolder(getHeadNavFolder());
   boolean showHomeLink=Boolean.valueOf(getConfigurationValue("headnav.homelink/link.show","true")).booleanValue();
   if (showHomeLink && !showHeadNavImages()) {
     boolean onlyIndex=Boolean.valueOf(getConfigurationValue("headnav.homelink/link.onlyindex","false")).booleanValue();
@@ -38,13 +37,29 @@
   }
   int count=-1;
   String showItemProperty;
+  boolean manualHeadConfig=isHeadNavManual();
+  List navElements=new ArrayList();
+  if (manualHeadConfig) {
+    navElements=getHeadNavItemsFromConfig(0,"0");
+  }
+ else {
+    navElements=getNavigation().getNavigationForFolder(getHeadNavFolder());
+  }
   for (int i=0; i < navElements.size(); i++) {
     CmsJspNavElement nav=(CmsJspNavElement)navElements.get(i);
+    String link=nav.getResourceName();
+    if (link.startsWith("/")) {
+      link=link(link);
+    }
     showItemProperty=property(PROPERTY_HEADNAV_USE,nav.getResourceName(),getHeadNavItemDefaultStringValue());
     boolean showItem=Boolean.valueOf(showItemProperty).booleanValue();
-    if (nav.isFolderLink() && showItem) {
+    if (manualHeadConfig || (nav.isFolderLink() && showItem)) {
       count++;
       String navText=CmsEncoder.escapeXml(nav.getNavText().toUpperCase());
+      String target=nav.getInfo();
+      if (CmsStringUtil.isEmpty(target)) {
+        target="_self";
+      }
       if (showHeadNavImages()) {
         result.append("<td style= \"vertical-align: middle\">");
         result.append("<a");
@@ -61,7 +76,9 @@
         result.append(" title=\"");
         result.append(navText);
         result.append("\" href=\"");
-        result.append(link(nav.getResourceName()));
+        result.append(link);
+        result.append("\" target=\"");
+        result.append(target);
         result.append("\">");
         result.append("<img src=\"");
         result.append(link(nav.getNavImage()));
@@ -95,7 +112,9 @@
         result.append("\" title=\"");
         result.append(navText);
         result.append("\" href=\"");
-        result.append(link(nav.getResourceName()));
+        result.append(link);
+        result.append("\" target=\"");
+        result.append(target);
         result.append("\">");
         result.append(navText);
         result.append("</a>\n");
