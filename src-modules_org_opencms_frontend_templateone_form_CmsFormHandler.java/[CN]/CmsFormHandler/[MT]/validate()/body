@@ -1,8 +1,14 @@
 {
+  if (m_isValidatedCorrect != null) {
+    return m_isValidatedCorrect.booleanValue();
+  }
   boolean allOk=true;
   Iterator i=getFormConfiguration().getFields().iterator();
   while (i.hasNext()) {
     CmsField currentField=(CmsField)i.next();
+    if (CmsField.TYPE_CAPTCHA.equalsIgnoreCase(currentField.getType())) {
+      continue;
+    }
     if (currentField.isMandatory()) {
       if (currentField.needsItems()) {
         Iterator k=currentField.getItems().iterator();
@@ -43,12 +49,18 @@
         }
       }
     }
-    if (CmsField.TYPE_CAPTCHA.equals(currentField.getType())) {
-      if (!CmsCaptcha.validateCaptchaPhrase(this,currentField.getValue())) {
-        getErrors().put(currentField.getName(),ERROR_VALIDATION);
+  }
+  CmsCaptchaField captchaField=m_formConfiguration.getCaptchaField();
+  if (captchaField != null) {
+    boolean captchaFieldIsOnInputPage=getFormConfiguration().captchaFieldIsOnInputPage() && getFormConfiguration().isInputFormSubmitted(this);
+    boolean captchaFieldIsOnCheckPage=getFormConfiguration().captchaFieldIsOnCheckPage() && getFormConfiguration().isCheckPageSubmitted(this);
+    if (captchaFieldIsOnInputPage || captchaFieldIsOnCheckPage) {
+      if (!captchaField.validateCaptchaPhrase(this,captchaField.getValue())) {
+        getErrors().put(captchaField.getName(),ERROR_VALIDATION);
         allOk=false;
       }
     }
   }
+  m_isValidatedCorrect=new Boolean(allOk);
   return allOk;
 }
