@@ -1,0 +1,44 @@
+{
+  if ((resourcesToUpdate == null) || resourcesToUpdate.isEmpty()) {
+    return;
+  }
+  List resourcesAlreadyUpdated=new ArrayList(resourcesToUpdate.size());
+  Iterator i=resourcesToUpdate.iterator();
+  while (i.hasNext()) {
+    CmsPublishedResource res=(CmsPublishedResource)i.next();
+    CmsResource resource=null;
+    try {
+      resource=m_cms.readResource(res.getRootPath());
+    }
+ catch (    CmsException e) {
+      if (LOG.isWarnEnabled()) {
+        LOG.warn(Messages.get().key(Messages.LOG_UNABLE_TO_READ_RESOURCE_2,resource.getRootPath(),m_index.getName()),e);
+      }
+    }
+    if (resource != null) {
+      List resources=new ArrayList();
+      if (resource.getSiblingCount() > 0) {
+        try {
+          resources=m_cms.readSiblings(resource.getRootPath(),CmsResourceFilter.DEFAULT);
+        }
+ catch (        CmsException e) {
+          if (LOG.isWarnEnabled()) {
+            LOG.warn(Messages.get().key(Messages.LOG_UNABLE_TO_READ_SIBLINGS_2,resource.getRootPath(),m_index.getName()),e);
+          }
+          resources.add(resource);
+        }
+      }
+ else {
+        resources.add(resource);
+      }
+      Iterator j=resources.iterator();
+      while (j.hasNext()) {
+        CmsResource r=(CmsResource)j.next();
+        if (!resourcesAlreadyUpdated.contains(r.getRootPath())) {
+          resourcesAlreadyUpdated.add(r.getRootPath());
+          updateResource(writer,threadManager,r);
+        }
+      }
+    }
+  }
+}

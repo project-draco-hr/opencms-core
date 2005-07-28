@@ -1,0 +1,50 @@
+{
+  boolean channelReported=false;
+  CmsProject currentProject=null;
+  CmsRequestContext context=m_cms.getRequestContext();
+  try {
+    currentProject=context.currentProject();
+    context.setCurrentProject(m_cms.readProject(m_index.getProject()));
+    String channelId=getChannelId(m_cms,channel).toString();
+    Vector subChannels=CmsMasterContent.getAllSubChannelsOf(m_cms,channel);
+    for (int i=0; i < subChannels.size(); i++) {
+      String subChannel=(String)subChannels.get(i);
+      internalUpdateIndex(subChannel,root);
+    }
+    Vector resources=readAllByChannel(m_cms,channelId,m_subId);
+    for (Iterator i=resources.iterator(); i.hasNext(); ) {
+      CmsMasterDataSet ds=(CmsMasterDataSet)i.next();
+      if (m_report != null && !channelReported) {
+        m_report.print(Messages.get().container(Messages.RPT_INDEX_CHANNEL_0),I_CmsReport.FORMAT_NOTE);
+        m_report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,channel));
+        channelReported=true;
+      }
+      if (m_report != null) {
+        m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_1,String.valueOf(m_threadManager.getCounter() + 1)),I_CmsReport.FORMAT_NOTE);
+        m_report.print(org.opencms.search.Messages.get().container(org.opencms.search.Messages.RPT_SEARCH_INDEXING_FILE_BEGIN_0),I_CmsReport.FORMAT_NOTE);
+        if (ds.m_title != null) {
+          String title=ds.m_title;
+          title=CmsStringUtil.substitute(title,"'","\\'");
+          title=CmsStringUtil.substitute(title,"\"","\\\"");
+          m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,title));
+        }
+        m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+      }
+      String path=m_indexSource.getParam(C_PARAM_CHANNEL_DISPLAY_URI) + "?" + m_indexSource.getParam(C_PARAM_CHANNEL_DISPLAY_PARAM)+ "="+ ds.m_masterId;
+      A_CmsIndexResource ires=new CmsCosIndexResource(ds,path,channel,m_contentDefinition.getClass().getName());
+      m_threadManager.createIndexingThread(m_cms,m_writer,ires,m_index);
+    }
+  }
+ catch (  Exception exc) {
+    if (m_report != null) {
+      m_report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_FAILED_0),I_CmsReport.FORMAT_WARNING);
+    }
+    if (CmsLog.getLog(this).isWarnEnabled()) {
+      CmsLog.getLog(this).warn("Failed to index " + channel,exc);
+    }
+    throw new CmsIndexException(Messages.get().container(Messages.ERR_COS_INDEXING_CONTENTS_OF_CLASS_1,channel),exc);
+  }
+ finally {
+    context.setCurrentProject(currentProject);
+  }
+}

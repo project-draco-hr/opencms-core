@@ -1,0 +1,51 @@
+{
+  if ((resourcesToDelete == null) || resourcesToDelete.isEmpty()) {
+    return;
+  }
+  List resourcesAlreadyDeleted=new ArrayList(resourcesToDelete.size());
+  Iterator i=resourcesToDelete.iterator();
+  while (i.hasNext()) {
+    CmsPublishedResource res=(CmsPublishedResource)i.next();
+    List rootPaths=new ArrayList();
+    if (res.getSiblingCount() > 0) {
+      List siblings=null;
+      try {
+        siblings=m_cms.readSiblings(res.getRootPath(),CmsResourceFilter.DEFAULT);
+      }
+ catch (      CmsException e) {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().key(Messages.LOG_UNABLE_TO_READ_SIBLINGS_2,res.getRootPath(),m_index.getName()),e);
+        }
+      }
+      if (siblings != null) {
+        Iterator j=siblings.iterator();
+        while (j.hasNext()) {
+          CmsResource sibling=(CmsResource)j.next();
+          rootPaths.add(sibling.getRootPath());
+        }
+      }
+ else {
+        rootPaths.add(res.getRootPath());
+      }
+    }
+ else {
+      rootPaths.add(res.getRootPath());
+    }
+    Iterator j=rootPaths.iterator();
+    while (j.hasNext()) {
+      String rootPath=(String)j.next();
+      if (!resourcesAlreadyDeleted.contains(rootPath)) {
+        resourcesAlreadyDeleted.add(rootPath);
+        Term term=new Term(I_CmsDocumentFactory.DOC_PATH,rootPath);
+        try {
+          reader.delete(term);
+        }
+ catch (        IOException e) {
+          if (LOG.isWarnEnabled()) {
+            LOG.warn(Messages.get().key(Messages.LOG_IO_INDEX_DOCUMENT_DELETE_2,rootPath,m_index.getName()),e);
+          }
+        }
+      }
+    }
+  }
+}
