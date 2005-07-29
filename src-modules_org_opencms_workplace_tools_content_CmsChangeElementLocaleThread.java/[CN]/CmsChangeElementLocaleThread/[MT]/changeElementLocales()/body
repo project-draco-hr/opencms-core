@@ -1,0 +1,66 @@
+{
+  Locale oldLocale=CmsLocaleManager.getLocale(m_settings.getOldLocale());
+  Locale newLocale=CmsLocaleManager.getLocale(m_settings.getNewLocale());
+  boolean checkTemplate=CmsStringUtil.isNotEmpty(m_settings.getTemplate());
+  CmsResourceFilter filter=CmsResourceFilter.IGNORE_EXPIRATION.addRequireType(CmsResourceTypeXmlPage.getStaticTypeId());
+  String path=CmsResource.getFolderPath(m_settings.getVfsFolder());
+  List resources=getCms().readResources(path,filter,m_settings.isIncludeSubFolders());
+  int count=0;
+  int resSize=resources.size();
+  Iterator i=resources.iterator();
+  while (i.hasNext()) {
+    count++;
+    CmsResource res=(CmsResource)i.next();
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,String.valueOf(count),String.valueOf(resSize)),I_CmsReport.FORMAT_NOTE);
+    getReport().print(Messages.get().container(Messages.RPT_PROCESSING_PAGE_0),I_CmsReport.FORMAT_NOTE);
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,getCms().getSitePath(res)));
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    try {
+      if (checkTemplate) {
+        String template=getCms().readPropertyObject(res,CmsPropertyDefinition.PROPERTY_TEMPLATE,true).getValue("");
+        if (!m_settings.getTemplate().equals(template)) {
+          getReport().println(Messages.get().container(Messages.RPT_CHANGEELEMENTLOCALE_TEMPLATE_0),I_CmsReport.FORMAT_NOTE);
+          continue;
+        }
+      }
+      CmsFile file=CmsFile.upgrade(res,getCms());
+      CmsXmlPage page=CmsXmlPageFactory.unmarshal(getCms(),file);
+      if (!page.hasLocale(oldLocale)) {
+        getReport().println(Messages.get().container(Messages.RPT_CHANGEELEMENTLOCALE_OLDLOCALE_1,m_settings.getOldLocale()),I_CmsReport.FORMAT_NOTE);
+        continue;
+      }
+      if (page.hasLocale(newLocale)) {
+        getReport().println(Messages.get().container(Messages.RPT_CHANGEELEMENTLOCALE_NEWLOCALE_1,m_settings.getNewLocale()),I_CmsReport.FORMAT_NOTE);
+        continue;
+      }
+      page.moveLocale(oldLocale,newLocale);
+      file.setContents(page.marshal());
+      CmsLock lock=getCms().getLock(res);
+      boolean isLocked=false;
+      boolean canWrite=false;
+      if (lock.isNullLock()) {
+        getCms().lockResource(getCms().getSitePath(res));
+        isLocked=true;
+        canWrite=true;
+      }
+ else       if (lock.getUserId().equals(getCms().getRequestContext().currentUser().getId())) {
+        canWrite=true;
+      }
+      if (canWrite) {
+        getCms().writeFile(file);
+      }
+ else {
+        getReport().println(Messages.get().container(Messages.RPT_CHANGEELEMENTLOCALE_NOTLOCKED_0),I_CmsReport.FORMAT_NOTE);
+      }
+      if (isLocked) {
+        getCms().unlockResource(getCms().getSitePath(res));
+      }
+      if (canWrite) {
+        getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+      }
+    }
+ catch (    CmsException e) {
+      getReport().println(e);
+    }
+  }
+}
