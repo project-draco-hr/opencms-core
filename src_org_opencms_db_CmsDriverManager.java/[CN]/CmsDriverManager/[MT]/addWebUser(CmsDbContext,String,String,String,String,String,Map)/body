@@ -1,39 +1,28 @@
 {
-  name=name.trim();
-  validUsername(name);
-  validatePassword(password);
-  if ((name.length() > 0)) {
-    CmsUser newUser=m_userDriver.createUser(dbc,name,password,description," "," "," ",0,I_CmsPrincipal.FLAG_ENABLED,additionalInfos," ",CmsUser.USER_TYPE_WEBUSER);
-    CmsUser user;
-    CmsGroup usergroup;
-    CmsGroup addGroup;
-    user=m_userDriver.readUser(dbc,newUser.getName(),CmsUser.USER_TYPE_WEBUSER);
-    if (user != null) {
-      usergroup=readGroup(dbc,group);
-      if (usergroup != null && isWebgroup(dbc,usergroup)) {
-        m_userDriver.createUserInGroup(dbc,user.getId(),usergroup.getId(),null);
+  CmsUser newUser=createUser(dbc,name,password,description,additionalInfos,CmsUser.USER_TYPE_WEBUSER);
+  CmsUser user=m_userDriver.readUser(dbc,newUser.getName(),CmsUser.USER_TYPE_WEBUSER);
+  if (user != null) {
+    CmsGroup usergroup=readGroup(dbc,group);
+    if (usergroup != null && isWebgroup(dbc,usergroup)) {
+      m_userDriver.createUserInGroup(dbc,user.getId(),usergroup.getId(),null);
+      m_userGroupsCache.clear();
+    }
+ else {
+      throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_UNKNOWN_GROUP_1,group));
+    }
+    if (CmsStringUtil.isNotEmpty(additionalGroup)) {
+      CmsGroup addGroup=readGroup(dbc,additionalGroup);
+      if (addGroup != null && isWebgroup(dbc,addGroup)) {
+        m_userDriver.createUserInGroup(dbc,user.getId(),addGroup.getId(),null);
         m_userGroupsCache.clear();
       }
  else {
         throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_UNKNOWN_GROUP_1,group));
       }
-      if (CmsStringUtil.isNotEmpty(additionalGroup)) {
-        addGroup=readGroup(dbc,additionalGroup);
-        if (addGroup != null && isWebgroup(dbc,addGroup)) {
-          m_userDriver.createUserInGroup(dbc,user.getId(),addGroup.getId(),null);
-          m_userGroupsCache.clear();
-        }
- else {
-          throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_UNKNOWN_GROUP_1,group));
-        }
-      }
     }
- else {
-      throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_UNKNOWN_USER_1,user.getName()));
-    }
-    return newUser;
   }
  else {
-    throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_BAD_USER_1,name));
+    throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_UNKNOWN_USER_1,user.getName()));
   }
+  return newUser;
 }
