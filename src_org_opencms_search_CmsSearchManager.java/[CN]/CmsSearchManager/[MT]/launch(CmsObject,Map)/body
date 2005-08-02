@@ -1,13 +1,33 @@
 {
   CmsSearchManager manager=OpenCms.getSearchManager();
   I_CmsReport report=null;
-  boolean writeLog=Boolean.valueOf((String)parameters.get("writeLog")).booleanValue();
+  boolean writeLog=Boolean.valueOf((String)parameters.get(JOB_PARAM_WRITELOG)).booleanValue();
   if (writeLog) {
     report=new CmsLogReport(cms.getRequestContext().getLocale(),CmsSearchManager.class);
   }
-  int todo=0;
+  List updateList=null;
+  String indexList=(String)parameters.get(JOB_PARAM_INDEXLIST);
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(indexList)) {
+    updateList=new ArrayList();
+    String[] indexNames=CmsStringUtil.splitAsArray(indexList,'|');
+    for (int i=0; i < indexNames.length; i++) {
+      if (manager.getIndex(indexNames[i]) != null) {
+        updateList.add(indexNames[i]);
+      }
+ else {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().key(Messages.LOG_NO_INDEX_WITH_NAME_1,indexNames[i]));
+        }
+      }
+    }
+  }
   long startTime=System.currentTimeMillis();
-  manager.rebuildAllIndexes(report);
+  if (updateList == null) {
+    manager.rebuildAllIndexes(report);
+  }
+ else {
+    manager.rebuildIndexes(updateList,report);
+  }
   long runTime=System.currentTimeMillis() - startTime;
   String finishMessage=Messages.get().key(Messages.LOG_REBUILD_INDEXES_FINISHED_1,CmsStringUtil.formatRuntime(runTime));
   if (LOG.isInfoEnabled()) {
