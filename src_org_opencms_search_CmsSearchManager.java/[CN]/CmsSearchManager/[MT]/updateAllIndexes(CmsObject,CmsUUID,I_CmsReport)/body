@@ -15,7 +15,31 @@
       continue;
     }
     if (res.isDeleted() || res.isNew() || res.isChanged()) {
-      updateResources.add(res);
+      if (updateResources.contains(res)) {
+        updateResources.remove(res);
+        updateResources.add(res);
+      }
+ else {
+        updateResources.add(res);
+        if (res.getSiblingCount() > 1) {
+          try {
+            List siblings=adminCms.readSiblings(res.getRootPath(),CmsResourceFilter.ALL);
+            Iterator itSib=siblings.iterator();
+            while (itSib.hasNext()) {
+              CmsResource sibling=(CmsResource)itSib.next();
+              CmsPublishedResource sib=new CmsPublishedResource(sibling);
+              if (!updateResources.contains(sib)) {
+                updateResources.add(sib);
+              }
+            }
+          }
+ catch (          CmsException e) {
+            if (LOG.isWarnEnabled()) {
+              LOG.warn(Messages.get().key(Messages.LOG_UNABLE_TO_READ_SIBLINGS_1,res.getRootPath()),e);
+            }
+          }
+        }
+      }
     }
   }
   Map documentCache=Collections.synchronizedMap(new LRUMap(256));
