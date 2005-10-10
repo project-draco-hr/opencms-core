@@ -9,8 +9,8 @@
       settings.setGalleryType(galleryTypeName);
     }
   }
-  String className=OpenCms.getWorkplaceManager().getGalleryClassName(galleryTypeName);
-  if (className == null) {
+  A_CmsGallery template=(A_CmsGallery)OpenCms.getWorkplaceManager().getGalleries().get(galleryTypeName);
+  if (template == null) {
     CmsMessageContainer message;
     if (jsp == null) {
       message=Messages.get().container(Messages.LOG_UNKNOWN_GALLERY_TYPE_REQ_1,galleryTypeName);
@@ -22,20 +22,23 @@
     throw new CmsRuntimeException(message);
   }
   try {
-    Class galleryClass=Class.forName(className);
+    Class galleryClass=Class.forName(template.getResourceType().getFolderClassName());
     A_CmsGallery galleryInstance=(A_CmsGallery)galleryClass.newInstance();
     galleryInstance.m_galleryTypeName=galleryTypeName;
-    galleryInstance.m_galleryTypeId=OpenCms.getResourceManager().getResourceType(galleryTypeName).getTypeId();
+    galleryInstance.m_resourceType=template.getResourceType();
+    galleryInstance.m_galleryTypeParams=template.getResourceType().getFolderClassParams();
+    galleryInstance.m_galleryTypeId=template.getResourceType().getTypeId();
     galleryInstance.initWorkplaceMembers(jsp);
+    galleryInstance.init();
     return galleryInstance;
   }
  catch (  Exception e) {
     CmsMessageContainer message;
     if (jsp == null) {
-      message=Messages.get().container(Messages.LOG_CREATE_GALLERY_INSTANCE_FAILED_2,className,galleryTypeName);
+      message=Messages.get().container(Messages.LOG_CREATE_GALLERY_INSTANCE_FAILED_2,template.getResourceType().getFolderClassName(),galleryTypeName);
     }
  else {
-      message=Messages.get().container(Messages.LOG_CREATE_GALLERY_INSTANCE_FAILED_JSP_3,className,galleryTypeName,jsp.info("opencms.request.element.uri"));
+      message=Messages.get().container(Messages.LOG_CREATE_GALLERY_INSTANCE_FAILED_JSP_3,template.getResourceType().getFolderClassName(),galleryTypeName,jsp.info("opencms.request.element.uri"));
     }
     LOG.error(message.key());
     throw new CmsRuntimeException(message);

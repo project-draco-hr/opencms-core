@@ -1,0 +1,45 @@
+{
+  CmsGroup replacementGroup=null;
+  if (replacementId != null) {
+    replacementGroup=readGroup(dbc,replacementId);
+  }
+  List childs=getChild(dbc,group.getName());
+  List users=getUsersOfGroup(dbc,group.getName());
+  CmsProject onlineProject=readProject(dbc,CmsProject.ONLINE_PROJECT_ID);
+  if (replacementGroup == null) {
+    Iterator itUsers=users.iterator();
+    while (itUsers.hasNext()) {
+      CmsUser user=(CmsUser)itUsers.next();
+      removeUserFromGroup(dbc,user.getName(),group.getName());
+    }
+    CmsUUID parentId=group.getParentId();
+    if (parentId == null) {
+      parentId=CmsUUID.getNullUUID();
+    }
+    Iterator itChilds=childs.iterator();
+    while (itChilds.hasNext()) {
+      CmsGroup child=(CmsGroup)itChilds.next();
+      child.setParentId(parentId);
+      writeGroup(dbc,child);
+    }
+  }
+ else {
+    Iterator itChilds=childs.iterator();
+    while (itChilds.hasNext()) {
+      CmsGroup child=(CmsGroup)itChilds.next();
+      child.setParentId(replacementId);
+      writeGroup(dbc,child);
+    }
+    Iterator itUsers=users.iterator();
+    while (itUsers.hasNext()) {
+      CmsUser user=(CmsUser)itUsers.next();
+      addUserToGroup(dbc,user.getName(),replacementGroup.getName());
+      removeUserFromGroup(dbc,user.getName(),group.getName());
+    }
+    transferPrincipalResources(dbc,dbc.currentProject(),group.getId(),replacementId,true);
+    transferPrincipalResources(dbc,onlineProject,group.getId(),replacementId,true);
+  }
+  m_userDriver.removeAccessControlEntriesForPrincipal(dbc,dbc.currentProject(),onlineProject,group.getId());
+  m_userDriver.deleteGroup(dbc,group.getName());
+  m_groupCache.remove(new CacheId(group.getName()));
+}

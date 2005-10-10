@@ -1,0 +1,41 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing advanced group deletion");
+  cms.createGroup("Testgroup","A test group",0,null);
+  CmsGroup testGroup=cms.readGroup("Testgroup");
+  cms.setParentGroup(OpenCms.getDefaultUsers().getGroupUsers(),testGroup.getName());
+  cms.createUser("testuser1","test1","A test user 1",null);
+  cms.addUserToGroup("testuser1","Testgroup");
+  CmsUser testUser1=cms.readUser("testuser1");
+  CmsProject offline=cms.readProject("Offline");
+  cms.loginUser("Admin","admin");
+  cms.getRequestContext().setCurrentProject(offline);
+  String resName="/folder1/subfolder11/subsubfolder111/text.txt";
+  cms.lockResource(resName);
+  cms.chacc(resName,I_CmsPrincipal.PRINCIPAL_USER,testUser1.getName(),"+r+w+v+i");
+  cms.chacc(resName,I_CmsPrincipal.PRINCIPAL_GROUP,testGroup.getName(),"+r+v+i");
+  cms.unlockResource(resName);
+  cms.publishProject();
+  cms.createGroup("testgroup2","A test group 2",0,null);
+  CmsGroup testGroup2=cms.readGroup("testgroup2");
+  List childs=cms.getChild(testGroup.getName());
+  List users=cms.getUsersOfGroup(testGroup.getName());
+  cms.deleteGroup(testGroup.getId(),testGroup2.getId());
+  boolean found=false;
+  Iterator it=cms.getAccessControlEntries(resName,false).iterator();
+  while (it.hasNext()) {
+    CmsAccessControlEntry ace=(CmsAccessControlEntry)it.next();
+    if (ace.getPrincipal().equals(testGroup2.getId())) {
+      CmsAccessControlEntry newAce=new CmsAccessControlEntry(cms.readResource(resName).getResourceId(),testGroup2.getId(),"+r+v+i");
+      newAce.setFlags(CmsAccessControlEntry.ACCESS_FLAGS_GROUP);
+      assertTrue(newAce.equals(ace));
+      found=true;
+    }
+  }
+  assertTrue(found);
+  assertEquals(childs,cms.getChild(testGroup2.getName()));
+  assertEquals(users,cms.getUsersOfGroup(testGroup2.getName()));
+  cms.deleteUser(testUser1.getId());
+  cms.setParentGroup(OpenCms.getDefaultUsers().getGroupUsers(),null);
+  cms.deleteGroup(testGroup2.getName());
+}

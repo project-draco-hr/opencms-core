@@ -1,0 +1,70 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing user deletion");
+  cms.createGroup("Testgroup","A test group",0,null);
+  CmsGroup testGroup=cms.readGroup("Testgroup");
+  cms.createUser("testuser1","test1","A test user 1",null);
+  cms.addUserToGroup("testuser1","Testgroup");
+  CmsUser testUser1=cms.readUser("testuser1");
+  cms.lockResource("/");
+  cms.chacc("/",I_CmsPrincipal.PRINCIPAL_USER,testUser1.getName(),"+r+w+v+i+c");
+  cms.unlockResource("/");
+  cms.publishProject();
+  cms.loginUser(testUser1.getName(),"test1");
+  CmsProject offline=cms.readProject("Offline");
+  cms.getRequestContext().setCurrentProject(offline);
+  String resName="/myfile.txt";
+  cms.createResource(resName,CmsResourceTypePlain.getStaticTypeId(),"my content".getBytes(),null);
+  cms.lockResource(resName);
+  cms.chacc(resName,I_CmsPrincipal.PRINCIPAL_USER,testUser1.getName(),"+r+w+v+i");
+  cms.chacc(resName,I_CmsPrincipal.PRINCIPAL_GROUP,testGroup.getName(),"+r+v+i");
+  cms.unlockResource(resName);
+  cms.loginUser("Admin","admin");
+  cms.getRequestContext().setCurrentProject(offline);
+  cms.publishProject();
+  String resName2="/folder1/subfolder11/subsubfolder111/text.txt";
+  cms.lockResource(resName2);
+  cms.chacc(resName2,I_CmsPrincipal.PRINCIPAL_USER,testUser1.getName(),"+r+w+v+i");
+  cms.chacc(resName2,I_CmsPrincipal.PRINCIPAL_GROUP,testGroup.getName(),"+r+v+i");
+  cms.unlockResource(resName2);
+  cms.publishProject();
+  cms.createUser("testuser2","test2","A test user 2",null);
+  cms.addUserToGroup("testuser2","Testgroup");
+  CmsUser testUser2=cms.readUser("testuser2");
+  int state=cms.readResource(resName).getState();
+  cms.deleteUser(testUser1.getId(),testUser2.getId());
+  CmsResource res=cms.readResource(resName);
+  assertEquals(res.getUserCreated(),testUser2.getId());
+  assertEquals(res.getUserLastModified(),testUser2.getId());
+  assertEquals(res.getState(),state);
+  boolean found=false;
+  Iterator it=cms.getAccessControlEntries(resName,false).iterator();
+  while (it.hasNext()) {
+    CmsAccessControlEntry ace=(CmsAccessControlEntry)it.next();
+    if (ace.getPrincipal().equals(testUser2.getId())) {
+      CmsAccessControlEntry newAce=new CmsAccessControlEntry(cms.readResource(resName).getResourceId(),testUser2.getId(),"+r+w+v+i");
+      newAce.setFlags(CmsAccessControlEntry.ACCESS_FLAGS_USER);
+      assertTrue(newAce.equals(ace));
+      found=true;
+    }
+  }
+  assertTrue(found);
+  found=false;
+  it=cms.getAccessControlEntries(resName2,false).iterator();
+  while (it.hasNext()) {
+    CmsAccessControlEntry ace=(CmsAccessControlEntry)it.next();
+    if (ace.getPrincipal().equals(testUser2.getId())) {
+      CmsAccessControlEntry newAce=new CmsAccessControlEntry(cms.readResource(resName2).getResourceId(),testUser2.getId(),"+r+w+v+i");
+      newAce.setFlags(CmsAccessControlEntry.ACCESS_FLAGS_USER);
+      assertTrue(newAce.equals(ace));
+      found=true;
+    }
+  }
+  assertTrue(found);
+  cms.lockResource(resName);
+  cms.deleteResource(resName,CmsResource.DELETE_REMOVE_SIBLINGS);
+  cms.unlockResource(resName);
+  cms.publishProject();
+  cms.deleteUser(testUser2.getId());
+  cms.deleteGroup(testGroup.getName());
+}

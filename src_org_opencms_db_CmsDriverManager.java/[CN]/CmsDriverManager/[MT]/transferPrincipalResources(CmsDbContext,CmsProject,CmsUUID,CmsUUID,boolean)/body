@@ -1,0 +1,40 @@
+{
+  List resources=getResourcesForPrincipal(dbc,project,principalId,null,true);
+  Iterator it=resources.iterator();
+  while (it.hasNext()) {
+    CmsResource resource=(CmsResource)it.next();
+    boolean attrModified=false;
+    CmsUUID createdUser=null;
+    if (resource.getUserCreated().equals(principalId)) {
+      createdUser=replacementId;
+      attrModified=true;
+    }
+    CmsUUID lastModUser=null;
+    if (resource.getUserLastModified().equals(principalId)) {
+      lastModUser=replacementId;
+      attrModified=true;
+    }
+    if (attrModified) {
+      m_vfsDriver.transferResource(dbc,project,resource,createdUser,lastModUser);
+      clearResourceCache();
+    }
+    boolean aceModified=false;
+    if (withACEs) {
+      Iterator itAces=m_userDriver.readAccessControlEntries(dbc,project,resource.getResourceId(),false).iterator();
+      while (itAces.hasNext()) {
+        CmsAccessControlEntry ace=(CmsAccessControlEntry)itAces.next();
+        if (ace.getPrincipal().equals(principalId)) {
+          CmsAccessControlEntry newAce=new CmsAccessControlEntry(ace.getResource(),replacementId,ace.getAllowedPermissions(),ace.getDeniedPermissions(),ace.getFlags());
+          m_userDriver.writeAccessControlEntry(dbc,project,newAce);
+          aceModified=true;
+        }
+      }
+    }
+    if (aceModified) {
+      clearAccessControlListCache();
+    }
+    if (attrModified || aceModified) {
+      OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_MODIFIED,Collections.singletonMap("resource",resource)));
+    }
+  }
+}
