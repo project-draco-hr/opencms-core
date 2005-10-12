@@ -1,9 +1,26 @@
 {
   if (getAction() == ACTION_CANCEL) {
     try {
-      CmsResource res=getCms().readResource(getParamResource());
+      CmsResource res=getCms().readResource(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
       if (res.getState() == CmsResource.STATE_NEW) {
         getCms().deleteResource(getParamResource(),CmsResource.DELETE_PRESERVE_SIBLINGS);
+      }
+      if (res.getState() == CmsResource.STATE_CHANGED) {
+        CmsProject currentProject=getCms().getRequestContext().currentProject();
+        byte[] onlineContents=null;
+        try {
+          getCms().getRequestContext().setCurrentProject(getCms().readProject(CmsProject.ONLINE_PROJECT_ID));
+          CmsFile onlineFile=getCms().readFile(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
+          onlineContents=onlineFile.getContents();
+        }
+  finally {
+          getCms().getRequestContext().setCurrentProject(currentProject);
+        }
+        if (onlineContents != null) {
+          CmsFile modFile=getCms().readFile(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
+          modFile.setContents(onlineContents);
+          getCms().writeFile(modFile);
+        }
       }
     }
  catch (    Exception e) {
