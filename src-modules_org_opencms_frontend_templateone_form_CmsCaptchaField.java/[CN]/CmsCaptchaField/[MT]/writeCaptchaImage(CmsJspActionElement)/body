@@ -1,10 +1,26 @@
 {
   ByteArrayOutputStream captchaImageOutput=new ByteArrayOutputStream();
   ServletOutputStream out=null;
+  BufferedImage captchaImage=null;
+  int maxTries=10;
+  do {
+    try {
+      maxTries--;
+      String sessionId=cms.getRequest().getSession().getId();
+      Locale locale=cms.getRequestContext().getLocale();
+      captchaImage=CmsCaptchaServiceCache.getSharedInstance().getCaptchaService(m_captchaSettings,cms.getCmsObject()).getImageChallengeForID(sessionId,locale);
+    }
+ catch (    CaptchaException cex) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(cex);
+        LOG.error(Messages.get().key(Messages.LOG_ERR_CAPTCHA_CONFIG_IMAGE_SIZE_2,new Object[]{m_captchaSettings.getPresetPath(),new Integer(maxTries)}));
+      }
+      m_captchaSettings.setImageHeight(m_captchaSettings.getImageHeight() + 40);
+      m_captchaSettings.setImageWidth(m_captchaSettings.getImageWidth() + 80);
+    }
+  }
+ while (captchaImage == null && maxTries > 0);
   try {
-    String sessionId=cms.getRequest().getSession().getId();
-    Locale locale=cms.getRequestContext().getLocale();
-    BufferedImage captchaImage=CmsCaptchaServiceCache.getSharedInstance().getCaptchaService(m_captchaSettings,cms.getCmsObject()).getImageChallengeForID(sessionId,locale);
     JPEGImageEncoder jpegEncoder=JPEGCodec.createJPEGEncoder(captchaImageOutput);
     jpegEncoder.encode(captchaImage);
     CmsFlexController controller=CmsFlexController.getController(cms.getRequest());
@@ -19,7 +35,7 @@
   }
  catch (  Exception e) {
     if (LOG.isErrorEnabled()) {
-      LOG.error(e.getLocalizedMessage());
+      LOG.error(e);
     }
     cms.getResponse().sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
   }
