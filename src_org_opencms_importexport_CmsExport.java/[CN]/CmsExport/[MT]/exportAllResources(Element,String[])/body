@@ -12,13 +12,40 @@
       fileNames.add(resourcesToExport[i]);
     }
   }
-  checkRedundancies(folderNames,fileNames);
+  if (m_recursive) {
+    checkRedundancies(folderNames,fileNames);
+  }
   m_exportedResources=new HashSet();
   m_exportedPageFiles=new HashSet();
   for (int i=0; i < folderNames.size(); i++) {
     String path=(String)folderNames.get(i);
-    addParentFolders(path);
-    addChildResources(path);
+    if (m_recursive) {
+      addParentFolders(path);
+      addChildResources(path);
+    }
+ else {
+      CmsFolder folder;
+      try {
+        folder=getCms().readFolder(path,CmsResourceFilter.IGNORE_EXPIRATION);
+      }
+ catch (      CmsException e) {
+        CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_ADDING_PARENT_FOLDERS_1,path);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(message.key(),e);
+        }
+        throw new CmsImportExportException(message,e);
+      }
+      int state=folder.getState();
+      long age=folder.getDateLastModified() < folder.getDateCreated() ? folder.getDateCreated() : folder.getDateLastModified();
+      if (getCms().getRequestContext().currentProject().isOnlineProject() || (m_includeUnchanged) || state == CmsResource.STATE_NEW || state == CmsResource.STATE_CHANGED) {
+        if ((state != CmsResource.STATE_DELETED) && (age >= m_contentAge)) {
+          String export=getCms().getSitePath(folder);
+          if (checkExportResource(export)) {
+            appendResourceToManifest(folder,false);
+          }
+        }
+      }
+    }
     m_exportedResources.add(path);
   }
   addFiles(fileNames);
