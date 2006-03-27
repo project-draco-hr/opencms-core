@@ -1,44 +1,41 @@
 {
+  if (tag.getAttribute("src") != null) {
+    CmsLink link;
 switch (m_mode) {
-case REPLACE_LINKS:
-    if (imageTag.getAttribute("src") != null) {
-      String targetUri=imageTag.getImageURL();
-      String internalUri=CmsLinkManager.getSitePath(m_cms,m_relativePath,targetUri);
-      boolean hasAltAttrib=(imageTag.getAttribute("alt") != null);
-      String title=null;
-      if (internalUri != null) {
-        imageTag.setImageURL(replaceLink(m_linkTable.addLink(imageTag.getTagName(),internalUri,true)));
-        if (!hasAltAttrib && (m_cms != null)) {
-          try {
-            title=m_cms.readPropertyObject(internalUri,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue("\"\"");
-          }
- catch (          CmsException e) {
-            title="\"\"";
-          }
-          imageTag.setAttribute("alt",title);
-        }
-      }
- else {
-        imageTag.setImageURL(replaceLink(m_linkTable.addLink(imageTag.getTagName(),targetUri,false)));
-        if (!hasAltAttrib) {
-          imageTag.setAttribute("alt","\"\"");
-        }
-      }
+case PROCESS_LINKS:
+      link=m_linkTable.getLink(getLinkName(tag.getImageURL()));
+    if (link != null) {
+      tag.setImageURL(processLink(link));
     }
   break;
-case PROCESS_LINKS:
-if (imageTag.getAttribute("src") != null) {
-  String imageUrl=imageTag.getImageURL();
-  CmsLink link=m_linkTable.getLink(getLinkName(imageUrl));
-  if (link != null) {
-    imageTag.setImageURL(processLink(link));
-  }
+case REPLACE_LINKS:
+String targetUri=tag.getImageURL();
+if (CmsStringUtil.isNotEmpty(targetUri)) {
+String internalUri=CmsLinkManager.getSitePath(m_cms,m_relativePath,targetUri);
+if (internalUri != null) {
+  link=m_linkTable.addLink(tag.getTagName(),internalUri,true);
+}
  else {
-    imageTag.setImageURL(imageUrl);
+  link=m_linkTable.addLink(tag.getTagName(),targetUri,false);
+}
+tag.setImageURL(CmsMacroResolver.formatMacro(link.getName()));
+boolean hasAltAttrib=(tag.getAttribute("alt") != null);
+if (!hasAltAttrib) {
+  String value=null;
+  if ((internalUri != null) && (m_rootCms != null)) {
+    try {
+      value=m_rootCms.readPropertyObject(internalUri,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
+    }
+ catch (    CmsException e) {
+    }
   }
+  Vector attrs=tag.getAttributesEx();
+  attrs.add(1,new Attribute(" "));
+  attrs.add(2,new Attribute("alt",value == null ? "" : value,'"'));
+}
 }
 break;
 default :
-break;
+}
 }
 }

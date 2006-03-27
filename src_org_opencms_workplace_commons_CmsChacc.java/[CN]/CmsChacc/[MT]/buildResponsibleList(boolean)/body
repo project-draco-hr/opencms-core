@@ -1,0 +1,67 @@
+{
+  List parentResources=new ArrayList();
+  Map responsibles=new HashMap();
+  CmsObject cms=getCms();
+  String resourceSitePath=cms.getRequestContext().removeSiteRoot(getParamResource());
+  try {
+    parentResources=cms.readPath(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
+  }
+ catch (  CmsException e) {
+    if (CmsChacc.LOG.isInfoEnabled()) {
+      CmsChacc.LOG.info(e.getLocalizedMessage());
+    }
+  }
+  Iterator i=parentResources.iterator();
+  while (i.hasNext()) {
+    CmsResource resource=(CmsResource)i.next();
+    try {
+      String sitePath=resource.getRootPath();
+      Iterator entries=cms.getAccessControlEntries(cms.getRequestContext().removeSiteRoot(sitePath),false).iterator();
+      while (entries.hasNext()) {
+        CmsAccessControlEntry ace=(CmsAccessControlEntry)entries.next();
+        if (ace.isResponsible()) {
+          I_CmsPrincipal principal=cms.lookupPrincipal(ace.getPrincipal());
+          responsibles.put(principal,sitePath);
+        }
+      }
+    }
+ catch (    CmsException e) {
+      if (LOG.isInfoEnabled()) {
+        LOG.info(e.getLocalizedMessage());
+      }
+    }
+  }
+  if (responsibles.size() == 0) {
+    return key(Messages.GUI_AVAILABILITY_NO_RESPONSIBLES_0);
+  }
+  StringBuffer result=new StringBuffer(512);
+  result.append(dialogToggleStart(key(Messages.GUI_AVAILABILITY_RESPONSIBLES_0),"responsibles",show));
+  result.append(dialogWhiteBoxStart());
+  i=responsibles.keySet().iterator();
+  while (i.hasNext()) {
+    I_CmsPrincipal principal=(I_CmsPrincipal)i.next();
+    String image="user.png";
+    if (principal instanceof CmsGroup) {
+      image="group.png";
+    }
+    result.append("<div class=\"dialogrow\"><img src=\"");
+    result.append(getSkinUri());
+    result.append("commons/");
+    result.append(image);
+    result.append("\" class=\"noborder\" width=\"16\" height=\"16\" alt=\"Group\" title=\"Group\">&nbsp;<span class=\"textbold\">");
+    result.append(principal.getName());
+    result.append("</span>");
+    if ("long".equals(getSettings().getPermissionDetailView())) {
+      result.append("<div class=\"dialogpermissioninherit\">");
+      String resourceName=((String)responsibles.get(principal));
+      if (!resourceSitePath.equals(resourceName)) {
+        result.append(key(Messages.GUI_PERMISSION_INHERITED_FROM_1,new Object[]{resourceName}));
+      }
+      result.append("</div>");
+    }
+    result.append("</div>\n");
+  }
+  result.append(dialogWhiteBoxEnd());
+  result.append("</div>\n");
+  return result.toString();
+}

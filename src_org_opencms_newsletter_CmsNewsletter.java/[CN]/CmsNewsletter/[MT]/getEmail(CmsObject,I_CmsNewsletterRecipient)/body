@@ -1,0 +1,42 @@
+{
+  StringBuffer htmlMsg=new StringBuffer(1024);
+  StringBuffer txtMsg=new StringBuffer(1024);
+  Iterator contents=m_contents.iterator();
+  while (contents.hasNext()) {
+    I_CmsNewsletterContent content=(I_CmsNewsletterContent)contents.next();
+    if (recipient.isSubscriber(content)) {
+      if (content.getType().equals(CmsNewsletterContentType.TYPE_HTML)) {
+        htmlMsg.append(content.getContent());
+      }
+ else {
+        txtMsg.append(content.getContent());
+      }
+    }
+  }
+  Email email;
+  if (htmlMsg.length() > 0 || !m_attachments.isEmpty()) {
+    email=new CmsHtmlMail();
+    ((CmsHtmlMail)email).setHtmlMsg(replaceMacros(htmlMsg.toString(),recipient));
+    Iterator attachments=m_attachments.iterator();
+    while (attachments.hasNext()) {
+      CmsResource resource=(CmsResource)attachments.next();
+      String description="";
+      String propertyDescription=cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_DESCRIPTION,true).getValue();
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(propertyDescription)) {
+        description=propertyDescription;
+      }
+ else {
+        String propertyTitle=cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_TITLE,true).getValue();
+        description=propertyTitle;
+      }
+      ((CmsHtmlMail)email).attach(new CmsVfsDataSource(cms,resource),resource.getName(),description);
+    }
+  }
+ else {
+    email=new CmsSimpleMail();
+  }
+  ((CmsHtmlMail)email).setTextMsg(replaceMacros(txtMsg.toString(),recipient));
+  email.addTo(recipient.getEmail());
+  email.setSubject(m_subject);
+  return email;
+}

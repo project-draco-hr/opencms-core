@@ -1,0 +1,57 @@
+{
+  boolean isFolder=isOperationOnFolder();
+  if ((isMultiOperation() || isFolder) && !DIALOG_WAIT.equals(getParamAction())) {
+    return false;
+  }
+  int copyMode=CmsResource.COPY_PRESERVE_SIBLING;
+  try {
+    copyMode=Integer.parseInt(getParamCopymode());
+  }
+ catch (  Exception e) {
+    if (LOG.isInfoEnabled()) {
+      LOG.info(e.getLocalizedMessage());
+    }
+  }
+  boolean overwrite=Boolean.valueOf(getParamOverwrite()).booleanValue();
+  overwrite=((isMultiOperation() && overwrite) || DIALOG_CONFIRMED.equals(getParamAction()));
+  String target=getParamTarget();
+  if (target == null) {
+    target="";
+  }
+  boolean restoreSiteRoot=false;
+  try {
+    String sitePrefix="";
+    if (CmsSiteManager.getSiteRoot(target) != null) {
+      String siteRootFolder=getCms().getRequestContext().getSiteRoot();
+      if (siteRootFolder.endsWith("/")) {
+        siteRootFolder=siteRootFolder.substring(0,siteRootFolder.length() - 1);
+      }
+      sitePrefix=siteRootFolder;
+      getCms().getRequestContext().saveSiteRoot();
+      getCms().getRequestContext().setSiteRoot("/");
+      restoreSiteRoot=true;
+    }
+    Iterator i=getResourceList().iterator();
+    while (i.hasNext()) {
+      String resName=(String)i.next();
+      try {
+        performSingleCopyOperation(resName,target,sitePrefix,copyMode,overwrite);
+      }
+ catch (      CmsException e) {
+        if (isMultiOperation()) {
+          addMultiOperationException(e);
+        }
+ else {
+          throw e;
+        }
+      }
+    }
+    checkMultiOperationException(Messages.get(),Messages.ERR_COPY_MULTI_0);
+  }
+  finally {
+    if (restoreSiteRoot) {
+      getCms().getRequestContext().restoreSiteRoot();
+    }
+  }
+  return true;
+}

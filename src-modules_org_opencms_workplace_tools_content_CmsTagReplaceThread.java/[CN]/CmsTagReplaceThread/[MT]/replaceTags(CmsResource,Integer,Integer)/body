@@ -1,0 +1,148 @@
+{
+  I_CmsReport report=getReport();
+  report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,actualJobCount,totalJobCount));
+  report.print(Messages.get().container(Messages.RPT_TAGREPLACE_PROCESS_FILE_1,getCms().getRequestContext().removeSiteRoot(resource.getRootPath())));
+  report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+  if (isProcessedBefore(resource)) {
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SKIPPED_0),I_CmsReport.FORMAT_OK);
+    report.println(Messages.get().container(Messages.RPT_TAGREPLACE_SKIP_REASON_PROPERTY_0),I_CmsReport.FORMAT_OK);
+    return;
+  }
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_LOCK_RESOURCE_1,resource.getRootPath()));
+  }
+  try {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_LOCK_READ_1,resource.getRootPath()));
+    }
+    CmsLock lock=getCms().getLock(resource);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_LOCK_READ_1,resource.getRootPath()));
+    }
+    boolean myLock=!lock.isNullLock() && lock.getUserId().equals(getCms().getRequestContext().currentUser().getId());
+    if (lock.isNullLock() || myLock) {
+      if (!myLock) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_LOCK_RESOURCE_1,resource.getRootPath()));
+        }
+        getCms().lockResource(getCms().getRequestContext().removeSiteRoot(resource.getRootPath()),CmsLock.TYPE_EXCLUSIVE);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_LOCK_RESOURCE_OK_1,resource.getRootPath()));
+        }
+      }
+    }
+ else {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_RESOURCE_SKIPPED_1,resource.getRootPath()));
+        LOG.debug(Messages.get().getBundle().key(Messages.RPT_TAGREPLACE_SKIP_REASON_LOCKED_0));
+      }
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SKIPPED_0),I_CmsReport.FORMAT_WARNING);
+      try {
+        CmsUser locker=getCms().readUser(lock.getUserId());
+        report.println(Messages.get().container(Messages.RPT_TAGREPLACE_SKIP_REASON_LOCKED_1,locker.getName()),I_CmsReport.FORMAT_WARNING);
+      }
+ catch (      Throwable f) {
+        report.println(Messages.get().container(Messages.RPT_TAGREPLACE_SKIP_REASON_ERR_LOCK_0),I_CmsReport.FORMAT_WARNING);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_RESOURCE_SKIPPED_1,resource.getRootPath()));
+          LOG.debug(Messages.get().getBundle().key(Messages.RPT_TAGREPLACE_SKIP_REASON_ERR_LOCK_0));
+        }
+      }
+      return;
+    }
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_WARN_TAGREPLACE_LOCK_RESOURCE_FAILED_1,resource.getRootPath()),e);
+    }
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SKIPPED_0),I_CmsReport.FORMAT_WARNING);
+    report.println(Messages.get().container(Messages.RPT_TAGREPLACE_SKIP_REASON_LOCKED_0),I_CmsReport.FORMAT_WARNING);
+    return;
+  }
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_LOAD_FILE_1,resource.getRootPath()));
+  }
+  CmsFile file=CmsFile.upgrade(resource,getCms());
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_LOAD_FILE_OK_1,resource.getRootPath()));
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_UNMARSHAL_1,resource.getRootPath()));
+  }
+  CmsXmlContent xmlcontent=CmsXmlContentFactory.unmarshal(getCms(),file);
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_UNMARSHAL_OK_1,resource.getRootPath()));
+  }
+  List locales=xmlcontent.getLocales();
+  Iterator itLocales=locales.iterator();
+  List elements;
+  Iterator itElements;
+  Locale locale;
+  CmsTagReplaceParser parser=new CmsTagReplaceParser(m_settings);
+  I_CmsXmlContentValue value;
+  int count=1;
+  while (itLocales.hasNext()) {
+    locale=(Locale)itLocales.next();
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_LOCALE_1,locale.getLanguage()));
+    }
+    elements=xmlcontent.getValues(locale);
+    itElements=elements.iterator();
+    while (itElements.hasNext()) {
+      value=(I_CmsXmlContentValue)itElements.next();
+      String content=value.getStringValue(getCms());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_ELEMENT_2,value.getPath(),content));
+      }
+      try {
+        parser.process(content,xmlcontent.getEncoding());
+        value.setStringValue(getCms(),parser.getResult());
+      }
+ catch (      ParserException e) {
+        CmsMessageContainer container=Messages.get().container(Messages.ERR_TAGREPLACE_PARSE_4,new Object[]{getCms().getRequestContext().removeSiteRoot(resource.getRootPath()),locale.getLanguage(),value.getPath(),parser.getResult()});
+        throw new CmsXmlException(container,e);
+      }
+    }
+    count++;
+  }
+  if (parser.isChangedContent()) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_MARSHAL_1,resource.getRootPath()));
+    }
+    byte[] content=xmlcontent.marshal();
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_MARSHAL_OK_1,resource.getRootPath()));
+    }
+    file.setContents(content);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_WRITE_1,resource.getRootPath()));
+    }
+    getCms().writeFile(file);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_WRITE_OK_1,resource.getRootPath()));
+    }
+    try {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_PROPERTY_WRITE_3,new Object[]{m_markerProperty.getName(),m_markerProperty.getResourceValue(),resource.getRootPath()}));
+      }
+      getCms().writePropertyObject(getCms().getRequestContext().removeSiteRoot(resource.getRootPath()),m_markerProperty);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_TAGREPLACE_PROPERTY_WRITE_OK_0));
+      }
+      report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+    }
+ catch (    CmsException e) {
+      CmsMessageContainer container=Messages.get().container(Messages.LOG_ERROR_TAGREPLACE_PROPERTY_WRITE_3,new Object[]{m_markerProperty.getName(),m_markerProperty.getResourceValue(),resource.getRootPath()});
+      throw new CmsXmlException(container,e);
+    }
+  }
+ else {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_TAGREPLACE_UNLOCK_FILE_1,resource.getRootPath()));
+    }
+    getCms().unlockResource(getCms().getRequestContext().removeSiteRoot(resource.getRootPath()));
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_TAGREPLACE_UNLOCK_FILE_OK_0));
+    }
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SKIPPED_0),I_CmsReport.FORMAT_OK);
+    report.println(Messages.get().container(Messages.RPT_TAGREPLACE_SKIP_REASON_UNMODIFIED_0),I_CmsReport.FORMAT_OK);
+  }
+}

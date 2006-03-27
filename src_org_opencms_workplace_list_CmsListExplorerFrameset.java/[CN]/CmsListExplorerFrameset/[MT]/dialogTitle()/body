@@ -1,0 +1,70 @@
+{
+  StringBuffer html=new StringBuffer(512);
+  String toolPath=getCurrentToolPath();
+  String parentPath=getParentPath();
+  String rootKey=getToolManager().getCurrentRoot(this).getKey();
+  CmsTool parentTool=getToolManager().resolveAdminTool(rootKey,parentPath);
+  String upLevelLink=CmsToolManager.linkForToolPath(getJsp(),parentPath,parentTool.getHandler().getParameters(this));
+  String listLevelLink=CmsToolManager.linkForToolPath(getJsp(),toolPath,getToolManager().resolveAdminTool(rootKey,toolPath).getHandler().getParameters(this));
+  String parentName=getToolManager().resolveAdminTool(rootKey,parentPath).getHandler().getName();
+  html.append(getToolManager().generateNavBar(toolPath,this));
+  int size=1;
+  try {
+    size=getSettings().getCollector().getResults(getCms()).size() / getSettings().getUserSettings().getExplorerFileEntries() + 1;
+  }
+ catch (  CmsException e) {
+  }
+  html.append("<div class='screenTitle'>\n");
+  html.append("\t<table width='100%' cellspacing='0'>\n");
+  html.append("\t\t<tr>\n");
+  html.append("\t\t\t<td>\n");
+  html.append(getAdminTool().getHandler().getName());
+  html.append("\n\t\t\t</td>\n");
+  html.append("\t\t\t<td class='uplevel'>\n");
+  if (size > 1) {
+    html.append("<form name='page_switch' method='post' target='admin_content' action='");
+    html.append(getJsp().link(A_CmsListExplorerDialog.PATH_EXPLORER_LIST)).append("'>\n");
+  }
+  CmsMessages messages=Messages.get().getBundle(getLocale());
+  html.append(A_CmsHtmlIconButton.defaultButtonHtml(getJsp(),CmsHtmlIconButtonStyleEnum.SMALL_ICON_TEXT,"id-list-switch",messages.key(Messages.GUI_LIST_ACTION_LIST_SWITCH_NAME_0),messages.key(Messages.GUI_LIST_ACTION_LIST_SWITCH_HELP_0),true,"list/list.png",null,"openPage('" + listLevelLink + "');"));
+  html.append("\n");
+  if (size > 1) {
+    Map params=new HashMap(getJsp().getRequest().getParameterMap());
+    params.remove(CmsListExplorerFrameset.PARAM_PAGE);
+    Iterator it=params.keySet().iterator();
+    while (it.hasNext()) {
+      String param=(String)it.next();
+      String[] value=(String[])params.get(param);
+      for (int i=0; i < value.length; i++) {
+        html.append("<input type=\"hidden\" name=\"");
+        html.append(param);
+        html.append("\" value=\"");
+        String encoded=CmsEncoder.encode(value[i],getCms().getRequestContext().getEncoding());
+        html.append(encoded);
+        html.append("\">\n");
+      }
+    }
+    html.append("<span class='menu'>&nbsp;&nbsp;Page:&nbsp;</span>\n");
+    html.append("<select name='explorer_page' class='location' onchange='this.form.submit()'>\n");
+    for (int i=1; i <= size; i++) {
+      String selected="";
+      if (getSettings().getExplorerPage() == i) {
+        selected=" selected";
+      }
+      html.append("<option value='").append(i).append("'").append(selected).append(">");
+      html.append(i).append("</option>\n");
+    }
+    html.append("</select>\n");
+  }
+  if (getParentPath() != toolPath) {
+    html.append(A_CmsHtmlIconButton.defaultButtonHtml(getJsp(),CmsHtmlIconButtonStyleEnum.SMALL_ICON_TEXT,"id-up-level",org.opencms.workplace.tools.Messages.get().getBundle(getLocale()).key(org.opencms.workplace.tools.Messages.GUI_ADMIN_VIEW_UPLEVEL_0),parentName,true,"admin/images/up.png",null,"openPage('" + upLevelLink + "');"));
+  }
+  if (size > 1) {
+    html.append("</form>");
+  }
+  html.append("\n\t\t\t</td>\n");
+  html.append("\t\t</tr>\n");
+  html.append("\t</table>\n");
+  html.append("</div>\n");
+  return CmsToolMacroResolver.resolveMacros(html.toString(),this);
+}

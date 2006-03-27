@@ -4,32 +4,36 @@
     if (m_project.getId() == 0) {
       CmsProject newProject=getCms().createProject(m_project.getName(),m_project.getDescription(),this.getUserGroup(),this.getManagerGroup(),m_project.getType());
       m_project=newProject;
-      CmsProject currentProject=getCms().getRequestContext().currentProject();
-      getCms().getRequestContext().setCurrentProject(m_project);
-      String currentSite=getCms().getRequestContext().getSiteRoot();
-      try {
-        getCms().getRequestContext().setSiteRoot("");
-        Iterator it=this.getResources().iterator();
-        while (it.hasNext()) {
-          getCms().copyResourceToProject(it.next().toString());
-        }
-      }
- catch (      CmsException e) {
-        List projectResources=getCms().readProjectResources(m_project);
-        if (projectResources == null || projectResources.isEmpty()) {
-          getCms().deleteProject(m_project.getId());
-        }
-        throw e;
-      }
- finally {
-        getCms().getRequestContext().setSiteRoot(currentSite);
-        getCms().getRequestContext().setCurrentProject(currentProject);
-      }
     }
  else {
       m_project.setGroupId(getCms().readGroup(getUserGroup()).getId());
       m_project.setManagerGroupId(getCms().readGroup(getManagerGroup()).getId());
       getCms().writeProject(m_project);
+    }
+    CmsProject currentProject=getCms().getRequestContext().currentProject();
+    getCms().getRequestContext().setCurrentProject(m_project);
+    String currentSite=getCms().getRequestContext().getSiteRoot();
+    try {
+      getCms().getRequestContext().setSiteRoot("");
+      Iterator itDel=getCms().readProjectResources(m_project).iterator();
+      while (itDel.hasNext()) {
+        String resName=itDel.next().toString();
+        if (!getResources().contains(resName)) {
+          getCms().removeResourceFromProject(resName);
+        }
+      }
+      List currentResNames=getCms().readProjectResources(m_project);
+      Iterator itAdd=getResources().iterator();
+      while (itAdd.hasNext()) {
+        String resName=itAdd.next().toString();
+        if (!currentResNames.contains(resName)) {
+          getCms().copyResourceToProject(resName);
+        }
+      }
+    }
+  finally {
+      getCms().getRequestContext().setSiteRoot(currentSite);
+      getCms().getRequestContext().setCurrentProject(currentProject);
     }
     Map objects=(Map)getSettings().getListObject();
     if (objects != null) {

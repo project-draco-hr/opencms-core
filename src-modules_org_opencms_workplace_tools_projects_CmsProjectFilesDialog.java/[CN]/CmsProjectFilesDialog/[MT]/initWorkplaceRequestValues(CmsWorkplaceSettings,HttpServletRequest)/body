@@ -1,6 +1,42 @@
 {
   super.initWorkplaceRequestValues(settings,request);
-  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getParamProjectid())) {
-    setDialogObject(getParamProjectid());
+  if (Boolean.valueOf(getParamShowexplorer()).booleanValue()) {
+    int projectId=getProject().getId();
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_READ_PROJECT_VIEW_START_0));
+    }
+    List resources;
+    try {
+      resources=getCms().readProjectView(projectId,CmsResource.STATE_KEEP);
+      Iterator itRes=resources.iterator();
+      while (itRes.hasNext()) {
+        CmsResource resource=(CmsResource)itRes.next();
+        if (!resource.getRootPath().startsWith(getJsp().getRequestContext().getSiteRoot()) && !resource.getRootPath().startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
+          itRes.remove();
+        }
+      }
+    }
+ catch (    CmsException e) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(e.getMessage(),e);
+      }
+      resources=new ArrayList();
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_READ_PROJECT_VIEW_END_1,new Integer(resources.size())));
+    }
+    Map params=new HashMap();
+    params.put(CmsDialog.PARAM_ACTION,CmsDialog.DIALOG_INITIAL);
+    params.putAll(getToolManager().getCurrentTool(this).getHandler().getParameters(this));
+    getSettings().setExplorerProjectId(projectId);
+    getSettings().setExplorerPage(1);
+    getSettings().setCollector(new CmsListResourcesCollector(resources));
+    getSettings().setExplorerMode(CmsExplorer.VIEW_LIST);
+    try {
+      getToolManager().jspForwardPage(this,PATH_DIALOGS + "list-explorer.html",params);
+    }
+ catch (    Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }

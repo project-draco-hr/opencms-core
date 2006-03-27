@@ -1,0 +1,35 @@
+{
+  String ret="";
+  Document doc=setupBean.getXmlHelper().getDocument(getXmlFilename());
+  Iterator itRemove=getXPathsToRemove().iterator();
+  while (itRemove.hasNext()) {
+    String xpath=(String)itRemove.next();
+    Node node=doc.selectSingleNode(xpath);
+    if (node != null) {
+      ret+=CmsXmlUtils.marshal(node,CmsEncoder.ENCODING_UTF_8);
+    }
+  }
+  String parentPath=getCommonPath();
+  Document newDoc=prepareDoc(doc);
+  boolean modified=false;
+  Iterator itUpdate=getXPathsToUpdate().iterator();
+  while (itUpdate.hasNext()) {
+    String xpath=(String)itUpdate.next();
+    updateDoc(doc,newDoc,xpath);
+    boolean exe=executeUpdate(newDoc,xpath);
+    modified=modified || exe;
+    if (parentPath == null && exe) {
+      Node node=newDoc.selectSingleNode(xpath);
+      if (node != null) {
+        ret+=CmsXmlUtils.marshal(node,CmsEncoder.ENCODING_UTF_8);
+      }
+    }
+  }
+  if (parentPath != null && modified) {
+    Node node=newDoc.selectSingleNode(parentPath);
+    if (node != null) {
+      ret+=CmsXmlUtils.marshal(node,CmsEncoder.ENCODING_UTF_8);
+    }
+  }
+  return ret.trim();
+}

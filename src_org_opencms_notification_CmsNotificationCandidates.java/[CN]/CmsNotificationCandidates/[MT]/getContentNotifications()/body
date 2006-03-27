@@ -1,0 +1,36 @@
+{
+  Iterator notificationCandidates=m_resources.iterator();
+  Map result=new HashMap();
+  while (notificationCandidates.hasNext()) {
+    CmsExtendedNotificationCause resourceInfo=(CmsExtendedNotificationCause)notificationCandidates.next();
+    CmsResource resource=resourceInfo.getResource();
+    String enableNotification=m_cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_ENABLE_NOTIFICATION,true).getValue();
+    if (Boolean.valueOf(enableNotification).booleanValue()) {
+      try {
+        Iterator responsibles=m_cms.readResponsibleUsers(resource).iterator();
+        while (responsibles.hasNext()) {
+          CmsUser responsible=(CmsUser)responsibles.next();
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(responsible.getEmail())) {
+            CmsContentNotification contentNotification=(CmsContentNotification)result.get(responsible);
+            if (contentNotification == null) {
+              contentNotification=new CmsContentNotification(responsible,m_cms);
+              result.put(responsible,contentNotification);
+            }
+            List resourcesForResponsible=contentNotification.getNotificationCauses();
+            if (resourcesForResponsible == null) {
+              resourcesForResponsible=new ArrayList();
+              contentNotification.setNotificationCauses(resourcesForResponsible);
+            }
+            resourcesForResponsible.add(resourceInfo);
+          }
+        }
+      }
+ catch (      CmsException e) {
+        if (LOG.isInfoEnabled()) {
+          LOG.error(e);
+        }
+      }
+    }
+  }
+  return result.values();
+}

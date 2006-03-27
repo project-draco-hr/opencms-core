@@ -1,0 +1,36 @@
+{
+  List handlers=new ArrayList();
+  handlers.add(toolRoot);
+  List resources=cms.readResourcesWithProperty(toolRoot.getUri(),HANDLERCLASS_PROPERTY);
+  Iterator itRes=resources.iterator();
+  while (itRes.hasNext()) {
+    CmsResource res=(CmsResource)itRes.next();
+    CmsProperty prop=cms.readPropertyObject(res.getRootPath(),HANDLERCLASS_PROPERTY,false);
+    if (!prop.isNullProperty()) {
+      try {
+        Class handlerClass=Class.forName(prop.getValue());
+        I_CmsToolHandler handler=(I_CmsToolHandler)handlerClass.newInstance();
+        if (!handler.setup(cms,toolRoot,res.getRootPath())) {
+          if (CmsLog.INIT.isWarnEnabled()) {
+            CmsLog.INIT.warn(Messages.get().getBundle().key(Messages.INIT_TOOLMANAGER_TOOL_SETUP_ERROR_1,res.getRootPath()));
+          }
+        }
+        handlers.add(handler);
+        if (CmsLog.INIT.isDebugEnabled()) {
+          if (!handler.getLink().equals(VIEW_JSPPAGE_LOCATION)) {
+            CmsLog.INIT.debug(Messages.get().getBundle().key(Messages.INIT_TOOLMANAGER_NEWTOOL_FOUND_2,handler.getPath(),handler.getLink()));
+          }
+ else {
+            CmsLog.INIT.debug(Messages.get().getBundle().key(Messages.INIT_TOOLMANAGER_NEWTOOL_FOUND_2,handler.getPath(),res.getRootPath()));
+          }
+        }
+      }
+ catch (      Exception e) {
+        if (CmsLog.INIT.isWarnEnabled()) {
+          CmsLog.INIT.warn(Messages.get().getBundle().key(Messages.INIT_TOOLMANAGER_TOOL_SETUP_ERROR_1,res.getRootPath()),e);
+        }
+      }
+    }
+  }
+  registerHandlerList(cms,toolRoot,1,handlers);
+}

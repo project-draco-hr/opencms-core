@@ -1,50 +1,20 @@
 {
-  try {
+  if (m_availableModules == null || m_availableModules.isEmpty()) {
     m_availableModules=new HashMap();
     m_moduleDependencies=new HashMap();
-    File packagesFolder=new File(m_webAppRfsPath + "WEB-INF" + File.separator+ "packages"+ File.separator+ "modules");
-    if (packagesFolder.exists()) {
-      File[] childResources=packagesFolder.listFiles();
-      if (childResources != null) {
-        for (int i=0; i < childResources.length; i++) {
-          File childResource=childResources[i];
-          if (childResource.isFile() && !(childResource.getAbsolutePath().toLowerCase().endsWith(".zip"))) {
-            continue;
-          }
-          CmsModule module=CmsModuleImportExportHandler.readModuleFromImport(childResource.getAbsolutePath());
-          String moduleName=module.getName();
-          String moduleGroup=module.getGroup();
-          String moduleNiceName=module.getNiceName();
-          String moduleVersion=module.getVersion().getVersion();
-          String moduleDescription=module.getDescription();
-          List dependencies=module.getDependencies();
-          for (int j=0, n=dependencies.size(); j < n; j++) {
-            CmsModuleDependency dependency=(CmsModuleDependency)dependencies.get(j);
-            String moduleDependencyName=dependency.getName();
-            List moduleDependencies=(List)m_moduleDependencies.get(moduleDependencyName);
-            if (moduleDependencies == null) {
-              moduleDependencies=new ArrayList();
-              m_moduleDependencies.put(moduleDependencyName,moduleDependencies);
-            }
-            moduleDependencies.add(moduleName);
-          }
-          Map moduleData=new HashMap();
-          moduleData.put("name",moduleName);
-          moduleData.put("niceName",moduleNiceName);
-          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(moduleGroup)) {
-            moduleData.put("group",moduleGroup);
-          }
-          moduleData.put("version",moduleVersion);
-          moduleData.put("description",moduleDescription);
-          moduleData.put("filename",childResource.getName());
-          m_availableModules.put(moduleName,moduleData);
-        }
+    m_moduleFilenames=new HashMap();
+    try {
+      Map modules=CmsModuleManager.getAllModulesFromPath(getModuleFolder());
+      Iterator itMods=modules.keySet().iterator();
+      while (itMods.hasNext()) {
+        CmsModule module=(CmsModule)itMods.next();
+        m_availableModules.put(module.getName(),module);
+        m_moduleFilenames.put(module.getName(),modules.get(module));
       }
     }
-  }
- catch (  Exception e) {
-    System.err.println(e.toString());
-    e.printStackTrace(System.err);
+ catch (    CmsConfigurationException e) {
+      throw new CmsRuntimeException(e.getMessageContainer());
+    }
   }
   return m_availableModules;
 }

@@ -1,0 +1,76 @@
+{
+  List results=new ArrayList();
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_PROPERTY_RESOURCE_1,testResource.getResourceName()));
+  }
+  for (int i=0; i < properties.size(); i++) {
+    try {
+      CmsContentCheckProperetyObject propObject=(CmsContentCheckProperetyObject)properties.get(i);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_PROPERTY_PROPERTY_1,propObject.toString()));
+      }
+      if ((propObject.getType().equals(CmsContentCheckProperetyObject.TYPE_BOTH)) || ((propObject.getType().equals(CmsContentCheckProperetyObject.TYPE_FILE) && (testResource.getResource().isFile()))) || ((propObject.getType().equals(CmsContentCheckProperetyObject.TYPE_FOLDER) && (testResource.getResource().isFolder())))) {
+        String prop=m_cms.readPropertyObject(testResource.getResource(),propObject.getPropertyname(),false).getValue();
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_PROPERTY_VALUE_1,prop));
+        }
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_PROPERTY_ISEMPTYCHECK_1,new Boolean(propObject.isEmpty())));
+        }
+        if (propObject.isEmpty() && CmsStringUtil.isEmpty(prop)) {
+          results.add(Messages.get().getBundle().key(Messages.ERR_CHECK_NO_PROPERTYNAME_1,propObject.getPropertyname()));
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(Messages.get().getBundle().key(Messages.ERR_CHECK_NO_PROPERTYNAME_1,propObject.getPropertyname()));
+          }
+        }
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_PROPERTY_ISFILENAME_1,new Boolean(propObject.isFilename())));
+        }
+        if (!CmsStringUtil.isEmpty(prop)) {
+          if (propObject.isFilename() && testResource.getResource().getName().toLowerCase().startsWith(prop.toLowerCase())) {
+            results.add(Messages.get().getBundle().key(Messages.ERR_CHECK_CONTAINS_FILENAME_2,propObject.getPropertyname(),prop));
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(Messages.get().getBundle().key(Messages.ERR_CHECK_CONTAINS_FILENAME_2,propObject.getPropertyname(),prop));
+            }
+          }
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_PROPERTY_CHECKLENGTH_2,new Integer(propObject.getLength()),new Integer(prop.length())));
+          }
+          if (propObject.getLength() > -1) {
+            if (prop.length() < propObject.getLength()) {
+              results.add(Messages.get().getBundle().key(Messages.ERR_CHECK_TOO_SHORT_3,propObject.getPropertyname(),prop,new Integer(prop.length())));
+              if (LOG.isDebugEnabled()) {
+                LOG.debug(Messages.get().getBundle().key(Messages.ERR_CHECK_TOO_SHORT_3,propObject.getPropertyname(),prop,new Integer(prop.length())));
+              }
+            }
+          }
+          if (propObject.getValue().size() > 0) {
+            for (int j=0; j < propObject.getValue().size(); j++) {
+              String regex=new String((String)propObject.getValue().get(j));
+              boolean matchResult=true;
+              if (regex.charAt(0) == '!') {
+                matchResult=false;
+                regex=regex.substring(1);
+              }
+              String matchValue=prop;
+              boolean match=Pattern.matches(regex,matchValue);
+              if (LOG.isDebugEnabled()) {
+                LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_PROPERTY_MATCHPATTERN_2,regex,matchValue));
+              }
+              if (matchResult != match) {
+                results.add(Messages.get().getBundle().key(Messages.ERR_CHECK_MATCH_3,propObject.getPropertyname(),prop,propObject.getValue().get(j)));
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug(Messages.get().getBundle().key(Messages.ERR_CHECK_MATCH_3,propObject.getPropertyname(),prop,propObject.getValue().get(j)));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+ catch (    CmsException e) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_ERROR_PROCESSING_PROPERTIES_2,testResource.getResourceName(),e));
+    }
+  }
+  return results;
+}

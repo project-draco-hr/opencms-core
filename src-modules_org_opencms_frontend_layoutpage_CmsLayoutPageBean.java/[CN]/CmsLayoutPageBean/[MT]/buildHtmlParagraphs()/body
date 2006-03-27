@@ -1,0 +1,49 @@
+{
+  StringBuffer result=new StringBuffer(16384);
+  Locale locale=getRequestContext().getLocale();
+  Iterator i=m_content.getValues(NODE_PARAGRAPH,locale).iterator();
+  while (i.hasNext()) {
+    I_CmsXmlContentValue value=(I_CmsXmlContentValue)i.next();
+    String xPath=value.getPath() + "/";
+    String headline="";
+    if (m_content.hasValue(xPath + NODE_HEADLINE,locale)) {
+      headline=m_content.getStringValue(getCmsObject(),xPath + NODE_HEADLINE,locale);
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(headline)) {
+        headline="<h2 class=\"lp_headline\">" + headline + "</h2>\n";
+      }
+    }
+    String textValue=m_content.getStringValue(getCmsObject(),xPath + NODE_TEXT,locale);
+    xPath+=NODE_IMAGE + "/";
+    String imgDesc="";
+    String imgAlign="";
+    String imgTag="";
+    if (m_content.hasValue(xPath,locale)) {
+      String imgUri=m_content.getStringValue(getCmsObject(),xPath + NODE_IMAGE,locale);
+      if (getCmsObject().existsResource(imgUri)) {
+        if (m_content.hasValue(xPath + NODE_DESCRIPTION,locale)) {
+          imgDesc=m_content.getStringValue(getCmsObject(),xPath + NODE_DESCRIPTION,locale);
+        }
+        imgAlign=m_content.getStringValue(getCmsObject(),xPath + NODE_ALIGN,locale);
+        CmsImageScaler scaler=getImageScaler(imgAlign);
+        Map attrs=new HashMap(5);
+        attrs.put("alt",imgDesc);
+        attrs.put("title",imgDesc);
+        imgTag=img(imgUri,scaler,attrs);
+      }
+    }
+    if (CmsStringUtil.isEmpty(imgAlign)) {
+      imgAlign=ALIGN_TYPE_TEXT_ONLY;
+    }
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(imgDesc)) {
+      imgDesc="<p class=\"lp_imgdesc\">" + imgDesc + "</p>";
+    }
+    String elementContent=getContent(m_pathLayoutElements + imgAlign);
+    CmsMacroResolver resolver=CmsMacroResolver.newInstance();
+    resolver.addMacro(MACRO_HEADLINE,headline);
+    resolver.addMacro(MACRO_TEXT,textValue);
+    resolver.addMacro(MACRO_IMAGE,imgTag);
+    resolver.addMacro(MACRO_DESCRIPTION,imgDesc);
+    result.append(resolver.resolveMacros(elementContent));
+  }
+  return result.toString();
+}

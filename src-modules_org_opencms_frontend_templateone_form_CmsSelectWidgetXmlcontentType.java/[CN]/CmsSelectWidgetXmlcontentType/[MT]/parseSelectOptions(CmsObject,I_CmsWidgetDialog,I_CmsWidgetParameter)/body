@@ -6,7 +6,7 @@
     }
  catch (    CmsException e) {
       if (LOG.isErrorEnabled()) {
-        LOG.error(Messages.get().key(Messages.ERR_SELECTWIDGET_INTERNAL_CONFIGURATION_2,new Object[]{getClass().getName(),getConfiguration()}));
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_SELECTWIDGET_INTERNAL_CONFIGURATION_2,new Object[]{getClass().getName(),getConfiguration()}));
       }
       return Collections.EMPTY_LIST;
     }
@@ -14,6 +14,7 @@
   if (m_macroResolver == null) {
     m_macroResolver=new CmsMacroResolver();
     m_macroResolver.setCmsObject(m_macroCmsObject);
+    m_macroResolver.setKeepEmptyMacros(true);
   }
   List selectOptions=getSelectOptions();
   if (selectOptions == null) {
@@ -22,19 +23,19 @@
       configuration=param.getDefault(cms);
     }
     try {
-      parseConfigurationInternal(configuration,cms);
+      parseConfigurationInternal(configuration,cms,param);
       SortedSet sortOptions=new TreeSet(new CmsResourceSelectWidgetOptionComparator(m_macroCmsObject,m_sortMacro));
       CmsSelectWidgetOption option;
       List resources;
       CmsResourceFilter filter=CmsResourceFilter.ALL.addRequireType(getResourceTypeID());
       CmsRequestContext context=cms.getRequestContext();
-      context.saveSiteRoot();
+      String oldSiteroot=context.getSiteRoot();
       context.setSiteRoot("/");
       resources=cms.readResources(m_resourceFolder.getRootPath(),filter,true);
-      context.restoreSiteRoot();
+      context.setSiteRoot(oldSiteroot);
       if (resources.size() == 0) {
         if (LOG.isErrorEnabled()) {
-          LOG.error(Messages.get().key(Messages.LOG_ERR_SELECTWIDGET_NO_RESOURCES_FOUND_3,configuration,m_resourceFolder.getRootPath(),OpenCms.getResourceManager().getResourceType(getResourceTypeID()).getTypeName()));
+          LOG.error(Messages.get().getBundle().key(Messages.LOG_ERR_SELECTWIDGET_NO_RESOURCES_FOUND_3,configuration,m_resourceFolder.getRootPath(),OpenCms.getResourceManager().getResourceType(getResourceTypeID()).getTypeName()));
         }
       }
       Iterator itResources=resources.iterator();
@@ -42,21 +43,32 @@
       String displayName;
       while (itResources.hasNext()) {
         resource=(CmsResource)itResources.next();
-        m_macroCmsObject.getRequestContext().setUri(resource.getRootPath());
-        m_macroResolver.setResourceName(resource.getName());
-        m_macroResolver.setMessages(widgetDialog.getMessages());
-        displayName=m_macroResolver.resolveMacros(getDisplayOptionMacro());
-        displayName=resolveXpathMacros(cms,resource,displayName);
-        if (!CmsStringUtil.isEmpty(displayName)) {
-          option=new CmsResourceSelectWidgetOption(resource,false,displayName);
-          sortOptions.add(option);
+        if (hasFilterProperty(resource,cms)) {
+          m_macroCmsObject.getRequestContext().setUri(resource.getRootPath());
+          m_macroResolver.setResourceName(resource.getName());
+          m_macroResolver.setMessages(widgetDialog.getMessages());
+          displayName=m_macroResolver.resolveMacros(getDisplayOptionMacro());
+          if (CmsStringUtil.isEmptyOrWhitespaceOnly(displayName)) {
+            displayName=resolveXpathMacros(cms,resource,getDisplayOptionMacro());
+          }
+ else {
+            displayName=resolveXpathMacros(cms,resource,displayName);
+          }
+          if (CmsStringUtil.isEmpty(displayName)) {
+            displayName=resource.getName();
+          }
+          displayName=resolveXpathMacros(cms,resource,displayName);
+          if (!CmsStringUtil.isEmpty(displayName)) {
+            option=new CmsResourceSelectWidgetOption(resource,false,displayName);
+            sortOptions.add(option);
+          }
         }
       }
       selectOptions=new LinkedList(sortOptions);
     }
  catch (    Exception e) {
       if (LOG.isErrorEnabled()) {
-        LOG.error(Messages.get().key(Messages.ERR_SELECTWIDGET_CONFIGURATION_2,getClass(),configuration),e);
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_SELECTWIDGET_CONFIGURATION_2,getClass(),configuration),e);
       }
     }
     if (selectOptions == Collections.EMPTY_LIST) {

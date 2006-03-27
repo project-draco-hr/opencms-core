@@ -1,0 +1,67 @@
+{
+  m_report=report;
+  m_report.println(Messages.get().container(Messages.RPT_CONTENT_CHECK_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+  m_report.print(Messages.get().container(Messages.RPT_CONTENT_COLLECT_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+  m_report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0),I_CmsReport.FORMAT_HEADLINE);
+  m_resources=collectResources(cms);
+  m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0),I_CmsReport.FORMAT_HEADLINE);
+  m_report.println(Messages.get().container(Messages.RPT_CONTENT_COLLECT_END_1,new Integer(m_resources.size())),I_CmsReport.FORMAT_HEADLINE);
+  m_report.print(Messages.get().container(Messages.RPT_CONTENT_PROCESS_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+  m_report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0),I_CmsReport.FORMAT_HEADLINE);
+  int count=1;
+  Iterator i=m_resources.keySet().iterator();
+  while (i.hasNext()) {
+    String resourceName=(String)i.next();
+    CmsContentCheckResource res=(CmsContentCheckResource)m_resources.get(resourceName);
+    boolean errorWarning=false;
+    m_report.print(Messages.get().container(Messages.RPT_CONTENT_PROCESS_2,new Integer(count++),new Integer(m_resources.size())),I_CmsReport.FORMAT_NOTE);
+    m_report.print(Messages.get().container(Messages.RPT_CONTENT_PROCESS_RESOURCE_1,res.getResourceName()),I_CmsReport.FORMAT_DEFAULT);
+    m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0),I_CmsReport.FORMAT_NOTE);
+    Iterator j=getPlugins().iterator();
+    while (j.hasNext()) {
+      I_CmsContentCheck plugin=(I_CmsContentCheck)j.next();
+      if (plugin.isActive()) {
+        try {
+          res=plugin.executeContentCheck(m_cms,res);
+        }
+ catch (        CmsException e) {
+          errorWarning=true;
+          m_report.println(Messages.get().container(Messages.RPT_EMPTY_0),I_CmsReport.FORMAT_DEFAULT);
+          m_report.print(Messages.get().container(Messages.RPT_CONTENT_PROCESS_ERROR_2,plugin.getName(),e),I_CmsReport.FORMAT_ERROR);
+        }
+      }
+    }
+    List errors=res.getErrors();
+    if (errors != null && errors.size() > 0) {
+      errorWarning=true;
+      m_report.println(Messages.get().container(Messages.RPT_EMPTY_0),I_CmsReport.FORMAT_DEFAULT);
+      m_report.println(Messages.get().container(Messages.RPT_CONTENT_PROCESS_ERROR_0),I_CmsReport.FORMAT_ERROR);
+      Iterator k=errors.iterator();
+      while (k.hasNext()) {
+        String error=(String)k.next();
+        m_report.println(Messages.get().container(Messages.RPT_CONTENT_PROCESS_ERROR_1,error),I_CmsReport.FORMAT_ERROR);
+      }
+    }
+    List warnings=res.getWarnings();
+    if (warnings != null && warnings.size() > 0) {
+      errorWarning=true;
+      m_report.println(Messages.get().container(Messages.RPT_EMPTY_0),I_CmsReport.FORMAT_DEFAULT);
+      m_report.println(Messages.get().container(Messages.RPT_CONTENT_PROCESS_WARNING_0),I_CmsReport.FORMAT_WARNING);
+      Iterator k=warnings.iterator();
+      while (k.hasNext()) {
+        String warning=(String)k.next();
+        m_report.println(Messages.get().container(Messages.RPT_CONTENT_PROCESS_WARNING_1,warning),I_CmsReport.FORMAT_WARNING);
+      }
+    }
+    m_resources.put(resourceName,res);
+    if (!errorWarning) {
+      m_report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+    }
+ else {
+      m_result.addResult(res);
+    }
+  }
+  m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0),I_CmsReport.FORMAT_HEADLINE);
+  m_report.println(Messages.get().container(Messages.RPT_CONTENT_PROCESS_END_0),I_CmsReport.FORMAT_HEADLINE);
+  m_report.println(Messages.get().container(Messages.RPT_CONTENT_CHECK_END_0),I_CmsReport.FORMAT_HEADLINE);
+}

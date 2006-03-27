@@ -1,0 +1,46 @@
+{
+  ServletRequest req=pageContext.getRequest();
+  A_CmsConfiguredHtmlParser parser;
+  if (CmsFlexController.isCmsRequest(req)) {
+    String content="";
+    try {
+      if (CmsStringUtil.isEmpty(m_configuredParserClassname)) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(Messages.get().getBundle().key(Messages.GUI_ERR_TAG_ATTRIBUTE_MISSING_2,new Object[]{TAG_NAME,ATT_VISITOR_CLASS}));
+        }
+      }
+      try {
+        Class cl=Class.forName(m_configuredParserClassname);
+        Object instance=cl.newInstance();
+        parser=(A_CmsConfiguredHtmlParser)instance;
+        parser.setParam(m_param);
+        CmsFlexController controller=CmsFlexController.getController(req);
+        CmsObject cms=controller.getCmsObject();
+        parser.setCmsObject(cms);
+        content=parseTagAction(getBodyContent().getString(),pageContext,parser);
+      }
+ catch (      Exception e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(Messages.get().getBundle().key(Messages.GUI_ERR_TAG_ATTRIBUTE_INVALID_3,new Object[]{TAG_NAME,ATT_VISITOR_CLASS,A_CmsConfiguredHtmlParser.class.getName()}),e);
+        }
+        e.printStackTrace(System.err);
+      }
+    }
+  finally {
+      try {
+        getBodyContent().clear();
+        getBodyContent().print(content);
+        getBodyContent().writeOut(pageContext.getOut());
+        release();
+      }
+ catch (      Exception ex) {
+        release();
+        if (LOG.isErrorEnabled()) {
+          LOG.error(Messages.get().getBundle().key(Messages.ERR_PROCESS_TAG_1,TAG_NAME),ex);
+        }
+        throw new JspException(ex);
+      }
+    }
+  }
+  return EVAL_PAGE;
+}

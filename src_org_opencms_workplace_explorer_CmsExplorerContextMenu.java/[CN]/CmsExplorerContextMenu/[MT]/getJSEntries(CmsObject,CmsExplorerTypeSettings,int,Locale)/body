@@ -1,22 +1,29 @@
 {
   String entries=(String)m_generatedScripts.get(locale);
+  CmsMessages messages=Messages.get().getBundle(locale);
   if (entries == null) {
-    CmsMessages messages=OpenCms.getWorkplaceManager().getMessages(locale);
     StringBuffer result=new StringBuffer(4096);
     String jspWorkplaceUri=OpenCms.getLinkManager().substituteLink(cms,CmsWorkplace.PATH_WORKPLACE);
-    result.append("\nvi.resource[").append(resTypeId).append("]=new res(\"").append(settings.getName()).append("\", ");
-    result.append("\"");
-    result.append(messages.key(settings.getKey()));
-    result.append("\", vi.skinPath + \"filetypes/");
-    result.append(settings.getIcon());
-    result.append("\", \"");
-    result.append(settings.getNewResourceUri());
-    result.append("\", true);\n");
+    if (!isMultiMenu()) {
+      result.append("\nvi.resource[").append(resTypeId).append("]=new res(\"").append(settings.getName()).append("\", ");
+      result.append("\"");
+      result.append(messages.key(settings.getKey()));
+      result.append("\", vi.skinPath + \"filetypes/");
+      result.append(settings.getIcon());
+      result.append("\", \"");
+      result.append(settings.getNewResourceUri());
+      result.append("\", true);\n");
+    }
     Iterator i=getAllEntries().iterator();
     while (i.hasNext()) {
       CmsExplorerContextMenuItem item=(CmsExplorerContextMenuItem)i.next();
       result.append("addMenuEntry(");
-      result.append(resTypeId);
+      if (isMultiMenu()) {
+        result.append("'multi'");
+      }
+ else {
+        result.append(resTypeId);
+      }
       result.append(", ");
       if (CmsExplorerContextMenuItem.TYPE_ENTRY.equals(item.getType())) {
         result.append("\"").append(messages.key(item.getKey())).append("\", ");
@@ -49,16 +56,11 @@
     entries=result.toString();
     m_generatedScripts.put(locale,entries);
   }
-  CmsPermissionSet permissions;
-  try {
-    permissions=settings.getAccess().getAccessControlList().getPermissions(cms.getRequestContext().currentUser(),cms.getGroupsOfUser(cms.getRequestContext().currentUser().getName()));
-  }
- catch (  CmsException e) {
-    permissions=settings.getAccess().getAccessControlList().getPermissions(cms.getRequestContext().currentUser());
-    LOG.error(e);
-  }
-  if (permissions.getPermissionString().indexOf("+w") == -1) {
-    entries+="vi.resource[" + resTypeId + "].editable = false;\n";
+  if (!isMultiMenu()) {
+    CmsPermissionSet permissions=settings.getAccess().getPermissions(cms);
+    if (!permissions.requiresWritePermission()) {
+      entries+="vi.resource[" + resTypeId + "].editable = false;\n";
+    }
   }
   return entries;
 }

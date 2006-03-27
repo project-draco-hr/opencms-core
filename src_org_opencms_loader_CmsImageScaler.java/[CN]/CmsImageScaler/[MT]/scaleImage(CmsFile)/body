@@ -1,0 +1,80 @@
+{
+  byte[] result=file.getContents();
+  RenderSettings renderSettings;
+  if ((m_renderMode == 0) && (m_quality == 0)) {
+    renderSettings=new RenderSettings(Simapi.RENDER_QUALITY);
+  }
+ else {
+    renderSettings=new RenderSettings(m_renderMode);
+    if (m_quality != 0) {
+      renderSettings.setCompressionQuality(m_quality / 100f);
+    }
+  }
+  renderSettings.setMaximumBlurSize(m_maxBlurSize);
+  Simapi scaler=new Simapi(renderSettings);
+  String imageType=Simapi.getImageType(file.getRootPath());
+  if (imageType == null) {
+    String mimeType=OpenCms.getResourceManager().getMimeType(file.getName(),null,null);
+    if (mimeType == null) {
+      imageType=Simapi.TYPE_JPEG;
+    }
+  }
+  if (imageType == null) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.ERR_UNABLE_TO_SCALE_IMAGE_2,file.getRootPath(),toString()));
+    }
+    return result;
+  }
+  try {
+    BufferedImage image=Simapi.read(file.getContents());
+    Color color=getColor();
+    if (!m_filters.isEmpty()) {
+      Iterator i=m_filters.iterator();
+      while (i.hasNext()) {
+        String filter=(String)i.next();
+        if (FILTER_GRAYSCALE.equals(filter)) {
+          GrayscaleFilter grayscaleFilter=new GrayscaleFilter();
+          renderSettings.addImageFilter(grayscaleFilter);
+        }
+ else         if (FILTER_SHADOW.equals(filter)) {
+          ShadowFilter shadowFilter=new ShadowFilter();
+          shadowFilter.setXOffset(5);
+          shadowFilter.setYOffset(5);
+          shadowFilter.setOpacity(192);
+          shadowFilter.setBackgroundColor(color.getRGB());
+          color=Simapi.COLOR_TRANSPARENT;
+          renderSettings.setTransparentReplaceColor(Simapi.COLOR_TRANSPARENT);
+          renderSettings.addImageFilter(shadowFilter);
+        }
+      }
+    }
+switch (getType()) {
+case 1:
+      image=scaler.resize(image,getWidth(),getHeight(),color,getPosition(),false);
+    break;
+case 2:
+  image=scaler.resize(image,getWidth(),getHeight(),getPosition());
+break;
+case 3:
+image=scaler.resize(image,getWidth(),getHeight(),true);
+break;
+case 4:
+image=scaler.resize(image,getWidth(),getHeight(),false);
+break;
+default :
+image=scaler.resize(image,getWidth(),getHeight(),color,getPosition(),true);
+}
+if (!m_filters.isEmpty()) {
+Rectangle targetSize=scaler.applyFilterDimensions(getWidth(),getHeight());
+image=scaler.resize(image,(int)targetSize.getWidth(),(int)targetSize.getHeight(),Simapi.COLOR_TRANSPARENT,Simapi.POS_CENTER);
+image=scaler.applyFilters(image);
+}
+result=scaler.getBytes(image,imageType);
+}
+ catch (Exception e) {
+if (LOG.isDebugEnabled()) {
+LOG.debug(Messages.get().getBundle().key(Messages.ERR_UNABLE_TO_SCALE_IMAGE_2,file.getRootPath(),toString()),e);
+}
+}
+return result;
+}

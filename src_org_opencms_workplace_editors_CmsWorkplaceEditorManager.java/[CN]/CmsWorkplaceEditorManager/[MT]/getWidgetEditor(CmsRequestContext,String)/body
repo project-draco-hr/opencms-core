@@ -1,0 +1,34 @@
+{
+  CmsUserSettings settings=new CmsUserSettings(context.currentUser());
+  String resourceType=CmsResourceTypeXmlPage.getStaticTypeName();
+  String preferredEditorSetting=settings.getPreferredEditor(resourceType);
+  if (preferredEditorSetting == null) {
+    Iterator i=m_editorConfigurations.iterator();
+    while (i.hasNext()) {
+      CmsWorkplaceEditorConfiguration currentConfig=(CmsWorkplaceEditorConfiguration)i.next();
+      String mapping=currentConfig.getMappingForResourceType(resourceType);
+      if (mapping != null) {
+        preferredEditorSetting=settings.getPreferredEditor(mapping);
+      }
+      if (preferredEditorSetting != null) {
+        break;
+      }
+    }
+  }
+  if (preferredEditorSetting != null) {
+    CmsWorkplaceEditorConfiguration preferredConf=filterPreferredEditor(preferredEditorSetting);
+    if (preferredConf != null && preferredConf.isWidgetEditor() && preferredConf.matchesBrowser(userAgent)) {
+      return preferredConf.getWidgetEditor();
+    }
+  }
+  SortedMap filteredEditors=filterEditorsForResourceType(resourceType);
+  while (filteredEditors.size() > 0) {
+    Float key=(Float)filteredEditors.lastKey();
+    CmsWorkplaceEditorConfiguration conf=(CmsWorkplaceEditorConfiguration)filteredEditors.get(key);
+    if (conf.isWidgetEditor() && conf.matchesBrowser(userAgent)) {
+      return conf.getWidgetEditor();
+    }
+    filteredEditors.remove(key);
+  }
+  return null;
+}

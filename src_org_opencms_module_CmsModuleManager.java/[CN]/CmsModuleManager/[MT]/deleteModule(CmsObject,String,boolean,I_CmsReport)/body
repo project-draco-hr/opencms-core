@@ -4,7 +4,7 @@
     throw new CmsConfigurationException(Messages.get().container(Messages.ERR_MODULE_NOT_CONFIGURED_1,moduleName));
   }
   if (LOG.isInfoEnabled()) {
-    LOG.info(Messages.get().key(Messages.LOG_DEL_MOD_1,moduleName));
+    LOG.info(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_1,moduleName));
   }
   CmsModule module;
   boolean removeResourceTypes=false;
@@ -32,27 +32,66 @@
       }
     }
  catch (    Throwable t) {
-      LOG.error(Messages.get().key(Messages.LOG_MOD_UNINSTALL_ERR_1,moduleName),t);
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_MOD_UNINSTALL_ERR_1,moduleName),t);
     }
   }
   module=(CmsModule)m_modules.remove(moduleName);
-  for (int i=0; i < module.getResources().size(); i++) {
-    String currentResource=null;
+  CmsProject previousProject=cms.getRequestContext().currentProject();
+  try {
+    CmsProject deleteProject=null;
     try {
-      currentResource=(String)module.getResources().get(i);
-      if (LOG.isDebugEnabled()) {
-        LOG.debug(Messages.get().key(Messages.LOG_DEL_MOD_RESOURCE_1,currentResource));
-      }
-      cms.lockResource(currentResource);
-      cms.deleteResource(currentResource,CmsResource.DELETE_PRESERVE_SIBLINGS);
-      report.print(Messages.get().container(Messages.RPT_DELETE_0),I_CmsReport.FORMAT_NOTE);
-      report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,currentResource));
-      cms.unlockResource(currentResource);
+      deleteProject=cms.readProject(Messages.get().getBundle(cms.getRequestContext().getLocale()).key(Messages.GUI_DELETE_MODULE_PROJECT_NAME_1,new Object[]{moduleName}));
     }
  catch (    CmsException e) {
-      LOG.error(Messages.get().key(Messages.LOG_DEL_MOD_EXC_1,currentResource),e);
-      report.println(e);
+      deleteProject=cms.createProject(Messages.get().getBundle(cms.getRequestContext().getLocale()).key(Messages.GUI_DELETE_MODULE_PROJECT_NAME_1,new Object[]{moduleName}),Messages.get().getBundle(cms.getRequestContext().getLocale()).key(Messages.GUI_DELETE_MODULE_PROJECT_DESC_1,new Object[]{moduleName}),OpenCms.getDefaultUsers().getGroupAdministrators(),OpenCms.getDefaultUsers().getGroupAdministrators(),CmsProject.PROJECT_TYPE_TEMPORARY);
     }
+    cms.getRequestContext().setCurrentProject(deleteProject);
+    List projectFiles=module.getResources();
+    for (int i=0; i < projectFiles.size(); i++) {
+      try {
+        String resourceName=(String)projectFiles.get(i);
+        if (cms.existsResource(resourceName)) {
+          cms.copyResourceToProject(resourceName);
+        }
+      }
+ catch (      CmsException e) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_MOVE_RESOURCE_FAILED_1,projectFiles.get(i)),e);
+        report.println(e);
+      }
+    }
+    report.print(Messages.get().container(Messages.RPT_DELETE_MODULE_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+    report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_HTML_ITAG_1,moduleName),I_CmsReport.FORMAT_HEADLINE);
+    for (int i=0; i < module.getResources().size(); i++) {
+      String currentResource=null;
+      try {
+        currentResource=(String)module.getResources().get(i);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_RESOURCE_1,currentResource));
+        }
+        if (cms.existsResource(currentResource)) {
+          cms.lockResource(currentResource);
+          cms.deleteResource(currentResource,CmsResource.DELETE_PRESERVE_SIBLINGS);
+          report.print(Messages.get().container(Messages.RPT_DELETE_0),I_CmsReport.FORMAT_NOTE);
+          report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,currentResource));
+          cms.unlockResource(currentResource);
+        }
+      }
+ catch (      CmsException e) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_EXC_1,currentResource),e);
+        report.println(e);
+      }
+    }
+    report.println(Messages.get().container(Messages.RPT_PUBLISH_PROJECT_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+    cms.unlockProject(deleteProject.getId());
+    cms.publishProject(report);
+    report.println(Messages.get().container(Messages.RPT_PUBLISH_PROJECT_END_0),I_CmsReport.FORMAT_HEADLINE);
+    report.println(Messages.get().container(Messages.RPT_DELETE_MODULE_END_0),I_CmsReport.FORMAT_HEADLINE);
+  }
+ catch (  CmsException e) {
+    throw new CmsConfigurationException(e.getMessageContainer(),e);
+  }
+ finally {
+    cms.getRequestContext().setCurrentProject(previousProject);
   }
   initModuleExportPoints();
   updateModuleConfiguration();

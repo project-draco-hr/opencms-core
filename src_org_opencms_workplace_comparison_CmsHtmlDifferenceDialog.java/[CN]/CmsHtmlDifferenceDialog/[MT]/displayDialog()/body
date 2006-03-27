@@ -1,0 +1,58 @@
+{
+  if (getAction() == ACTION_CANCEL) {
+    actionCloseDialog();
+  }
+  JspWriter out=getJsp().getJspContext().getOut();
+  out.print("<link rel='stylesheet' type='text/css' href='");
+  out.print(getStyleUri(getJsp()));
+  out.println("diff.css'>");
+  out.println(dialogContentStart(getParamTitle()));
+  out.print("<form name='diff-form' method='post' action='");
+  out.print(getDialogUri());
+  out.println("'>");
+  out.println(allParamsAsHidden());
+  out.println("</form>");
+  out.println("<p>");
+  out.println(getDiffOnlyButtonsHtml());
+  String onClic1="javascript:document.forms['diff-form'].textmode.value = '";
+  onClic1+=MODE_TEXT;
+  onClic1+="'; document.forms['diff-form'].submit();";
+  String onClic2="javascript:document.forms['diff-form'].textmode.value = '";
+  onClic2+=MODE_HTML;
+  onClic2+="'; document.forms['diff-form'].submit();";
+  out.println(getTwoButtonsHtml(Messages.get().container(Messages.GUI_DIFF_MODE_TEXT_0).key(getLocale()),Messages.get().container(Messages.GUI_DIFF_MODE_HTML_0).key(getLocale()),onClic1,onClic2,MODE_HTML.equals(getParamTextmode())));
+  out.println("</p>");
+  out.println(dialogBlockStart(null));
+  out.println("<table cellspacing='0' cellpadding='0' class='xmlTable'>\n<tr><td><pre style='overflow:auto'>");
+  try {
+    CmsHtmlDifferenceConfiguration conf=new CmsHtmlDifferenceConfiguration(getMode() == CmsDiffViewMode.ALL ? -1 : getLinesBeforeSkip(),getLocale());
+    String originalSource=getOriginalSource();
+    String copySource=getCopySource();
+    if (MODE_TEXT.equals(getParamTextmode())) {
+      originalSource=CmsHtml2TextConverter.html2text(originalSource,CmsEncoder.ENCODING_ISO_8859_1);
+      copySource=CmsHtml2TextConverter.html2text(copySource,CmsEncoder.ENCODING_ISO_8859_1);
+    }
+    String diff=Diff.diffAsHtml(originalSource,copySource,conf);
+    if (CmsStringUtil.isNotEmpty(diff)) {
+      out.println(diff);
+    }
+ else {
+      String htmlDiff=Diff.diffAsHtml(getOriginalSource(),getCopySource(),conf);
+      if (CmsStringUtil.isNotEmpty(htmlDiff)) {
+        out.println(Messages.get().container(Messages.GUI_COMPARE_IDENTICAL_TEXT_DIFFERENT_HTML_0).key(getLocale()));
+      }
+ else       if (getMode() == CmsDiffViewMode.ALL) {
+        out.println(wrapLinesWithUnchangedStyle(CmsStringUtil.substitute(CmsStringUtil.escapeHtml(originalSource),"<br/>","")));
+      }
+    }
+  }
+ catch (  Exception e) {
+    out.print(e);
+  }
+  out.println("</pre></td></tr>\n</table>");
+  out.println(dialogBlockEnd());
+  out.println(dialogContentEnd());
+  out.println(dialogEnd());
+  out.println(bodyEnd());
+  out.println(htmlEnd());
+}

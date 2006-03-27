@@ -1,0 +1,108 @@
+{
+  CmsFileInfoDialog fileInfo=new CmsFileInfoDialog(getJsp()){
+    protected String defaultActionHtmlEnd(){
+      return "";
+    }
+  }
+;
+  fileInfo.displayDialog(true);
+  if (fileInfo.isForwarded()) {
+    return;
+  }
+  CmsPropertyComparisonList propertyDiff=new CmsPropertyComparisonList(getJsp());
+  CmsAttributeComparisonList attributeDiff=new CmsAttributeComparisonList(getJsp());
+  List lists=new ArrayList();
+  lists.add(attributeDiff);
+  I_CmsResourceType resourceType=OpenCms.getResourceManager().getResourceType(propertyDiff.getResourceType());
+  if (resourceType instanceof CmsResourceTypeXmlContent || resourceType instanceof CmsResourceTypeXmlPage) {
+    CmsElementComparisonList contentDiff=new CmsElementComparisonList(getJsp());
+    lists.add(contentDiff);
+    lists.add(propertyDiff);
+    CmsMultiListDialog threeLists=new CmsMultiListDialog(lists);
+    threeLists.displayDialog(true);
+    if (threeLists.isForwarded()) {
+      return;
+    }
+    fileInfo.writeDialog();
+    threeLists.writeDialog();
+  }
+ else   if (resourceType instanceof CmsResourceTypeImage) {
+    lists.add(propertyDiff);
+    CmsMultiListDialog twoLists=new CmsMultiListDialog(lists){
+      public String defaultActionHtmlEnd(){
+        return "";
+      }
+    }
+;
+    twoLists.displayDialog(true);
+    if (twoLists.isForwarded()) {
+      return;
+    }
+    CmsImageComparisonDialog images=new CmsImageComparisonDialog(getJsp());
+    fileInfo.writeDialog();
+    twoLists.writeDialog();
+    images.displayDialog();
+  }
+ else   if (resourceType instanceof CmsResourceTypePointer) {
+    lists.add(propertyDiff);
+    CmsMultiListDialog twoLists=new CmsMultiListDialog(lists){
+      public String defaultActionHtmlEnd(){
+        return "";
+      }
+    }
+;
+    twoLists.displayDialog(true);
+    if (twoLists.isForwarded()) {
+      return;
+    }
+    CmsPointerComparisonDialog pointers=new CmsPointerComparisonDialog(getJsp());
+    fileInfo.writeDialog();
+    twoLists.writeDialog();
+    pointers.displayDialog();
+  }
+ else {
+    lists.add(propertyDiff);
+    CmsMultiListDialog twoLists=new CmsMultiListDialog(lists);
+    twoLists.displayDialog(true);
+    if (twoLists.isForwarded()) {
+      return;
+    }
+    String path1=propertyDiff.getParamPath1();
+    String path2=propertyDiff.getParamPath2();
+    byte[] content1=propertyDiff.getFile1().getContents();
+    byte[] content2=propertyDiff.getFile2().getContents();
+    String originalSource=null;
+    String copySource=null;
+    I_CmsTextExtractor textExtractor=null;
+    if (path1.endsWith(".pdf") && path2.endsWith(".pdf")) {
+      textExtractor=CmsExtractorPdf.getExtractor();
+    }
+ else     if (path1.endsWith(".doc") && path2.endsWith(".doc")) {
+      textExtractor=CmsExtractorMsWord.getExtractor();
+    }
+ else     if (path1.endsWith(".xls") && path2.endsWith(".xls")) {
+      textExtractor=CmsExtractorMsExcel.getExtractor();
+    }
+ else     if (path1.endsWith(".rtf") && path2.endsWith(".rtf")) {
+      textExtractor=CmsExtractorRtf.getExtractor();
+    }
+ else     if (path1.endsWith(".ppt") && path2.endsWith(".ppt")) {
+      textExtractor=CmsExtractorMsPowerPoint.getExtractor();
+    }
+    if (textExtractor != null) {
+      originalSource=textExtractor.extractText(content1).getContent();
+      copySource=textExtractor.extractText(content2).getContent();
+    }
+ else     if (resourceType instanceof CmsResourceTypePlain || resourceType instanceof CmsResourceTypeJsp) {
+      originalSource=new String(content1);
+      copySource=new String(content2);
+    }
+    fileInfo.writeDialog();
+    twoLists.writeDialog();
+    if (CmsStringUtil.isNotEmpty(originalSource) && CmsStringUtil.isNotEmpty(copySource)) {
+      m_differenceDialog.setCopySource(copySource);
+      m_differenceDialog.setOriginalSource(originalSource);
+      m_differenceDialog.displayDialog();
+    }
+  }
+}

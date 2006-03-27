@@ -1,0 +1,43 @@
+{
+  StringBuffer htmlMsg=new StringBuffer("<html><head><style type=\"text/css\">");
+  htmlMsg.append("<!-- body { font-family: Verdana, Arial, Helvetica, sans-serif; background-color:#ffefdb; }");
+  htmlMsg.append("a {color:#b22222;} table { white-space: nowrap; font-size: x-small; } tr.trow1 { background-color: #cdc0b0; } ");
+  htmlMsg.append("tr.trow2 { background-color: #eedfcc; } tr.trow3 { background-color: #ffefdb; } a { text-decoration:none }--></style>");
+  htmlMsg.append("</head><body><span style='font-size:8.0pt;'> <table border=\"0\" cellpadding=\"0\" ");
+  htmlMsg.append("cellspacing=\"0\" width=\"100%\"><tr><td colspan=\"5\"><br/>");
+  m_mailContent=CmsXmlContentFactory.unmarshal(m_cms,m_cms.readFile(NOTIFICATION_CONTENT));
+  CmsMacroResolver macroResolver=new CmsMacroResolver();
+  macroResolver.addMacro("firstname",m_responsible.getFirstname());
+  macroResolver.addMacro("lastname",m_responsible.getLastname());
+  htmlMsg.append(CmsMacroResolver.resolveMacros(m_mailContent.getStringValue(m_cms,"Header",m_locale),macroResolver));
+  htmlMsg.append("<br/></td>");
+  GregorianCalendar tomorrow=new GregorianCalendar(TimeZone.getDefault(),CmsLocaleManager.getDefaultLocale());
+  tomorrow.add(Calendar.DAY_OF_YEAR,1);
+  List outdatedResources=new ArrayList();
+  List resourcesNextDay=new ArrayList();
+  List resourcesNextWeek=new ArrayList();
+  Iterator notificationCauses=m_notificationCauses.iterator();
+  while (notificationCauses.hasNext()) {
+    CmsExtendedNotificationCause notificationCause=(CmsExtendedNotificationCause)notificationCauses.next();
+    if (notificationCause.getCause() == CmsExtendedNotificationCause.RESOURCE_OUTDATED) {
+      outdatedResources.add(notificationCause);
+    }
+ else     if (notificationCause.getDate().before(tomorrow.getTime())) {
+      resourcesNextDay.add(notificationCause);
+    }
+ else {
+      resourcesNextWeek.add(notificationCause);
+    }
+  }
+  Collections.sort(resourcesNextDay);
+  Collections.sort(resourcesNextWeek);
+  Collections.sort(outdatedResources);
+  appendResourceList(htmlMsg,resourcesNextDay,m_messages.key(Messages.GUI_WITHIN_NEXT_DAY_0));
+  appendResourceList(htmlMsg,resourcesNextWeek,m_messages.key(Messages.GUI_WITHIN_NEXT_WEEK_0));
+  appendResourceList(htmlMsg,outdatedResources,m_messages.key(Messages.GUI_FILES_NOT_UPDATED_1,String.valueOf(OpenCms.getSystemInfo().getNotificationTime())));
+  htmlMsg.append("<tr><td colspan=\"5\"><br/>");
+  htmlMsg.append(m_mailContent.getStringValue(m_cms,"Footer",m_locale));
+  htmlMsg.append("</td></tr></table></span></body></html>");
+  String result=htmlMsg.toString();
+  return result;
+}

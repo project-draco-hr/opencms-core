@@ -1,89 +1,13 @@
 {
-  int pageAttribCount=0;
-  pageAttribCount+=CmsStringUtil.isNotEmpty(m_pageSize) ? 1 : 0;
-  pageAttribCount+=CmsStringUtil.isNotEmpty(m_pageIndex) ? 1 : 0;
-  if (pageAttribCount > 0 && pageAttribCount < 2) {
-    throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_TAG_CONTENTLOAD_INDEX_SIZE_0));
-  }
-  Tag ancestor=findAncestorWithClass(this,I_CmsJspTagContentContainer.class);
-  I_CmsJspTagContentContainer container;
+  Tag ancestor=findAncestorWithClass(this,I_CmsXmlContentContainer.class);
+  I_CmsXmlContentContainer container=null;
   if (ancestor != null) {
-    container=(I_CmsJspTagContentContainer)ancestor;
-  }
- else {
-    container=this;
-    if (CmsStringUtil.isEmpty(m_collector)) {
-      throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_TAG_CONTENTLOAD_MISSING_COLLECTOR_0));
-    }
-    if (CmsStringUtil.isEmpty(m_param)) {
-      throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_TAG_CONTENTLOAD_MISSING_PARAM_0));
+    container=(I_CmsXmlContentContainer)ancestor;
+    if (!container.isPreloader()) {
+      ancestor=null;
     }
   }
-  if (m_preload) {
-    m_editable=false;
-  }
-  m_controller=CmsFlexController.getController(pageContext.getRequest());
-  m_cms=m_controller.getCmsObject();
-  String resourcename=getResourceName(m_cms,container);
-  CmsMacroResolver resolver=CmsMacroResolver.newInstance().setCmsObject(m_cms).setJspPageContext(pageContext).setResourceName(resourcename).setKeepEmptyMacros(true);
-  if (ancestor != null) {
-    m_collectorName=container.getCollectorName();
-    m_collectorParam=container.getCollectorParam();
-    m_collectorResult=container.getCollectorResult();
-    if (m_locale == null) {
-      m_locale=container.getXmlDocumentLocale();
-    }
-  }
- else {
-    m_collectorName=resolver.resolveMacros(getCollector());
-    m_collectorParam=resolver.resolveMacros(getParam());
-    m_collectorResult=null;
-  }
-  if (m_locale == null) {
-    m_locale=m_cms.getRequestContext().getLocale();
-  }
-  try {
-    I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(m_collectorName);
-    if (collector == null) {
-      throw new CmsException(Messages.get().container(Messages.ERR_COLLECTOR_NOT_FOUND_1,m_collectorName));
-    }
-    if (m_collectorResult == null) {
-      m_collectorResult=collector.getResults(m_cms,m_collectorName,m_collectorParam);
-    }
-    m_contentInfoBean=new CmsContentInfoBean();
-    m_contentInfoBean.setPageSizeAsString(resolver.resolveMacros(m_pageSize));
-    m_contentInfoBean.setPageIndexAsString(resolver.resolveMacros(m_pageIndex));
-    m_contentInfoBean.setPageNavLengthAsString(resolver.resolveMacros(m_pageNavLength));
-    m_contentInfoBean.setResultSize(m_collectorResult.size());
-    m_contentInfoBean.setLocale(m_locale.toString());
-    m_contentInfoBean.initResultIndex();
-    if (!m_preload) {
-      m_collectorResult=CmsJspTagContentLoad.limitCollectorResult(m_contentInfoBean,m_collectorResult);
-      m_contentInfoBean.initPageNavIndexes();
-      String createParam=collector.getCreateParam(m_cms,m_collectorName,m_collectorParam);
-      if (createParam != null) {
-        m_directEditCreateLink=CmsEncoder.encode(m_collectorName + "|" + createParam);
-      }
-      if (m_collectorResult != null && m_collectorResult.size() > 0) {
-        doLoadNextFile();
-      }
-    }
-  }
- catch (  CmsException e) {
-    m_controller.setThrowable(e,m_cms.getRequestContext().getUri());
-    throw new JspException(e);
-  }
-  if (m_editable && (m_resourceName != null)) {
-    String directEditOptions;
-    if (m_directEditCreateLink != null) {
-      directEditOptions=CmsJspTagEditable.createEditOptions(true,true,true);
-      m_directEditFollowOptions=CmsJspTagEditable.createEditOptions(true,true,false);
-    }
- else {
-      directEditOptions=CmsJspTagEditable.createEditOptions(true,false,false);
-      m_directEditFollowOptions=directEditOptions;
-    }
-    m_directEditPermissions=CmsJspTagEditable.includeDirectEditElement(pageContext,I_CmsEditorActionHandler.DIRECT_EDIT_AREA_START,m_resourceName,null,directEditOptions,null,m_directEditCreateLink);
-  }
+  init(container);
+  hasMoreContent();
   return EVAL_BODY_INCLUDE;
 }

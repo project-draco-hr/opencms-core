@@ -1,26 +1,62 @@
 {
   CmsLocaleManager localeManager=OpenCms.getLocaleManager();
-  String encoding;
-  List defaultLocales;
-synchronized (m_adminCmsObject) {
-    m_adminCmsObject.getRequestContext().setCurrentProject(project);
-    defaultLocales=localeManager.getDefaultLocales(m_adminCmsObject,resourceName);
+  List defaultLocales=null;
+  String encoding=null;
+  CmsObject adminCms=null;
+  try {
+    adminCms=OpenCms.initCmsObject(m_adminCmsObject);
+  }
+ catch (  CmsException e) {
+  }
+  if (adminCms != null) {
+    adminCms.getRequestContext().setCurrentProject(project);
+    adminCms.getRequestContext().setUri(resourceName);
+    CmsResource res=null;
     try {
-      encoding=m_adminCmsObject.readPropertyObject(resourceName,CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true).getValue(OpenCms.getSystemInfo().getDefaultEncoding());
+      res=adminCms.readResource(resourceName);
     }
  catch (    CmsException e) {
-      if (LOG.isInfoEnabled()) {
-        LOG.info(Messages.get().key(Messages.ERR_READ_ENCODING_PROP_1,resourceName),e);
-      }
-      encoding=OpenCms.getSystemInfo().getDefaultEncoding();
     }
+    if (res == null) {
+      try {
+        res=OpenCms.initResource(adminCms,resourceName,req,null);
+      }
+ catch (      CmsException e) {
+      }
+    }
+    String defaultNames=null;
+    if (res != null) {
+      try {
+        defaultNames=adminCms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_LOCALE,true).getValue();
+      }
+ catch (      CmsException e) {
+        LOG.warn(Messages.get().getBundle().key(Messages.ERR_READ_ENCODING_PROP_1,resourceName),e);
+      }
+      if (defaultNames != null) {
+        defaultLocales=localeManager.getAvailableLocales(defaultNames);
+      }
+      try {
+        encoding=adminCms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true).getValue(OpenCms.getSystemInfo().getDefaultEncoding());
+      }
+ catch (      CmsException e) {
+        if (LOG.isInfoEnabled()) {
+          LOG.info(Messages.get().getBundle().key(Messages.ERR_READ_ENCODING_PROP_1,resourceName),e);
+        }
+      }
+    }
+  }
+  if ((defaultLocales == null) || (defaultLocales.isEmpty())) {
+    defaultLocales=localeManager.getDefaultLocales();
+  }
+  if (encoding == null) {
+    encoding=OpenCms.getSystemInfo().getDefaultEncoding();
   }
   if (req != null) {
     try {
       req.setCharacterEncoding(encoding);
     }
  catch (    UnsupportedEncodingException e) {
-      LOG.error(Messages.get().key(Messages.ERR_UNSUPPORTED_REQUEST_ENCODING_1,encoding),e);
+      LOG.error(Messages.get().getBundle().key(Messages.ERR_UNSUPPORTED_REQUEST_ENCODING_1,encoding),e);
     }
   }
   Locale locale;

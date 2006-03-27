@@ -2,13 +2,24 @@
   getJsp().getRequest().setAttribute(SESSION_WORKPLACE_CLASS,this);
   CmsResource resource=null;
   try {
-    resource=getCms().readResource(getParamResource(),CmsResourceFilter.ALL);
-    boolean isFolder=resource.isFolder();
-    if (performCopyOperation(isFolder)) {
-      if (isFolder) {
-        List folderList=new ArrayList(2);
-        String target=CmsResource.getParentFolder(getParamTarget());
-        folderList.add(target);
+    boolean isFolder=false;
+    String source=(String)getResourceList().get(0);
+    String target=CmsLinkManager.getAbsoluteUri(getParamTarget(),CmsResource.getParentFolder(source));
+    if (!isMultiOperation()) {
+      resource=getCms().readResource(source,CmsResourceFilter.ALL);
+      isFolder=resource.isFolder();
+    }
+ else {
+      resource=getCms().readResource(target,CmsResourceFilter.ALL);
+      if (!resource.isFolder()) {
+        throw new CmsVfsException(Messages.get().container(Messages.ERR_COPY_MULTI_TARGET_NOFOLDER_1,target));
+      }
+    }
+    if (performDialogOperation()) {
+      if (isMultiOperation() || isFolder) {
+        List folderList=new ArrayList(1);
+        String targetParent=CmsResource.getParentFolder(target);
+        folderList.add(targetParent);
         getJsp().getRequest().setAttribute(REQUEST_ATTRIBUTE_RELOADTREE,folderList);
       }
       actionCloseDialog();
@@ -18,7 +29,7 @@
     }
   }
  catch (  Throwable e) {
-    if ((e instanceof CmsVfsResourceAlreadyExistsException) && !(resource.isFolder())) {
+    if (!isMultiOperation() && (e instanceof CmsVfsResourceAlreadyExistsException) && !(resource.isFolder())) {
       int targetType=-1;
       boolean restoreSiteRoot=false;
       try {

@@ -13,7 +13,7 @@
       cms.getRequestContext().saveSiteRoot();
       cms.getRequestContext().setSiteRoot("/");
       List siblings=cms.readSiblings(rootPath,CmsResourceFilter.IGNORE_EXPIRATION);
-      for (int i=0; i < siblings.size(); i++) {
+      for (int i=(siblings.size() - 1); i >= 0; i--) {
         String filename=((CmsResource)siblings.get(i)).getRootPath();
         Locale locale=OpenCms.getLocaleManager().getDefaultLocale(cms,filename);
         if (!locale.equals(value.getLocale())) {
@@ -21,7 +21,21 @@
         }
         String stringValue=value.getStringValue(cms);
         if (mapping.startsWith(MAPTO_PROPERTY_LIST) && (value.getIndex() == 0)) {
-          String property=mapping.substring(MAPTO_PROPERTY_LIST.length());
+          boolean mapToShared;
+          int prefixLength;
+          if (mapping.startsWith(MAPTO_PROPERTY_LIST_SHARED)) {
+            mapToShared=true;
+            prefixLength=MAPTO_PROPERTY_LIST_SHARED.length();
+          }
+ else           if (mapping.startsWith(MAPTO_PROPERTY_LIST_INDIVIDUAL)) {
+            mapToShared=false;
+            prefixLength=MAPTO_PROPERTY_LIST_INDIVIDUAL.length();
+          }
+ else {
+            mapToShared=false;
+            prefixLength=MAPTO_PROPERTY_LIST.length();
+          }
+          String property=mapping.substring(prefixLength);
           String path=CmsXmlUtils.removeXpathIndex(value.getPath());
           List values=content.getValues(path,locale);
           Iterator j=values.iterator();
@@ -33,11 +47,45 @@
               result.append(CmsProperty.VALUE_LIST_DELIMITER);
             }
           }
-          cms.writePropertyObject(filename,new CmsProperty(property,result.toString(),null));
+          CmsProperty p;
+          if (mapToShared) {
+            p=new CmsProperty(property,null,result.toString());
+          }
+ else {
+            p=new CmsProperty(property,result.toString(),null);
+          }
+          cms.writePropertyObject(filename,p);
+          if (mapToShared) {
+            i=0;
+          }
         }
  else         if (mapping.startsWith(MAPTO_PROPERTY)) {
-          String property=mapping.substring(MAPTO_PROPERTY.length());
-          cms.writePropertyObject(filename,new CmsProperty(property,stringValue,null));
+          boolean mapToShared;
+          int prefixLength;
+          if (mapping.startsWith(MAPTO_PROPERTY_SHARED)) {
+            mapToShared=true;
+            prefixLength=MAPTO_PROPERTY_SHARED.length();
+          }
+ else           if (mapping.startsWith(MAPTO_PROPERTY_INDIVIDUAL)) {
+            mapToShared=false;
+            prefixLength=MAPTO_PROPERTY_INDIVIDUAL.length();
+          }
+ else {
+            mapToShared=false;
+            prefixLength=MAPTO_PROPERTY.length();
+          }
+          String property=mapping.substring(prefixLength);
+          CmsProperty p;
+          if (mapToShared) {
+            p=new CmsProperty(property,null,stringValue);
+          }
+ else {
+            p=new CmsProperty(property,stringValue,null);
+          }
+          cms.writePropertyObject(filename,p);
+          if (mapToShared) {
+            i=0;
+          }
         }
  else         if (mapping.startsWith(MAPTO_ATTRIBUTE)) {
           String attribute=mapping.substring(MAPTO_ATTRIBUTE.length());

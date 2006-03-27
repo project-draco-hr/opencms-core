@@ -1,6 +1,6 @@
 {
   boolean galleryView=VIEW_GALLERY.equals(getSettings().getExplorerMode());
-  boolean projectView=VIEW_PROJECT.equals(getSettings().getExplorerMode());
+  boolean listView=VIEW_LIST.equals(getSettings().getExplorerMode());
   boolean showVfsLinks=getSettings().getExplorerShowLinks();
   CmsResource currentResource=null;
   String currentFolder=getSettings().getExplorerResource();
@@ -50,12 +50,17 @@
   content.append(";\n");
   content.append("top.head.helpUrl='explorer/index.html';\n");
   content.append("top.setProject(");
-  content.append(getSettings().getProject());
+  if (!listView) {
+    content.append(getSettings().getProject());
+  }
+ else {
+    content.append(getSettings().getExplorerProjectId());
+  }
   content.append(");\n");
   content.append("top.setOnlineProject(");
   content.append(CmsProject.ONLINE_PROJECT_ID);
   content.append(");\n");
-  boolean writeAccess="explorerview".equals(getSettings().getExplorerMode());
+  boolean writeAccess=VIEW_EXPLORER.equals(getSettings().getExplorerMode());
   if (writeAccess && (!showVfsLinks)) {
     writeAccess=getCms().isInsideCurrentProject(currentFolder);
   }
@@ -102,7 +107,7 @@
   int selectedPage=1;
   int numberOfPages=0;
   int maxEntrys=getSettings().getUserSettings().getExplorerFileEntries();
-  if (!(galleryView || projectView || showVfsLinks)) {
+  if (!(galleryView || showVfsLinks)) {
     selectedPage=getSettings().getExplorerPage();
     if (stopat > maxEntrys) {
       numberOfPages=(stopat / maxEntrys) + 1;
@@ -116,15 +121,15 @@
     }
   }
   CmsProject project;
-  if (projectView) {
-    try {
+  try {
+    if (!listView) {
       project=getCms().readProject(getSettings().getProject());
     }
- catch (    CmsException ex) {
-      project=getCms().getRequestContext().currentProject();
+ else {
+      project=getCms().readProject(getSettings().getExplorerProjectId());
     }
   }
- else {
+ catch (  CmsException ex) {
     project=getCms().getRequestContext().currentProject();
   }
   List projectResources;
@@ -152,7 +157,7 @@
     content.append("\"");
     content.append(res.getName());
     content.append("\",");
-    if (projectView || showVfsLinks || galleryView) {
+    if (showVfsLinks || galleryView || listView) {
       content.append("\"");
       content.append(path);
       content.append("\",");
@@ -166,12 +171,19 @@
         title=getCms().readPropertyObject(getCms().getSitePath(res),CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
       }
  catch (      CmsException e) {
-        if (LOG.isInfoEnabled()) {
-          LOG.info(e);
+        getCms().getRequestContext().saveSiteRoot();
+        try {
+          getCms().getRequestContext().setSiteRoot("/");
+          title=getCms().readPropertyObject(res.getRootPath(),CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
         }
-      }
-      if (title == null) {
-        title="";
+ catch (        Exception e1) {
+          if (LOG.isInfoEnabled()) {
+            LOG.info(e);
+          }
+        }
+ finally {
+          getCms().getRequestContext().restoreSiteRoot();
+        }
       }
       content.append("\"");
       if (title != null) {
@@ -264,7 +276,7 @@
         content.append(getMessages().getDateTime(release));
       }
  else {
-        content.append(CmsTouch.RELEASE_EXPIRE_DEFAULT);
+        content.append(CmsTouch.DEFAULT_DATE_STRING);
       }
       content.append("\",");
     }
@@ -278,7 +290,7 @@
         content.append(getMessages().getDateTime(expire));
       }
  else {
-        content.append(CmsTouch.RELEASE_EXPIRE_DEFAULT);
+        content.append(CmsTouch.DEFAULT_DATE_STRING);
       }
       content.append("\",");
     }
@@ -291,7 +303,17 @@
         content.append(getCms().getPermissions(getCms().getSitePath(res)).getPermissionString());
       }
  catch (      CmsException e) {
-        content.append(e.getMessage());
+        getCms().getRequestContext().saveSiteRoot();
+        try {
+          getCms().getRequestContext().setSiteRoot("/");
+          content.append(getCms().getPermissions(res.getRootPath()).getPermissionString());
+        }
+ catch (        Exception e1) {
+          content.append(CmsStringUtil.escapeJavaScript(e1.getMessage()));
+        }
+ finally {
+          getCms().getRequestContext().restoreSiteRoot();
+        }
       }
       content.append("\",");
     }
@@ -307,7 +329,7 @@
         content.append(getCms().readUser(lock.getUserId()).getName());
       }
  catch (      CmsException e) {
-        content.append(e.getMessage());
+        content.append(CmsStringUtil.escapeJavaScript(e.getMessage()));
       }
       content.append("\",");
     }

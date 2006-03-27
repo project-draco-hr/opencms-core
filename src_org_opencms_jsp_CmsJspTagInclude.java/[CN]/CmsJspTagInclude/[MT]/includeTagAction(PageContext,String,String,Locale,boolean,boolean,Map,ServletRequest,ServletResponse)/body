@@ -1,0 +1,40 @@
+{
+  CmsFlexController controller=CmsFlexController.getController(req);
+  if (target == null) {
+    target=controller.getCmsObject().getRequestContext().getUri();
+  }
+  target=CmsLinkManager.getAbsoluteUri(target,controller.getCurrentRequest().getElementUri());
+  try {
+    target=OpenCms.getResourceManager().resolveIncludeExtensions(target,element,editable,paramMap,req,res);
+  }
+ catch (  CmsException e) {
+    controller.setThrowable(e,target);
+    throw new JspException(e);
+  }
+  String directEditPermissions=null;
+  if (editable) {
+    directEditPermissions=CmsJspTagEditable.includeDirectEditElement(context,I_CmsEditorActionHandler.DIRECT_EDIT_AREA_START,target,element,null,null,null);
+  }
+  Map oldParameterMap=req.getParameterMap();
+  try {
+    Map parameterMap=(paramMap == null) ? new HashMap() : new HashMap(paramMap);
+    if (cacheable && (element != null)) {
+      addParameter(parameterMap,I_CmsResourceLoader.PARAMETER_ELEMENT,element,true);
+    }
+    controller.getCurrentRequest().addParameterMap(parameterMap);
+    if (cacheable) {
+      includeActionWithCache(controller,context,target,parameterMap,req,res);
+    }
+ else {
+      includeActionNoCache(controller,context,target,element,locale,req,res);
+    }
+  }
+  finally {
+    if (oldParameterMap != null) {
+      controller.getCurrentRequest().setParameterMap(oldParameterMap);
+    }
+  }
+  if (directEditPermissions != null) {
+    CmsJspTagEditable.includeDirectEditElement(context,I_CmsEditorActionHandler.DIRECT_EDIT_AREA_END,target,element,null,directEditPermissions,null);
+  }
+}

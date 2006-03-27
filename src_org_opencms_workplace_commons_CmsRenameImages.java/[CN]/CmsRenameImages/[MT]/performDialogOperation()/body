@@ -1,0 +1,68 @@
+{
+  if (!DIALOG_WAIT.equals(getParamAction())) {
+    return false;
+  }
+  checkLock(getParamResource());
+  CmsResourceFilter filter=CmsResourceFilter.IGNORE_EXPIRATION.addRequireType(CmsResourceTypeImage.getStaticTypeId());
+  List images=getCms().readResources(getParamResource(),filter,false);
+  int count=1;
+  try {
+    count=Integer.parseInt(getParamStartcount());
+  }
+ catch (  Exception e) {
+  }
+  PrintfFormat numberFormat=new PrintfFormat("%0." + getParamPlaces() + "d");
+  String folder=getParamResource();
+  if (!folder.endsWith("/")) {
+    folder+="/";
+  }
+  Iterator i=images.iterator();
+  while (i.hasNext()) {
+    CmsResource res=(CmsResource)i.next();
+    String oldName=CmsResource.getName(res.getRootPath());
+    CmsProperty titleProperty=getCms().readPropertyObject(res,CmsPropertyDefinition.PROPERTY_TITLE,false);
+    String oldTitle=titleProperty.getValue();
+    int lastDot=oldName.lastIndexOf('.');
+    String suffix="";
+    String oldNameWithoutSuffix=oldName;
+    if (lastDot > -1) {
+      suffix=oldName.substring(lastDot);
+      oldNameWithoutSuffix=oldName.substring(0,lastDot);
+    }
+    String newName="";
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getParamPrefix()) && !"null".equals(getParamPrefix())) {
+      newName+=getParamPrefix();
+    }
+    String imageNumber=numberFormat.sprintf(count);
+    newName+=imageNumber + suffix;
+    if (!newName.equals(oldName)) {
+      if (getCms().existsResource(folder + newName,CmsResourceFilter.ALL)) {
+        throw new CmsException(Messages.get().container(Messages.ERR_MOVE_FAILED_TARGET_EXISTS_2,getCms().getSitePath(res),folder + newName));
+      }
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(oldTitle)) {
+        if (oldTitle.equals(oldNameWithoutSuffix)) {
+          if (Boolean.valueOf(getParamRemovetitle()).booleanValue()) {
+            if (oldTitle.equals(titleProperty.getStructureValue())) {
+              titleProperty.setStructureValue(CmsProperty.DELETE_VALUE);
+            }
+            if (oldTitle.equals(titleProperty.getResourceValue())) {
+              titleProperty.setResourceValue(CmsProperty.DELETE_VALUE);
+            }
+          }
+ else {
+            if (oldTitle.equals(titleProperty.getStructureValue())) {
+              titleProperty.setStructureValue(getParamPrefix() + imageNumber);
+            }
+ else             if (oldTitle.equals(titleProperty.getResourceValue())) {
+              titleProperty.setResourceValue(getParamPrefix() + imageNumber);
+            }
+          }
+          getCms().writePropertyObject(getCms().getSitePath(res),titleProperty);
+        }
+      }
+      getCms().renameResource(folder + oldName,folder + newName);
+    }
+    count++;
+  }
+  return true;
+}

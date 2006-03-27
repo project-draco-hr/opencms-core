@@ -1,9 +1,7 @@
 {
-  CmsTemplateParts parts=null;
   boolean cacheNavEnabled=!getRequestContext().currentProject().isOnlineProject();
   String cacheKey=null;
   if (cacheNavEnabled) {
-    parts=CmsTemplateParts.getInstance(this);
     StringBuffer key=new StringBuffer(8);
     key.append(getRequestContext().getSiteRoot());
     key.append("_");
@@ -23,7 +21,7 @@
       key.append(getConfigPath().hashCode());
     }
     cacheKey=key.toString();
-    String cachedNav=(String)parts.getPart(cacheKey);
+    String cachedNav=CmsTemplateParts.getInstance().getPart(cacheKey);
     if (CmsStringUtil.isNotEmpty(cachedNav)) {
       return cachedNav;
     }
@@ -42,7 +40,13 @@
     String showItemProperty;
     for (int i=0; i < navElements.size(); i++) {
       CmsJspNavElement foldernav=(CmsJspNavElement)navElements.get(i);
-      showItemProperty=property(PROPERTY_HEADNAV_USE,foldernav.getResourceName(),getHeadNavItemDefaultStringValue());
+      showItemProperty=getHeadNavItemDefaultStringValue();
+      if (getCmsObject().existsResource(foldernav.getResourceName())) {
+        showItemProperty=property(PROPERTY_HEADNAV_USE,foldernav.getResourceName(),getHeadNavItemDefaultStringValue());
+      }
+ else       if (LOG.isWarnEnabled()) {
+        LOG.warn(Messages.get().getBundle().key(Messages.LOG_NAVIGATION_CONFIG_ERR_2,foldernav.getResourceName(),getRequestContext().getUri()));
+      }
       boolean showItem=Boolean.valueOf(showItemProperty).booleanValue();
       if (manualHeadConfig || (foldernav.isFolderLink() && showItem)) {
         count++;
@@ -60,7 +64,7 @@
       }
     }
     if (cacheNavEnabled) {
-      parts.setPart(cacheKey,result.toString());
+      CmsTemplateParts.getInstance().addPart(cacheKey,result.toString());
     }
   }
   return result.toString();

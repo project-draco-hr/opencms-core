@@ -1,0 +1,54 @@
+{
+  m_resources=new ArrayList();
+  m_cms=cms;
+  m_cms.getRequestContext().setCurrentProject(m_cms.readProject(OpenCms.getSystemInfo().getNotificationProject()));
+  String folder="/";
+  GregorianCalendar now=new GregorianCalendar(TimeZone.getDefault(),CmsLocaleManager.getDefaultLocale());
+  now.setTimeInMillis(System.currentTimeMillis());
+  GregorianCalendar inOneWeek=(GregorianCalendar)now.clone();
+  inOneWeek.add(Calendar.WEEK_OF_YEAR,1);
+  Iterator resources;
+  CmsResource resource;
+  try {
+    resources=m_cms.readResourcesWithProperty(folder,CmsPropertyDefinition.PROPERTY_NOTIFICATION_INTERVAL).iterator();
+    while (resources.hasNext()) {
+      resource=(CmsResource)resources.next();
+      int notification_interval=Integer.parseInt(m_cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_NOTIFICATION_INTERVAL,true).getValue());
+      GregorianCalendar intervalBefore=new GregorianCalendar(TimeZone.getDefault(),CmsLocaleManager.getDefaultLocale());
+      intervalBefore.setTimeInMillis(resource.getDateLastModified());
+      intervalBefore.add(Calendar.DAY_OF_YEAR,notification_interval);
+      GregorianCalendar intervalAfter=(GregorianCalendar)intervalBefore.clone();
+      intervalAfter.add(Calendar.WEEK_OF_YEAR,-1);
+      for (int i=0; i < 100 && intervalAfter.getTime().before(now.getTime()); i++) {
+        if (intervalBefore.getTime().after(now.getTime())) {
+          m_resources.add(new CmsExtendedNotificationCause(resource,CmsExtendedNotificationCause.RESOURCE_UPDATE_REQUIRED,intervalBefore.getTime()));
+        }
+        intervalBefore.add(Calendar.DAY_OF_YEAR,notification_interval);
+        intervalAfter.add(Calendar.DAY_OF_YEAR,notification_interval);
+      }
+    }
+  }
+ catch (  CmsDbEntryNotFoundException e) {
+  }
+  GregorianCalendar oneYearAgo=(GregorianCalendar)now.clone();
+  oneYearAgo.add(Calendar.DAY_OF_YEAR,-OpenCms.getSystemInfo().getNotificationTime());
+  resources=m_cms.getResourcesInTimeRange(folder,0,oneYearAgo.getTimeInMillis()).iterator();
+  while (resources.hasNext()) {
+    resource=(CmsResource)resources.next();
+    m_resources.add(new CmsExtendedNotificationCause(resource,CmsExtendedNotificationCause.RESOURCE_OUTDATED,new Date(resource.getDateLastModified())));
+  }
+  CmsResourceFilter resourceFilter=CmsResourceFilter.IGNORE_EXPIRATION.addRequireExpireBefore(inOneWeek.getTimeInMillis());
+  resourceFilter=resourceFilter.addRequireExpireAfter(now.getTimeInMillis());
+  resources=m_cms.readResources(folder,resourceFilter).iterator();
+  while (resources.hasNext()) {
+    resource=(CmsResource)resources.next();
+    m_resources.add(new CmsExtendedNotificationCause(resource,CmsExtendedNotificationCause.RESOURCE_EXPIRES,new Date(resource.getDateExpired())));
+  }
+  resourceFilter=CmsResourceFilter.IGNORE_EXPIRATION.addRequireReleaseBefore(inOneWeek.getTimeInMillis());
+  resourceFilter=resourceFilter.addRequireReleaseAfter(now.getTimeInMillis());
+  resources=m_cms.readResources(folder,resourceFilter).iterator();
+  while (resources.hasNext()) {
+    resource=(CmsResource)resources.next();
+    m_resources.add(new CmsExtendedNotificationCause(resource,CmsExtendedNotificationCause.RESOURCE_RELEASE,new Date(resource.getDateReleased())));
+  }
+}

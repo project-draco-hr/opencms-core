@@ -1,0 +1,67 @@
+{
+  I_CmsXmlDocument resource1;
+  I_CmsXmlDocument resource2;
+  List elements1=null;
+  List elements2=null;
+  if (res1.getTypeId() == CmsResourceTypeXmlPage.getStaticTypeId() && res2.getTypeId() == CmsResourceTypeXmlPage.getStaticTypeId()) {
+    resource1=CmsXmlPageFactory.unmarshal(cms,res1);
+    resource2=CmsXmlPageFactory.unmarshal(cms,res2);
+    elements1=getElements(resource1);
+    elements2=getElements(resource2);
+  }
+ else {
+    resource1=CmsXmlContentFactory.unmarshal(cms,res1);
+    CmsXmlContentElementPathExtractor visitor=new CmsXmlContentElementPathExtractor();
+    ((CmsXmlContent)resource1).visitAllValuesWith(visitor);
+    elements1=visitor.getElementPaths();
+    resource2=CmsXmlContentFactory.unmarshal(cms,res2);
+    visitor=new CmsXmlContentElementPathExtractor();
+    ((CmsXmlContent)resource2).visitAllValuesWith(visitor);
+    elements2=visitor.getElementPaths();
+  }
+  List removed=new ArrayList(elements1);
+  removed.removeAll(elements2);
+  Iterator i=removed.iterator();
+  while (i.hasNext()) {
+    CmsElementComparison elem=(CmsElementComparison)i.next();
+    elem.setStatus(CmsResourceComparison.TYPE_REMOVED);
+    String value=resource1.getValue(elem.getName(),new Locale(elem.getLocale())).getStringValue(cms);
+    elem.setVersion1(value);
+    elem.setVersion2("");
+  }
+  List added=new ArrayList(elements2);
+  added.removeAll(elements1);
+  i=added.iterator();
+  while (i.hasNext()) {
+    CmsElementComparison elem=(CmsElementComparison)i.next();
+    elem.setStatus(CmsResourceComparison.TYPE_ADDED);
+    elem.setVersion1("");
+    String value=resource2.getValue(elem.getName(),new Locale(elem.getLocale())).getStringValue(cms);
+    elem.setVersion2(value);
+  }
+  List union=new ArrayList(elements1);
+  union.retainAll(elements2);
+  i=new ArrayList(union).iterator();
+  while (i.hasNext()) {
+    CmsElementComparison elem=(CmsElementComparison)i.next();
+    String value1=resource1.getValue(elem.getName(),new Locale(elem.getLocale())).getStringValue(cms);
+    String value2=resource2.getValue(elem.getName(),new Locale(elem.getLocale())).getStringValue(cms);
+    if (value1 == null) {
+      value1="";
+    }
+    if (value2 == null) {
+      value2="";
+    }
+    elem.setVersion1(value1);
+    elem.setVersion2(value2);
+    if (!value1.equals(value2)) {
+      elem.setStatus(CmsResourceComparison.TYPE_CHANGED);
+    }
+ else {
+      elem.setStatus(CmsResourceComparison.TYPE_UNCHANGED);
+    }
+  }
+  m_elements=new ArrayList(removed);
+  m_elements.addAll(added);
+  m_elements.addAll(union);
+}

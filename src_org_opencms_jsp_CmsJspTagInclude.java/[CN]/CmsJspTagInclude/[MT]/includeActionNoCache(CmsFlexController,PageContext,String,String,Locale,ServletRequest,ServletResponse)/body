@@ -1,0 +1,38 @@
+{
+  try {
+    CmsFile file=controller.getCmsObject().readFile(target);
+    CmsObject cms=controller.getCmsObject();
+    if (locale == null) {
+      locale=cms.getRequestContext().getLocale();
+    }
+    I_CmsResourceLoader loader=OpenCms.getResourceManager().getLoader(file);
+    String content;
+    if (loader instanceof I_CmsResourceStringDumpLoader) {
+      I_CmsResourceStringDumpLoader strLoader=(I_CmsResourceStringDumpLoader)loader;
+      content=strLoader.dumpAsString(cms,file,element,locale,req,res);
+    }
+ else {
+      if (!(req instanceof HttpServletRequest) || !(res instanceof HttpServletResponse)) {
+        CmsLoaderException e=new CmsLoaderException(Messages.get().container(Messages.ERR_BAD_REQUEST_RESPONSE_0));
+        throw new JspException(e);
+      }
+      byte[] result=loader.dump(cms,file,element,locale,(HttpServletRequest)req,(HttpServletResponse)res);
+      String encoding=cms.readPropertyObject(file,CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true).getValue(OpenCms.getSystemInfo().getDefaultEncoding());
+      content=new String(result,encoding);
+    }
+    context.getOut().print(content);
+  }
+ catch (  ServletException e) {
+    Throwable t=(e.getRootCause() != null) ? e.getRootCause() : e;
+    t=controller.setThrowable(t,target);
+    throw new JspException(t);
+  }
+catch (  IOException e) {
+    Throwable t=controller.setThrowable(e,target);
+    throw new JspException(t);
+  }
+catch (  CmsException e) {
+    Throwable t=controller.setThrowable(e,target);
+    throw new JspException(t);
+  }
+}

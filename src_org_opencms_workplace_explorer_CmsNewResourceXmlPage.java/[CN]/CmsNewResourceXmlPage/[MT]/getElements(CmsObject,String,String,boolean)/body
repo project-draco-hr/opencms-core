@@ -1,0 +1,60 @@
+{
+  TreeMap elements=new TreeMap();
+  TreeMap allElements=new TreeMap();
+  if (CmsStringUtil.isNotEmpty(currWpPath)) {
+    currWpPath=cms.getRequestContext().addSiteRoot(currWpPath);
+  }
+  List modules=cms.getSubFolders(CmsWorkplace.VFS_PATH_MODULES,CmsResourceFilter.IGNORE_EXPIRATION);
+  for (int i=0; i < modules.size(); i++) {
+    List moduleTemplateFiles=new ArrayList();
+    String folder=cms.getSitePath((CmsFolder)modules.get(i));
+    try {
+      moduleTemplateFiles=cms.getFilesInFolder(folder + elementFolder,CmsResourceFilter.DEFAULT.addRequireVisible());
+    }
+ catch (    CmsException e) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(e.getMessage(),e);
+      }
+    }
+    for (int j=0; j < moduleTemplateFiles.size(); j++) {
+      CmsFile templateFile=(CmsFile)moduleTemplateFiles.get(j);
+      String title=null;
+      String folderProp=null;
+      try {
+        title=cms.readPropertyObject(cms.getSitePath(templateFile),CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
+        folderProp=cms.readPropertyObject(templateFile,CmsPropertyDefinition.PROPERTY_FOLDERS_AVAILABLE,false).getValue();
+      }
+ catch (      CmsException e) {
+        if (LOG.isInfoEnabled()) {
+          LOG.info(e);
+        }
+      }
+      boolean isInFolder=false;
+      if (CmsStringUtil.isNotEmpty(currWpPath) && CmsStringUtil.isNotEmpty(folderProp)) {
+        List folders=CmsStringUtil.splitAsList(folderProp,DELIM_PROPERTYVALUES);
+        for (int k=0; k < folders.size(); k++) {
+          String checkFolder=(String)folders.get(k);
+          if (currWpPath.startsWith(checkFolder)) {
+            isInFolder=true;
+            break;
+          }
+        }
+      }
+ else {
+        isInFolder=true;
+      }
+      if (title == null) {
+        title=templateFile.getName();
+      }
+      String path=cms.getSitePath(templateFile);
+      if (isInFolder) {
+        elements.put(title,path);
+      }
+      allElements.put(title,path);
+    }
+  }
+  if (!emptyMap && elements.size() < 1) {
+    return allElements;
+  }
+  return elements;
+}
