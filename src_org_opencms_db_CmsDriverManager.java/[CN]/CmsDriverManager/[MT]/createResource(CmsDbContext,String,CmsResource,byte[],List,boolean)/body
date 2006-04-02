@@ -1,6 +1,10 @@
 {
   CmsResource newResource=null;
+  if (m_concurrentCreateResourceLocks.contains(resourcePath)) {
+    throw new CmsVfsResourceAlreadyExistsException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_RESOURCE_WITH_NAME_CURRENTLY_CREATED_1,dbc.removeSiteRoot(resourcePath)));
+  }
   try {
+    m_concurrentCreateResourceLocks.add(resourcePath);
     boolean useLostAndFound=importCase && !OpenCms.getImportExportManager().overwriteCollidingResources();
     CmsResource currentResource=null;
     try {
@@ -98,6 +102,7 @@
     lockResource(dbc,newResource,CmsLock.COMMON);
   }
   finally {
+    m_concurrentCreateResourceLocks.remove(resourcePath);
     clearAccessControlListCache();
     m_propertyCache.clear();
     if (newResource != null) {
