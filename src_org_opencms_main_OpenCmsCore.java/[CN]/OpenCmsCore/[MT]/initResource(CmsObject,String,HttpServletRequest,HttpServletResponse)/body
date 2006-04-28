@@ -45,6 +45,28 @@ catch (          CmsException e) {
     if ((resource.getFlags() & CmsResource.FLAG_INTERNAL) > 0) {
       throw new CmsException(Messages.get().container(Messages.ERR_READ_INTERNAL_RESOURCE_1,cms.getRequestContext().getUri()));
     }
+    if (cms.getRequestContext().currentProject().isOnlineProject()) {
+      boolean secure=Boolean.valueOf(cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_SECURE,true).getValue()).booleanValue();
+      if (secure) {
+        CmsSite site=CmsSiteManager.getCurrentSite(cms);
+        boolean usingSec=req.getRequestURL().toString().toUpperCase().startsWith(site.getSecureUrl().toUpperCase());
+        if (site.isExclusiveUrl() && !usingSec) {
+          resource=null;
+          if (site.isExclusiveError()) {
+            throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_REQUEST_SECURE_RESOURCE_0));
+          }
+ else {
+            String uri=req.getRequestURL().toString();
+            String target=site.getSecureUrl() + uri.substring(uri.indexOf("/",uri.indexOf("//") + 2));
+            try {
+              res.sendRedirect(target);
+            }
+ catch (            Exception e) {
+            }
+          }
+        }
+      }
+    }
   }
   Iterator i=m_resourceInitHandlers.iterator();
   while (i.hasNext()) {
