@@ -2,33 +2,10 @@
   if (report != null) {
     report.println(Messages.get().container(Messages.RPT_DELETING_EXPORT_FOLDERS_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
   }
-  int count=0;
-  Integer size=new Integer(m_rfsRules.size() + 1);
-  String exportFolderName=CmsFileUtil.normalizePath(m_staticExportPath + '/');
-  try {
-    File exportFolder=new File(exportFolderName);
-    if (exportFolder.exists() && exportFolder.canWrite()) {
-      CmsFileUtil.purgeDirectory(exportFolder);
-    }
-    count++;
-    if (report != null) {
-      report.println(Messages.get().container(Messages.RPT_DELETE_EXPORT_FOLDER_3,new Integer(count),size,exportFolderName),I_CmsReport.FORMAT_NOTE);
-    }
- else {
-      if (LOG.isInfoEnabled()) {
-        LOG.info(Messages.get().getBundle().key(Messages.LOG_DEL_MAIN_SE_FOLDER_1,exportFolderName));
-      }
-    }
-  }
- catch (  Throwable t) {
-    if (LOG.isWarnEnabled()) {
-      LOG.warn(Messages.get().getBundle().key(Messages.LOG_FOLDER_DELETION_FAILED_1,exportFolderName),t);
-    }
-  }
-  Iterator it=m_rfsRules.iterator();
-  while (it.hasNext()) {
-    CmsStaticExportRfsRule rule=(CmsStaticExportRfsRule)it.next();
-    exportFolderName=CmsFileUtil.normalizePath(rule.getExportPath() + '/');
+synchronized (m_lockScrubExportFolders) {
+    int count=0;
+    Integer size=new Integer(m_rfsRules.size() + 1);
+    String exportFolderName=CmsFileUtil.normalizePath(m_staticExportPath + '/');
     try {
       File exportFolder=new File(exportFolderName);
       if (exportFolder.exists() && exportFolder.canWrite()) {
@@ -47,6 +24,31 @@
  catch (    Throwable t) {
       if (LOG.isWarnEnabled()) {
         LOG.warn(Messages.get().getBundle().key(Messages.LOG_FOLDER_DELETION_FAILED_1,exportFolderName),t);
+      }
+    }
+    Iterator it=m_rfsRules.iterator();
+    while (it.hasNext()) {
+      CmsStaticExportRfsRule rule=(CmsStaticExportRfsRule)it.next();
+      exportFolderName=CmsFileUtil.normalizePath(rule.getExportPath() + '/');
+      try {
+        File exportFolder=new File(exportFolderName);
+        if (exportFolder.exists() && exportFolder.canWrite()) {
+          CmsFileUtil.purgeDirectory(exportFolder);
+        }
+        count++;
+        if (report != null) {
+          report.println(Messages.get().container(Messages.RPT_DELETE_EXPORT_FOLDER_3,new Integer(count),size,exportFolderName),I_CmsReport.FORMAT_NOTE);
+        }
+ else {
+          if (LOG.isInfoEnabled()) {
+            LOG.info(Messages.get().getBundle().key(Messages.LOG_DEL_MAIN_SE_FOLDER_1,exportFolderName));
+          }
+        }
+      }
+ catch (      Throwable t) {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().getBundle().key(Messages.LOG_FOLDER_DELETION_FAILED_1,exportFolderName),t);
+        }
       }
     }
   }
