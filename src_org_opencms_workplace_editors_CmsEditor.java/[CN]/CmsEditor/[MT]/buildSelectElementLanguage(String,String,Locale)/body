@@ -3,16 +3,38 @@
   List options=new ArrayList(locales.size());
   List selectList=new ArrayList(locales.size());
   int currentIndex=-1;
+  String filename=resource;
+  List contentLocales=new ArrayList();
+  try {
+    CmsResource res=getCms().readResource(filename);
+    String temporaryFilename=CmsResource.getFolderPath(resource) + CmsWorkplace.TEMP_FILE_PREFIX + res.getName();
+    if (getCms().existsResource(temporaryFilename)) {
+      res=getCms().readResource(temporaryFilename);
+    }
+    CmsFile file=CmsFile.upgrade(res,getCms());
+    CmsXmlContent xmlContent=CmsXmlContentFactory.unmarshal(getCms(),file);
+    contentLocales=xmlContent.getLocales();
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_GET_LOCALES_1,filename),e);
+    }
+  }
   for (int counter=0; counter < locales.size(); counter++) {
     Locale curLocale=(Locale)locales.get(counter);
     selectList.add(curLocale.toString());
-    options.add(curLocale.getDisplayName(getLocale()));
+    StringBuffer buf=new StringBuffer();
+    buf.append(curLocale.getDisplayName(getLocale()));
+    if (!contentLocales.contains(curLocale)) {
+      buf.append(EMPTY_LOCALE);
+    }
+    options.add(buf.toString());
     if (curLocale.equals(selectedLocale)) {
       currentIndex=counter;
     }
   }
   if (currentIndex == -1) {
-    if (selectList != null && selectList.size() > 0) {
+    if (selectList.size() > 0) {
       currentIndex=0;
       setParamElementlanguage((String)selectList.get(0));
     }

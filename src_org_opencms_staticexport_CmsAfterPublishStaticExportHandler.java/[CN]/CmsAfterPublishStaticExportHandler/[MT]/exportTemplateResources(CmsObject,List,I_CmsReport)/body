@@ -7,6 +7,7 @@
   }
   report.println(Messages.get().container(Messages.RPT_STATICEXPORT_TEMPLATE_RESOURCES_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
   Iterator i=publishedTemplateResources.iterator();
+  String cookies=null;
   while (i.hasNext()) {
     String rfsName=(String)i.next();
     String vfsName=manager.getVfsNameInternal(cms,rfsName);
@@ -26,7 +27,7 @@
       URL exportUrl=new URL(exportUrlStr);
       HttpURLConnection.setFollowRedirects(false);
       HttpURLConnection urlcon=(HttpURLConnection)exportUrl.openConnection();
-      urlcon.setRequestMethod("GET");
+      urlcon.setRequestMethod(REQUEST_METHOD_GET);
       urlcon.setRequestProperty(CmsRequestUtil.HEADER_OPENCMS_EXPORT,CmsStringUtil.TRUE);
       if (manager.getAcceptLanguageHeader() != null) {
         urlcon.setRequestProperty(CmsRequestUtil.HEADER_ACCEPT_LANGUAGE,manager.getAcceptLanguageHeader());
@@ -60,8 +61,17 @@
       if (LOG.isDebugEnabled()) {
         LOG.debug(Messages.get().getBundle().key(Messages.LOG_IF_MODIFIED_SINCE_SET_2,exportFile.getName(),new Long((dateLastModified / 1000) * 1000)));
       }
+      if (cookies != null) {
+        urlcon.setRequestProperty(REQUEST_PROPERTY_COOKIE,cookies);
+      }
       urlcon.connect();
       int status=urlcon.getResponseCode();
+      if (cookies == null) {
+        cookies=urlcon.getHeaderField(HEADER_FIELD_SET_COOKIE);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_STATICEXPORT_COOKIES_1,cookies));
+        }
+      }
       urlcon.disconnect();
       if (LOG.isInfoEnabled()) {
         LOG.info(Messages.get().getBundle().key(Messages.LOG_REQUEST_RESULT_3,rfsName,exportUrlStr,new Integer(status)));
