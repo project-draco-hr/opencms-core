@@ -1,16 +1,38 @@
 {
+  Date jobStart=new Date();
   String finishMessage;
   String unlock=(String)parameters.get(PARAM_UNLOCK);
+  String linkcheck=(String)parameters.get(PARAM_LINKCHECK);
   CmsProject project=cms.getRequestContext().currentProject();
+  CmsLogReport report=new CmsLogReport(cms.getRequestContext().getLocale(),CmsPublishJob.class);
   try {
     if (Boolean.valueOf(unlock).booleanValue()) {
       cms.unlockProject(project.getId());
     }
-    cms.publishProject(new CmsLogReport(cms.getRequestContext().getLocale(),CmsPublishJob.class));
+    if (Boolean.valueOf(linkcheck).booleanValue()) {
+      cms.validateHtmlLinks(cms.getPublishList(),report);
+    }
+    cms.publishProject(report);
     finishMessage=Messages.get().getBundle().key(Messages.LOG_PUBLISH_FINISHED_1,project.getName());
   }
  catch (  CmsException e) {
     finishMessage=Messages.get().getBundle().key(Messages.LOG_PUBLISH_FAILED_2,project.getName(),e.getMessageContainer().key());
+    report.addError(finishMessage);
+  }
+ finally {
+    if (report.hasWarning() || report.hasError()) {
+      try {
+        String userName=(String)parameters.get(PARAM_USER);
+        CmsUser user=cms.readUser(userName);
+        CmsPublishNotification notification=new CmsPublishNotification(cms,user,report);
+        DateFormat df=DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT);
+        notification.addMacro("jobStart",df.format(jobStart));
+        notification.send();
+      }
+ catch (      Exception e) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISH_SEND_NOTIFICATION_FAILED_0),e);
+      }
+    }
   }
   return finishMessage;
 }

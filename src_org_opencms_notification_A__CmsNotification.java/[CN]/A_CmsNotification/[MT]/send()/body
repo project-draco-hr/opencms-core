@@ -1,0 +1,41 @@
+{
+  try {
+    if (CmsStringUtil.isEmpty(m_receiver.getEmail())) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_NOTIFICATION_NO_ADDRESS_1,m_receiver.getName()));
+      return;
+    }
+    if (LOG.isInfoEnabled()) {
+      LOG.info(Messages.get().getBundle().key(Messages.LOG_NOTIFICATION_SEND_1,m_receiver.getEmail()));
+    }
+    m_mailContent=CmsXmlContentFactory.unmarshal(m_cms,m_cms.readFile(getNotificationContent()));
+    List locales=m_mailContent.getLocales();
+    Locale userLocale=new CmsUserSettings(m_receiver).getLocale();
+    if (locales.contains(userLocale)) {
+      m_locale=userLocale;
+    }
+ else     if (locales.contains(OpenCms.getWorkplaceManager().getDefaultLocale())) {
+      m_locale=OpenCms.getWorkplaceManager().getDefaultLocale();
+    }
+ else {
+      m_locale=(Locale)locales.get(0);
+    }
+    m_macroResolver.addMacro("firstname",m_receiver.getFirstname());
+    m_macroResolver.addMacro("lastname",m_receiver.getLastname());
+    m_macroResolver.addMacro("project",m_cms.getRequestContext().currentProject().getName());
+    StringBuffer msg=new StringBuffer();
+    appendHtmlHeader(msg);
+    msg.append(CmsMacroResolver.resolveMacros(m_mailContent.getStringValue(m_cms,"Header",m_locale),m_macroResolver));
+    msg.append("\n<br/><br/>\n");
+    msg.append(generateHtmlMsg());
+    msg.append("\n<br/><br/>\n");
+    msg.append(CmsMacroResolver.resolveMacros(m_mailContent.getStringValue(m_cms,"Footer",m_locale),m_macroResolver));
+    appenHtmlFooter(msg);
+    addTo(m_receiver.getEmail(),m_receiver.getFirstname() + ' ' + m_receiver.getLastname());
+    setSubject(CmsMacroResolver.resolveMacros(m_mailContent.getStringValue(m_cms,"Subject",m_locale),m_macroResolver));
+    setHtmlMsg(msg.toString());
+    super.send();
+  }
+ catch (  CmsException e) {
+    LOG.error(Messages.get().getBundle().key(Messages.LOG_NOTIFICATION_SEND_ERROR_0),e);
+  }
+}
