@@ -13,13 +13,18 @@
   int maxActive=config.getInteger(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_MAX_ACTIVE,10);
   int maxWait=config.getInteger(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_MAX_WAIT,2000);
   int maxIdle=config.getInteger(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_MAX_IDLE,5);
+  int minEvictableIdleTime=config.getInteger(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_MIN_EVICTABLE_IDLE_TIME,1800000);
+  int minIdle=config.getInteger(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_MIN_IDLE,0);
+  int numTestsPerEvictionRun=config.getInteger(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_NUM_TESTS_PER_EVICTION_RUN,3);
+  int timeBetweenEvictionRuns=config.getInteger(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_TIME_BETWEEN_EVICTION_RUNS,3600000);
   String testQuery=config.getString(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_TEST_QUERY);
   String username=config.getString(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_USERNAME);
   String password=config.getString(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_PASSWORD);
   String poolUrl=config.getString(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_POOL_URL);
   String whenExhaustedActionValue=config.getString(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_WHEN_EXHAUSTED_ACTION).trim();
   byte whenExhaustedAction=0;
-  boolean testOnBorrow=Boolean.valueOf(config.getString(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_TEST_ON_BORROW).trim()).booleanValue();
+  boolean testOnBorrow=Boolean.valueOf(config.getString(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_TEST_ON_BORROW,"false").trim()).booleanValue();
+  boolean testWhileIdle=Boolean.valueOf(config.getString(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_TEST_WHILE_IDLE,"false").trim()).booleanValue();
   if ("block".equalsIgnoreCase(whenExhaustedActionValue)) {
     whenExhaustedAction=GenericObjectPool.WHEN_EXHAUSTED_BLOCK;
   }
@@ -55,10 +60,16 @@
   GenericObjectPool connectionPool=new GenericObjectPool(null);
   connectionPool.setMaxActive(maxActive);
   connectionPool.setMaxIdle(maxIdle);
+  connectionPool.setMinIdle(minIdle);
   connectionPool.setMaxWait(maxWait);
   connectionPool.setWhenExhaustedAction(whenExhaustedAction);
-  connectionPool.setTestOnBorrow(testOnBorrow && (testQuery != null));
-  connectionPool.setTestWhileIdle(true);
+  if (testQuery != null) {
+    connectionPool.setTestOnBorrow(testOnBorrow);
+    connectionPool.setTestWhileIdle(testWhileIdle);
+    connectionPool.setTimeBetweenEvictionRunsMillis(timeBetweenEvictionRuns);
+    connectionPool.setNumTestsPerEvictionRun(numTestsPerEvictionRun);
+    connectionPool.setMinEvictableIdleTimeMillis(minEvictableIdleTime);
+  }
   if (jdbcUrlParams != null) {
     jdbcUrl+=jdbcUrlParams;
   }
