@@ -1,29 +1,36 @@
 {
-  m_breakPositions.clear();
-  addLineBreakPosition(0);
-  LineNumberReader reader=null;
-  m_creationTime=System.currentTimeMillis();
-  try {
-    InputStreamCounter streamPeeker=new InputStreamCounter(new FileInputStream(m_file));
-    reader=new LineNumberReader(streamPeeker,1);
-    while (reader.readLine() != null) {
-      CmsRfsFileLineIndexInfo.this.addLineBreakPosition(streamPeeker.position());
-synchronized (CmsRfsFileLineIndexInfo.this) {
-        CmsRfsFileLineIndexInfo.this.notify();
-      }
-    }
-  }
- catch (  IOException e) {
-    LOG.error(e.toString());
-  }
- finally {
-    if (reader != null) {
+  Runnable rebuildWork=new Runnable(){
+    public void run(){
+      m_breakPositions.clear();
+      addLineBreakPosition(0);
+      LineNumberReader reader=null;
+      m_creationTime=System.currentTimeMillis();
       try {
-        reader.close();
+        InputStreamCounter streamPeeker=new InputStreamCounter(new FileInputStream(m_file));
+        reader=new LineNumberReader(streamPeeker,1);
+        while (reader.readLine() != null) {
+          CmsRfsFileLineIndexInfo.this.addLineBreakPosition(streamPeeker.position());
+synchronized (CmsRfsFileLineIndexInfo.this) {
+            CmsRfsFileLineIndexInfo.this.notify();
+          }
+        }
       }
- catch (      IOException e1) {
-        LOG.error(e1);
+ catch (      IOException e) {
+        LOG.error(e.toString());
+      }
+ finally {
+        if (reader != null) {
+          try {
+            reader.close();
+          }
+ catch (          IOException e1) {
+            LOG.error(e1);
+          }
+        }
       }
     }
   }
+;
+  Thread rebuilder=new Thread(rebuildWork);
+  rebuilder.start();
 }
