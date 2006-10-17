@@ -1,37 +1,48 @@
 {
   m_action=m_actionOutputUpload;
   repaint();
-  MultipartPostMethod filePost=new MultipartPostMethod(m_targetUrl);
+  PostMethod post=new PostMethod(m_targetUrl);
   try {
-    filePost.addParameter(uploadFile.getName(),uploadFile);
-    filePost.addParameter("action","submitform");
-    filePost.addParameter("unzipfile","true");
-    filePost.addParameter("uploadfolder",m_uploadFolder);
+    Part[] parts=new Part[4];
+    parts[0]=new FilePart(uploadFile.getName(),uploadFile);
+    parts[1]=new StringPart("action","submitform");
+    parts[2]=new StringPart("unzipfile","true");
+    parts[3]=new StringPart("uploadfolder",m_uploadFolder);
+    HttpMethodParams methodParams=post.getParams();
+    methodParams.setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
+    MultipartRequestEntity request=new MultipartRequestEntity(parts,methodParams);
+    post.setRequestEntity(request);
     String sessionId=getParameter("sessionId");
     String query=";" + C_JSESSIONID.toLowerCase() + "="+ sessionId;
-    filePost.setQueryString(query);
-    filePost.addRequestHeader(C_JSESSIONID,sessionId);
+    post.setQueryString(query);
+    post.addRequestHeader(C_JSESSIONID,sessionId);
     HttpClient client=new HttpClient();
-    client.setConnectionTimeout(5000);
+    HttpConnectionParams connectionParams=client.getHttpConnectionManager().getParams();
+    connectionParams.setConnectionTimeout(5000);
+    client.getState();
+    client.getHostConfiguration().getHost();
     HttpState initialState=new HttpState();
-    Cookie sessionCookie=new Cookie(filePost.getHostConfiguration().getHost(),C_JSESSIONID,sessionId,"/",null,false);
+    URI uri=new URI(m_targetUrl,false);
+    Cookie sessionCookie=new Cookie(uri.getHost(),C_JSESSIONID,sessionId,"/",null,false);
     initialState.addCookie(sessionCookie);
-    initialState.setCookiePolicy(CookiePolicy.COMPATIBILITY);
     client.setState(initialState);
-    int status=client.executeMethod(filePost);
+    int status=client.executeMethod(post);
     if (status == HttpStatus.SC_OK) {
       getAppletContext().showDocument(new URL(m_redirectUrl),m_redirectTargetFrame);
     }
  else {
-      String error=m_errorLine1 + "\n" + filePost.getStatusLine();
+      String error=m_errorLine1 + "\n" + post.getStatusLine();
       getAppletContext().showDocument(new URL(m_errorUrl + "?action=showerror&uploaderror=" + error),"explorer_files");
     }
   }
- catch (  Exception ex) {
-    ex.printStackTrace();
+ catch (  RuntimeException e) {
+    e.printStackTrace();
+  }
+catch (  Exception e) {
+    e.printStackTrace();
   }
  finally {
-    filePost.releaseConnection();
+    post.releaseConnection();
     uploadFile.delete();
   }
 }
