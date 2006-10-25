@@ -1,21 +1,33 @@
 {
   boolean buttonRendered=false;
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(widgetOptionsString)) {
-    List widgetOptions=CmsStringUtil.splitAsList(widgetOptionsString,CmsHtmlWidgetOption.OPTION_DELIMITER);
+    CmsHtmlWidgetOption option=new CmsHtmlWidgetOption(widgetOptionsString);
     StringBuffer custom=new StringBuffer(512);
-    if (showButton(CmsHtmlWidgetOption.OPTION_SOURCE,widgetOptions)) {
+    if (option.showSourceEditor()) {
       custom.append("\"Source\"");
       buttonRendered=true;
     }
-    if (showButton(CmsHtmlWidgetOption.OPTION_FORMATSELECT,widgetOptions)) {
+    boolean showFormatSelect=false;
+    if (option.showFormatSelect()) {
       if (buttonRendered) {
         custom.append(",\"-\",");
       }
       custom.append("\"FontFormat\"");
       buttonRendered=true;
+      showFormatSelect=true;
+    }
+    if (option.showStylesXml()) {
+      if (!showFormatSelect && buttonRendered) {
+        custom.append(",\"-\",");
+      }
+ else       if (buttonRendered) {
+        custom.append(",");
+      }
+      custom.append("\"Style\"");
+      buttonRendered=true;
     }
     boolean showLink=false;
-    if (showButton(CmsHtmlWidgetOption.OPTION_LINK,widgetOptions)) {
+    if (option.showLinkDialog()) {
       if (buttonRendered) {
         custom.append(",");
       }
@@ -23,7 +35,7 @@
       buttonRendered=true;
       showLink=true;
     }
-    if (showButton(CmsHtmlWidgetOption.OPTION_ANCHOR,widgetOptions)) {
+    if (option.showAnchorDialog()) {
       if (buttonRendered) {
         custom.append(",");
       }
@@ -37,10 +49,11 @@
     Map galleryMap=OpenCms.getWorkplaceManager().getGalleries();
     List galleries=new ArrayList(galleryMap.size());
     Map typeMap=new HashMap(galleryMap.size());
-    Iterator i=galleryMap.keySet().iterator();
+    Iterator i=galleryMap.entrySet().iterator();
     while (i.hasNext()) {
-      String key=(String)i.next();
-      A_CmsGallery currGallery=(A_CmsGallery)galleryMap.get(key);
+      Map.Entry entry=(Map.Entry)i.next();
+      String key=(String)entry.getKey();
+      A_CmsGallery currGallery=(A_CmsGallery)entry.getValue();
       galleries.add(currGallery);
       typeMap.put(currGallery,key);
     }
@@ -50,7 +63,7 @@
     for (int k=0; k < galleries.size(); k++) {
       A_CmsGallery currGallery=(A_CmsGallery)galleries.get(k);
       String galleryType=(String)typeMap.get(currGallery);
-      if (showButton(galleryType,widgetOptions)) {
+      if (option.getDisplayGalleries().contains(galleryType)) {
         if (galleryResult.length() > 0) {
           galleryResult.append(", ");
         }
@@ -62,9 +75,23 @@
     }
     if (showGallery) {
       if (buttonRendered) {
-        custom.append(", \"-\",");
+        custom.append("],[");
       }
       custom.append(galleryResult);
+      buttonRendered=true;
+    }
+    if (option.showImageDialog()) {
+      if (buttonRendered) {
+        custom.append(",\"-\",");
+      }
+      custom.append("\"Image\"");
+      buttonRendered=true;
+    }
+    if (option.showTableDialog()) {
+      if (buttonRendered) {
+        custom.append(",\"-\",");
+      }
+      custom.append("\"Table\"");
       buttonRendered=true;
     }
     if (buttonRendered) {
