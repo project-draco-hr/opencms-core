@@ -2,7 +2,7 @@
   if (!filter.isValid(dbc.getRequestContext(),resource)) {
     return PERM_FILTERED;
   }
-  String cacheKey=m_keyGenerator.getCacheKeyForUserPermissions(String.valueOf(filter.requireVisible()),dbc,resource,requiredPermissions);
+  String cacheKey=m_keyGenerator.getCacheKeyForUserPermissions(filter.requireVisible() && checkLock ? "11" : (!filter.requireVisible() && checkLock ? "01" : (filter.requireVisible() && !checkLock ? "10" : "00")),dbc,resource,requiredPermissions);
   Integer cacheResult=(Integer)m_permissionCache.get(cacheKey);
   if (cacheResult != null) {
     return cacheResult.intValue();
@@ -19,12 +19,10 @@
       denied|=CmsPermissionSet.PERMISSION_CONTROL;
     }
   }
-  if (writeRequired) {
+  if (writeRequired && checkLock) {
     CmsLock lock=m_driverManager.getLock(dbc,resource);
-    if (checkLock || !lock.isNullLock()) {
-      if (!dbc.currentUser().getId().equals(lock.getUserId())) {
-        return PERM_NOTLOCKED;
-      }
+    if (lock.isNullLock() || !dbc.currentUser().getId().equals(lock.getUserId())) {
+      return PERM_NOTLOCKED;
     }
   }
   CmsPermissionSetCustom permissions;
