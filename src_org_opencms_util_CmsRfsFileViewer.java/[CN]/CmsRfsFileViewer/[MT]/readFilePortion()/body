@@ -1,24 +1,30 @@
 {
-  CmsRfsFileLineIndexInfo lineInfo=initIndexer(m_filePath);
   if (m_enabled) {
-    Reader reader=null;
+    int lines=-1;
+    int startLine;
+    if (m_isLogfile) {
+      lines=scrollToFileEnd();
+      startLine=lines - m_windowSize;
+    }
+ else {
+      m_windowPos=0;
+      startLine=m_windowPos * m_windowSize;
+    }
+    LineNumberReader reader=null;
     try {
-      reader=new InputStreamReader(new FileInputStream(m_filePath),m_fileEncoding);
-      long skip=lineInfo.getLineBreakPosition(m_windowPos * m_windowSize,m_windowSize);
-      int maxSkipTries=100;
-      while (skip > 0 && maxSkipTries > 0) {
-        long skipped=reader.skip(skip);
-        skip-=skipped;
-        maxSkipTries--;
+      reader=new LineNumberReader(new BufferedReader(new InputStreamReader(new FileInputStream(m_filePath),m_fileEncoding)),(int)m_windowSize * 200);
+      int currentLine=0;
+      while (startLine > currentLine) {
+        reader.readLine();
+        currentLine++;
       }
-      LineNumberReader lineReader=new LineNumberReader(reader);
       StringBuffer result=new StringBuffer();
-      String read=lineReader.readLine();
+      String read=reader.readLine();
       if (m_isLogfile) {
         Stack inverter=new Stack();
         for (int i=m_windowSize; i > 0 && read != null; i--) {
           inverter.push(read);
-          read=lineReader.readLine();
+          read=reader.readLine();
         }
         while (!inverter.isEmpty()) {
           result.append(inverter.pop());
@@ -29,7 +35,7 @@
         for (int i=m_windowSize; i > 0 && read != null; i--) {
           result.append(read);
           result.append('\n');
-          read=lineReader.readLine();
+          read=reader.readLine();
         }
       }
       return CmsEncoder.escapeXml(result.toString());
