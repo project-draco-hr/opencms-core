@@ -1,0 +1,60 @@
+{
+  List links=new ArrayList();
+  CmsFile file=null;
+  CmsXmlContent xmlcontent=null;
+  List locales=null;
+  List elementNames=null;
+  CmsLinkTable linkTable=null;
+  CmsLink link=null;
+  try {
+    file=cms.readFile(cms.getRequestContext().removeSiteRoot(resource.getRootPath()),CmsResourceFilter.IGNORE_EXPIRATION);
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(org.opencms.db.Messages.get().getBundle().key(org.opencms.db.Messages.ERR_READ_RESOURCE_1,cms.getSitePath(resource)),e);
+    }
+    return Collections.EMPTY_LIST;
+  }
+  try {
+    xmlcontent=CmsXmlContentFactory.unmarshal(cms,file);
+    locales=xmlcontent.getLocales();
+    Iterator i=locales.iterator();
+    while (i.hasNext()) {
+      Locale locale=(Locale)i.next();
+      elementNames=xmlcontent.getValues(locale);
+      Iterator j=elementNames.iterator();
+      while (j.hasNext()) {
+        I_CmsXmlContentValue value=(I_CmsXmlContentValue)j.next();
+        if (value instanceof CmsXmlHtmlValue) {
+          CmsXmlHtmlValue htmlValue=(CmsXmlHtmlValue)value;
+          linkTable=htmlValue.getLinkTable();
+          Iterator k=linkTable.iterator();
+          while (k.hasNext()) {
+            link=(CmsLink)k.next();
+            if (link.isInternal()) {
+              links.add(link.getTarget());
+            }
+          }
+        }
+ else         if (value instanceof CmsXmlVfsFileValue) {
+          CmsXmlVfsFileValue refValue=(CmsXmlVfsFileValue)value;
+          linkTable=refValue.getLinkTable();
+          Iterator k=linkTable.iterator();
+          while (k.hasNext()) {
+            link=(CmsLink)k.next();
+            if (link.isInternal()) {
+              links.add(link.getTarget());
+            }
+          }
+        }
+      }
+    }
+  }
+ catch (  CmsXmlException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.ERR_PROCESS_HTML_CONTENT_1,cms.getSitePath(resource)),e);
+    }
+    return Collections.EMPTY_LIST;
+  }
+  return links;
+}
