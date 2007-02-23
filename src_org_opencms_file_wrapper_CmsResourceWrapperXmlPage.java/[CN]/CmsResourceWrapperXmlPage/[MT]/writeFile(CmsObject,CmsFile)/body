@@ -1,0 +1,27 @@
+{
+  CmsResource xmlPage=findXmlPage(cms,resource.getRootPath());
+  if (xmlPage != null) {
+    String path=getSubPath(cms,xmlPage,cms.getRequestContext().removeSiteRoot(resource.getRootPath()));
+    String rootPath=cms.getRequestContext().removeSiteRoot(xmlPage.getRootPath());
+    CmsFile file=CmsFile.upgrade(xmlPage,cms);
+    if (path.equals(xmlPage.getName() + "." + EXTENSION_PROPERTIES)) {
+      cms.lockResource(rootPath);
+      setProperties(cms,rootPath,resource.getContents());
+    }
+    String[] tokens=path.split("/");
+    if (tokens.length == 2) {
+      CmsXmlPage xml=CmsXmlPageFactory.unmarshal(cms,file);
+      String name=tokens[1];
+      if (name.endsWith("." + EXTENSION_ELEMENT)) {
+        name=name.substring(0,name.length() - 5);
+      }
+      String content=getStringValue(cms,file,resource.getContents());
+      content=prepareContent(content,cms,xmlPage,true);
+      xml.setStringValue(cms,name,new Locale(tokens[0]),content);
+      file.setContents(xml.marshal());
+      cms.writeFile(file);
+    }
+    return file;
+  }
+  return null;
+}

@@ -1,0 +1,36 @@
+{
+  File tempDir=(File)getServletContext().getAttribute(ATT_SERVLET_TEMPDIR);
+  String convertedResourcePath=path.replace('/','.');
+  File contentFile=new File(tempDir,convertedResourcePath);
+  contentFile.createNewFile();
+  RandomAccessFile randAccessContentFile=new RandomAccessFile(contentFile,"rw");
+  InputStream oldResourceStream=null;
+  try {
+    I_CmsRepositoryItem item=m_session.getItem(path);
+    oldResourceStream=new ByteArrayInputStream(item.getContent());
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_ITEM_NOT_FOUND_1,path),e);
+    }
+  }
+  if (oldResourceStream != null) {
+    int numBytesRead;
+    byte[] copyBuffer=new byte[BUFFER_SIZE];
+    while ((numBytesRead=oldResourceStream.read(copyBuffer)) != -1) {
+      randAccessContentFile.write(copyBuffer,0,numBytesRead);
+    }
+    oldResourceStream.close();
+  }
+  randAccessContentFile.setLength(range.getLength());
+  randAccessContentFile.seek(range.getStart());
+  int numBytesRead;
+  byte[] transferBuffer=new byte[BUFFER_SIZE];
+  BufferedInputStream requestBufInStream=new BufferedInputStream(req.getInputStream(),BUFFER_SIZE);
+  while ((numBytesRead=requestBufInStream.read(transferBuffer)) != -1) {
+    randAccessContentFile.write(transferBuffer,0,numBytesRead);
+  }
+  randAccessContentFile.close();
+  requestBufInStream.close();
+  return contentFile;
+}

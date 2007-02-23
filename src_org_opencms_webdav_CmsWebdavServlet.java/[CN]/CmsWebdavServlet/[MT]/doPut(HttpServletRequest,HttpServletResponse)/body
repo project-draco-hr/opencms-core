@@ -1,0 +1,63 @@
+{
+  String path=getRelativePath(req);
+  if (m_readOnly) {
+    resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_WEBDAV_READ_ONLY_0));
+    }
+    return;
+  }
+  if (isLocked(req)) {
+    resp.setStatus(CmsWebdavStatus.SC_LOCKED);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_ITEM_LOCKED_1,path));
+    }
+    return;
+  }
+  boolean exists=m_session.exists(path);
+  boolean result=true;
+  File contentFile=null;
+  CmsWebdavRange range=parseContentRange(req,resp);
+  InputStream resourceInputStream=null;
+  if (range != null) {
+    contentFile=executePartialPut(req,range,path);
+    resourceInputStream=new FileInputStream(contentFile);
+  }
+ else {
+    resourceInputStream=req.getInputStream();
+  }
+  try {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_SAVE_ITEM_0));
+    }
+    m_session.save(path,resourceInputStream,exists);
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_REPOSITORY_ERROR_2,"PUT",path),e);
+    }
+    result=false;
+    resp.setStatus(HttpServletResponse.SC_CONFLICT);
+  }
+  if (contentFile != null) {
+    try {
+      contentFile.delete();
+    }
+ catch (    Exception e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_DELETE_TEMP_FILE_0),e);
+      }
+    }
+  }
+  if (result) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_SAVE_SUCCESS_0));
+    }
+    if (exists) {
+      resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
+    }
+ else {
+      resp.setStatus(HttpServletResponse.SC_CREATED);
+    }
+  }
+}

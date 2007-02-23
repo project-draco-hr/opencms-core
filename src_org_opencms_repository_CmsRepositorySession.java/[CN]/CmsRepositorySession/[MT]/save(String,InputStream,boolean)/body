@@ -1,0 +1,33 @@
+{
+  path=validatePath(path);
+  byte[] content=CmsFileUtil.readFully(inputStream);
+  if (exists(path)) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_UPDATE_ITEM_1,path));
+    }
+    if (overwrite) {
+      CmsFile file=m_cms.readFile(path,CmsResourceFilter.DEFAULT);
+      file.setContents(content);
+      CmsRepositoryLockInfo lock=getLock(path);
+      m_cms.lockResource(path);
+      m_cms.writeFile(file);
+      if (lock == null) {
+        m_cms.unlockResource(path);
+      }
+    }
+ else {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.ERR_DEST_EXISTS_0));
+      }
+      throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_DEST_EXISTS_0));
+    }
+  }
+ else {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_CREATE_ITEM_1,path));
+    }
+    int type=OpenCms.getResourceManager().getDefaultTypeForName(path).getTypeId();
+    m_cms.createResource(path,type,content,null);
+    m_cms.unlockResource(path);
+  }
+}
