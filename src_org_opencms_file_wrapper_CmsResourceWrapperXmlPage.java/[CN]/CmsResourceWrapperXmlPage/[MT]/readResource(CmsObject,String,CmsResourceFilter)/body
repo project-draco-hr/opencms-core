@@ -1,12 +1,12 @@
 {
-  if (cms.existsResource(resourcename)) {
+  try {
     CmsResource res=cms.readResource(resourcename,filter);
     if (res.getTypeId() == CmsResourceTypeXmlPage.getStaticTypeId()) {
       return wrapResource(cms,res);
     }
     return null;
   }
- else {
+ catch (  CmsVfsResourceNotFoundException ex) {
     CmsResource xmlPage=findXmlPage(cms,resourcename);
     if (xmlPage != null) {
       if (resourcename.endsWith("/")) {
@@ -25,11 +25,6 @@
           wrap.setRootPath(xmlPage.getRootPath() + "/" + NAME_ELEMENT_CONTROLCODE);
           return wrap.getResource();
         }
- else         if (tokens[0].equals(xmlPage.getName() + "." + EXTENSION_PROPERTIES)) {
-          CmsWrappedResource wrap=new CmsWrappedResource(CmsWrappedResource.createPropertyFile(cms,xmlPage,xmlPage.getRootPath() + "/" + xmlPage.getName()));
-          wrap.setRootPath(xmlPage.getRootPath() + "/" + xmlPage.getName()+ "."+ CmsWrappedResource.EXTENSION_PROPERTIES);
-          return wrap.getFile();
-        }
  else {
           Locale locale=new Locale(tokens[0]);
           if (xml.hasLocale(locale) && (file.getLength() > 0)) {
@@ -42,10 +37,12 @@
         if (name.endsWith("." + EXTENSION_ELEMENT)) {
           name=name.substring(0,name.length() - 5);
         }
-        if (xml.hasValue(name,new Locale(tokens[0]))) {
-          String content=xml.getStringValue(cms,name,new Locale(tokens[0]));
-          content=prepareContent(content,cms,xmlPage,false);
-          return getResourceForElement(xmlPage,tokens[0],name,content.getBytes().length);
+        Locale locale=new Locale(tokens[0]);
+        if (xml.hasValue(name,locale)) {
+          String content=xml.getStringValue(cms,name,locale);
+          String fullPath=xmlPage.getRootPath() + "/" + tokens[0]+ "/"+ name+ "."+ EXTENSION_ELEMENT;
+          content=prepareContent(content,cms,xmlPage,fullPath);
+          return getResourceForElement(xmlPage,fullPath,content.getBytes().length);
         }
       }
     }
