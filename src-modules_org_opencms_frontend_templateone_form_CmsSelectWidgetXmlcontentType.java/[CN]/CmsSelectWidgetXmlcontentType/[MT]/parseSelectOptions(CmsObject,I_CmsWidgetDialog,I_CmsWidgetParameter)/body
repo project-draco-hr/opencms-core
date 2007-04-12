@@ -1,4 +1,6 @@
 {
+  Locale dialogContentLocale=((I_CmsXmlContentValue)param).getLocale();
+  Locale resourceLocale;
   if (m_macroCmsObject == null) {
     try {
       m_macroCmsObject=OpenCms.initCmsObject(cms);
@@ -43,24 +45,27 @@
       String displayName;
       while (itResources.hasNext()) {
         resource=(CmsResource)itResources.next();
-        if (hasFilterProperty(resource,cms)) {
-          m_macroCmsObject.getRequestContext().setUri(resource.getRootPath());
-          m_macroResolver.setResourceName(resource.getName());
-          m_macroResolver.setMessages(widgetDialog.getMessages());
-          displayName=m_macroResolver.resolveMacros(getDisplayOptionMacro());
-          if (CmsStringUtil.isEmptyOrWhitespaceOnly(displayName)) {
-            displayName=resolveXpathMacros(cms,resource,getDisplayOptionMacro());
-          }
+        resourceLocale=CmsLocaleManager.getLocale(cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_LOCALE,true).getValue());
+        if (dialogContentLocale.equals(resourceLocale)) {
+          if (hasFilterProperty(resource,cms)) {
+            m_macroCmsObject.getRequestContext().setUri(resource.getRootPath());
+            m_macroResolver.setResourceName(resource.getName());
+            m_macroResolver.setMessages(widgetDialog.getMessages());
+            displayName=m_macroResolver.resolveMacros(getDisplayOptionMacro());
+            if (CmsStringUtil.isEmptyOrWhitespaceOnly(displayName)) {
+              displayName=resolveXpathMacros(cms,resource,getDisplayOptionMacro());
+            }
  else {
+              displayName=resolveXpathMacros(cms,resource,displayName);
+            }
+            if (CmsStringUtil.isEmpty(displayName)) {
+              displayName=resource.getName();
+            }
             displayName=resolveXpathMacros(cms,resource,displayName);
-          }
-          if (CmsStringUtil.isEmpty(displayName)) {
-            displayName=resource.getName();
-          }
-          displayName=resolveXpathMacros(cms,resource,displayName);
-          if (!CmsStringUtil.isEmpty(displayName)) {
-            option=new CmsResourceSelectWidgetOption(resource,false,displayName);
-            sortOptions.add(option);
+            if (!CmsStringUtil.isEmpty(displayName)) {
+              option=new CmsResourceSelectWidgetOption(resource,false,displayName);
+              sortOptions.add(option);
+            }
           }
         }
       }
