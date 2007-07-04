@@ -11,17 +11,17 @@
   Iterator itPubRes=publishedResources.iterator();
   while (itPubRes.hasNext()) {
     CmsPublishedResource res=(CmsPublishedResource)itPubRes.next();
-    if (res.isFolder() || res.isUnChanged() || !res.isVfsResource()) {
+    if (res.isFolder() || res.getState().isUnchanged() || !res.isVfsResource()) {
       continue;
     }
-    if (res.isDeleted() || res.isNew() || res.isChanged()) {
+    if (res.getState().isDeleted() || res.getState().isNew() || res.getState().isChanged()) {
       if (updateResources.contains(res)) {
         updateResources.remove(res);
         updateResources.add(res);
       }
  else {
         updateResources.add(res);
-        if (!res.isDeleted() && (res.getSiblingCount() > 1)) {
+        if (!res.getState().isDeleted() && (res.getSiblingCount() > 1)) {
           try {
             List siblings=adminCms.readSiblings(res.getRootPath(),CmsResourceFilter.ALL);
             Iterator itSib=siblings.iterator();
@@ -42,7 +42,6 @@
       }
     }
   }
-  Map documentCache=Collections.synchronizedMap(new LRUMap(256));
   if (!updateResources.isEmpty()) {
     Collections.sort(updateResources);
     Iterator i=m_indexes.iterator();
@@ -50,7 +49,7 @@
       CmsSearchIndex index=(CmsSearchIndex)i.next();
       if (CmsSearchIndex.REBUILD_MODE_AUTO.equals(index.getRebuildMode())) {
         try {
-          updateIndex(index,report,false,updateResources,documentCache);
+          updateIndex(index,report,updateResources);
         }
  catch (        CmsException e) {
           LOG.error(Messages.get().getBundle().key(Messages.LOG_UPDATE_INDEX_FAILED_1,index.getName()),e);
@@ -58,4 +57,5 @@
       }
     }
   }
+  m_extractionResultCache.cleanCache(m_extractionCacheMaxAge);
 }

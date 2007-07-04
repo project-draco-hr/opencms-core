@@ -1,4 +1,7 @@
 {
+  m_fullStaticExport=true;
+  String staticExportPathStore=m_staticExportPath;
+  m_staticExportPath=m_staticExportWorkPath;
   if (purgeFirst) {
     Map eventData=new HashMap();
     eventData.put(I_CmsEventListener.KEY_REPORT,report);
@@ -11,4 +14,25 @@
   }
   CmsAfterPublishStaticExportHandler handler=new CmsAfterPublishStaticExportHandler();
   handler.doExportAfterPublish(null,report);
+  m_staticExportPath=staticExportPathStore;
+  m_fullStaticExport=false;
+  if (!report.hasError()) {
+    File staticExport=new File(m_staticExportPath);
+    createExportBackupFolders(staticExport,m_staticExportPath,getExportBackups().intValue(),null);
+    File staticExportWork=new File(m_staticExportWorkPath);
+    staticExportWork.renameTo(new File(m_staticExportPath));
+    Iterator it=m_rfsRules.iterator();
+    while (it.hasNext()) {
+      CmsStaticExportRfsRule rule=(CmsStaticExportRfsRule)it.next();
+      File staticExportRule=new File(rule.getExportPath());
+      File staticExportWorkRule=new File(rule.getExportWorkPath());
+      if (staticExportWorkRule.exists()) {
+        createExportBackupFolders(staticExportRule,rule.getExportPath(),rule.getExportBackups().intValue(),OpenCms.getResourceManager().getFileTranslator().translateResource(rule.getName()));
+        staticExportWorkRule.renameTo(new File(rule.getExportPath()));
+      }
+    }
+  }
+ else {
+    report.println(Messages.get().container(Messages.ERR_EXPORT_NOT_SUCCESSFUL_0),I_CmsReport.FORMAT_WARNING);
+  }
 }

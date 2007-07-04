@@ -15,7 +15,6 @@
   CmsUUID.init(ethernetAddress);
   String serverName=configuration.getString("server.name","OpenCmsServer");
   getSystemInfo().setServerName(serverName);
-  m_lockManager=CmsLockManager.getInstance();
   try {
     if (CmsLog.INIT.isInfoEnabled()) {
       String jdkinfo=System.getProperty("java.vm.name") + " ";
@@ -32,7 +31,6 @@
  catch (  Exception e) {
     throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_PROP_0),e);
   }
-  m_memoryMonitor=new CmsMemoryMonitor();
   m_configurationManager=new CmsConfigurationManager(getSystemInfo().getAbsoluteRfsPathRelativeToWebInf(CmsSystemInfo.FOLDER_CONFIG));
   m_configurationManager.setConfiguration(configuration);
   try {
@@ -42,6 +40,19 @@
     throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_XML_0),e);
   }
   CmsSystemConfiguration systemConfiguration=(CmsSystemConfiguration)m_configurationManager.getConfiguration(CmsSystemConfiguration.class);
+  CmsMemoryMonitorConfiguration memoryMonitorConfiguration=systemConfiguration.getCmsMemoryMonitorConfiguration();
+  try {
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(memoryMonitorConfiguration.getClassName())) {
+      m_memoryMonitor=(CmsMemoryMonitor)Class.forName(memoryMonitorConfiguration.getClassName()).newInstance();
+    }
+ else {
+      m_memoryMonitor=new CmsMemoryMonitor();
+    }
+  }
+ catch (  Exception e) {
+    throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_MEMORY_MONITOR_1,memoryMonitorConfiguration.getClassName()),e);
+  }
+  m_memoryMonitor.initialize(systemConfiguration);
   CmsEventManager configuredEventManager=systemConfiguration.getEventManager();
   configuredEventManager.initialize(m_eventManager);
   m_eventManager=configuredEventManager;
@@ -54,9 +65,7 @@
     CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_OPENCMS_ENCODING_1,defaultEncoding));
   }
   getSystemInfo().setDefaultEncoding(defaultEncoding);
-  CmsMemoryMonitorConfiguration memoryMonitorConfiguration=systemConfiguration.getCmsMemoryMonitorConfiguration();
-  m_memoryMonitor.initialize(memoryMonitorConfiguration);
-  getSystemInfo().setVersionHistorySettings(systemConfiguration.isVersionHistoryEnabled(),systemConfiguration.getVersionHistoryMaxCount());
+  getSystemInfo().setVersionHistorySettings(systemConfiguration.isHistoryEnabled(),systemConfiguration.getHistoryVersions(),systemConfiguration.getHistoryVersionsAfterDeletion());
   getSystemInfo().setMailSettings(systemConfiguration.getMailSettings());
   getSystemInfo().setHttpAuthenticationSettings(systemConfiguration.getHttpAuthenticationSettings());
   getSystemInfo().setNotificationTime(systemConfiguration.getNotificationTime());
@@ -72,12 +81,6 @@
     }
   }
   m_defaultUsers=systemConfiguration.getCmsDefaultUsers();
-  try {
-    CmsRole.initialize(m_defaultUsers);
-  }
- catch (  CmsSecurityException e) {
-    throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_GENERIC_1,e.getMessage()),e);
-  }
   m_siteManager=systemConfiguration.getSiteManager();
   CmsVfsConfiguration vfsConfiguation=(CmsVfsConfiguration)m_configurationManager.getConfiguration(CmsVfsConfiguration.class);
   m_resourceManager=vfsConfiguation.getResourceManager();
@@ -122,14 +125,20 @@
   m_moduleManager=moduleConfiguration.getModuleManager();
   m_passwordHandler=systemConfiguration.getPasswordHandler();
   m_validationHandler=systemConfiguration.getValidationHandler();
+  m_authorizationHandler=systemConfiguration.getAuthorizationHandler();
   m_loginManager=systemConfiguration.getLoginManager();
-  m_securityManager=CmsSecurityManager.newInstance(m_configurationManager,systemConfiguration.getRuntimeInfoFactory());
-  m_threadStore=new CmsThreadStore();
+  m_publishEngine=new CmsPublishEngine(systemConfiguration.getRuntimeInfoFactory());
+  m_securityManager=CmsSecurityManager.newInstance(m_configurationManager,systemConfiguration.getRuntimeInfoFactory(),m_publishEngine);
+  m_publishManager=systemConfiguration.getPublishManager();
+  m_roleManager=new CmsRoleManager(m_securityManager);
+  m_orgUnitManager=new CmsOrgUnitManager(m_securityManager);
+  m_threadStore=new CmsThreadStore(m_securityManager);
   m_linkManager=new CmsLinkManager();
   m_runtimeProperties.putAll(systemConfiguration.getRuntimeProperties());
+  I_CmsSessionStorageProvider sessionStorageProvider=systemConfiguration.getSessionStorageProvider();
   CmsObject adminCms;
   try {
-    adminCms=initCmsObject(null,null,getDefaultUsers().getUserAdmin(),null);
+    adminCms=initCmsObject(null,null,getDefaultUsers().getUserAdmin(),(String)null,(String)null);
   }
  catch (  CmsException e) {
     throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_ADMINCMS_0),e);
@@ -141,10 +150,15 @@
     m_siteManager.initialize(initCmsObject(adminCms));
     m_staticExportManager.initialize(initCmsObject(adminCms));
     m_xmlContentTypeManager.initialize(initCmsObject(adminCms));
+    m_publishManager.setPublishEngine(m_publishEngine);
+    m_publishManager.setSecurityManager(m_securityManager);
+    m_publishManager.initialize(initCmsObject(adminCms));
     m_moduleManager.initialize(initCmsObject(adminCms),m_configurationManager);
     m_resourceManager.initialize(initCmsObject(adminCms));
     m_searchManager.initialize(initCmsObject(adminCms));
     m_workplaceManager.initialize(initCmsObject(adminCms));
+    m_sessionManager.initialize(sessionStorageProvider);
+    m_publishManager.startPublishing();
   }
  catch (  CmsException e) {
     throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_MANAGERS_0),e);

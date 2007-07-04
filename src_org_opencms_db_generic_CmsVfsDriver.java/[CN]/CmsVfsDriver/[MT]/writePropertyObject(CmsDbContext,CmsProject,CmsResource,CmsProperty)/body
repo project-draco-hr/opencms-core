@@ -1,57 +1,44 @@
 {
   CmsPropertyDefinition propertyDefinition=null;
-  PreparedStatement stmt=null;
-  Connection conn=null;
-  String value=null;
-  int mappingType=-1;
-  CmsUUID id=null;
-  CmsProperty existingProperty=null;
-  boolean existsPropertyValue=false;
-  boolean deletePropertyValue=false;
   try {
-    propertyDefinition=readPropertyDefinition(dbc,property.getName(),project.getId());
+    propertyDefinition=readPropertyDefinition(dbc,property.getName(),project.getUuid());
   }
  catch (  CmsDbEntryNotFoundException e) {
-    propertyDefinition=null;
-  }
-  if (propertyDefinition == null) {
     if (property.autoCreatePropertyDefinition()) {
-      propertyDefinition=createPropertyDefinition(dbc,project.getId(),property.getName());
+      propertyDefinition=createPropertyDefinition(dbc,project.getUuid(),property.getName(),CmsPropertyDefinition.TYPE_NORMAL);
       try {
         readPropertyDefinition(dbc,property.getName(),CmsProject.ONLINE_PROJECT_ID);
       }
- catch (      CmsDataAccessException e) {
-        createPropertyDefinition(dbc,CmsProject.ONLINE_PROJECT_ID,property.getName());
+ catch (      CmsDataAccessException e1) {
+        createPropertyDefinition(dbc,CmsProject.ONLINE_PROJECT_ID,property.getName(),CmsPropertyDefinition.TYPE_NORMAL);
       }
       try {
-        m_driverManager.getBackupDriver().readBackupPropertyDefinition(dbc,property.getName());
+        m_driverManager.getHistoryDriver().readPropertyDefinition(dbc,property.getName());
       }
- catch (      CmsDataAccessException e) {
-        m_driverManager.getBackupDriver().createBackupPropertyDefinition(dbc,property.getName());
+ catch (      CmsDataAccessException e1) {
+        m_driverManager.getHistoryDriver().createPropertyDefinition(dbc,property.getName(),CmsPropertyDefinition.TYPE_NORMAL);
       }
     }
  else {
       throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_NO_PROPERTYDEF_WITH_NAME_1,property.getName()));
     }
   }
-  String resourceName=resource.getRootPath();
-  if (resource.isFolder() && !resourceName.endsWith("/")) {
-    resourceName+="/";
-  }
+  PreparedStatement stmt=null;
+  Connection conn=null;
   try {
-    existingProperty=readPropertyObject(dbc,propertyDefinition.getName(),project,resource);
+    CmsProperty existingProperty=readPropertyObject(dbc,propertyDefinition.getName(),project,resource);
     if (existingProperty.isIdentical(property)) {
       return;
     }
-    conn=m_sqlManager.getConnection(dbc,project.getId());
+    conn=m_sqlManager.getConnection(dbc);
     for (int i=0; i < 2; i++) {
-      mappingType=-1;
-      value=null;
-      id=null;
-      existsPropertyValue=false;
-      deletePropertyValue=false;
+      int mappingType=-1;
+      String value=null;
+      CmsUUID id=null;
+      boolean existsPropertyValue=false;
+      boolean deletePropertyValue=false;
       if (i == 0) {
-        if (existingProperty.getStructureValue() != null && property.isDeleteStructureValue()) {
+        if ((existingProperty.getStructureValue() != null) && property.isDeleteStructureValue()) {
           deletePropertyValue=true;
         }
  else {
@@ -64,8 +51,8 @@
         id=resource.getStructureId();
         existsPropertyValue=existingProperty.getStructureValue() != null;
       }
- else       if (i == 1) {
-        if (existingProperty.getResourceValue() != null && property.isDeleteResourceValue()) {
+ else {
+        if ((existingProperty.getResourceValue() != null) && property.isDeleteResourceValue()) {
           deletePropertyValue=true;
         }
  else {
@@ -78,31 +65,35 @@
         id=resource.getResourceId();
         existsPropertyValue=existingProperty.getResourceValue() != null;
       }
-      if (!deletePropertyValue) {
-        if (existsPropertyValue) {
-          stmt=m_sqlManager.getPreparedStatement(conn,project.getId(),"C_PROPERTIES_UPDATE");
-          stmt.setString(1,m_sqlManager.validateEmpty(value));
+      try {
+        if (!deletePropertyValue) {
+          if (existsPropertyValue) {
+            stmt=m_sqlManager.getPreparedStatement(conn,project.getUuid(),"C_PROPERTIES_UPDATE");
+            stmt.setString(1,m_sqlManager.validateEmpty(value));
+            stmt.setString(2,id.toString());
+            stmt.setInt(3,mappingType);
+            stmt.setString(4,propertyDefinition.getId().toString());
+          }
+ else {
+            stmt=m_sqlManager.getPreparedStatement(conn,project.getUuid(),"C_PROPERTIES_CREATE");
+            stmt.setString(1,new CmsUUID().toString());
+            stmt.setString(2,propertyDefinition.getId().toString());
+            stmt.setString(3,id.toString());
+            stmt.setInt(4,mappingType);
+            stmt.setString(5,m_sqlManager.validateEmpty(value));
+          }
+        }
+ else {
+          stmt=m_sqlManager.getPreparedStatement(conn,project.getUuid(),"C_PROPERTIES_DELETE");
+          stmt.setString(1,propertyDefinition.getId().toString());
           stmt.setString(2,id.toString());
           stmt.setInt(3,mappingType);
-          stmt.setString(4,propertyDefinition.getId().toString());
         }
- else {
-          stmt=m_sqlManager.getPreparedStatement(conn,project.getId(),"C_PROPERTIES_CREATE");
-          stmt.setString(1,new CmsUUID().toString());
-          stmt.setString(2,propertyDefinition.getId().toString());
-          stmt.setString(3,id.toString());
-          stmt.setInt(4,mappingType);
-          stmt.setString(5,m_sqlManager.validateEmpty(value));
-        }
+        stmt.executeUpdate();
       }
- else {
-        stmt=m_sqlManager.getPreparedStatement(conn,project.getId(),"C_PROPERTIES_DELETE");
-        stmt.setString(1,propertyDefinition.getId().toString());
-        stmt.setString(2,id.toString());
-        stmt.setInt(3,mappingType);
+  finally {
+        m_sqlManager.closeAll(dbc,null,stmt,null);
       }
-      stmt.executeUpdate();
-      m_sqlManager.closeAll(dbc,null,stmt,null);
     }
   }
  catch (  SQLException e) {

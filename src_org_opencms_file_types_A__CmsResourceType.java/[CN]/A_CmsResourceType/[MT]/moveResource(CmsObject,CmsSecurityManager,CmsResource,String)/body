@@ -3,15 +3,14 @@
   if (resource.getRootPath().equals(dest)) {
     throw new CmsVfsException(org.opencms.file.Messages.get().container(org.opencms.file.Messages.ERR_MOVE_SAME_NAME_1,destination));
   }
-  securityManager.checkPermissions(cms.getRequestContext(),resource,CmsPermissionSet.ACCESS_WRITE,true,CmsResourceFilter.IGNORE_EXPIRATION);
-  boolean isNew=resource.getState() == CmsResource.STATE_NEW;
-  copyResource(cms,securityManager,resource,destination,CmsResource.COPY_AS_SIBLING);
-  deleteResource(cms,securityManager,resource,CmsResource.DELETE_PRESERVE_SIBLINGS);
-  CmsResource destinationResource=securityManager.readResource(cms.getRequestContext(),dest,CmsResourceFilter.ALL);
-  if (isNew) {
-    securityManager.lockResource(cms.getRequestContext(),destinationResource,CmsLock.COMMON);
+  try {
+    securityManager.readResource(cms.getRequestContext(),dest,CmsResourceFilter.ALL);
+    throw new CmsVfsException(org.opencms.file.Messages.get().container(org.opencms.file.Messages.ERR_OVERWRITE_RESOURCE_2,cms.getRequestContext().removeSiteRoot(resource.getRootPath()),destination));
   }
- else {
-    securityManager.changeLock(cms.getRequestContext(),destinationResource);
+ catch (  CmsVfsResourceNotFoundException e) {
   }
+  securityManager.moveResource(cms.getRequestContext(),resource,dest);
+  createRelations(cms,securityManager,dest);
+  CmsResource file=securityManager.readResource(cms.getRequestContext(),dest,CmsResourceFilter.ALL);
+  writeFile(cms,securityManager,CmsFile.upgrade(file,cms));
 }

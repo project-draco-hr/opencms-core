@@ -1,0 +1,35 @@
+{
+  CmsUUID parentId=CmsUUID.getNullUUID();
+  CmsGroup group=null;
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  if (existsGroup(dbc,groupFqn)) {
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_GROUP_WITH_NAME_ALREADY_EXISTS_1,groupFqn);
+    if (LOG.isErrorEnabled()) {
+      LOG.error(message.key());
+    }
+    throw new CmsDbEntryAlreadyExistsException(message);
+  }
+  try {
+    if (CmsStringUtil.isNotEmpty(parentGroupFqn)) {
+      parentId=readGroup(dbc,parentGroupFqn).getId();
+    }
+    conn=getSqlManager().getConnection(dbc);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_GROUPS_CREATE_GROUP_6");
+    stmt.setString(1,groupId.toString());
+    stmt.setString(2,parentId.toString());
+    stmt.setString(3,CmsOrganizationalUnit.getSimpleName(groupFqn));
+    stmt.setString(4,m_sqlManager.validateEmpty(description));
+    stmt.setInt(5,flags);
+    stmt.setString(6,CmsOrganizationalUnit.SEPARATOR + CmsOrganizationalUnit.getParentFqn(groupFqn));
+    stmt.executeUpdate();
+    group=new CmsGroup(groupId,parentId,groupFqn,description,flags);
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,null);
+  }
+  return group;
+}

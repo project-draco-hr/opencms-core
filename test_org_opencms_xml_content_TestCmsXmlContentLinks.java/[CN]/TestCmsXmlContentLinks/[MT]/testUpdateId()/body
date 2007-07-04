@@ -1,0 +1,26 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the id update of a moved resource in a broken link");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  String content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-11.xml",CmsEncoder.ENCODING_UTF_8);
+  CmsXmlContent xmlcontent=CmsXmlContentFactory.unmarshal(cms,content,CmsEncoder.ENCODING_UTF_8,resolver);
+  xmlcontent.validateXmlStructure(resolver);
+  CmsLink expectedRefLink=getExpected(cms,false);
+  CmsLink refLink=getVfsFileRefLink(cms,xmlcontent,"VfsLink");
+  assertLink(expectedRefLink,refLink,true);
+  CmsLink expectedHtmlLink=getExpected(cms,true);
+  CmsLink htmlLink=getHtmlLink(cms,xmlcontent,"Html","link0");
+  assertLink(expectedHtmlLink,htmlLink,true);
+  cms.lockResource(FILENAME);
+  cms.deleteResource(FILENAME,CmsResource.DELETE_REMOVE_SIBLINGS);
+  CmsResource res=cms.createResource(FILENAME,CmsResourceTypePlain.getStaticTypeId());
+  cms.unlockResource(FILENAME);
+  OpenCms.getPublishManager().publishResource(cms,FILENAME);
+  OpenCms.getPublishManager().waitWhileRunning();
+  xmlcontent=CmsXmlContentFactory.unmarshal(cms,content,CmsEncoder.ENCODING_UTF_8,resolver);
+  xmlcontent.validateXmlStructure(resolver);
+  updateLink(cms,expectedRefLink,res);
+  assertLink(expectedRefLink,getVfsFileRefLink(cms,xmlcontent,"VfsLink"),true);
+  updateLink(cms,expectedHtmlLink,res);
+  assertLink(expectedHtmlLink,getHtmlLink(cms,xmlcontent,"Html","link0"),true);
+}

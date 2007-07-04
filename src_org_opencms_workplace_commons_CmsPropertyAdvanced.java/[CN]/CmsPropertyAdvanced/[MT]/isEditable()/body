@@ -1,12 +1,12 @@
 {
   if (m_isEditable == null) {
-    if (getCms().getRequestContext().currentProject().getId() == CmsProject.ONLINE_PROJECT_ID || !getCms().isInsideCurrentProject(getParamResource())) {
-      m_isEditable=new Boolean(false);
+    if (getCms().getRequestContext().currentProject().isOnlineProject() || !getCms().isInsideCurrentProject(getParamResource())) {
+      m_isEditable=Boolean.FALSE;
     }
  else {
       if (!checkResourcePermissions(CmsPermissionSet.ACCESS_WRITE,false)) {
         getSettings().setErrorMessage(null);
-        m_isEditable=new Boolean(false);
+        m_isEditable=Boolean.FALSE;
         return m_isEditable.booleanValue();
       }
       String resourceName=getParamResource();
@@ -24,7 +24,7 @@
         }
       }
       try {
-        lock=getCms().getLock(resourceName);
+        lock=getCms().getLock(file);
       }
  catch (      CmsException e) {
         lock=CmsLock.getNullLock();
@@ -33,18 +33,32 @@
         }
       }
       if (!lock.isNullLock()) {
-        if (lock.getType() != CmsLock.TYPE_SHARED_EXCLUSIVE && lock.getType() != CmsLock.TYPE_SHARED_INHERITED && lock.getUserId().equals(getCms().getRequestContext().currentUser().getId())) {
-          if (getCms().getRequestContext().currentProject().getId() == lock.getProjectId() || Boolean.valueOf(getParamUsetempfileproject()).booleanValue()) {
-            m_isEditable=new Boolean(true);
+        if (lock.isExclusiveOwnedBy(getCms().getRequestContext().currentUser()) || (lock.isDirectlyInherited() && lock.isOwnedBy(getCms().getRequestContext().currentUser()))) {
+          if (lock.isInProject(getCms().getRequestContext().currentProject()) || Boolean.valueOf(getParamUsetempfileproject()).booleanValue()) {
+            m_isEditable=Boolean.TRUE;
             return m_isEditable.booleanValue();
           }
         }
       }
  else       if (OpenCms.getWorkplaceManager().autoLockResources()) {
-        m_isEditable=new Boolean(true);
+        if (file == null || file.isFolder()) {
+          try {
+            List lockedResources=getCms().getLockedResources(resourceName,CmsLockFilter.FILTER_ALL.filterNotOwnedByUserId(getCms().getRequestContext().currentUser().getId()));
+            if (!lockedResources.isEmpty()) {
+              m_isEditable=Boolean.FALSE;
+              return m_isEditable.booleanValue();
+            }
+          }
+ catch (          CmsException e1) {
+            if (LOG.isErrorEnabled()) {
+              LOG.error(e1.getLocalizedMessage(),e1);
+            }
+          }
+        }
+        m_isEditable=Boolean.TRUE;
         return m_isEditable.booleanValue();
       }
-      m_isEditable=new Boolean(false);
+      m_isEditable=Boolean.FALSE;
     }
   }
   return m_isEditable.booleanValue();

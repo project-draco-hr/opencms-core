@@ -4,15 +4,24 @@
   if (res.isFolder() && !resourceName.endsWith("/")) {
     resourceName+="/";
   }
+  org.opencms.lock.CmsLock lock=getCms().getLock(res);
 switch (dialogAction) {
-case TYPE_LOCK:
-    getCms().lockResource(originalResourceName);
-  break;
 case TYPE_LOCKCHANGE:
-getCms().changeLock(resourceName);
-break;
+case TYPE_LOCK:
+    if (lock.isNullLock()) {
+      getCms().lockResource(originalResourceName);
+    }
+ else     if (!lock.isExclusiveOwnedBy(getCms().getRequestContext().currentUser()) || !lock.isInProject(getCms().getRequestContext().currentProject())) {
+      getCms().changeLock(resourceName);
+    }
+  break;
 case TYPE_UNLOCK:
 default :
+if (lock.isNullLock()) {
+  break;
+}
+if (lock.isOwnedBy(getCms().getRequestContext().currentUser())) {
 getCms().unlockResource(resourceName);
+}
 }
 }

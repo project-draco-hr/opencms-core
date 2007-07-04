@@ -1,0 +1,40 @@
+{
+  String resourcename=resource.getRootPath();
+  CmsLock lock=getLock(dbc,resource).getEditionLock();
+  if (!lock.isNullLock()) {
+    if (!forceUnlock && (!lock.isOwnedInProjectBy(dbc.currentUser(),dbc.currentProject()))) {
+      throw new CmsLockException(Messages.get().container(Messages.ERR_RESOURCE_UNLOCK_1,dbc.removeSiteRoot(resourcename)));
+    }
+    if (!forceUnlock && lock.isInherited()) {
+      throw new CmsLockException(Messages.get().container(Messages.ERR_UNLOCK_LOCK_INHERITED_1,dbc.removeSiteRoot(resourcename)));
+    }
+  }
+  if (lock.isExclusive()) {
+    if (resource.isFolder()) {
+      Iterator itLocks=OpenCms.getMemoryMonitor().getAllCachedLocks().iterator();
+      while (itLocks.hasNext()) {
+        String lockedPath=((CmsLock)itLocks.next()).getResourceName();
+        if (lockedPath.startsWith(resourcename) && !lockedPath.equals(resourcename)) {
+          unlockResource(lockedPath,false);
+        }
+      }
+    }
+    return unlockResource(resourcename,false);
+  }
+  if (lock.getType().isSharedExclusive()) {
+    List locks=OpenCms.getMemoryMonitor().getAllCachedLockPaths();
+    List siblings=internalReadSiblings(dbc,resource);
+    for (int i=0; i < siblings.size(); i++) {
+      CmsResource sibling=(CmsResource)siblings.get(i);
+      if (locks.contains(sibling.getRootPath())) {
+        unlockResource(sibling.getRootPath(),false);
+        break;
+      }
+    }
+    return lock;
+  }
+  if (unlockSystemLock && !getLock(dbc,resource).getSystemLock().isUnlocked()) {
+    return unlockResource(resourcename,true);
+  }
+  return lock;
+}

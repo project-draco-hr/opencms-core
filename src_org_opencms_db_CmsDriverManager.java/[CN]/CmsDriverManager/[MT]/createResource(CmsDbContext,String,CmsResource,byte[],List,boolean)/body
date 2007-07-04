@@ -1,46 +1,75 @@
 {
   CmsResource newResource=null;
-  if (m_concurrentCreateResourceLocks.contains(resourcePath)) {
-    throw new CmsVfsResourceAlreadyExistsException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_RESOURCE_WITH_NAME_CURRENTLY_CREATED_1,dbc.removeSiteRoot(resourcePath)));
-  }
   try {
-    m_concurrentCreateResourceLocks.add(resourcePath);
     boolean useLostAndFound=importCase && !OpenCms.getImportExportManager().overwriteCollidingResources();
-    CmsResource currentResource=null;
+    CmsResource currentResourceByName=null;
     try {
-      currentResource=readResource(dbc,resourcePath,CmsResourceFilter.ALL);
+      currentResourceByName=readResource(dbc,resourcePath,CmsResourceFilter.ALL);
     }
  catch (    CmsVfsResourceNotFoundException e) {
     }
-    CmsResource parentFolder;
-    String parentFolderName;
-    String createdResourceName=resourcePath;
-    int contentLength;
-    if (currentResource != null) {
-      if (currentResource.getState() == CmsResource.STATE_DELETED) {
-        if (!currentResource.isFolder()) {
-          currentResource=null;
+    CmsResource currentResourceById=null;
+    try {
+      currentResourceById=readResource(dbc,resource.getStructureId(),CmsResourceFilter.ALL);
+      if ((currentResourceByName != null) && currentResourceById.getRootPath().equals(currentResourceByName.getRootPath())) {
+        currentResourceById=null;
+      }
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+    }
+    String parentFolderName=CmsResource.getParentFolder(resourcePath);
+    CmsResource parentFolder=readFolder(dbc,parentFolderName,CmsResourceFilter.IGNORE_EXPIRATION);
+    if (currentResourceByName == null) {
+      m_securityManager.checkPermissions(dbc,parentFolder,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.IGNORE_EXPIRATION);
+    }
+ else {
+      m_securityManager.checkPermissions(dbc,currentResourceByName,CmsPermissionSet.ACCESS_WRITE,!importCase,CmsResourceFilter.ALL);
+    }
+    if (currentResourceById != null) {
+      m_securityManager.checkPermissions(dbc,currentResourceById,CmsPermissionSet.ACCESS_WRITE,!importCase,CmsResourceFilter.ALL);
+    }
+    if (currentResourceById != null) {
+      if (!importCase) {
+        throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_RESOURCE_WITH_ID_ALREADY_EXISTS_3,dbc.removeSiteRoot(resource.getRootPath()),currentResourceById.getRootPath(),currentResourceById.getStructureId()));
+      }
+      lockResource(dbc,currentResourceById,CmsLockType.EXCLUSIVE);
+      if (currentResourceById.getState().isDeleted()) {
+        if (!currentResourceById.isFolder()) {
+          currentResourceById=null;
+        }
+      }
+ else {
+        if (!resource.isFolder() && useLostAndFound && (!currentResourceById.getResourceId().equals(resource.getResourceId()))) {
+          moveToLostAndFound(dbc,currentResourceById,false);
+        }
+      }
+      if (currentResourceByName == null) {
+        moveResource(dbc,currentResourceById,resourcePath,true);
+      }
+    }
+    if (currentResourceByName != null) {
+      boolean overwrite=true;
+      if (currentResourceByName.getState().isDeleted()) {
+        if (!currentResourceByName.isFolder()) {
+          overwrite=false;
         }
       }
  else {
         if (!importCase) {
           throw new CmsVfsResourceAlreadyExistsException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_RESOURCE_WITH_NAME_ALREADY_EXISTS_1,dbc.removeSiteRoot(resource.getRootPath())));
         }
-        if (!resource.isFolder() && useLostAndFound && (!currentResource.getResourceId().equals(resource.getResourceId()))) {
-          createdResourceName=moveToLostAndFound(dbc,resourcePath,false);
-          currentResource=null;
+        if (!resource.isFolder() && useLostAndFound && (!currentResourceByName.getResourceId().equals(resource.getResourceId()))) {
+          moveToLostAndFound(dbc,currentResourceByName,false);
         }
       }
+      if (!overwrite) {
+        lockResource(dbc,currentResourceByName,CmsLockType.EXCLUSIVE);
+        currentResourceByName=null;
+      }
     }
-    parentFolderName=CmsResource.getParentFolder(createdResourceName);
-    parentFolder=readFolder(dbc,parentFolderName,CmsResourceFilter.IGNORE_EXPIRATION);
-    if (currentResource == null) {
-      m_securityManager.checkPermissions(dbc,parentFolder,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.IGNORE_EXPIRATION);
-    }
- else {
-      m_securityManager.checkPermissions(dbc,currentResource,CmsPermissionSet.ACCESS_WRITE,!importCase,CmsResourceFilter.ALL);
-    }
-    String targetName=CmsResource.getName(createdResourceName);
+    CmsResource overwrittenResource=(currentResourceById != null ? currentResourceById : currentResourceByName);
+    String targetName=CmsResource.getName(resourcePath);
+    int contentLength;
     if (resource.isFolder()) {
       contentLength=-1;
       if (CmsResource.isFolder(targetName)) {
@@ -51,30 +80,45 @@
       if (content != null) {
         contentLength=content.length;
       }
- else       if (currentResource != null) {
-        contentLength=currentResource.getLength();
+ else       if (overwrittenResource != null) {
+        contentLength=overwrittenResource.getLength();
       }
  else {
         contentLength=resource.getLength();
       }
     }
     CmsResource.checkResourceName(targetName);
-    CmsUUID structureId;
-    CmsUUID resourceId;
-    if (currentResource != null) {
-      structureId=currentResource.getStructureId();
-      resourceId=currentResource.getResourceId();
+    CmsUUID structureId=resource.getStructureId();
+    CmsUUID resourceId=resource.getResourceId();
+    if (overwrittenResource != null) {
+      structureId=overwrittenResource.getStructureId();
     }
- else {
+    if (structureId.isNullUUID()) {
       structureId=new CmsUUID();
-      if (!resource.getResourceId().isNullUUID()) {
-        resourceId=resource.getResourceId();
+    }
+    if (overwrittenResource != null) {
+      resourceId=overwrittenResource.getResourceId();
+    }
+    if (resourceId.isNullUUID()) {
+      resourceId=new CmsUUID();
+    }
+    try {
+      CmsResource onlineResource=m_vfsDriver.readResource(dbc,CmsProject.ONLINE_PROJECT_ID,resourcePath,true);
+      try {
+        CmsResource offlineResource=m_vfsDriver.readResource(dbc,dbc.currentProject().getUuid(),onlineResource.getStructureId(),true);
+        if (!offlineResource.getRootPath().equals(onlineResource.getRootPath())) {
+          throw new CmsVfsOnlineResourceAlreadyExistsException(Messages.get().container(Messages.ERR_ONLINE_RESOURCE_EXISTS_2,dbc.removeSiteRoot(resourcePath),dbc.removeSiteRoot(offlineResource.getRootPath())));
+        }
       }
- else {
-        resourceId=new CmsUUID();
+ catch (      CmsVfsResourceNotFoundException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
       }
     }
-    newResource=new CmsResource(structureId,resourceId,createdResourceName,resource.getTypeId(),resource.isFolder(),resource.getFlags(),dbc.currentProject().getId(),resource.getState(),resource.getDateCreated(),resource.getUserCreated(),resource.getDateLastModified(),resource.getUserLastModified(),resource.getDateReleased(),resource.getDateExpired(),1,contentLength);
+ catch (    CmsVfsResourceNotFoundException e) {
+    }
+    newResource=new CmsResource(structureId,resourceId,resourcePath,resource.getTypeId(),resource.isFolder(),resource.getFlags(),dbc.currentProject().getUuid(),resource.getState(),resource.getDateCreated(),resource.getUserCreated(),resource.getDateLastModified(),resource.getUserLastModified(),resource.getDateReleased(),resource.getDateExpired(),1,contentLength,resource.getDateContent(),resource.getVersion());
     if (resource.isTouched()) {
       newResource.setDateLastModified(resource.getDateLastModified());
     }
@@ -88,23 +132,36 @@
         newResource.setState(CmsResource.STATE_KEEP);
       }
     }
-    if (currentResource == null) {
-      newResource=m_vfsDriver.createResource(dbc,dbc.currentProject(),newResource,content);
+    if (overwrittenResource == null) {
+      CmsLock lock=getLock(dbc,newResource);
+      if (lock.getEditionLock().isExclusive()) {
+        unlockResource(dbc,newResource,true,false);
+      }
+      newResource=m_vfsDriver.createResource(dbc,dbc.currentProject().getUuid(),newResource,content);
     }
  else {
-      int updateStates=(currentResource.getState() == CmsResource.STATE_NEW) ? CmsDriverManager.NOTHING_CHANGED : CmsDriverManager.UPDATE_ALL;
-      m_vfsDriver.writeResource(dbc,dbc.currentProject(),newResource,updateStates);
+      lockResource(dbc,overwrittenResource,CmsLockType.EXCLUSIVE);
+      int updateStates=(overwrittenResource.getState().isNew() ? CmsDriverManager.NOTHING_CHANGED : CmsDriverManager.UPDATE_ALL);
+      m_vfsDriver.writeResource(dbc,dbc.currentProject().getUuid(),newResource,updateStates);
       if ((content != null) && resource.isFile()) {
-        m_vfsDriver.writeContent(dbc,dbc.currentProject(),currentResource.getResourceId(),content);
+        m_vfsDriver.writeContent(dbc,newResource.getResourceId(),content);
       }
     }
-    writePropertyObjects(dbc,newResource,properties);
-    lockResource(dbc,newResource,CmsLock.COMMON);
+    writePropertyObjects(dbc,newResource,properties,false);
+    try {
+      lockResource(dbc,newResource,CmsLockType.EXCLUSIVE);
+    }
+ catch (    CmsLockException cle) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.ERR_CREATE_RESOURCE_LOCK_1,new Object[]{dbc.removeSiteRoot(newResource.getRootPath())}));
+      }
+    }
+    m_vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),newResource,CmsRelationFilter.TARGETS);
   }
   finally {
-    m_concurrentCreateResourceLocks.remove(resourcePath);
     clearAccessControlListCache();
-    m_propertyCache.clear();
+    OpenCms.getMemoryMonitor().flushProperties();
+    OpenCms.getMemoryMonitor().flushPropertyLists();
     if (newResource != null) {
       OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_CREATED,Collections.singletonMap("resource",newResource)));
     }

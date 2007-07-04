@@ -1,0 +1,22 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing undelete on file");
+  String resourceName="/index.html";
+  String siblingName="/index_sibling.html";
+  cms.lockResource(resourceName);
+  cms.copyResource(resourceName,siblingName,CmsResource.COPY_AS_SIBLING);
+  cms.unlockResource(siblingName);
+  OpenCms.getPublishManager().publishResource(cms,siblingName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.lockResource(resourceName);
+  cms.deleteResource(resourceName,CmsResource.DELETE_REMOVE_SIBLINGS);
+  cms.unlockResource(resourceName);
+  storeResources(cms,siblingName);
+  long timestamp=System.currentTimeMillis();
+  undeleteFile(this,cms,resourceName);
+  assertFilter(cms,siblingName,OpenCmsTestResourceFilter.FILTER_TOUCH);
+  assertProject(cms,siblingName,cms.getRequestContext().currentProject());
+  assertState(cms,siblingName,CmsResource.STATE_DELETED);
+  assertDateLastModifiedAfter(cms,siblingName,timestamp);
+  assertUserLastModified(cms,siblingName,cms.getRequestContext().currentUser());
+}

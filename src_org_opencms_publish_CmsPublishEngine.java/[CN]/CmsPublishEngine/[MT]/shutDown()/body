@@ -1,0 +1,35 @@
+{
+  if (CmsLog.INIT.isInfoEnabled()) {
+    CmsLog.INIT.info(org.opencms.main.Messages.get().getBundle().key(org.opencms.main.Messages.INIT_SHUTDOWN_START_1,this.getClass().getName()));
+  }
+  m_shuttingDown=true;
+  if (m_currentPublishThread != null) {
+    if (m_publishQueueShutdowntime > 0) {
+synchronized (this) {
+        try {
+          wait(m_publishQueueShutdowntime * 1000);
+        }
+ catch (        InterruptedException exc) {
+        }
+      }
+    }
+    CmsPublishJobInfoBean publishJob=m_currentPublishThread.getPublishJob();
+    m_listeners.fireAbort(m_adminUserId,new CmsPublishJobEnqueued(publishJob));
+    I_CmsReport report=m_currentPublishThread.getReport();
+    report.println();
+    report.println();
+    report.println(Messages.get().container(Messages.RPT_PUBLISH_JOB_ABORT_SHUTDOWN_0),I_CmsReport.FORMAT_ERROR);
+    report.println();
+    try {
+      m_driverManager.writePublishReport(m_dbContextFactory.getDbContext(),publishJob);
+    }
+ catch (    CmsException exc) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(exc.getLocalizedMessage(),exc);
+      }
+    }
+  }
+  if (CmsLog.INIT.isInfoEnabled()) {
+    CmsLog.INIT.info(org.opencms.staticexport.Messages.get().getBundle().key(org.opencms.staticexport.Messages.INIT_SHUTDOWN_1,this.getClass().getName()));
+  }
+}

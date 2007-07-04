@@ -1,0 +1,112 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing removing the parent node of a broken link");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  String content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-12.xml",CmsEncoder.ENCODING_UTF_8);
+  CmsXmlContent xmlcontent=CmsXmlContentFactory.unmarshal(cms,content,CmsEncoder.ENCODING_UTF_8,resolver);
+  xmlcontent.validateXmlStructure(resolver);
+  assertEquals(xmlcontent.getValue("String",Locale.ENGLISH).getStringValue(cms),"test");
+  CmsLink expectedRefLink=getExpected(cms,false);
+  CmsLink refLink=getVfsFileRefLink(cms,xmlcontent,"ALink[1]/VfsLink");
+  assertLink(expectedRefLink,refLink,true);
+  CmsLink htmlLink=getHtmlLink(cms,xmlcontent,"ALink[1]/Html","link0");
+  CmsLink expectedHtmlLink=getExpected(cms,true);
+  assertLink(expectedHtmlLink,htmlLink,true);
+  cms.lockResource(FILENAME);
+  cms.setDateReleased(FILENAME,System.currentTimeMillis() + 1000000,false);
+  cms.setDateExpired(FILENAME,System.currentTimeMillis() + 2000000,false);
+  cms.unlockResource(FILENAME);
+  OpenCms.getPublishManager().publishResource(cms,FILENAME);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setRequestTime(CmsResource.DATE_RELEASED_EXPIRED_IGNORE);
+  xmlcontent=CmsXmlContentFactory.unmarshal(cms,content,CmsEncoder.ENCODING_UTF_8,resolver);
+  xmlcontent.validateXmlStructure(resolver);
+  assertEquals(xmlcontent.getValue("String",Locale.ENGLISH).getStringValue(cms),"test");
+  expectedRefLink=getExpected(cms,false);
+  refLink=getVfsFileRefLink(cms,xmlcontent,"ALink[1]/VfsLink");
+  assertLink(expectedRefLink,refLink,false);
+  expectedHtmlLink=getExpected(cms,true);
+  assertLink(expectedHtmlLink,getHtmlLink(cms,xmlcontent,"ALink[1]/Html","link0"),false);
+  CmsXmlContentErrorHandler errHandler=xmlcontent.validate(cms);
+  assertTrue(errHandler.getErrors().isEmpty());
+  assertEquals(errHandler.getWarnings().size(),1);
+  assertTrue(errHandler.getWarnings().containsKey(Locale.ENGLISH));
+  Map enWarnings=(Map)errHandler.getWarnings().get(Locale.ENGLISH);
+  assertEquals(enWarnings.size(),1);
+  assertTrue(enWarnings.containsKey("ALink[1]/VfsLink[1]"));
+  assertTrue(enWarnings.containsValue(org.opencms.xml.content.Messages.get().getBundle().key(org.opencms.xml.content.Messages.GUI_XMLCONTENT_CHECK_WARNING_NOT_RELEASED_0)));
+  cms.getRequestContext().setRequestTime(System.currentTimeMillis());
+  xmlcontent=CmsXmlContentFactory.unmarshal(cms,content,CmsEncoder.ENCODING_UTF_8,resolver);
+  xmlcontent.validateXmlStructure(resolver);
+  assertEquals(xmlcontent.getValue("String",Locale.ENGLISH).getStringValue(cms),"test");
+  assertNull(xmlcontent.getValue("ALink",Locale.ENGLISH));
+  assertEquals(xmlcontent.getNames(Locale.ENGLISH).size(),1);
+  errHandler=xmlcontent.validate(cms);
+  assertFalse(errHandler.hasErrors());
+  assertFalse(errHandler.hasWarnings());
+  CmsProject project=cms.getRequestContext().currentProject();
+  try {
+    cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+    xmlcontent=CmsXmlContentFactory.unmarshal(cms,content,CmsEncoder.ENCODING_UTF_8,resolver);
+    xmlcontent.validateXmlStructure(resolver);
+    assertEquals(xmlcontent.getValue("String",Locale.ENGLISH).getStringValue(cms),"test");
+    assertNull(xmlcontent.getValue("ALink",Locale.ENGLISH));
+    assertEquals(xmlcontent.getNames(Locale.ENGLISH).size(),1);
+    errHandler=xmlcontent.validate(cms);
+    assertFalse(errHandler.hasErrors());
+    assertFalse(errHandler.hasWarnings());
+  }
+  finally {
+    cms.getRequestContext().setCurrentProject(project);
+  }
+  cms.lockResource(FILENAME);
+  cms.deleteResource(FILENAME,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  cms.unlockResource(FILENAME);
+  OpenCms.getPublishManager().publishResource(cms,FILENAME);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setRequestTime(CmsResource.DATE_RELEASED_EXPIRED_IGNORE);
+  xmlcontent=CmsXmlContentFactory.unmarshal(cms,content,CmsEncoder.ENCODING_UTF_8,resolver);
+  xmlcontent.validateXmlStructure(resolver);
+  assertEquals(xmlcontent.getValue("String",Locale.ENGLISH).getStringValue(cms),"test");
+  expectedRefLink=getExpected(cms,false);
+  refLink=getVfsFileRefLink(cms,xmlcontent,"ALink[1]/VfsLink");
+  assertLink(expectedRefLink,refLink,false);
+  expectedHtmlLink=getExpected(cms,true);
+  assertLink(expectedHtmlLink,getHtmlLink(cms,xmlcontent,"ALink[1]/Html","link0"),false);
+  errHandler=xmlcontent.validate(cms);
+  assertEquals(errHandler.getErrors().size(),1);
+  assertTrue(errHandler.getErrors().containsKey(Locale.ENGLISH));
+  Map enErrors=(Map)errHandler.getErrors().get(Locale.ENGLISH);
+  assertEquals(enErrors.size(),1);
+  assertTrue(enErrors.containsKey("ALink[1]/VfsLink[1]"));
+  assertTrue(enErrors.containsValue(org.opencms.xml.content.Messages.get().getBundle().key(org.opencms.xml.content.Messages.GUI_XMLCONTENT_CHECK_ERROR_0)));
+  assertTrue(errHandler.getWarnings().isEmpty());
+  cms.getRequestContext().setRequestTime(System.currentTimeMillis());
+  xmlcontent=CmsXmlContentFactory.unmarshal(cms,content,CmsEncoder.ENCODING_UTF_8,resolver);
+  xmlcontent.validateXmlStructure(resolver);
+  assertEquals(xmlcontent.getValue("String",Locale.ENGLISH).getStringValue(cms),"test");
+  assertNull(xmlcontent.getValue("ALink",Locale.ENGLISH));
+  assertEquals(xmlcontent.getNames(Locale.ENGLISH).size(),1);
+  errHandler=xmlcontent.validate(cms);
+  assertFalse(errHandler.hasErrors());
+  assertFalse(errHandler.hasWarnings());
+  project=cms.getRequestContext().currentProject();
+  try {
+    cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+    xmlcontent=CmsXmlContentFactory.unmarshal(cms,content,CmsEncoder.ENCODING_UTF_8,resolver);
+    xmlcontent.validateXmlStructure(resolver);
+    assertEquals(xmlcontent.getValue("String",Locale.ENGLISH).getStringValue(cms),"test");
+    assertNull(xmlcontent.getValue("ALink",Locale.ENGLISH));
+    assertEquals(xmlcontent.getNames(Locale.ENGLISH).size(),1);
+    errHandler=xmlcontent.validate(cms);
+    assertFalse(errHandler.hasErrors());
+    assertFalse(errHandler.hasWarnings());
+  }
+  finally {
+    cms.getRequestContext().setCurrentProject(project);
+  }
+  cms.createResource(FILENAME,CmsResourceTypePlain.getStaticTypeId());
+  cms.unlockResource(FILENAME);
+  OpenCms.getPublishManager().publishResource(cms,FILENAME);
+  OpenCms.getPublishManager().waitWhileRunning();
+}

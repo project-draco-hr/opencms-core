@@ -1,0 +1,138 @@
+{
+  String name=path;
+  int trim=name.length();
+  if (!name.endsWith("/")) {
+    trim+=1;
+  }
+  if (name.equals("/")) {
+    trim=1;
+  }
+  ByteArrayOutputStream stream=new ByteArrayOutputStream();
+  OutputStreamWriter osWriter=null;
+  try {
+    osWriter=new OutputStreamWriter(stream,"UTF8");
+  }
+ catch (  Exception e) {
+    osWriter=new OutputStreamWriter(stream);
+  }
+  PrintWriter writer=new PrintWriter(osWriter);
+  StringBuffer sb=new StringBuffer();
+  String rewrittenContextPath=rewriteUrl(contextPath);
+  sb.append("<html>\r\n");
+  sb.append("<head>\r\n");
+  sb.append("<title>");
+  sb.append(Messages.get().getBundle().key(Messages.DIRECTORY_TITLE_1,name));
+  sb.append("</title>\r\n");
+  sb.append("<STYLE><!--");
+  sb.append("H1 {font-family:Tahoma,Arial,sans-serif;color:white;background-color:#525D76;font-size:22px;} " + "H2 {font-family:Tahoma,Arial,sans-serif;color:white;background-color:#525D76;font-size:16px;} " + "H3 {font-family:Tahoma,Arial,sans-serif;color:white;background-color:#525D76;font-size:14px;} "+ "BODY {font-family:Tahoma,Arial,sans-serif;color:black;background-color:white;} "+ "B {font-family:Tahoma,Arial,sans-serif;color:white;background-color:#525D76;} "+ "P {font-family:Tahoma,Arial,sans-serif;background:white;color:black;font-size:12px;}"+ "A {color : black;}"+ "A.name {color : black;}"+ "HR {color : #525D76;}");
+  sb.append("--></STYLE> ");
+  sb.append("</head>\r\n");
+  sb.append("<body>");
+  sb.append("<h1>");
+  sb.append(Messages.get().getBundle().key(Messages.DIRECTORY_TITLE_1,name));
+  sb.append("</h1>");
+  sb.append("<HR size=\"1\" noshade=\"noshade\">");
+  sb.append("<table width=\"100%\" cellspacing=\"0\"" + " cellpadding=\"5\" align=\"center\">\r\n");
+  sb.append("<tr>\r\n");
+  sb.append("<td align=\"left\"><font size=\"+1\"><strong>");
+  sb.append(Messages.get().getBundle().key(Messages.DIRECTORY_FILENAME_0));
+  sb.append("</strong></font></td>\r\n");
+  sb.append("<td align=\"center\"><font size=\"+1\"><strong>");
+  sb.append(Messages.get().getBundle().key(Messages.DIRECTORY_SIZE_0));
+  sb.append("</strong></font></td>\r\n");
+  sb.append("<td align=\"right\"><font size=\"+1\"><strong>");
+  sb.append(Messages.get().getBundle().key(Messages.DIRECTORY_LASTMODIFIED_0));
+  sb.append("</strong></font></td>\r\n");
+  sb.append("</tr>");
+  boolean shade=false;
+  String parentDirectory=name;
+  if (parentDirectory.endsWith("/")) {
+    parentDirectory=parentDirectory.substring(0,parentDirectory.length() - 1);
+  }
+  int slash=parentDirectory.lastIndexOf('/');
+  if (slash >= 0) {
+    String parent=parentDirectory.substring(0,slash);
+    sb.append("<tr");
+    if (shade) {
+      sb.append(" bgcolor=\"#eeeeee\"");
+    }
+    sb.append(">\r\n");
+    shade=!shade;
+    sb.append("<td align=\"left\">&nbsp;&nbsp;\r\n");
+    sb.append("<a href=\"");
+    sb.append(rewrittenContextPath);
+    if (parent.equals("")) {
+      parent="/";
+    }
+    sb.append(rewriteUrl(parent));
+    if (!parent.endsWith("/")) {
+      sb.append("/");
+    }
+    sb.append("\"><tt>");
+    sb.append("..");
+    sb.append("</tt></a></td>\r\n");
+    sb.append("<td align=\"right\"><tt>");
+    sb.append("&nbsp;");
+    sb.append("</tt></td>\r\n");
+    sb.append("<td align=\"right\"><tt>");
+    sb.append("&nbsp;");
+    sb.append("</tt></td>\r\n");
+    sb.append("</tr>\r\n");
+  }
+  try {
+    List list=m_session.list(path);
+    Iterator iter=list.iterator();
+    while (iter.hasNext()) {
+      I_CmsRepositoryItem childItem=(I_CmsRepositoryItem)iter.next();
+      String resourceName=childItem.getName();
+      if (resourceName.endsWith("/")) {
+        resourceName=resourceName.substring(0,resourceName.length() - 1);
+      }
+      slash=resourceName.lastIndexOf('/');
+      if (slash > -1) {
+        resourceName=resourceName.substring(slash + 1,resourceName.length());
+      }
+      sb.append("<tr");
+      if (shade) {
+        sb.append(" bgcolor=\"#eeeeee\"");
+      }
+      sb.append(">\r\n");
+      shade=!shade;
+      sb.append("<td align=\"left\">&nbsp;&nbsp;\r\n");
+      sb.append("<a href=\"");
+      sb.append(rewrittenContextPath);
+      sb.append(rewriteUrl(name + resourceName));
+      if (childItem.isCollection()) {
+        sb.append("/");
+      }
+      sb.append("\"><tt>");
+      sb.append(CmsEncoder.escapeXml(resourceName));
+      if (childItem.isCollection()) {
+        sb.append("/");
+      }
+      sb.append("</tt></a></td>\r\n");
+      sb.append("<td align=\"right\"><tt>");
+      if (childItem.isCollection()) {
+        sb.append("&nbsp;");
+      }
+ else {
+        sb.append(renderSize(childItem.getContentLength()));
+      }
+      sb.append("</tt></td>\r\n");
+      sb.append("<td align=\"right\"><tt>");
+      sb.append(HTTP_DATE_FORMAT.format(new Date(childItem.getLastModifiedDate())));
+      sb.append("</tt></td>\r\n");
+      sb.append("</tr>\r\n");
+    }
+  }
+ catch (  CmsException e) {
+    e.printStackTrace();
+  }
+  sb.append("</table>\r\n");
+  sb.append("<HR size=\"1\" noshade=\"noshade\">");
+  sb.append("</body>\r\n");
+  sb.append("</html>\r\n");
+  writer.write(sb.toString());
+  writer.flush();
+  return (new ByteArrayInputStream(stream.toByteArray()));
+}

@@ -1,0 +1,40 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing stopping/starting the publish engine");
+  String source="/folder2/subfolder21/image1.gif";
+  String destination1="/folder2/subfolder22/image1_new1.gif";
+  String destination2="/folder2/subfolder22/image1_new2.gif";
+  String destination3="/folder2/subfolder22/image1_new3.gif";
+  String destination4="/folder2/subfolder22/image1_new4.gif";
+  cms.copyResource(source,destination1,CmsResource.COPY_AS_NEW);
+  OpenCms.getPublishManager().publishResource(cms,destination1);
+  CmsContextInfo contextInfo=new CmsContextInfo("test1");
+  contextInfo.setProjectName(cms.getRequestContext().currentProject().getName());
+  contextInfo.setSiteRoot(cms.getRequestContext().getSiteRoot());
+  CmsObject ucms=OpenCms.initCmsObject(cms,contextInfo);
+  OpenCms.getLoginManager().setLoginMessage(cms,new CmsLoginMessage("test",true));
+  cms.copyResource(source,destination2,CmsResource.COPY_AS_NEW);
+  OpenCms.getPublishManager().publishResource(cms,destination2);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.copyResource(source,destination3,CmsResource.COPY_AS_NEW);
+  cms.copyResource(source,destination4,CmsResource.COPY_AS_NEW);
+  cms.chacc(destination3,I_CmsPrincipal.PRINCIPAL_USER,"test1",new CmsPermissionSet(CmsPermissionSet.PERMISSION_FULL,0).getPermissionString());
+  cms.chacc(destination4,I_CmsPrincipal.PRINCIPAL_USER,"test1",new CmsPermissionSet(CmsPermissionSet.PERMISSION_FULL,0).getPermissionString());
+  cms.unlockResource(destination3);
+  cms.unlockResource(destination4);
+  try {
+    OpenCms.getPublishManager().publishResource(ucms,destination3);
+    fail("a user without administration rights should not be able to publish when the publish engine is disabled");
+  }
+ catch (  CmsPublishException e) {
+  }
+  assertTrue(ucms.getLock(destination3).isUnlocked());
+  OpenCms.getLoginManager().removeLoginMessage(cms);
+  assertFalse(OpenCms.getPublishManager().isRunning());
+  OpenCms.getPublishManager().publishResource(ucms,destination4);
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertState(cms,destination3,CmsResource.STATE_NEW);
+  assertState(cms,destination4,CmsResource.STATE_UNCHANGED);
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+}

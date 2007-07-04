@@ -12,10 +12,9 @@
     isHardInclude=(loaderId != CmsJspLoader.RESOURCE_LOADER_ID);
   }
   String jspTargetName=CmsFileUtil.getRepositoryName(m_jspWebAppRepository,jspVfsName + extension,controller.getCurrentRequest().isOnline());
-  if (updates.contains(jspTargetName)) {
+  if (updatedFiles.contains(jspTargetName)) {
     return jspTargetName;
   }
-  updates.add(jspTargetName);
   String jspPath=CmsFileUtil.getRepositoryName(m_jspRepository,jspVfsName + extension,controller.getCurrentRequest().isOnline());
   File d=new File(jspPath).getParentFile();
   if ((d == null) || (d.exists() && !(d.isDirectory() && d.canRead()))) {
@@ -44,10 +43,14 @@
  else   if (controller.getCurrentRequest().isDoRecompile()) {
     mustUpdate=true;
   }
+ else {
+    mustUpdate=updateStrongLinks(resource,controller,updatedFiles);
+  }
   if (mustUpdate) {
     if (LOG.isDebugEnabled()) {
       LOG.debug(Messages.get().getBundle().key(Messages.LOG_WRITING_JSP_1,jspTargetName));
     }
+    updatedFiles.add(jspTargetName);
     byte[] contents;
     String encoding;
     try {
@@ -66,13 +69,15 @@
       throw new ServletException(Messages.get().getBundle().key(Messages.ERR_LOADER_JSP_ACCESS_1,jspVfsName),e);
     }
     try {
-      contents=parseJsp(contents,encoding,controller,updates,isHardInclude);
+      contents=parseJsp(contents,encoding,controller,updatedFiles,isHardInclude);
+      if (LOG.isInfoEnabled()) {
+        LOG.info(Messages.get().getBundle().key(Messages.LOG_JSP_PERMCHECK_4,new Object[]{f.getAbsolutePath(),Boolean.valueOf(f.exists()),Boolean.valueOf(f.isFile()),Boolean.valueOf(f.canWrite())}));
+      }
 synchronized (this) {
         FileOutputStream fs=new FileOutputStream(f);
         fs.write(contents);
         fs.close();
       }
-      contents=null;
       if (LOG.isInfoEnabled()) {
         LOG.info(Messages.get().getBundle().key(Messages.LOG_UPDATED_JSP_2,jspTargetName,jspVfsName));
       }

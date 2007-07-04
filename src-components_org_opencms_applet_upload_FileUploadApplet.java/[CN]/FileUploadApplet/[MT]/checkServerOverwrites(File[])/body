@@ -1,0 +1,58 @@
+{
+  m_action=m_actionOverwriteCheck;
+  repaint();
+  int rtv=ModalDialog.ERROR_OPTION;
+  List fileNames=new ArrayList();
+  for (int i=0; i < files.length; i++) {
+    getRelativeFilePaths(files[i],fileNames);
+  }
+  StringBuffer uploadFiles=new StringBuffer();
+  Iterator it=fileNames.iterator();
+  while (it.hasNext()) {
+    uploadFiles.append(((String)it.next())).append('\n');
+  }
+  HttpClient client=new HttpClient();
+  PostMethod post=new PostMethod(m_targetUrl);
+  try {
+    Header postHeader=new Header("uploadFiles",URLEncoder.encode(uploadFiles.toString(),"utf-8"));
+    post.addRequestHeader(postHeader);
+    Header header2=new Header("uploadFolder",URLEncoder.encode(getParameter("filelist"),"utf-8"));
+    post.addRequestHeader(header2);
+    post.setParameter("action",DIALOG_CHECK_OVERWRITE);
+    String sessionId=getParameter("sessionId");
+    String query=";" + C_JSESSIONID.toLowerCase() + "="+ sessionId;
+    post.setQueryString(query);
+    post.addRequestHeader(C_JSESSIONID,sessionId);
+    HttpConnectionParams connectionParams=client.getHttpConnectionManager().getParams();
+    connectionParams.setConnectionTimeout(5000);
+    client.getState();
+    client.getHostConfiguration().getHost();
+    HttpState initialState=new HttpState();
+    URI uri=new URI(m_targetUrl,false);
+    Cookie sessionCookie=new Cookie(uri.getHost(),C_JSESSIONID,sessionId,"/",null,false);
+    initialState.addCookie(sessionCookie);
+    client.setState(initialState);
+    int status=client.executeMethod(post);
+    if (status == HttpStatus.SC_OK) {
+      String response=post.getResponseBodyAsString();
+      m_overwrites=parseDuplicateFiles(URLDecoder.decode(response,"utf-8"));
+      if (m_overwrites.size() > 0) {
+        rtv=showDuplicationsDialog(m_overwrites);
+      }
+ else {
+        rtv=ModalDialog.APPROVE_OPTION;
+      }
+    }
+ else {
+      String error=m_errorLine1 + "\n" + post.getStatusLine();
+      System.err.println(error);
+    }
+  }
+ catch (  HttpException e) {
+    e.printStackTrace(System.err);
+  }
+catch (  IOException e) {
+    e.printStackTrace(System.err);
+  }
+  return rtv;
+}

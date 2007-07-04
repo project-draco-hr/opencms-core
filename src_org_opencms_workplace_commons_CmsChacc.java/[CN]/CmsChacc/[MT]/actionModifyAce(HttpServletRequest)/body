@@ -40,11 +40,22 @@
     int flags=0;
     for (int k=0; k < allEntries.size(); k++) {
       CmsAccessControlEntry curEntry=(CmsAccessControlEntry)allEntries.get(k);
-      String curType=getEntryType(curEntry.getFlags());
-      String curName=getCms().lookupPrincipal(curEntry.getPrincipal()).getName();
-      if (curName.equals(name) && curType.equals(type)) {
+      String curType=getEntryType(curEntry.getFlags(),false);
+      I_CmsPrincipal p=getCms().lookupPrincipal(curEntry.getPrincipal());
+      if (((p != null) && p.getName().equals(name) && curType.equals(type))) {
         flags=curEntry.getFlags();
         break;
+      }
+ else       if (p == null) {
+        CmsRole role=CmsRole.valueOfId(curEntry.getPrincipal());
+        if ((role != null) && name.equals(role.getRoleName())) {
+          flags=curEntry.getFlags();
+          break;
+        }
+ else         if ((curEntry.getPrincipal().equals(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID) && name.equals(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_NAME)) || (curEntry.getPrincipal().equals(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_ID) && name.equals(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_NAME))) {
+          flags=curEntry.getFlags();
+          break;
+        }
       }
     }
     if (Boolean.valueOf(inherit).booleanValue()) {
@@ -66,11 +77,22 @@
       flags&=~CmsAccessControlEntry.ACCESS_FLAGS_RESPONSIBLE;
     }
     checkLock(getParamResource());
-    getCms().chacc(file,type,name,allowValue,denyValue,flags);
+    if (name.equals(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID.toString())) {
+      getCms().chacc(file,type,CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_NAME,allowValue,denyValue,flags);
+    }
+ else     if (name.equals(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_ID.toString())) {
+      getCms().chacc(file,type,CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_NAME,allowValue,denyValue,flags);
+    }
+ else {
+      getCms().chacc(file,type,name,allowValue,denyValue,flags);
+    }
     return true;
   }
  catch (  CmsException e) {
     m_errorMessages.add(key(Messages.ERR_CHACC_MODIFY_ENTRY_0));
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
     return false;
   }
 }

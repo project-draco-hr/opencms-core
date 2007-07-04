@@ -1,21 +1,17 @@
 {
-  cms.checkRole(CmsRole.MODULE_MANAGER);
+  OpenCms.getRoleManager().checkRole(cms,CmsRole.DATABASE_MANAGER);
   if (!m_modules.containsKey(moduleName)) {
     throw new CmsConfigurationException(Messages.get().container(Messages.ERR_MODULE_NOT_CONFIGURED_1,moduleName));
   }
   if (LOG.isInfoEnabled()) {
     LOG.info(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_1,moduleName));
   }
-  CmsModule module;
-  boolean removeResourceTypes=false;
+  CmsModule module=(CmsModule)m_modules.get(moduleName);
+  boolean removeResourceTypes=!module.getResourceTypes().isEmpty();
+  if (removeResourceTypes) {
+    OpenCms.getWorkplaceManager().removeExplorerTypeSettings(module);
+  }
   if (!replace) {
-    module=(CmsModule)m_modules.get(moduleName);
-    if (module.getResourceTypes() != Collections.EMPTY_LIST) {
-      removeResourceTypes=true;
-    }
-    if (module.getExplorerTypes() != Collections.EMPTY_LIST) {
-      OpenCms.getWorkplaceManager().removeExplorerTypeSettings(module);
-    }
     List dependencies=checkDependencies(module,DEPENDENCY_MODE_DELETE);
     if (!dependencies.isEmpty()) {
       StringBuffer message=new StringBuffer();
@@ -69,11 +65,19 @@
           LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_RESOURCE_1,currentResource));
         }
         if (cms.existsResource(currentResource)) {
-          cms.lockResource(currentResource);
+          CmsLock lock=cms.getLock(currentResource);
+          if (lock.isUnlocked()) {
+            cms.lockResource(currentResource);
+          }
+          if (lock.isLockableBy(cms.getRequestContext().currentUser())) {
+            cms.changeLock(currentResource);
+          }
           cms.deleteResource(currentResource,CmsResource.DELETE_PRESERVE_SIBLINGS);
           report.print(Messages.get().container(Messages.RPT_DELETE_0),I_CmsReport.FORMAT_NOTE);
           report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,currentResource));
-          cms.unlockResource(currentResource);
+          if (cms.existsResource(currentResource)) {
+            cms.unlockResource(currentResource);
+          }
         }
       }
  catch (      CmsException e) {
@@ -82,8 +86,9 @@
       }
     }
     report.println(Messages.get().container(Messages.RPT_PUBLISH_PROJECT_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
-    cms.unlockProject(deleteProject.getId());
-    cms.publishProject(report);
+    cms.unlockProject(deleteProject.getUuid());
+    OpenCms.getPublishManager().publishProject(cms,report);
+    OpenCms.getPublishManager().waitWhileRunning();
     report.println(Messages.get().container(Messages.RPT_PUBLISH_PROJECT_END_0),I_CmsReport.FORMAT_HEADLINE);
     report.println(Messages.get().container(Messages.RPT_DELETE_MODULE_END_0),I_CmsReport.FORMAT_HEADLINE);
   }

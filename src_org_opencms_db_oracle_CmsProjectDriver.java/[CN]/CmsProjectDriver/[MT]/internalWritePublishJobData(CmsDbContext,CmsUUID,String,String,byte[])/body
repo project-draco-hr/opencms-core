@@ -1,0 +1,44 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  PreparedStatement commit=null;
+  ResultSet res=null;
+  boolean wasInTransaction=false;
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    stmt=m_sqlManager.getPreparedStatement(conn,queryKey);
+    wasInTransaction=!conn.getAutoCommit();
+    if (!wasInTransaction) {
+      conn.setAutoCommit(false);
+    }
+    stmt.setString(1,publishJobHistoryId.toString());
+    res=((DelegatingResultSet)stmt.executeQuery()).getInnermostDelegate();
+    if (!res.next()) {
+      throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_READ_PUBLISH_JOB_1,publishJobHistoryId));
+    }
+    OutputStream output=CmsUserDriver.getOutputStreamFromBlob(res,fieldName);
+    output.write(data);
+    output.close();
+    if (!wasInTransaction) {
+      commit=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
+      commit.execute();
+      m_sqlManager.closeAll(dbc,null,commit,null);
+    }
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+    commit=null;
+    stmt=null;
+    res=null;
+    if (!wasInTransaction) {
+      conn.setAutoCommit(true);
+    }
+  }
+ catch (  IOException e) {
+    throw new CmsDbIoException(Messages.get().container(Messages.ERR_WRITING_TO_OUTPUT_STREAM_1,publishJobHistoryId),e);
+  }
+catch (  SQLException e) {
+    throw new CmsDbSqlException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    ((org.opencms.db.oracle.CmsSqlManager)m_sqlManager).closeAllInTransaction(dbc,conn,stmt,res,commit,wasInTransaction);
+  }
+}

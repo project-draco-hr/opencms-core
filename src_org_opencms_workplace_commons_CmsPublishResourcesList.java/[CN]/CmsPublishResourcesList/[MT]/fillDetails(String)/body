@@ -1,0 +1,132 @@
+{
+  CmsObject cms;
+  try {
+    cms=OpenCms.initCmsObject(getCms());
+  }
+ catch (  CmsException e) {
+    cms=getCms();
+  }
+  CmsProgressThread thread=null;
+  int progressOffset=0;
+  if (Thread.currentThread() instanceof CmsProgressThread) {
+    thread=(CmsProgressThread)Thread.currentThread();
+    progressOffset=thread.getProgress();
+  }
+  List publishResources=getSettings().getPublishList().getAllResources();
+  List resourceNames=getList().getAllContent();
+  Iterator itResourceNames=resourceNames.iterator();
+  int count=0;
+  while (itResourceNames.hasNext()) {
+    count++;
+    if (thread != null) {
+      if (thread.isInterrupted()) {
+        throw new CmsIllegalStateException(org.opencms.workplace.commons.Messages.get().container(org.opencms.workplace.commons.Messages.ERR_PROGRESS_INTERRUPTED_0));
+      }
+      thread.setProgress((count * 10 / resourceNames.size()) + progressOffset);
+      thread.setDescription(org.opencms.workplace.commons.Messages.get().getBundle(thread.getLocale()).key(org.opencms.workplace.commons.Messages.GUI_PROGRESS_PUBLISH_STEP3_2,new Integer(count),new Integer(resourceNames.size())));
+    }
+    CmsListItem item=(CmsListItem)itResourceNames.next();
+    try {
+      if (detailId.equals(LIST_DETAIL_RELATIONS)) {
+        List relatedResources=new ArrayList();
+        CmsResource resource=getResourceUtil(item).getResource();
+        String rightSite=CmsSiteManager.getSiteRoot(resource.getRootPath());
+        if (rightSite == null) {
+          rightSite="";
+        }
+        String oldSite=cms.getRequestContext().getSiteRoot();
+        try {
+          cms.getRequestContext().setSiteRoot(rightSite);
+          Iterator itRelations=cms.getRelationsForResource(cms.getSitePath(resource),CmsRelationFilter.TARGETS.filterStrong()).iterator();
+          while (itRelations.hasNext()) {
+            CmsRelation relation=(CmsRelation)itRelations.next();
+            CmsResource target=null;
+            try {
+              target=relation.getTarget(cms,CmsResourceFilter.ALL);
+            }
+ catch (            CmsVfsResourceNotFoundException e) {
+            }
+            if ((target != null) && !publishResources.contains(target) && !target.getState().isUnchanged()) {
+              String relationName=target.getRootPath();
+              if (relationName.startsWith(cms.getRequestContext().getSiteRoot())) {
+                relationName=cms.getSitePath(target);
+              }
+ else {
+                String site=CmsSiteManager.getSiteRoot(relationName);
+                String siteName=site;
+                if (site != null) {
+                  relationName=relationName.substring(site.length());
+                  siteName=CmsSiteManager.getSite(site).getTitle();
+                }
+ else {
+                  siteName="/";
+                }
+                relationName=key(Messages.GUI_DELETE_SITE_RELATION_2,new Object[]{siteName,relationName});
+              }
+              relationName=CmsStringUtil.formatResourceName(relationName,50);
+              if (!cms.getLock(target).isLockableBy(cms.getRequestContext().currentUser())) {
+                relationName=relationName + "*";
+              }
+ else               if (m_publishRelated) {
+                relationName=relationName + "!";
+              }
+              if (!resourceNames.contains(relationName)) {
+                relatedResources.add(relationName);
+              }
+            }
+          }
+          if (((Boolean)item.get(LIST_COLUMN_IS_RELATED)).booleanValue()) {
+            itRelations=cms.getRelationsForResource(cms.getSitePath(resource),CmsRelationFilter.SOURCES.filterStrong()).iterator();
+            while (itRelations.hasNext()) {
+              CmsRelation relation=(CmsRelation)itRelations.next();
+              CmsResource source=null;
+              try {
+                source=relation.getSource(cms,CmsResourceFilter.ALL);
+              }
+ catch (              CmsVfsResourceNotFoundException e) {
+              }
+              if ((source != null) && publishResources.contains(source)) {
+                String relationName=source.getRootPath();
+                if (relationName.startsWith(cms.getRequestContext().getSiteRoot())) {
+                  relationName=cms.getSitePath(source);
+                }
+ else {
+                  String site=CmsSiteManager.getSiteRoot(relationName);
+                  String siteName=site;
+                  if (site != null) {
+                    relationName=relationName.substring(site.length());
+                    siteName=CmsSiteManager.getSite(site).getTitle();
+                  }
+ else {
+                    siteName="/";
+                  }
+                  relationName=key(Messages.GUI_DELETE_SITE_RELATION_2,new Object[]{siteName,relationName});
+                }
+                relationName=CmsStringUtil.formatResourceName(relationName,50);
+                relationName=relationName + "$";
+                if (!resourceNames.contains(relationName)) {
+                  relatedResources.add(relationName);
+                }
+              }
+            }
+          }
+        }
+  finally {
+          cms.getRequestContext().setSiteRoot(oldSite);
+        }
+        if (!relatedResources.isEmpty()) {
+          item.set(detailId,relatedResources);
+        }
+      }
+ else {
+        continue;
+      }
+    }
+ catch (    CmsException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+      item.set(detailId,e.getLocalizedMessage());
+    }
+  }
+}

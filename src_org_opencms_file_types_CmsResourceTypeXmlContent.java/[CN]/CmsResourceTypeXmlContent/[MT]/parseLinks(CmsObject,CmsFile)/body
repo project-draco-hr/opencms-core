@@ -1,0 +1,58 @@
+{
+  if (file.getLength() == 0) {
+    return Collections.EMPTY_LIST;
+  }
+  CmsXmlContent xmlContent;
+  long requestTime=cms.getRequestContext().getRequestTime();
+  try {
+    cms.getRequestContext().setRequestTime(CmsResource.DATE_RELEASED_EXPIRED_IGNORE);
+    xmlContent=CmsXmlContentFactory.unmarshal(cms,file);
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(org.opencms.db.Messages.get().getBundle().key(org.opencms.db.Messages.ERR_READ_RESOURCE_1,cms.getSitePath(file)),e);
+    }
+    return Collections.EMPTY_LIST;
+  }
+ finally {
+    cms.getRequestContext().setRequestTime(requestTime);
+  }
+  Set links=new HashSet();
+  List locales=xmlContent.getLocales();
+  Iterator i=locales.iterator();
+  while (i.hasNext()) {
+    Locale locale=(Locale)i.next();
+    List values=xmlContent.getValues(locale);
+    Iterator j=values.iterator();
+    while (j.hasNext()) {
+      I_CmsXmlContentValue value=(I_CmsXmlContentValue)j.next();
+      if (value instanceof CmsXmlHtmlValue) {
+        CmsXmlHtmlValue htmlValue=(CmsXmlHtmlValue)value;
+        CmsLinkTable linkTable=htmlValue.getLinkTable();
+        Iterator k=linkTable.iterator();
+        while (k.hasNext()) {
+          CmsLink link=(CmsLink)k.next();
+          if (link.isInternal()) {
+            link.checkConsistency(cms);
+            links.add(link);
+          }
+        }
+      }
+ else       if (value instanceof CmsXmlVfsFileValue) {
+        CmsXmlVfsFileValue refValue=(CmsXmlVfsFileValue)value;
+        CmsLink link=refValue.getLink(cms);
+        if (link != null) {
+          links.add(link);
+        }
+      }
+ else       if (value instanceof CmsXmlVarLinkValue) {
+        CmsXmlVarLinkValue refValue=(CmsXmlVarLinkValue)value;
+        CmsLink link=refValue.getLink(cms);
+        if ((link != null) && link.isInternal()) {
+          links.add(link);
+        }
+      }
+    }
+  }
+  return new ArrayList(links);
+}

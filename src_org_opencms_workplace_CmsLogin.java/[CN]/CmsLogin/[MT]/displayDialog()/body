@@ -16,6 +16,27 @@
     }
     m_password=CmsRequestUtil.getNotEmptyParameter(getRequest(),PARAM_PASSWORD);
     m_actionLogin=CmsRequestUtil.getNotEmptyParameter(getRequest(),PARAM_ACTION_LOGIN);
+    m_oufqn=getRequest().getParameter(PARAM_OUFQN);
+    if (m_oufqn == null) {
+      m_oufqn=(String)getRequest().getAttribute(PARAM_PREDEF_OUFQN);
+    }
+    getCookieData();
+    if (m_oufqn == null) {
+      m_oufqn=CmsOrganizationalUnit.SEPARATOR;
+    }
+    m_ou=null;
+    try {
+      m_ou=OpenCms.getOrgUnitManager().readOrganizationalUnit(getCmsObject(),m_oufqn);
+    }
+ catch (    CmsException e) {
+      m_oufqn=CmsOrganizationalUnit.SEPARATOR;
+      try {
+        m_ou=OpenCms.getOrgUnitManager().readOrganizationalUnit(getCmsObject(),m_oufqn);
+      }
+ catch (      CmsException exc) {
+        LOG.error(exc.getLocalizedMessage(),exc);
+      }
+    }
   }
  else {
     m_action=ACTION_LOGIN;
@@ -41,7 +62,7 @@
       m_message=Messages.get().container(Messages.GUI_LOGIN_NO_PASSWORD_0);
     }
  else     if ((m_username != null) && (m_password != null)) {
-      login(m_username,m_password);
+      login((m_oufqn == null ? CmsOrganizationalUnit.SEPARATOR : m_oufqn) + m_username,m_password);
       if (getLoginException() == null) {
         m_action=ACTION_LOGIN;
         CmsUserSettings settings=new CmsUserSettings(cms);
@@ -51,15 +72,15 @@
             cms.getRequestContext().setCurrentProject(project);
           }
         }
- catch (        Exception e) {
+ catch (        CmsException e) {
           LOG.warn(Messages.get().getBundle().key(Messages.LOG_LOGIN_NO_STARTUP_PROJECT_2,m_username,settings.getStartProject()),e);
         }
       }
  else {
-        if (org.opencms.security.Messages.ERR_LOGIN_FAILED_DISABLED_3 == getLoginException().getMessageContainer().getKey()) {
+        if (org.opencms.security.Messages.ERR_LOGIN_FAILED_DISABLED_2 == getLoginException().getMessageContainer().getKey()) {
           m_message=Messages.get().container(Messages.GUI_LOGIN_FAILED_DISABLED_0);
         }
- else         if (org.opencms.security.Messages.ERR_LOGIN_FAILED_TEMP_DISABLED_5 == getLoginException().getMessageContainer().getKey()) {
+ else         if (org.opencms.security.Messages.ERR_LOGIN_FAILED_TEMP_DISABLED_4 == getLoginException().getMessageContainer().getKey()) {
           m_message=Messages.get().container(Messages.GUI_LOGIN_FAILED_TEMP_DISABLED_0);
         }
  else         if (org.opencms.security.Messages.ERR_LOGIN_FAILED_WITH_MESSAGE_1 == getLoginException().getMessageContainer().getKey()) {
@@ -106,6 +127,9 @@
       if (session != null) {
         session.invalidate();
       }
+    }
+ else {
+      setCookieData();
     }
   }
   return displayLoginForm();

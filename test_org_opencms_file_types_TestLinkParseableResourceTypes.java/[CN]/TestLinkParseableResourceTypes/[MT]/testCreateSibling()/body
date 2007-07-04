@@ -1,0 +1,29 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing 'createSibling' method");
+  String sourceName="/index.html";
+  CmsResource source=cms.readResource(sourceName);
+  String targetName="/folder1/image2.gif";
+  CmsResource target=cms.readResource(targetName);
+  List relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  int sources=cms.getRelationsForResource(targetName,CmsRelationFilter.SOURCES).size();
+  String siblingName="/index_sibling.html";
+  cms.lockResource(sourceName);
+  cms.createSibling(sourceName,siblingName,null);
+  CmsResource sibling=cms.readResource(siblingName);
+  assertRelationOperation(cms,source,target,sources + 1,1);
+  assertRelationOperation(cms,sibling,target,sources + 1,1);
+  CmsProject project=cms.getRequestContext().currentProject();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  sources=cms.getRelationsForResource(targetName,CmsRelationFilter.SOURCES).size();
+  cms.getRequestContext().setCurrentProject(project);
+  cms.unlockResource(siblingName);
+  OpenCms.getPublishManager().publishResource(cms,siblingName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  assertRelationOperation(cms,source,target,sources + 1,1);
+  assertRelationOperation(cms,sibling,target,sources + 1,1);
+}

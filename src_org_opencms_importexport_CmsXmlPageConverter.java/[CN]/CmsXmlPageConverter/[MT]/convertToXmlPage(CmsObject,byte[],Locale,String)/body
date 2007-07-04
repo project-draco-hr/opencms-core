@@ -2,7 +2,7 @@
   CmsXmlPage xmlPage=null;
   Document page=CmsXmlUtils.unmarshalHelper(content,null);
   Element xmltemplate=page.getRootElement();
-  if (xmltemplate == null || !"XMLTEMPLATE".equals(xmltemplate.getName())) {
+  if ((xmltemplate == null) || !"XMLTEMPLATE".equals(xmltemplate.getName())) {
     throw new CmsImportExportException(Messages.get().container(Messages.ERR_NOT_FOUND_ELEM_XMLTEMPLATE_0));
   }
   Iterator i=xmltemplate.elementIterator("edittemplate");
@@ -23,30 +23,28 @@
       bodyContent=currentTemplate.getText();
     }
  else {
-      if (currentTemplate != null) {
-        StringBuffer contentBuffer=new StringBuffer();
-        for (Iterator k=currentTemplate.nodeIterator(); k.hasNext(); ) {
-          Node n=(Node)k.next();
-          if (n.getNodeType() == Node.CDATA_SECTION_NODE) {
+      StringBuffer contentBuffer=new StringBuffer();
+      for (Iterator k=currentTemplate.nodeIterator(); k.hasNext(); ) {
+        Node n=(Node)k.next();
+        if (n.getNodeType() == Node.CDATA_SECTION_NODE) {
+          contentBuffer.append(n.getText());
+          continue;
+        }
+ else         if (n.getNodeType() == Node.ELEMENT_NODE) {
+          if ("LINK".equals(n.getName())) {
+            contentBuffer.append(OpenCms.getSystemInfo().getOpenCmsContext());
             contentBuffer.append(n.getText());
             continue;
           }
- else           if (n.getNodeType() == Node.ELEMENT_NODE) {
-            if ("LINK".equals(n.getName())) {
-              contentBuffer.append(OpenCms.getSystemInfo().getOpenCmsContext());
-              contentBuffer.append(n.getText());
-              continue;
-            }
-          }
         }
-        bodyContent=contentBuffer.toString();
       }
+      bodyContent=contentBuffer.toString();
     }
     if (bodyContent == null) {
       throw new CmsImportExportException(Messages.get().container(Messages.ERR_BODY_CONTENT_NOT_FOUND_0));
     }
     bodyContent=CmsStringUtil.substitute(bodyContent,CmsStringUtil.MACRO_OPENCMS_CONTEXT,OpenCms.getSystemInfo().getOpenCmsContext());
-    if (!"".equals(bodyContent.trim())) {
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(bodyContent)) {
       xmlPage.addValue(bodyName,locale);
       xmlPage.setStringValue(cms,bodyName,locale,bodyContent);
     }

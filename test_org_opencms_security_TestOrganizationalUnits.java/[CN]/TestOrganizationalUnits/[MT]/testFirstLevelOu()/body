@@ -1,0 +1,157 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing handling with a first level ou");
+  CmsOrganizationalUnit rootOu=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,"");
+  cms.addUserToGroup("test1","Administrators");
+  cms.loginUser("test1","test1");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.lockResource("/system/");
+  cms.loginUser("Admin","admin");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  CmsOrganizationalUnit ou=OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,"test/","my test ou",0,"");
+  CmsProject defProj=cms.readProject(ou.getName() + "Offline");
+  assertEquals(0,ou.getFlags());
+  assertEquals("",ou.getParentFqn());
+  assertEquals("my test ou",ou.getDescription());
+  assertEquals("test/",ou.getName());
+  assertEquals(cms.readFolder("/system/orgunits/test").getStructureId(),ou.getId());
+  assertEquals(defProj.getUuid(),ou.getProjectId());
+  List ouResources=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou.getName());
+  assertEquals(1,ouResources.size());
+  assertTrue(ouResources.contains(cms.readResource("/")));
+  List projRes=cms.readProjectResources(defProj);
+  assertEquals(ouResources.size(),projRes.size());
+  for (int i=0; i < projRes.size(); i++) {
+    assertTrue(projRes.contains(((CmsResource)ouResources.get(i)).getRootPath()));
+    assertTrue(ouResources.contains(cms.readResource(cms.getRequestContext().removeSiteRoot((String)projRes.get(i)))));
+  }
+  List rootOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),false);
+  assertEquals(1,rootOus.size());
+  assertTrue(rootOus.contains(ou));
+  List ouOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,ou.getName(),false);
+  assertTrue(ouOus.isEmpty());
+  List rootSubOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),true);
+  assertEquals(1,rootSubOus.size());
+  assertTrue(rootSubOus.contains(ou));
+  List ouSubOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,ou.getName(),true);
+  assertTrue(ouSubOus.isEmpty());
+  ou.setDescription("new ou description");
+  ou.setFlags(123);
+  OpenCms.getOrgUnitManager().writeOrganizationalUnit(cms,ou);
+  ou=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,ou.getName());
+  assertEquals(123,ou.getFlags());
+  assertEquals("",ou.getParentFqn());
+  assertEquals("new ou description",ou.getDescription());
+  assertEquals("test/",ou.getName());
+  assertEquals(cms.readFolder("/system/orgunits/test").getStructureId(),ou.getId());
+  assertTrue(cms.readFolder("/system/orgunits/test").isInternal());
+  assertEquals(defProj.getUuid(),ou.getProjectId());
+  ou.setFlags(0);
+  OpenCms.getOrgUnitManager().writeOrganizationalUnit(cms,ou);
+  ou=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,ou.getName());
+  assertEquals(0,ou.getFlags());
+  assertTrue(cms.readFolder("/system/orgunits/test").isInternal());
+  CmsOrganizationalUnit ou2=OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,"test2/","my test ou2 in the root",0,"");
+  CmsProject defProj2=cms.readProject(ou2.getName() + "Offline");
+  assertEquals(0,ou2.getFlags());
+  assertEquals("",ou2.getParentFqn());
+  assertEquals("my test ou2 in the root",ou2.getDescription());
+  assertEquals("test2/",ou2.getName());
+  assertEquals(cms.readFolder("/system/orgunits/test2").getStructureId(),ou2.getId());
+  assertEquals(defProj2.getUuid(),ou2.getProjectId());
+  List ou2Resources=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName());
+  assertEquals(1,ou2Resources.size());
+  assertTrue(ou2Resources.contains(cms.readResource("/")));
+  List projRes2=cms.readProjectResources(defProj2);
+  assertEquals(ou2Resources.size(),projRes2.size());
+  for (int i=0; i < projRes2.size(); i++) {
+    assertTrue(projRes2.contains(((CmsResource)ou2Resources.get(i)).getRootPath()));
+    assertTrue(ou2Resources.contains(cms.readResource(cms.getRequestContext().removeSiteRoot((String)projRes2.get(i)))));
+  }
+  rootOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),false);
+  assertEquals(2,rootOus.size());
+  assertTrue(rootOus.contains(ou));
+  assertTrue(rootOus.contains(ou2));
+  List ou2Ous=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,ou2.getName(),false);
+  assertTrue(ou2Ous.isEmpty());
+  rootSubOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),true);
+  assertEquals(2,rootSubOus.size());
+  assertTrue(rootSubOus.contains(ou));
+  assertTrue(rootSubOus.contains(ou2));
+  List ou2SubOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,ou2.getName(),true);
+  assertTrue(ou2SubOus.isEmpty());
+  OpenCms.getOrgUnitManager().deleteOrganizationalUnit(cms,ou2.getName());
+  try {
+    OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,ou2.getName());
+    fail("it should not be possible to read the deleted ou");
+  }
+ catch (  CmsDataAccessException e) {
+  }
+  try {
+    cms.readProject(defProj2.getUuid());
+    fail("it should not be possible to read the default project of a deleted ou");
+  }
+ catch (  CmsDataAccessException e) {
+  }
+  try {
+    cms.readProject(defProj2.getName());
+    fail("it should not be possible to read the default project of a deleted ou");
+  }
+ catch (  CmsDataAccessException e) {
+  }
+  rootOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),false);
+  assertEquals(1,rootOus.size());
+  assertTrue(rootOus.contains(ou));
+  ouOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,ou.getName(),false);
+  assertTrue(ouOus.isEmpty());
+  rootSubOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),true);
+  assertEquals(1,rootSubOus.size());
+  assertTrue(rootSubOus.contains(ou));
+  List ouSubous=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,ou.getName(),true);
+  assertTrue(ouSubous.isEmpty());
+  List groups=OpenCms.getOrgUnitManager().getGroups(cms,ou.getName(),false);
+  assertEquals(1,groups.size());
+  assertTrue(groups.contains(cms.readGroup(ou.getName() + OpenCms.getDefaultUsers().getGroupUsers())));
+  groups=OpenCms.getOrgUnitManager().getGroups(cms,ou.getName(),true);
+  assertEquals(1,groups.size());
+  assertTrue(groups.contains(cms.readGroup(ou.getName() + OpenCms.getDefaultUsers().getGroupUsers())));
+  assertTrue(OpenCms.getOrgUnitManager().getUsers(cms,ou.getName(),false).isEmpty());
+  assertTrue(OpenCms.getOrgUnitManager().getUsers(cms,ou.getName(),true).isEmpty());
+  List rootGroups=OpenCms.getOrgUnitManager().getGroups(cms,rootOu.getName(),false);
+  assertEquals(7,rootGroups.size());
+  assertTrue(rootGroups.contains(cms.readGroup(OpenCms.getDefaultUsers().getGroupAdministrators())));
+  assertTrue(rootGroups.contains(cms.readGroup(OpenCms.getDefaultUsers().getGroupProjectmanagers())));
+  assertTrue(rootGroups.contains(cms.readGroup(OpenCms.getDefaultUsers().getGroupUsers())));
+  assertTrue(rootGroups.contains(cms.readGroup(OpenCms.getDefaultUsers().getGroupGuests())));
+  assertTrue(rootGroups.contains(cms.readGroup("group1")));
+  assertTrue(rootGroups.contains(cms.readGroup("group2")));
+  assertTrue(rootGroups.contains(cms.readGroup("group3")));
+  List rootSubGroups=OpenCms.getOrgUnitManager().getGroups(cms,rootOu.getName(),true);
+  assertEquals(8,rootSubGroups.size());
+  assertTrue(rootSubGroups.contains(cms.readGroup(OpenCms.getDefaultUsers().getGroupAdministrators())));
+  assertTrue(rootSubGroups.contains(cms.readGroup(OpenCms.getDefaultUsers().getGroupProjectmanagers())));
+  assertTrue(rootSubGroups.contains(cms.readGroup(OpenCms.getDefaultUsers().getGroupUsers())));
+  assertTrue(rootSubGroups.contains(cms.readGroup(OpenCms.getDefaultUsers().getGroupGuests())));
+  assertTrue(rootSubGroups.contains(cms.readGroup("group1")));
+  assertTrue(rootSubGroups.contains(cms.readGroup("group2")));
+  assertTrue(rootSubGroups.contains(cms.readGroup("group3")));
+  assertTrue(rootSubGroups.contains(cms.readGroup(ou.getName() + OpenCms.getDefaultUsers().getGroupUsers())));
+  List rootUsers=OpenCms.getOrgUnitManager().getUsers(cms,rootOu.getName(),false);
+  assertEquals(5,rootUsers.size());
+  assertTrue(rootUsers.contains(cms.readUser(OpenCms.getDefaultUsers().getUserAdmin())));
+  assertTrue(rootUsers.contains(cms.readUser(OpenCms.getDefaultUsers().getUserExport())));
+  assertTrue(rootUsers.contains(cms.readUser(OpenCms.getDefaultUsers().getUserGuest())));
+  assertTrue(rootUsers.contains(cms.readUser("test1")));
+  assertTrue(rootUsers.contains(cms.readUser("test2")));
+  List rootSubUsers=OpenCms.getOrgUnitManager().getUsers(cms,rootOu.getName(),true);
+  assertEquals(5,rootSubUsers.size());
+  assertTrue(rootSubUsers.contains(cms.readUser(OpenCms.getDefaultUsers().getUserAdmin())));
+  assertTrue(rootSubUsers.contains(cms.readUser(OpenCms.getDefaultUsers().getUserExport())));
+  assertTrue(rootSubUsers.contains(cms.readUser(OpenCms.getDefaultUsers().getUserGuest())));
+  assertTrue(rootSubUsers.contains(cms.readUser("test1")));
+  assertTrue(rootSubUsers.contains(cms.readUser("test2")));
+  cms.removeUserFromGroup("test1","Administrators");
+  assertLock(cms,"/system/",CmsLockType.EXCLUSIVE,cms.readUser("test1"));
+  cms.changeLock("/system/");
+  cms.unlockResource("/system/");
+}

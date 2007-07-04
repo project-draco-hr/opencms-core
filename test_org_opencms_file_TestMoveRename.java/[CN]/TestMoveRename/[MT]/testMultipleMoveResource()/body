@@ -1,30 +1,34 @@
 {
   CmsObject cms=getCmsObject();
   echo("Testing multiple move of a resource");
-  cms.getRequestContext().setSiteRoot("/");
-  String source="/sites/default/folder1/page1.html";
-  String destination1="/sites/default/folder1/page1_move.html";
+  String source="/folder1/page1.html";
+  String destination1="/folder1/page1_move.html";
   String destination2="/page1_move.html";
   storeResources(cms,source);
   cms.lockResource(source);
   cms.moveResource(source,destination1);
+  assertFalse(cms.getLockedResources("/folder1",CmsLockFilter.FILTER_ALL).contains(source));
   cms.moveResource(destination1,destination2);
-  assertProject(cms,source,cms.getRequestContext().currentProject());
-  assertState(cms,source,CmsResource.STATE_DELETED);
-  assertLock(cms,source,CmsLock.TYPE_SHARED_EXCLUSIVE);
-  assertPropertyNew(cms,source,new CmsProperty(CmsPropertyDefinition.PROPERTY_INTERNAL,String.valueOf(cms.getRequestContext().currentProject().getId()),null));
-  assertSiblingCountIncremented(cms,source,1);
-  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_MOVE_SOURCE);
+  assertFalse(cms.getLockedResources("/folder1",CmsLockFilter.FILTER_ALL).contains(destination1));
+  try {
+    cms.readResource(source,CmsResourceFilter.ALL);
+    fail("source resource still there");
+  }
+ catch (  CmsException e) {
+  }
+  try {
+    cms.readResource(destination1,CmsResourceFilter.ALL);
+    fail("source resource still there");
+  }
+ catch (  CmsException e) {
+  }
   assertProject(cms,destination2,cms.getRequestContext().currentProject());
-  assertState(cms,destination2,CmsResource.STATE_NEW);
-  assertLock(cms,destination2,CmsLock.TYPE_EXCLUSIVE);
+  assertState(cms,destination2,CmsResource.STATE_CHANGED);
+  assertLock(cms,destination2,CmsLockType.EXCLUSIVE);
   setMapping(destination2,source);
-  assertSiblingCountIncremented(cms,destination2,1);
   assertFilter(cms,destination2,OpenCmsTestResourceFilter.FILTER_MOVE_DESTINATION);
   resetMapping();
-  cms.changeLock(source);
-  assertLock(cms,source,CmsLock.TYPE_EXCLUSIVE);
-  assertLock(cms,destination2,CmsLock.TYPE_SHARED_EXCLUSIVE);
-  cms.undoChanges(source,false);
-  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_EXISTING_SIBLING);
+  cms.undoChanges(destination2,CmsResource.UNDO_MOVE_CONTENT);
+  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_UNDOCHANGES_ALL);
+  assertFalse(cms.getLockedResources("/",CmsLockFilter.FILTER_ALL).contains(destination2));
 }

@@ -1,0 +1,74 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the import of linked XmlPages in a different site, so that the link paths get broken.");
+  String filename1="xmlpage1.html";
+  String filename2="xmlpage2.html";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportExportBrokenLinks.zip");
+  String storedSiteRoot=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.getRequestContext().setSiteRoot("/sites/default/");
+    CmsResource res1=cms.createResource(filename1,CmsResourceTypeXmlPage.getStaticTypeId());
+    CmsResource res2=cms.createResource(filename2,CmsResourceTypeXmlPage.getStaticTypeId());
+    CmsFile file2=CmsFile.upgrade(res2,cms);
+    CmsXmlPage page2=CmsXmlPageFactory.unmarshal(cms,file2,true);
+    page2.addValue("test",Locale.ENGLISH);
+    page2.setStringValue(cms,"test",Locale.ENGLISH,"<a href='" + filename1 + "'>test</a>");
+    file2.setContents(page2.marshal());
+    cms.writeFile(file2);
+    CmsFile file1=CmsFile.upgrade(res1,cms);
+    CmsXmlPage page1=CmsXmlPageFactory.unmarshal(cms,file1,true);
+    page1.addValue("test",Locale.ENGLISH);
+    page1.setStringValue(cms,"test",Locale.ENGLISH,"<a href='" + filename2 + "'>test</a>");
+    file1.setContents(page1.marshal());
+    cms.writeFile(file1);
+    cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+    OpenCms.getPublishManager().publishProject(cms);
+    OpenCms.getPublishManager().waitWhileRunning();
+    CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+    vfsExportHandler.setFileName(zipExportFilename);
+    List exportPaths=new ArrayList(1);
+    exportPaths.add(filename1);
+    exportPaths.add(filename2);
+    vfsExportHandler.setExportPaths(exportPaths);
+    vfsExportHandler.setIncludeSystem(false);
+    vfsExportHandler.setIncludeUnchanged(true);
+    vfsExportHandler.setExportUserdata(false);
+    OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.lockResource(filename1);
+    cms.lockResource(filename2);
+    cms.deleteResource(filename1,CmsResource.DELETE_REMOVE_SIBLINGS);
+    cms.deleteResource(filename2,CmsResource.DELETE_REMOVE_SIBLINGS);
+    cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+    OpenCms.getPublishManager().publishProject(cms);
+    OpenCms.getPublishManager().waitWhileRunning();
+  }
+  finally {
+    cms.getRequestContext().setSiteRoot(storedSiteRoot);
+  }
+  try {
+    cms.getRequestContext().setSiteRoot("/");
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(CmsResourceTypeXmlPage.getStaticTypeId());
+    I_CmsLinkParseable validatable=(I_CmsLinkParseable)type;
+    CmsFile res1=cms.readFile(filename1);
+    List links1=validatable.parseLinks(cms,res1);
+    assertEquals(links1.size(),1);
+    assertEquals(links1.get(0).toString(),cms.getRequestContext().addSiteRoot(filename2));
+    CmsFile res2=cms.readFile(filename2);
+    List links2=validatable.parseLinks(cms,res2);
+    assertEquals(links2.size(),1);
+    assertEquals(links2.get(0).toString(),cms.getRequestContext().addSiteRoot(filename1));
+  }
+  finally {
+    try {
+      if (zipExportFilename != null) {
+        File file=new File(zipExportFilename);
+        if (file.exists()) {
+          file.delete();
+        }
+      }
+    }
+ catch (    Throwable t) {
+    }
+  }
+}

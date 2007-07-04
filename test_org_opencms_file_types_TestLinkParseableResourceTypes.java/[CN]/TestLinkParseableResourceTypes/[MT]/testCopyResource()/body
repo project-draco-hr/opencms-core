@@ -1,0 +1,29 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing 'copyResource' method");
+  String sourceName="/index.html";
+  CmsResource source=cms.readResource(sourceName);
+  String targetName="/folder1/image2.gif";
+  CmsResource target=cms.readResource(targetName);
+  List relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  int sources=cms.getRelationsForResource(targetName,CmsRelationFilter.SOURCES).size();
+  String copyName="/index_copy.html";
+  cms.lockResource(sourceName);
+  cms.copyResource(sourceName,copyName);
+  CmsResource copy=cms.readResource(copyName);
+  assertRelationOperation(cms,source,target,sources + 1,1);
+  assertRelationOperation(cms,copy,target,sources + 1,1);
+  CmsProject project=cms.getRequestContext().currentProject();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  sources=cms.getRelationsForResource(targetName,CmsRelationFilter.SOURCES).size();
+  cms.getRequestContext().setCurrentProject(project);
+  cms.unlockResource(copyName);
+  OpenCms.getPublishManager().publishResource(cms,copyName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  assertRelationOperation(cms,source,target,sources + 1,1);
+  assertRelationOperation(cms,copy,target,sources + 1,1);
+}

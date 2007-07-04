@@ -1,0 +1,37 @@
+{
+  CmsObject cms=getCmsObject();
+  String source="/folder1/page1.html";
+  String sibling="/folder1/sibling1.html";
+  echo("testing the publishing of structure/shared properties");
+  storeResources(cms,source);
+  storeResources(cms,sibling);
+  cms.lockResource(sibling);
+  cms.writePropertyObject(sibling,new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"test2",null));
+  cms.unlockResource(sibling);
+  assertFilter(cms,sibling,OpenCmsTestResourceFilter.FILTER_WRITEPROPERTY);
+  cms.lockResource(source);
+  cms.writePropertyObject(source,new CmsProperty(CmsPropertyDefinition.PROPERTY_NAVTEXT,null,"test3"));
+  cms.unlockResource(source);
+  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_WRITEPROPERTY);
+  storeResources(cms,source);
+  storeResources(cms,sibling);
+  List pubList=OpenCms.getPublishManager().getPublishList(cms).getFileList();
+  assertEquals(pubList.size(),2);
+  assertEquals(((CmsResource)pubList.get(0)).getRootPath(),cms.getRequestContext().addSiteRoot(source));
+  assertEquals(((CmsResource)pubList.get(1)).getRootPath(),cms.getRequestContext().addSiteRoot(sibling));
+  assertFilter(cms,cms.readResource(source),OpenCmsTestResourceFilter.FILTER_EQUAL);
+  assertFilter(cms,cms.readResource(sibling),OpenCmsTestResourceFilter.FILTER_EQUAL);
+  OpenCms.getPublishManager().publishResource(cms,source);
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_PUBLISHRESOURCE);
+  assertFilter(cms,sibling,OpenCmsTestResourceFilter.FILTER_EQUAL);
+  storeResources(cms,source);
+  pubList=OpenCms.getPublishManager().getPublishList(cms).getFileList();
+  assertEquals(pubList.size(),1);
+  assertEquals(((CmsResource)pubList.get(0)).getRootPath(),cms.getRequestContext().addSiteRoot(sibling));
+  assertFilter(cms,cms.readResource(sibling),OpenCmsTestResourceFilter.FILTER_EQUAL);
+  OpenCms.getPublishManager().publishResource(cms,sibling);
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertFilter(cms,sibling,OpenCmsTestResourceFilter.FILTER_PUBLISHRESOURCE);
+  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_EQUAL);
+}

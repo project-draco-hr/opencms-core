@@ -1,0 +1,36 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the move to lost and found folder operation");
+  String filename="/file.txt";
+  String link="link.html";
+  CmsResource res=cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId());
+  CmsResource res1=cms.createResource(link,CmsResourceTypeXmlPage.getStaticTypeId());
+  CmsFile file=CmsFile.upgrade(res1,cms);
+  CmsXmlPage page=CmsXmlPageFactory.unmarshal(cms,file,true);
+  if (!page.hasValue("test",Locale.ENGLISH)) {
+    page.addValue("test",Locale.ENGLISH);
+  }
+  page.setStringValue(cms,"test",Locale.ENGLISH,"<a href='file.txt'>file</a>");
+  file.setContents(page.marshal());
+  cms.lockResource(link);
+  cms.writeFile(file);
+  cms.unlockResource(filename);
+  OpenCms.getPublishManager().publishResource(cms,filename);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.lockResource(filename);
+  String newName=cms.moveToLostAndFound(filename);
+  CmsResource newRes=cms.readResource(newName);
+  CmsResource oldRes=cms.readResource(filename,CmsResourceFilter.ALL);
+  assertSiblingCount(cms,newName,2);
+  assertState(cms,newName,CmsResource.STATE_NEW);
+  assertNotSame(res.getStructureId(),newRes.getStructureId());
+  assertEquals(res.getStructureId(),oldRes.getStructureId());
+  assertSiblingCount(cms,filename,2);
+  assertState(cms,filename,CmsResource.STATE_DELETED);
+  cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId());
+  file=CmsFile.upgrade(res1,cms);
+  page=CmsXmlPageFactory.unmarshal(cms,file,true);
+  CmsLinkTable links=page.getLinkTable("test",Locale.ENGLISH);
+  assertEquals(links.size(),1);
+  assertEquals(links.getLink("link0").getVfsUri(),filename);
+}

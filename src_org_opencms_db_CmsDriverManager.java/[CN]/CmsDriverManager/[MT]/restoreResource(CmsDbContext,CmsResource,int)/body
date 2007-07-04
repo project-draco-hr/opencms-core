@@ -1,20 +1,34 @@
 {
-  int state=CmsResource.STATE_CHANGED;
-  CmsBackupResource backupFile=readBackupFile(dbc,tag,resource);
-  if (resource.getState() == CmsResource.STATE_NEW) {
+  I_CmsHistoryResource historyResource=readResource(dbc,resource,version);
+  CmsResourceState state=CmsResource.STATE_CHANGED;
+  if (resource.getState().isNew()) {
     state=CmsResource.STATE_NEW;
   }
-  if (backupFile != null) {
-    int flags=backupFile.getFlags();
+  int newVersion=resource.getVersion();
+  if (resource.getState().isUnchanged()) {
+    newVersion++;
+  }
+  CmsResource newResource=null;
+  if (historyResource instanceof CmsFile) {
+    int flags=historyResource.getFlags();
     if (resource.isLabeled()) {
       flags|=CmsResource.FLAG_LABELED;
     }
-    CmsFile newFile=new CmsFile(resource.getStructureId(),resource.getResourceId(),backupFile.getContentId(),resource.getRootPath(),backupFile.getTypeId(),flags,dbc.currentProject().getId(),state,resource.getDateCreated(),backupFile.getUserCreated(),resource.getDateLastModified(),dbc.currentUser().getId(),backupFile.getDateReleased(),backupFile.getDateExpired(),backupFile.getSiblingCount(),backupFile.getLength(),backupFile.getContents());
-    writeFile(dbc,newFile);
-    List backupProperties=m_backupDriver.readBackupProperties(dbc,backupFile);
-    deleteAllProperties(dbc,newFile.getRootPath());
-    writePropertyObjects(dbc,newFile,backupProperties);
+    CmsFile newFile=new CmsFile(resource.getStructureId(),resource.getResourceId(),resource.getRootPath(),historyResource.getTypeId(),flags,dbc.currentProject().getUuid(),state,resource.getDateCreated(),historyResource.getUserCreated(),resource.getDateLastModified(),dbc.currentUser().getId(),historyResource.getDateReleased(),historyResource.getDateExpired(),resource.getSiblingCount(),historyResource.getLength(),historyResource.getDateContent(),newVersion,readFile(dbc,(CmsHistoryFile)historyResource).getContents());
+    newResource=writeFile(dbc,newFile);
+  }
+ else {
+    newResource=new CmsFolder(resource.getStructureId(),resource.getResourceId(),resource.getRootPath(),historyResource.getTypeId(),historyResource.getFlags(),dbc.currentProject().getUuid(),state,resource.getDateCreated(),historyResource.getUserCreated(),resource.getDateLastModified(),dbc.currentUser().getId(),historyResource.getDateReleased(),historyResource.getDateExpired(),newVersion);
+    writeResource(dbc,newResource);
+  }
+  if (newResource != null) {
+    List historyProperties=m_historyDriver.readProperties(dbc,historyResource);
+    deleteAllProperties(dbc,newResource.getRootPath());
+    writePropertyObjects(dbc,newResource,historyProperties,false);
     clearResourceCache();
   }
-  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_MODIFIED,Collections.singletonMap("resource",resource)));
+  HashMap data=new HashMap(2);
+  data.put("resource",resource);
+  data.put("change",new Integer(CHANGED_RESOURCE | CHANGED_CONTENT));
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_MODIFIED,data));
 }

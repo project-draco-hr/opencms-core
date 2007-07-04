@@ -1,0 +1,47 @@
+{
+  String path=((moveUndone || (offlineResource == null)) ? onlineResource.getRootPath() : offlineResource.getRootPath());
+  if (onlineResource.isFolder()) {
+    CmsFolder restoredFolder=new CmsFolder(onlineResource.getStructureId(),onlineResource.getResourceId(),path,onlineResource.getTypeId(),onlineResource.getFlags(),dbc.currentProject().getUuid(),newState,onlineResource.getDateCreated(),onlineResource.getUserCreated(),onlineResource.getDateLastModified(),onlineResource.getUserLastModified(),onlineResource.getDateReleased(),onlineResource.getDateExpired(),onlineResource.getVersion());
+    restoredFolder.setDateLastModified(onlineResource.getDateLastModified());
+    m_vfsDriver.writeResource(dbc,dbc.currentProject().getUuid(),restoredFolder,NOTHING_CHANGED);
+    m_vfsDriver.deletePropertyObjects(dbc,dbc.currentProject().getUuid(),restoredFolder,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+    List propertyInfos=m_vfsDriver.readPropertyObjects(dbc,onlineProject,onlineResource);
+    m_vfsDriver.writePropertyObjects(dbc,dbc.currentProject(),restoredFolder,propertyInfos);
+    m_userDriver.removeAccessControlEntries(dbc,dbc.currentProject(),onlineResource.getResourceId());
+    ListIterator aceList=m_userDriver.readAccessControlEntries(dbc,onlineProject,onlineResource.getResourceId(),false).listIterator();
+    while (aceList.hasNext()) {
+      CmsAccessControlEntry ace=(CmsAccessControlEntry)aceList.next();
+      m_userDriver.createAccessControlEntry(dbc,dbc.currentProject(),onlineResource.getResourceId(),ace.getPrincipal(),ace.getPermissions().getAllowedPermissions(),ace.getPermissions().getDeniedPermissions(),ace.getFlags());
+    }
+  }
+ else {
+    byte[] onlineContent=m_vfsDriver.readContent(dbc,CmsProject.ONLINE_PROJECT_ID,onlineResource.getResourceId());
+    CmsFile restoredFile=new CmsFile(onlineResource.getStructureId(),onlineResource.getResourceId(),path,onlineResource.getTypeId(),onlineResource.getFlags(),dbc.currentProject().getUuid(),newState,onlineResource.getDateCreated(),onlineResource.getUserCreated(),onlineResource.getDateLastModified(),onlineResource.getUserLastModified(),onlineResource.getDateReleased(),onlineResource.getDateExpired(),0,onlineResource.getLength(),onlineResource.getDateContent(),onlineResource.getVersion(),onlineContent);
+    restoredFile.setDateLastModified(onlineResource.getDateLastModified());
+    List properties=m_vfsDriver.readPropertyObjects(dbc,onlineProject,onlineResource);
+    if (offlineResource != null) {
+      m_vfsDriver.deletePropertyObjects(dbc,dbc.currentProject().getUuid(),onlineResource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+      deleteResource(dbc,offlineResource,CmsResource.DELETE_PRESERVE_SIBLINGS);
+    }
+    CmsResource res=createResource(dbc,restoredFile.getRootPath(),restoredFile,restoredFile.getContents(),properties,false);
+    if (offlineResource != null) {
+      m_userDriver.removeAccessControlEntries(dbc,dbc.currentProject(),onlineResource.getResourceId());
+    }
+    ListIterator aceList=m_userDriver.readAccessControlEntries(dbc,onlineProject,onlineResource.getResourceId(),false).listIterator();
+    while (aceList.hasNext()) {
+      CmsAccessControlEntry ace=(CmsAccessControlEntry)aceList.next();
+      m_userDriver.createAccessControlEntry(dbc,dbc.currentProject(),res.getResourceId(),ace.getPrincipal(),ace.getPermissions().getAllowedPermissions(),ace.getPermissions().getDeniedPermissions(),ace.getFlags());
+    }
+    res.setState(newState);
+    m_vfsDriver.writeResourceState(dbc,dbc.currentProject(),res,UPDATE_ALL,false);
+  }
+  clearResourceCache();
+  OpenCms.getMemoryMonitor().flushProperties();
+  OpenCms.getMemoryMonitor().flushPropertyLists();
+  if (offlineResource != null) {
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",offlineResource)));
+  }
+ else {
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",onlineResource)));
+  }
+}

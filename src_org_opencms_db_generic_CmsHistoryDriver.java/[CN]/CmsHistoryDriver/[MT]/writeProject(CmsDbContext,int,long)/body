@@ -1,0 +1,40 @@
+{
+  CmsProject currentProject=dbc.currentProject();
+  CmsUser currentUser=dbc.currentUser();
+  List projectresources=m_driverManager.getProjectDriver().readProjectResources(dbc,currentProject);
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_PROJECTS_HISTORY_CREATE");
+    stmt.setInt(1,publishTag);
+    stmt.setString(2,currentProject.getUuid().toString());
+    stmt.setString(3,currentProject.getSimpleName());
+    stmt.setLong(4,publishDate);
+    stmt.setString(5,currentUser.getId().toString());
+    stmt.setString(6,currentProject.getOwnerId().toString());
+    stmt.setString(7,currentProject.getGroupId().toString());
+    stmt.setString(8,currentProject.getManagerGroupId().toString());
+    stmt.setString(9,currentProject.getDescription());
+    stmt.setLong(10,currentProject.getDateCreated());
+    stmt.setInt(11,currentProject.getType().getMode());
+    stmt.setString(12,CmsOrganizationalUnit.SEPARATOR + currentProject.getOuFqn());
+    stmt.executeUpdate();
+    m_sqlManager.closeAll(dbc,null,stmt,null);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_PROJECTRESOURCES_HISTORY_CREATE");
+    Iterator i=projectresources.iterator();
+    while (i.hasNext()) {
+      stmt.setInt(1,publishTag);
+      stmt.setString(2,currentProject.getUuid().toString());
+      stmt.setString(3,(String)i.next());
+      stmt.executeUpdate();
+      stmt.clearParameters();
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,null);
+  }
+}

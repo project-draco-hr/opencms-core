@@ -8,7 +8,11 @@
   if (m_jspPageContext != null) {
     if (macro.startsWith(CmsMacroResolver.KEY_REQUEST_PARAM)) {
       macro=macro.substring(CmsMacroResolver.KEY_REQUEST_PARAM.length());
-      return m_jspPageContext.getRequest().getParameter(macro);
+      String result=m_jspPageContext.getRequest().getParameter(macro);
+      if (result == null && macro.equals(KEY_PROJECT_ID)) {
+        result=m_cms.getRequestContext().currentProject().getUuid().toString();
+      }
+      return result;
     }
     if (macro.startsWith(CmsMacroResolver.KEY_PAGE_CONTEXT)) {
       macro=macro.substring(CmsMacroResolver.KEY_PAGE_CONTEXT.length());
@@ -46,6 +50,15 @@
           LOG.warn(message.key(),e);
         }
       }
+      return null;
+    }
+    if (macro.startsWith(CmsMacroResolver.KEY_ATTRIBUTE)) {
+      macro=macro.substring(CmsMacroResolver.KEY_ATTRIBUTE.length());
+      Object attribute=m_cms.getRequestContext().getAttribute(macro);
+      if (attribute != null) {
+        return attribute.toString();
+      }
+      return null;
     }
     if (macro.startsWith(CmsMacroResolver.KEY_OPENCMS)) {
       String originalKey=macro;
@@ -65,6 +78,9 @@ break;
 case 3:
 value=OpenCms.getSystemInfo().getDefaultEncoding();
 break;
+case 4:
+value=m_cms.getRequestContext().getRemoteAddress();
+break;
 default :
 value=originalKey;
 break;
@@ -79,6 +95,34 @@ return m_cms.getRequestContext().currentUser().getFirstname();
 }
 if (CmsMacroResolver.KEY_CURRENT_USER_LASTNAME.equals(macro)) {
 return m_cms.getRequestContext().currentUser().getLastname();
+}
+if (CmsMacroResolver.KEY_CURRENT_USER_DISPLAYNAME.equals(macro)) {
+try {
+if (m_messages != null) {
+return m_cms.getRequestContext().currentUser().getDisplayName(m_cms,m_messages.getLocale());
+}
+ else {
+return m_cms.getRequestContext().currentUser().getDisplayName(m_cms,m_cms.getRequestContext().getLocale());
+}
+}
+ catch (CmsException e) {
+}
+}
+if (CmsMacroResolver.KEY_CURRENT_ORGUNIT_FQN.equals(macro)) {
+return m_cms.getRequestContext().getOuFqn();
+}
+if (CmsMacroResolver.KEY_CURRENT_ORGUNIT_DESCRIPTION.equals(macro)) {
+try {
+CmsOrganizationalUnit ou=OpenCms.getOrgUnitManager().readOrganizationalUnit(m_cms,m_cms.getRequestContext().getOuFqn());
+if (m_messages != null) {
+return ou.getDescription(m_messages.getLocale());
+}
+ else {
+return ou.getDescription(m_cms.getRequestContext().getLocale());
+}
+}
+ catch (CmsException e) {
+}
 }
 if (CmsMacroResolver.KEY_CURRENT_USER_FULLNAME.equals(macro)) {
 return m_cms.getRequestContext().currentUser().getFullName();
@@ -97,6 +141,9 @@ return m_cms.getRequestContext().currentUser().getCountry();
 }
 if (CmsMacroResolver.KEY_CURRENT_USER_CITY.equals(macro)) {
 return m_cms.getRequestContext().currentUser().getCity();
+}
+if (CmsMacroResolver.KEY_CURRENT_USER_LASTLOGIN.equals(macro) && m_messages != null) {
+return m_messages.getDateTime(m_cms.getRequestContext().currentUser().getLastlogin());
 }
 if (CmsMacroResolver.KEY_REQUEST_URI.equals(macro)) {
 return m_cms.getRequestContext().getUri();

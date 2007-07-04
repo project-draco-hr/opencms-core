@@ -1,0 +1,39 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  ResultSet res=null;
+  List publishedResources=new ArrayList();
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_SELECT_PUBLISHED_RESOURCES");
+    stmt.setString(1,publishHistoryId.toString());
+    res=stmt.executeQuery();
+    while (res.next()) {
+      CmsUUID structureId=new CmsUUID(res.getString("STRUCTURE_ID"));
+      CmsUUID resourceId=new CmsUUID(res.getString("RESOURCE_ID"));
+      String rootPath=res.getString("RESOURCE_PATH");
+      int resourceState=res.getInt("RESOURCE_STATE");
+      int resourceType=res.getInt("RESOURCE_TYPE");
+      int siblingCount=res.getInt("SIBLING_COUNT");
+      int publishTag=res.getInt("PUBLISH_TAG");
+      CmsResourceState state;
+      if (resourceState == CmsPublishedResource.STATE_MOVED_SOURCE.getState()) {
+        state=CmsPublishedResource.STATE_MOVED_SOURCE;
+      }
+ else       if (resourceState == CmsPublishedResource.STATE_MOVED_DESTINATION.getState()) {
+        state=CmsPublishedResource.STATE_MOVED_DESTINATION;
+      }
+ else {
+        state=CmsResourceState.valueOf(resourceState);
+      }
+      publishedResources.add(new CmsPublishedResource(structureId,resourceId,publishTag,rootPath,resourceType,structureId.isNullUUID() ? false : CmsFolder.isFolderType(resourceType),state,siblingCount));
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  return publishedResources;
+}

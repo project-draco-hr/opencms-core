@@ -1,0 +1,27 @@
+{
+  CmsObject cms=getCmsObject();
+  String source="/folder1/page1.html";
+  String sibling="/folder1/sibling1.html";
+  echo("testing the publishing of structure property");
+  cms.copyResource(source,sibling,CmsResource.COPY_AS_SIBLING);
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  storeResources(cms,source);
+  storeResources(cms,sibling);
+  cms.lockResource(sibling);
+  cms.writePropertyObject(sibling,new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"test1",null));
+  cms.unlockResource(sibling);
+  assertFilter(cms,sibling,OpenCmsTestResourceFilter.FILTER_WRITEPROPERTY);
+  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_SIBLING_PROPERTY);
+  storeResources(cms,source);
+  storeResources(cms,sibling);
+  List pubList=OpenCms.getPublishManager().getPublishList(cms).getFileList();
+  assertEquals(pubList.size(),1);
+  assertEquals(((CmsResource)pubList.get(0)).getRootPath(),cms.getRequestContext().addSiteRoot(sibling));
+  assertFilter(cms,cms.readResource(sibling),OpenCmsTestResourceFilter.FILTER_EQUAL);
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertFilter(cms,sibling,OpenCmsTestResourceFilter.FILTER_PUBLISHRESOURCE);
+  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_EQUAL);
+}

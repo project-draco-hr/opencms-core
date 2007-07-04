@@ -1,0 +1,30 @@
+{
+  String finalTarget=getCms().getRequestContext().getFileTranslator().translateResource(target);
+  finalTarget=CmsLinkManager.getAbsoluteUri(finalTarget,CmsResource.getParentFolder(source));
+  if (finalTarget.equals(source) || (isMultiOperation() && finalTarget.startsWith(source))) {
+    throw new CmsVfsException(Messages.get().container(Messages.ERR_MOVE_ONTO_ITSELF_1,finalTarget));
+  }
+  try {
+    CmsResource res=getCms().readResource(finalTarget,CmsResourceFilter.ALL);
+    if (res.isFolder()) {
+      if (!finalTarget.endsWith("/")) {
+        finalTarget+="/";
+      }
+      finalTarget=finalTarget + CmsResource.getName(source);
+      if (finalTarget.endsWith("/")) {
+        finalTarget=finalTarget.substring(0,finalTarget.length() - 1);
+      }
+    }
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+    if (LOG.isInfoEnabled()) {
+      LOG.info(e.getLocalizedMessage());
+    }
+  }
+  setParamTarget(finalTarget);
+  if (getCms().existsResource(finalTarget,CmsResourceFilter.ALL)) {
+    throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_MOVE_FAILED_TARGET_EXISTS_2,source,getJsp().getRequestContext().removeSiteRoot(finalTarget)));
+  }
+  checkLock(sitePrefix + source);
+  getCms().moveResource(sitePrefix + source,finalTarget);
+}

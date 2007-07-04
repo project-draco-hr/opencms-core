@@ -1,6 +1,7 @@
 {
   String zipExportFilename=null;
   CmsObject cms=getCmsObject();
+  String storedSiteRoot=null;
   try {
     String username="tempuser";
     String password="password";
@@ -12,12 +13,13 @@
     cms.createUser(username,password,"Temporary user for import/export test case",null);
     cms.addUserToGroup(username,OpenCms.getDefaultUsers().getGroupProjectmanagers());
     cms.loginUser(username,password);
-    cms.getRequestContext().saveSiteRoot();
+    storedSiteRoot=cms.getRequestContext().getSiteRoot();
     cms.getRequestContext().setSiteRoot("/sites/default/");
     cms.getRequestContext().setCurrentProject(offlineProject);
     cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId(),content,null);
     cms.unlockResource(filename);
-    cms.publishResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename);
+    OpenCms.getPublishManager().waitWhileRunning();
     cms.loginUser("Admin","admin");
     cms.getRequestContext().setSiteRoot("/sites/default/");
     cms.getRequestContext().setCurrentProject(offlineProject);
@@ -34,23 +36,17 @@
     cms.lockResource(filename);
     cms.deleteResource(filename,CmsResource.DELETE_REMOVE_SIBLINGS);
     cms.unlockResource(filename);
-    cms.publishResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename);
+    OpenCms.getPublishManager().waitWhileRunning();
     OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
   }
  catch (  Exception e) {
     fail(e.toString());
   }
  finally {
-    try {
-      if (zipExportFilename != null) {
-        File file=new File(zipExportFilename);
-        if (file.exists()) {
-          file.delete();
-        }
-      }
+    deleteFile(zipExportFilename);
+    if (storedSiteRoot != null) {
+      cms.getRequestContext().setSiteRoot(storedSiteRoot);
     }
- catch (    Throwable t) {
-    }
-    cms.getRequestContext().restoreSiteRoot();
   }
 }

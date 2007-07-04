@@ -1,0 +1,84 @@
+{
+  String separator=null;
+  List values=null;
+  m_uploadFile=new File(m_paramImportfile);
+  FileReader fileReader;
+  BufferedReader bufferedReader;
+  List users=null;
+  try {
+    fileReader=new FileReader(m_uploadFile);
+    bufferedReader=new BufferedReader(fileReader);
+    String line;
+    boolean headline=true;
+    while ((line=bufferedReader.readLine()) != null) {
+      if (users == null) {
+        users=new ArrayList();
+      }
+      if (separator == null) {
+        separator=CmsXsltUtil.getPreferredDelimiter(line);
+      }
+      List lineValues=CmsStringUtil.splitAsList(line,separator);
+      if (headline) {
+        values=new ArrayList();
+        Iterator itLineValues=lineValues.iterator();
+        while (itLineValues.hasNext()) {
+          values.add(itLineValues.next());
+        }
+        headline=false;
+      }
+ else       if (values != null) {
+        CmsUser curUser=new CmsUser();
+        try {
+          for (int i=0; i < values.size(); i++) {
+            String curValue=(String)values.get(i);
+            try {
+              Method method=CmsUser.class.getMethod("set" + curValue.substring(0,1).toUpperCase() + curValue.substring(1),new Class[]{String.class});
+              if (lineValues.size() > i && lineValues.get(i) != null) {
+                String value=(String)lineValues.get(i);
+                if (curValue.equals("password")) {
+                  if (CmsStringUtil.isEmptyOrWhitespaceOnly(value)) {
+                    value=m_paramPassword;
+                  }
+                }
+                if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(value) && !value.equals("null")) {
+                  method.invoke(curUser,new Object[]{value});
+                }
+              }
+            }
+ catch (            NoSuchMethodException ne) {
+              curUser.setAdditionalInfo(curValue,lineValues.get(i));
+            }
+catch (            IllegalAccessException le) {
+              if (m_reasons == null) {
+                m_reasons=new HashMap();
+              }
+              m_reasons.put(curUser.getName(),le);
+            }
+catch (            InvocationTargetException te) {
+              if (m_reasons == null) {
+                m_reasons=new HashMap();
+              }
+              m_reasons.put(curUser.getName(),te);
+            }
+          }
+        }
+ catch (        CmsRuntimeException e) {
+          if (m_reasons == null) {
+            m_reasons=new HashMap();
+          }
+          if (curUser.getName() == null) {
+            m_reasons.put(lineValues.get(0),e);
+          }
+ else {
+            m_reasons.put(curUser.getName(),e);
+          }
+        }
+        users.add(curUser);
+      }
+    }
+    bufferedReader.close();
+  }
+ catch (  IOException e) {
+  }
+  return users;
+}

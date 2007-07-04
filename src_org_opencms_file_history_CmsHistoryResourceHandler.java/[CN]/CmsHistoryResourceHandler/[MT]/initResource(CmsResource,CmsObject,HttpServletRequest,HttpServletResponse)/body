@@ -1,0 +1,38 @@
+{
+  if (req != null) {
+    String version=req.getParameter(PARAM_VERSION);
+    if ((resource == null) && (version != null)) {
+      String uri=cms.getRequestContext().getUri();
+      if (uri.startsWith(HISTORY_HANDLER)) {
+        if (cms.existsResource(HISTORY_HANDLER)) {
+          String storedSiteRoot=cms.getRequestContext().getSiteRoot();
+          try {
+            cms.getRequestContext().setSiteRoot("/");
+            uri=uri.substring(HISTORY_HANDLER.length(),uri.length());
+            int id=new Integer(version).intValue();
+            if (id == CmsHistoryResourceHandler.PROJECT_OFFLINE_VERSION) {
+              resource=new CmsHistoryFile(cms.readFile(uri));
+            }
+ else {
+              resource=(CmsResource)cms.readResource(cms.readResource(uri).getStructureId(),id);
+            }
+            req.setAttribute(ATTRIBUTE_NAME,resource);
+          }
+ catch (          CmsException e) {
+            if (LOG.isErrorEnabled()) {
+              LOG.error(Messages.get().getBundle().key(Messages.ERR_HISTORYRESOURCE_2,uri,version));
+            }
+            throw new CmsResourceInitException(Messages.get().container(Messages.ERR_SHOWVERSION_2,uri,version),e);
+          }
+ finally {
+            cms.getRequestContext().setSiteRoot(storedSiteRoot);
+            if (resource != null) {
+              cms.getRequestContext().setUri(cms.getSitePath(resource));
+            }
+          }
+        }
+      }
+    }
+  }
+  return resource;
+}

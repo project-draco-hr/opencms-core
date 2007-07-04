@@ -2,19 +2,23 @@
   String fileName=getParamResource();
   int flags=0;
   try {
-    try {
-      getCms().readGroup(id);
+    I_CmsPrincipal p=getCms().lookupPrincipal(id);
+    if ((p != null) && p.isGroup()) {
       flags=CmsAccessControlEntry.ACCESS_FLAGS_GROUP;
     }
- catch (    CmsException e) {
-      try {
-        getCms().readUser(id);
-        flags=CmsAccessControlEntry.ACCESS_FLAGS_USER;
-      }
- catch (      CmsException exc) {
-        if (LOG.isInfoEnabled()) {
-          LOG.info(e.getLocalizedMessage());
-        }
+ else     if ((p != null) && p.isUser()) {
+      flags=CmsAccessControlEntry.ACCESS_FLAGS_USER;
+    }
+ else     if ((p == null) && id.equals(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID)) {
+      flags=CmsAccessControlEntry.ACCESS_FLAGS_ALLOTHERS;
+    }
+ else     if ((p == null) && id.equals(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_ID)) {
+      flags=CmsAccessControlEntry.ACCESS_FLAGS_OVERWRITE_ALL;
+    }
+ else {
+      CmsRole role=CmsRole.valueOfId(id);
+      if (role != null) {
+        flags=CmsAccessControlEntry.ACCESS_FLAGS_ROLE;
       }
     }
     CmsResource res=getCms().readResource(fileName,CmsResourceFilter.ALL);

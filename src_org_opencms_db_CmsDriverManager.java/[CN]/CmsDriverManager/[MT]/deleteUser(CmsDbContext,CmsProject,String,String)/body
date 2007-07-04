@@ -10,21 +10,28 @@
     withACEs=false;
     replacementUser=readUser(dbc,OpenCms.getDefaultUsers().getUserDeletedResource());
   }
-  Iterator itGroups=getGroupsOfUser(dbc,username).iterator();
-  while (itGroups.hasNext()) {
-    CmsGroup group=(CmsGroup)itGroups.next();
-    if (!m_securityManager.hasRole(dbc,replacementUser,CmsRole.VFS_MANAGER)) {
-      if (!userInGroup(dbc,replacementUser.getName(),group.getName())) {
-        addUserToGroup(dbc,replacementUser.getName(),group.getName());
+  boolean isVfsManager=m_securityManager.hasRole(dbc,replacementUser,CmsRole.VFS_MANAGER);
+  for (int i=0; i < 2; i++) {
+    boolean readRoles=false;
+    Iterator itGroups=getGroupsOfUser(dbc,username,"",true,readRoles,true,dbc.getRequestContext().getRemoteAddress()).iterator();
+    while (itGroups.hasNext()) {
+      CmsGroup group=(CmsGroup)itGroups.next();
+      if (!isVfsManager) {
+        if (!userInGroup(dbc,replacementUser.getName(),group.getName(),false)) {
+          addUserToGroup(dbc,replacementUser.getName(),group.getName(),false);
+        }
+      }
+      if (userInGroup(dbc,username,group.getName(),readRoles)) {
+        removeUserFromGroup(dbc,username,group.getName(),readRoles);
       }
     }
-    if (userInGroup(dbc,username,group.getName())) {
-      removeUserFromGroup(dbc,username,group.getName());
-    }
+    readRoles=!readRoles;
   }
+  m_lockManager.removeLocks(user.getId());
   transferPrincipalResources(dbc,project,user.getId(),replacementUser.getId(),withACEs);
   transferPrincipalResources(dbc,onlineProject,user.getId(),replacementUser.getId(),withACEs);
   m_userDriver.removeAccessControlEntriesForPrincipal(dbc,project,onlineProject,user.getId());
+  m_historyDriver.writePrincipal(dbc,user);
   m_userDriver.deleteUser(dbc,username);
   clearUserCache(user);
 }

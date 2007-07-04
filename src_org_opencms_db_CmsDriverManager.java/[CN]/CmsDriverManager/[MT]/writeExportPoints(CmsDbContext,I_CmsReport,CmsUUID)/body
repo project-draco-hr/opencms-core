@@ -1,0 +1,85 @@
+{
+  boolean printReportHeaders=false;
+  List publishedResources=null;
+  try {
+    publishedResources=m_projectDriver.readPublishedResources(dbc,publishHistoryId);
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.ERR_READ_PUBLISHED_RESOURCES_FOR_ID_1,publishHistoryId),e);
+    }
+  }
+  if ((publishedResources == null) || publishedResources.isEmpty()) {
+    if (LOG.isWarnEnabled()) {
+      LOG.warn(Messages.get().getBundle().key(Messages.LOG_EMPTY_PUBLISH_HISTORY_1,publishHistoryId));
+    }
+    return;
+  }
+  Set exportPoints=new HashSet();
+  exportPoints.addAll(OpenCms.getExportPoints());
+  exportPoints.addAll(OpenCms.getModuleManager().getExportPoints());
+  if (exportPoints.size() == 0) {
+    if (LOG.isWarnEnabled()) {
+      LOG.warn(Messages.get().getBundle().key(Messages.LOG_NO_EXPORT_POINTS_CONFIGURED_0));
+    }
+    return;
+  }
+  CmsExportPointDriver exportPointDriver=new CmsExportPointDriver(exportPoints);
+  if (report == null) {
+    if (dbc.getRequestContext() != null) {
+      report=new CmsLogReport(dbc.getRequestContext().getLocale(),getClass());
+    }
+ else {
+      report=new CmsLogReport(CmsLocaleManager.getDefaultLocale(),getClass());
+    }
+  }
+  Iterator i=publishedResources.iterator();
+  while (i.hasNext()) {
+    CmsPublishedResource currentPublishedResource=(CmsPublishedResource)i.next();
+    String currentExportPoint=exportPointDriver.getExportPoint(currentPublishedResource.getRootPath());
+    if (currentExportPoint != null) {
+      if (!printReportHeaders) {
+        report.println(Messages.get().container(Messages.RPT_EXPORT_POINTS_WRITE_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+        printReportHeaders=true;
+      }
+      if (currentPublishedResource.getState().isDeleted()) {
+        report.print(Messages.get().container(Messages.RPT_EXPORT_POINTS_DELETE_0),I_CmsReport.FORMAT_NOTE);
+      }
+ else {
+        report.print(Messages.get().container(Messages.RPT_EXPORT_POINTS_WRITE_0),I_CmsReport.FORMAT_NOTE);
+      }
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,currentPublishedResource.getRootPath()));
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+      if (currentPublishedResource.isFolder()) {
+        if (currentPublishedResource.getState().isDeleted()) {
+          exportPointDriver.deleteResource(currentPublishedResource.getRootPath(),currentExportPoint);
+        }
+ else {
+          exportPointDriver.createFolder(currentPublishedResource.getRootPath(),currentExportPoint);
+        }
+        report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+      }
+ else {
+        try {
+          if (currentPublishedResource.getState().isDeleted()) {
+            exportPointDriver.deleteResource(currentPublishedResource.getRootPath(),currentExportPoint);
+          }
+ else {
+            byte[] onlineContent=getVfsDriver().readContent(dbc,CmsProject.ONLINE_PROJECT_ID,currentPublishedResource.getResourceId());
+            exportPointDriver.writeFile(currentPublishedResource.getRootPath(),currentExportPoint,onlineContent);
+          }
+          report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+        }
+ catch (        CmsException e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(Messages.get().getBundle().key(Messages.LOG_WRITE_EXPORT_POINT_ERROR_1,currentPublishedResource.getRootPath()),e);
+          }
+          report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_FAILED_0),I_CmsReport.FORMAT_ERROR);
+        }
+      }
+    }
+  }
+  if (printReportHeaders) {
+    report.println(Messages.get().container(Messages.RPT_EXPORT_POINTS_WRITE_END_0),I_CmsReport.FORMAT_HEADLINE);
+  }
+}

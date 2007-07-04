@@ -11,7 +11,7 @@
   restoreCol.setAlign(CmsListColumnAlignEnum.ALIGN_CENTER);
   restoreCol.setListItemComparator(new CmsListItemActionIconComparator());
   restoreCol.setSorteable(false);
-  CmsRestoreStateAction restoreAction=new CmsRestoreStateAction(LIST_ACTION_RESTORE,getCms());
+  CmsListDirectAction restoreAction=new CmsListDirectAction(LIST_ACTION_RESTORE);
   restoreAction.setName(Messages.get().container(Messages.GUI_HISTORY_RESTORE_VERSION_0));
   restoreAction.setIconPath("tools/ex_history/buttons/restore.png");
   restoreAction.setConfirmationMessage(Messages.get().container(Messages.GUI_HISTORY_CONFIRMATION_0));
@@ -24,18 +24,16 @@
   iconCol.setAlign(CmsListColumnAlignEnum.ALIGN_CENTER);
   iconCol.setListItemComparator(new CmsListItemActionIconComparator());
   CmsListDirectAction fileAction=new CmsListResourceIconAction(LIST_ACTION_VIEW,LIST_COLUMN_FILE_TYPE,getCms()){
-    public String defButtonHtml(    CmsJspActionElement jsp,    String id,    String helpId,    String name,    String helpText,    boolean enabled,    String iconPath,    String confirmationMessage,    String onClick,    boolean singleHelp){
+    /** 
+ * @see org.opencms.workplace.list.CmsListResourceIconAction#defButtonHtml(CmsObject,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String,java.lang.String,boolean)
+ */
+    public String defButtonHtml(    CmsObject cms,    String id,    String helpId,    String name,    String helpText,    boolean enabled,    String iconPath,    String confirmationMessage,    String onClick,    boolean singleHelp){
       StringBuffer jsCode=new StringBuffer(512);
       jsCode.append("window.open('");
-      String versionId=getItem().getId().toString();
-      if ("-1".equals(versionId)) {
-        jsCode.append(jsp.link(jsp.getRequestContext().removeSiteRoot(getItem().get(LIST_COLUMN_RESOURCE_PATH).toString())));
-      }
- else {
-        jsCode.append(jsp.link(getBackupLink(getItem().get(LIST_COLUMN_RESOURCE_PATH).toString(),versionId)));
-      }
+      CmsVersionWrapper version=(CmsVersionWrapper)getItem().get(LIST_COLUMN_VERSION);
+      jsCode.append(OpenCms.getLinkManager().substituteLink(cms,getHistoryLink(cms,new CmsUUID(getItem().get(LIST_COLUMN_STRUCTURE_ID).toString()),version.toString())));
       jsCode.append("','version','scrollbars=yes, resizable=yes, width=800, height=600')");
-      return super.defButtonHtml(jsp,id,helpId,name,helpText,enabled,iconPath,confirmationMessage,jsCode.toString(),singleHelp);
+      return super.defButtonHtml(cms,id,helpId,name,helpText,enabled,iconPath,confirmationMessage,jsCode.toString(),singleHelp);
     }
   }
 ;
@@ -48,6 +46,19 @@
   versionCol.setName(Messages.get().container(Messages.GUI_HISTORY_COLS_VERSION_0));
   versionCol.setWidth("5%");
   versionCol.setAlign(CmsListColumnAlignEnum.ALIGN_CENTER);
+  versionCol.setFormatter(new I_CmsListFormatter(){
+    /** 
+ * @see org.opencms.workplace.list.I_CmsListFormatter#format(java.lang.Object,java.util.Locale)
+ */
+    public String format(    Object data,    Locale locale){
+      if ((data == null) || !(data instanceof CmsVersionWrapper)) {
+        return "";
+      }
+      CmsVersionWrapper version=(CmsVersionWrapper)data;
+      return CmsHistoryList.getDisplayVersion(version.toString(),locale);
+    }
+  }
+);
   metadata.addColumn(versionCol);
   CmsListColumnDefinition groupCol=new CmsListColumnDefinition(LIST_COLUMN_FILE_TYPE);
   groupCol.setVisible(false);
@@ -55,7 +66,7 @@
   CmsListColumnDefinition pathCol=new CmsListColumnDefinition(LIST_COLUMN_RESOURCE_PATH);
   pathCol.setName(Messages.get().container(Messages.GUI_HISTORY_COLS_RESOURCE_PATH_0));
   pathCol.setAlign(CmsListColumnAlignEnum.ALIGN_LEFT);
-  pathCol.setWidth("20%");
+  pathCol.setWidth("40%");
   metadata.addColumn(pathCol);
   CmsListColumnDefinition datePublishedCol=new CmsListColumnDefinition(LIST_COLUMN_DATE_PUBLISHED);
   datePublishedCol.setName(Messages.get().container(Messages.GUI_HISTORY_COLS_DATE_PUBLISHED_0));
@@ -69,12 +80,12 @@
   metadata.addColumn(nicenameCol);
   CmsListColumnDefinition userCol=new CmsListColumnDefinition(LIST_COLUMN_USER);
   userCol.setName(Messages.get().container(Messages.GUI_HISTORY_COLS_USER_0));
-  userCol.setWidth("12%");
+  userCol.setWidth("30%");
   userCol.setAlign(CmsListColumnAlignEnum.ALIGN_LEFT);
   metadata.addColumn(userCol);
   CmsListColumnDefinition sizeCol=new CmsListColumnDefinition(LIST_COLUMN_SIZE);
   sizeCol.setName(Messages.get().container(Messages.GUI_HISTORY_COLS_SIZE_0));
-  sizeCol.setWidth("13%");
+  sizeCol.setWidth("10%");
   sizeCol.setAlign(CmsListColumnAlignEnum.ALIGN_LEFT);
   metadata.addColumn(sizeCol);
   CmsListColumnDefinition radioSel1Col=new CmsListColumnDefinition(LIST_COLUMN_SEL1);
@@ -97,8 +108,12 @@
   sel2Action.setEnabled(true);
   radioSel2Col.addDirectAction(sel2Action);
   metadata.addColumn(radioSel2Col);
-  CmsListColumnDefinition backupTagCol=new CmsListColumnDefinition(LIST_COLUMN_BACKUP_TAG);
-  backupTagCol.setSorteable(false);
-  backupTagCol.setVisible(false);
-  metadata.addColumn(backupTagCol);
+  CmsListColumnDefinition publishTagCol=new CmsListColumnDefinition(LIST_COLUMN_PUBLISH_TAG);
+  publishTagCol.setSorteable(false);
+  publishTagCol.setVisible(false);
+  metadata.addColumn(publishTagCol);
+  CmsListColumnDefinition strIdCol=new CmsListColumnDefinition(LIST_COLUMN_STRUCTURE_ID);
+  strIdCol.setSorteable(false);
+  strIdCol.setVisible(false);
+  metadata.addColumn(strIdCol);
 }

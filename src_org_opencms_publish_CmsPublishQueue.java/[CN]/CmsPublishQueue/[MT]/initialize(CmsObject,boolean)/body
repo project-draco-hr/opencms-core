@@ -1,0 +1,53 @@
+{
+  CmsDriverManager driverManager=m_publishEngine.getDriverManager();
+  try {
+    OpenCms.getMemoryMonitor().flushPublishJobs();
+    if (revive) {
+      CmsDbContext dbc=m_publishEngine.getDbContextFactory().getDbContext();
+      List publishJobs;
+      try {
+        publishJobs=driverManager.readPublishJobs(dbc,0L,0L);
+      }
+  finally {
+        dbc.clear();
+        dbc=null;
+      }
+      for (Iterator i=publishJobs.iterator(); i.hasNext(); ) {
+        CmsPublishJobInfoBean job=(CmsPublishJobInfoBean)i.next();
+        dbc=m_publishEngine.getDbContextFactory().getDbContext();
+        if (!job.isStarted()) {
+          try {
+            job.revive(adminCms,driverManager.readPublishList(dbc,job.getPublishHistoryId()));
+            m_publishEngine.lockPublishList(job);
+            OpenCms.getMemoryMonitor().cachePublishJob(job);
+          }
+ catch (          CmsException exc) {
+            if (LOG.isErrorEnabled()) {
+              LOG.error(Messages.get().getBundle().key(Messages.ERR_PUBLISH_JOB_INVALID_1,job.getPublishHistoryId()),exc);
+            }
+            m_publishEngine.getDriverManager().deletePublishJob(dbc,job.getPublishHistoryId());
+          }
+ finally {
+            dbc.clear();
+          }
+        }
+ else {
+          try {
+            job.revive(adminCms,driverManager.readPublishList(dbc,job.getPublishHistoryId()));
+            m_publishEngine.unlockPublishList(job);
+            new CmsPublishJobEnqueued(job).m_publishJob.finish();
+            m_publishEngine.getPublishHistory().add(job);
+          }
+ catch (          CmsException exc) {
+            LOG.error(exc.getLocalizedMessage(),exc);
+          }
+        }
+      }
+    }
+  }
+ catch (  CmsException exc) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(exc.getLocalizedMessage(),exc);
+    }
+  }
+}

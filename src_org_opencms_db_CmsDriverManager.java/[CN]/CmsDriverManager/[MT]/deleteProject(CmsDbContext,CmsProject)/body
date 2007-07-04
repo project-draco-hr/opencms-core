@@ -1,26 +1,26 @@
 {
-  int projectId=deleteProject.getId();
-  List modifiedFiles=readChangedResourcesInsideProject(dbc,projectId,1);
-  List modifiedFolders=readChangedResourcesInsideProject(dbc,projectId,CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  CmsUUID projectId=deleteProject.getUuid();
+  List modifiedFiles=readChangedResourcesInsideProject(dbc,projectId,RCPRM_FILES_ONLY_MODE);
+  List modifiedFolders=readChangedResourcesInsideProject(dbc,projectId,RCPRM_FOLDERS_ONLY_MODE);
   for (int i=0; i < modifiedFiles.size(); i++) {
     CmsResource currentFile=(CmsResource)modifiedFiles.get(i);
-    if (currentFile.getState() == CmsResource.STATE_NEW) {
+    if (currentFile.getState().isNew()) {
       CmsLock lock=getLock(dbc,currentFile);
       if (lock.isNullLock()) {
-        lockResource(dbc,currentFile,CmsLock.COMMON);
+        lockResource(dbc,currentFile,CmsLockType.EXCLUSIVE);
       }
- else       if (!lock.getUserId().equals(dbc.currentUser().getId()) || lock.getProjectId() != dbc.currentProject().getId()) {
-        changeLock(dbc,currentFile);
+ else       if (!lock.isOwnedBy(dbc.currentUser()) || !lock.isInProject(dbc.currentProject())) {
+        changeLock(dbc,currentFile,CmsLockType.EXCLUSIVE);
       }
       m_vfsDriver.deletePropertyObjects(dbc,projectId,currentFile,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
-      m_vfsDriver.removeFile(dbc,dbc.currentProject(),currentFile,true);
+      m_vfsDriver.removeFile(dbc,dbc.currentProject().getUuid(),currentFile);
       m_userDriver.removeAccessControlEntries(dbc,dbc.currentProject(),currentFile.getResourceId());
       OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",currentFile)));
     }
   }
   for (int i=0; i < modifiedFolders.size(); i++) {
     CmsResource currentFolder=(CmsResource)modifiedFolders.get(i);
-    if (currentFolder.getState() == CmsResource.STATE_NEW) {
+    if (currentFolder.getState().isNew()) {
       m_vfsDriver.deletePropertyObjects(dbc,projectId,currentFolder,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
       m_vfsDriver.removeFolder(dbc,dbc.currentProject(),currentFolder);
       m_userDriver.removeAccessControlEntries(dbc,dbc.currentProject(),currentFolder.getResourceId());
@@ -29,40 +29,41 @@
   }
   for (int i=0; i < modifiedFolders.size(); i++) {
     CmsResource currentFolder=(CmsResource)modifiedFolders.get(i);
-    if ((currentFolder.getState() == CmsResource.STATE_CHANGED) || (currentFolder.getState() == CmsResource.STATE_DELETED)) {
+    if ((currentFolder.getState().isChanged()) || (currentFolder.getState().isDeleted())) {
       CmsLock lock=getLock(dbc,currentFolder);
       if (lock.isNullLock()) {
-        lockResource(dbc,currentFolder,CmsLock.COMMON);
+        lockResource(dbc,currentFolder,CmsLockType.EXCLUSIVE);
       }
- else       if (!lock.getUserId().equals(dbc.currentUser().getId()) || lock.getProjectId() != dbc.currentProject().getId()) {
-        changeLock(dbc,currentFolder);
+ else       if (!lock.isOwnedBy(dbc.currentUser()) || !lock.isInProject(dbc.currentProject())) {
+        changeLock(dbc,currentFolder,CmsLockType.EXCLUSIVE);
       }
-      undoChanges(dbc,currentFolder);
+      undoChanges(dbc,currentFolder,CmsResource.UNDO_CONTENT);
       OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",currentFolder)));
     }
   }
   for (int i=0; i < modifiedFiles.size(); i++) {
     CmsResource currentFile=(CmsResource)modifiedFiles.get(i);
-    if ((currentFile.getState() == CmsResource.STATE_CHANGED) || (currentFile.getState() == CmsResource.STATE_DELETED)) {
+    if (currentFile.getState().isChanged() || currentFile.getState().isDeleted()) {
       CmsLock lock=getLock(dbc,currentFile);
       if (lock.isNullLock()) {
-        lockResource(dbc,currentFile,CmsLock.COMMON);
+        lockResource(dbc,currentFile,CmsLockType.EXCLUSIVE);
       }
- else       if (!lock.getUserId().equals(dbc.currentUser().getId()) || lock.getProjectId() != dbc.currentProject().getId()) {
-        changeLock(dbc,currentFile);
+ else       if (!lock.isOwnedInProjectBy(dbc.currentUser(),dbc.currentProject())) {
+        if (lock.isLockableBy(dbc.currentUser())) {
+          changeLock(dbc,currentFile,CmsLockType.EXCLUSIVE);
+        }
       }
-      undoChanges(dbc,currentFile);
+      undoChanges(dbc,currentFile,CmsResource.UNDO_CONTENT);
       OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap("resource",currentFile)));
     }
   }
-  m_lockManager.removeResourcesInProject(deleteProject.getId());
+  m_lockManager.removeResourcesInProject(deleteProject.getUuid(),false);
   clearAccessControlListCache();
   clearResourceCache();
-  if (projectId == dbc.currentProject().getId()) {
+  if (projectId.equals(dbc.currentProject().getUuid())) {
     dbc.getRequestContext().setCurrentProject(readProject(dbc,CmsProject.ONLINE_PROJECT_ID));
   }
   m_projectDriver.deleteProject(dbc,deleteProject);
-  m_projectCache.remove(new Integer(projectId));
-  m_projectCache.remove(deleteProject.getName());
+  OpenCms.getMemoryMonitor().uncacheProject(deleteProject);
   OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_PROJECT_MODIFIED,Collections.singletonMap("project",deleteProject)));
 }

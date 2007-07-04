@@ -1,0 +1,44 @@
+{
+  List resourceNames=getList().getAllContent();
+  Iterator i=resourceNames.iterator();
+  while (i.hasNext()) {
+    CmsListItem item=(CmsListItem)i.next();
+    CmsResource res=getCollector().getResource(getCms(),item);
+    StringBuffer html=new StringBuffer();
+    if (detailId.equals(LIST_DETAIL_LINKS)) {
+      List brokenLinks=getValidator().getBrokenLinksForResource(res.getRootPath());
+      if (brokenLinks != null) {
+        Iterator j=brokenLinks.iterator();
+        while (j.hasNext()) {
+          CmsRelation brokenLink=(CmsRelation)j.next();
+          String link=brokenLink.getTargetPath();
+          String siteRoot=CmsSiteManager.getSiteRoot(link);
+          String siteName=siteRoot;
+          if (siteRoot != null) {
+            String storedSiteRoot=getCms().getRequestContext().getSiteRoot();
+            try {
+              getCms().getRequestContext().setSiteRoot("/");
+              siteName=getCms().readPropertyObject(siteRoot,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(siteRoot);
+            }
+ catch (            CmsException e) {
+              siteName=siteRoot;
+            }
+ finally {
+              getCms().getRequestContext().setSiteRoot(storedSiteRoot);
+            }
+            link=link.substring(siteRoot.length());
+          }
+ else {
+            siteName="/";
+          }
+          if (!getCms().getRequestContext().getSiteRoot().equals(siteRoot)) {
+            link=key(org.opencms.workplace.commons.Messages.GUI_DELETE_SITE_RELATION_2,new Object[]{siteName,link});
+          }
+          html.append(link);
+          html.append("<br>");
+        }
+        item.set(detailId,html.toString());
+      }
+    }
+  }
+}

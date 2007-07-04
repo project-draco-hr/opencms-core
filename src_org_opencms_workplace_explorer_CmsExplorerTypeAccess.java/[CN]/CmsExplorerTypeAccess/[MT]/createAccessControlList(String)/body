@@ -1,0 +1,57 @@
+{
+  if (OpenCms.getRunLevel() < OpenCms.RUNLEVEL_2_INITIALIZING) {
+    return;
+  }
+  if (m_permissionsCache == null) {
+    LRUMap lruMap=new LRUMap(2048);
+    m_permissionsCache=Collections.synchronizedMap(lruMap);
+    OpenCms.getMemoryMonitor().register(this.getClass().getName() + "." + resourceType,lruMap);
+  }
+ else {
+    m_permissionsCache.clear();
+  }
+  m_accessControlList=new CmsAccessControlList();
+  Iterator i=m_accessControl.keySet().iterator();
+  while (i.hasNext()) {
+    String key=(String)i.next();
+    if (!PRINCIPAL_DEFAULT.equals(key)) {
+      String value=(String)m_accessControl.get(key);
+      String principal=key.substring(key.indexOf('.') + 1,key.length());
+      CmsObject cms=OpenCms.initCmsObject(OpenCms.getDefaultUsers().getUserGuest());
+      CmsUUID principalId=null;
+      if (key.startsWith(I_CmsPrincipal.PRINCIPAL_GROUP)) {
+        principal=OpenCms.getImportExportManager().translateGroup(principal);
+        try {
+          principalId=cms.readGroup(principal).getId();
+        }
+ catch (        CmsException e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+ else       if (key.startsWith(I_CmsPrincipal.PRINCIPAL_USER)) {
+        principal=OpenCms.getImportExportManager().translateUser(principal);
+        try {
+          principalId=cms.readUser(principal).getId();
+        }
+ catch (        CmsException e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+ else {
+        CmsRole role=CmsRole.valueOfRoleName(principal);
+        if (role == null) {
+          role=CmsRole.valueOfGroupName(principal);
+        }
+        principalId=role.getId();
+      }
+      if (principalId != null) {
+        CmsAccessControlEntry entry=new CmsAccessControlEntry(null,principalId,value);
+        m_accessControlList.add(entry);
+      }
+    }
+  }
+}

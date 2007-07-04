@@ -1,0 +1,48 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  try {
+    Iterator dummy=properties.iterator();
+    while (dummy.hasNext()) {
+      CmsProperty property=(CmsProperty)dummy.next();
+      CmsPropertyDefinition propDef=readPropertyDefinition(dbc,property.getName());
+      for (int i=0; i < 2; i++) {
+        int mappingType;
+        String value;
+        CmsUUID id;
+        if (i == 0) {
+          value=property.getStructureValue();
+          mappingType=CmsProperty.STRUCTURE_RECORD_MAPPING;
+          id=resource.getStructureId();
+          if (CmsStringUtil.isEmpty(value)) {
+            continue;
+          }
+        }
+ else {
+          value=property.getResourceValue();
+          mappingType=CmsProperty.RESOURCE_RECORD_MAPPING;
+          id=resource.getResourceId();
+          if (CmsStringUtil.isEmpty(value)) {
+            break;
+          }
+        }
+        conn=m_sqlManager.getConnection(dbc);
+        stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_HISTORY_CREATE");
+        stmt.setString(1,resource.getStructureId().toString());
+        stmt.setString(2,propDef.getId().toString());
+        stmt.setString(3,id.toString());
+        stmt.setInt(4,mappingType);
+        stmt.setString(5,m_sqlManager.validateEmpty(value));
+        stmt.setInt(6,publishTag);
+        stmt.executeUpdate();
+        m_sqlManager.closeAll(dbc,conn,stmt,null);
+      }
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,null);
+  }
+}

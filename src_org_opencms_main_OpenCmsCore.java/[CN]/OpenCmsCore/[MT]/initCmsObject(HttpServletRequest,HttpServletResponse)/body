@@ -1,32 +1,14 @@
 {
-  CmsObject cms;
-  HttpSession session=req.getSession(false);
-  String sessionId;
-  if (session != null) {
-    sessionId=session.getId();
+  CmsObject cms=initCmsObjectFromSession(req);
+  if (cms != null) {
+    return cms;
   }
- else {
-    sessionId=req.getHeader(CmsRequestUtil.HEADER_JSESSIONID);
-  }
-  CmsSessionInfo sessionInfo=null;
-  if (sessionId != null) {
-    sessionInfo=m_sessionManager.getSessionInfo(sessionId);
+  cms=m_authorizationHandler.initCmsObject(req);
+  if (cms != null) {
+    return cms;
   }
   CmsSite site=getSiteManager().matchRequest(req);
-  if (sessionInfo != null) {
-    int project=sessionInfo.getProject();
-    String siteroot=null;
-    if ((getSiteManager().getWorkplaceSiteMatcher().equals(site.getSiteMatcher()))) {
-      siteroot=sessionInfo.getSiteRoot();
-    }
-    if (siteroot == null) {
-      siteroot=site.getSiteRoot();
-    }
-    cms=initCmsObject(req,sessionInfo.getUser().getName(),siteroot,project);
-  }
- else {
-    cms=initCmsObject(req,OpenCms.getDefaultUsers().getUserGuest(),site.getSiteRoot(),CmsProject.ONLINE_PROJECT_ID);
-    checkBasicAuthorization(cms,req,res);
-  }
+  requestAuthorization(req,res);
+  cms=initCmsObject(req,m_securityManager.readUser(null,OpenCms.getDefaultUsers().getUserGuest()),site.getSiteRoot(),CmsProject.ONLINE_PROJECT_ID,"");
   return cms;
 }

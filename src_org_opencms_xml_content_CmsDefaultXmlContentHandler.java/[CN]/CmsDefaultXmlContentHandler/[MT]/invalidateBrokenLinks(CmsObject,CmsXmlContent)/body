@@ -1,0 +1,52 @@
+{
+  if ((cms == null) || (cms.getRequestContext().getRequestTime() == CmsResource.DATE_RELEASED_EXPIRED_IGNORE)) {
+    return;
+  }
+  boolean needReinitialization=false;
+  Iterator itLocales=document.getLocales().iterator();
+  while (itLocales.hasNext()) {
+    Locale locale=(Locale)itLocales.next();
+    List removedNodes=new ArrayList();
+    Iterator itValues=document.getValues(locale).iterator();
+    while (itValues.hasNext()) {
+      I_CmsXmlContentValue value=(I_CmsXmlContentValue)itValues.next();
+      String path=value.getPath();
+      boolean alreadyRemoved=false;
+      Iterator itRemNodes=removedNodes.iterator();
+      while (itRemNodes.hasNext()) {
+        String remNode=(String)itRemNodes.next();
+        if (path.startsWith(remNode)) {
+          alreadyRemoved=true;
+          break;
+        }
+      }
+      if (alreadyRemoved || ((m_relations.get(path) == null) && (m_relations.get(CmsXmlUtils.removeXpath(path)) == null))) {
+        continue;
+      }
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_XMLCONTENT_CHECK_RULE_MATCH_1,path));
+      }
+      if (validateLink(cms,value,null)) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_XMLCONTENT_CHECK_WARNING_2,path,value.getStringValue(cms)));
+        }
+        String parentPath=path;
+        while (isInvalidateParent(parentPath)) {
+          parentPath=CmsXmlUtils.removeLastXpathElement(parentPath);
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(Messages.get().getBundle().key(Messages.LOG_XMLCONTENT_CHECK_PARENT_2,path,parentPath));
+          }
+        }
+        value=document.getValue(parentPath,locale);
+        value.getElement().detach();
+        removedNodes.add(parentPath);
+      }
+    }
+    if (!removedNodes.isEmpty()) {
+      needReinitialization=true;
+    }
+  }
+  if (needReinitialization) {
+    document.initDocument();
+  }
+}

@@ -1,113 +1,22 @@
 {
   boolean galleryView=VIEW_GALLERY.equals(getSettings().getExplorerMode());
   boolean listView=VIEW_LIST.equals(getSettings().getExplorerMode());
-  boolean showVfsLinks=getSettings().getExplorerShowLinks();
-  CmsResource currentResource=null;
   String currentFolder=getSettings().getExplorerResource();
-  boolean found=true;
   try {
-    currentResource=getCms().readResource(currentFolder,CmsResourceFilter.ALL);
+    getCms().readResource(currentFolder,CmsResourceFilter.ALL);
   }
  catch (  CmsException e) {
-    found=false;
-  }
-  if (found) {
-    if (showVfsLinks) {
-      currentFolder=LOCATION_SIBLING + currentFolder;
-    }
-  }
- else {
     currentFolder="/";
-    showVfsLinks=false;
-    try {
-      currentResource=getCms().readResource(currentFolder,CmsResourceFilter.ALL);
-    }
- catch (    CmsException e) {
-      LOG.error(e);
-      throw new CmsRuntimeException(e.getMessageContainer(),e);
-    }
   }
   StringBuffer content=new StringBuffer(2048);
-  content.append("function initialize() {\n");
-  content.append("top.setRootFolder(\"");
-  String rootFolder=getRootFolder();
-  content.append(rootFolder);
-  content.append("\");\n");
-  content.append("top.mode=\"");
-  content.append(getSettings().getExplorerMode());
-  content.append("\";\n");
-  content.append("top.showlinks=");
-  content.append(showVfsLinks);
-  content.append(";\n");
-  content.append("top.plainresid=");
-  content.append(CmsResourceTypePlain.getStaticTypeId());
-  content.append(";\n");
-  content.append("top.autolock=");
-  content.append(OpenCms.getWorkplaceManager().autoLockResources());
-  content.append(";\n");
-  content.append("top.buttonType=");
-  content.append(getSettings().getUserSettings().getExplorerButtonStyle());
-  content.append(";\n");
-  content.append("top.head.helpUrl='explorer/index.html';\n");
-  content.append("top.setProject(");
-  if (!listView) {
-    content.append(getSettings().getProject());
-  }
- else {
-    content.append(getSettings().getExplorerProjectId());
-  }
-  content.append(");\n");
-  content.append("top.setOnlineProject(");
-  content.append(CmsProject.ONLINE_PROJECT_ID);
-  content.append(");\n");
-  boolean writeAccess=VIEW_EXPLORER.equals(getSettings().getExplorerMode());
-  if (writeAccess && (!showVfsLinks)) {
-    writeAccess=getCms().isInsideCurrentProject(currentFolder);
-  }
-  content.append("top.enableNewButton(");
-  content.append(writeAccess);
-  content.append(");\n");
-  content.append("top.setDirectory(\"");
-  content.append(CmsResource.getFolderPath(currentResource.getRootPath()));
-  content.append("\",\"");
-  if (showVfsLinks) {
-    content.append(LOCATION_SIBLING);
-    content.append(getSettings().getExplorerResource());
-  }
- else {
-    content.append(CmsResource.getFolderPath(getSettings().getExplorerResource()));
-  }
-  content.append("\");\n");
-  content.append("top.rD();\n");
-  List reloadTreeFolders=(List)getJsp().getRequest().getAttribute(REQUEST_ATTRIBUTE_RELOADTREE);
-  if (reloadTreeFolders != null) {
-    String reloadFolder="";
-    for (int i=0; i < reloadTreeFolders.size(); i++) {
-      reloadFolder=(String)reloadTreeFolders.get(i);
-      if (getSettings().getUserSettings().getRestrictExplorerView()) {
-        reloadFolder=reloadFolder.substring(rootFolder.length() - 1);
-      }
-      content.append("top.addNodeToLoad(\"" + reloadFolder + "\");\n");
-    }
-    content.append("top.reloadNodeList();\n");
-  }
-  content.append("\n");
-  int preferences=getUserPreferences();
-  boolean showTitle=(preferences & CmsUserSettings.FILELIST_TITLE) > 0;
-  boolean showPermissions=(preferences & CmsUserSettings.FILELIST_PERMISSIONS) > 0;
-  boolean showDateLastModified=(preferences & CmsUserSettings.FILELIST_DATE_LASTMODIFIED) > 0;
-  boolean showUserWhoLastModified=(preferences & CmsUserSettings.FILELIST_USER_LASTMODIFIED) > 0;
-  boolean showDateCreated=(preferences & CmsUserSettings.FILELIST_DATE_CREATED) > 0;
-  boolean showUserWhoCreated=(preferences & CmsUserSettings.FILELIST_USER_CREATED) > 0;
-  boolean showDateReleased=(preferences & CmsUserSettings.FILELIST_DATE_RELEASED) > 0;
-  boolean showDateExpired=(preferences & CmsUserSettings.FILELIST_DATE_EXPIRED) > 0;
+  content.append(getInitializationHeader());
   List resources=getResources(getSettings().getExplorerResource());
   int startat=0;
   int stopat=resources.size();
   int selectedPage=1;
   int numberOfPages=0;
   int maxEntrys=getSettings().getUserSettings().getExplorerFileEntries();
-  if (!(galleryView || showVfsLinks)) {
+  if (!galleryView) {
     selectedPage=getSettings().getExplorerPage();
     if (stopat > maxEntrys) {
       numberOfPages=(stopat / maxEntrys) + 1;
@@ -120,279 +29,36 @@
       }
     }
   }
-  CmsProject project;
+  int preferences=getUserPreferences();
+  boolean showTitle=(preferences & CmsUserSettings.FILELIST_TITLE) > 0;
+  boolean showNavText=(preferences & CmsUserSettings.FILELIST_NAVTEXT) > 0;
+  boolean showPermissions=(preferences & CmsUserSettings.FILELIST_PERMISSIONS) > 0;
+  boolean showDateLastModified=(preferences & CmsUserSettings.FILELIST_DATE_LASTMODIFIED) > 0;
+  boolean showUserWhoLastModified=(preferences & CmsUserSettings.FILELIST_USER_LASTMODIFIED) > 0;
+  boolean showDateCreated=(preferences & CmsUserSettings.FILELIST_DATE_CREATED) > 0;
+  boolean showUserWhoCreated=(preferences & CmsUserSettings.FILELIST_USER_CREATED) > 0;
+  boolean showDateReleased=(preferences & CmsUserSettings.FILELIST_DATE_RELEASED) > 0;
+  boolean showDateExpired=(preferences & CmsUserSettings.FILELIST_DATE_EXPIRED) > 0;
+  boolean fullPath=galleryView || listView;
+  CmsProject referenceProject;
   try {
     if (!listView) {
-      project=getCms().readProject(getSettings().getProject());
+      referenceProject=getCms().readProject(getSettings().getProject());
     }
  else {
-      project=getCms().readProject(getSettings().getExplorerProjectId());
+      referenceProject=getCms().readProject(getSettings().getExplorerProjectId());
     }
   }
  catch (  CmsException ex) {
-    project=getCms().getRequestContext().currentProject();
+    referenceProject=getCms().getRequestContext().currentProject();
   }
-  List projectResources;
-  try {
-    projectResources=getCms().readProjectResources(project);
-  }
- catch (  CmsException e) {
-    if (LOG.isInfoEnabled()) {
-      LOG.info(e);
-    }
-    projectResources=new ArrayList();
-  }
+  CmsResourceUtil resUtil=new CmsResourceUtil(getCms());
+  resUtil.setReferenceProject(referenceProject);
   for (int i=startat; i < stopat; i++) {
     CmsResource res=(CmsResource)resources.get(i);
-    CmsLock lock=null;
-    String path=getCms().getSitePath(res);
-    try {
-      lock=getCms().getLock(res);
-    }
- catch (    CmsException e) {
-      lock=CmsLock.getNullLock();
-      LOG.error(e);
-    }
-    content.append("top.aF(");
-    content.append("\"");
-    content.append(res.getName());
-    content.append("\",");
-    if (showVfsLinks || galleryView || listView) {
-      content.append("\"");
-      content.append(path);
-      content.append("\",");
-    }
- else {
-      content.append("\"\",");
-    }
-    if (showTitle) {
-      String title="";
-      try {
-        title=getCms().readPropertyObject(getCms().getSitePath(res),CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
-      }
- catch (      CmsException e) {
-        getCms().getRequestContext().saveSiteRoot();
-        try {
-          getCms().getRequestContext().setSiteRoot("/");
-          title=getCms().readPropertyObject(res.getRootPath(),CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
-        }
- catch (        Exception e1) {
-          if (LOG.isInfoEnabled()) {
-            LOG.info(e);
-          }
-        }
- finally {
-          getCms().getRequestContext().restoreSiteRoot();
-        }
-      }
-      content.append("\"");
-      if (title != null) {
-        content.append(CmsEncoder.escapeWBlanks(title,CmsEncoder.ENCODING_UTF_8));
-      }
-      content.append("\",");
-    }
- else {
-      content.append("\"\",");
-    }
-    content.append(res.getTypeId());
-    content.append(",");
-    if (res.getSiblingCount() > 1) {
-      if (res.isLabeled()) {
-        content.append("2");
-      }
- else {
-        content.append("1");
-      }
-    }
- else {
-      content.append("0");
-    }
-    content.append(",");
-    content.append(res.getLength());
-    content.append(",");
-    content.append(res.getState());
-    content.append(",");
-    int layoutstyle=CmsExplorer.LAYOUTSTYLE_INRANGE;
-    if (res.getDateReleased() > getCms().getRequestContext().getRequestTime()) {
-      layoutstyle=CmsExplorer.LAYOUTSTYLE_BEFORERELEASE;
-    }
- else     if ((res.getDateExpired() < getCms().getRequestContext().getRequestTime())) {
-      layoutstyle=CmsExplorer.LAYOUTSTYLE_AFTEREXPIRE;
-    }
-    content.append(layoutstyle);
-    content.append(',');
-    int projectId=res.getProjectLastModified();
-    if (!lock.isNullLock() && lock.getType() != CmsLock.TYPE_INHERITED && lock.getType() != CmsLock.TYPE_SHARED_INHERITED) {
-      projectId=lock.getProjectId();
-    }
-    content.append(projectId);
-    content.append(",");
-    if (showDateLastModified) {
-      content.append("\"");
-      content.append(getMessages().getDateTime(res.getDateLastModified()));
-      content.append("\",");
-    }
- else {
-      content.append("\"\",");
-    }
-    if (showUserWhoLastModified) {
-      content.append("\"");
-      try {
-        content.append(getCms().readUser(res.getUserLastModified()).getName());
-      }
- catch (      CmsException e) {
-        content.append(res.getUserLastModified().toString());
-      }
-      content.append("\",");
-    }
- else {
-      content.append("\"\",");
-    }
-    if (showDateCreated) {
-      content.append("\"");
-      content.append(getMessages().getDateTime(res.getDateCreated()));
-      content.append("\",");
-    }
- else {
-      content.append("\"\",");
-    }
-    if (showUserWhoCreated) {
-      content.append("\"");
-      try {
-        content.append(getCms().readUser(res.getUserCreated()).getName());
-      }
- catch (      CmsException e) {
-        content.append(res.getUserCreated().toString());
-      }
-      content.append("\",");
-    }
- else {
-      content.append("\"\",");
-    }
-    if (showDateReleased) {
-      content.append("\"");
-      long release=res.getDateReleased();
-      if (release != CmsResource.DATE_RELEASED_DEFAULT) {
-        content.append(getMessages().getDateTime(release));
-      }
- else {
-        content.append(CmsTouch.DEFAULT_DATE_STRING);
-      }
-      content.append("\",");
-    }
- else {
-      content.append("\"\",");
-    }
-    if (showDateExpired) {
-      content.append("\"");
-      long expire=res.getDateExpired();
-      if (expire != CmsResource.DATE_EXPIRED_DEFAULT) {
-        content.append(getMessages().getDateTime(expire));
-      }
- else {
-        content.append(CmsTouch.DEFAULT_DATE_STRING);
-      }
-      content.append("\",");
-    }
- else {
-      content.append("\"\",");
-    }
-    if (showPermissions) {
-      content.append("\"");
-      try {
-        content.append(getCms().getPermissions(getCms().getSitePath(res)).getPermissionString());
-      }
- catch (      CmsException e) {
-        getCms().getRequestContext().saveSiteRoot();
-        try {
-          getCms().getRequestContext().setSiteRoot("/");
-          content.append(getCms().getPermissions(res.getRootPath()).getPermissionString());
-        }
- catch (        Exception e1) {
-          content.append(CmsStringUtil.escapeJavaScript(e1.getMessage()));
-        }
- finally {
-          getCms().getRequestContext().restoreSiteRoot();
-        }
-      }
-      content.append("\",");
-    }
- else {
-      content.append("\"\",");
-    }
-    if (lock.isNullLock()) {
-      content.append("\"\",");
-    }
- else {
-      content.append("\"");
-      try {
-        content.append(getCms().readUser(lock.getUserId()).getName());
-      }
- catch (      CmsException e) {
-        content.append(CmsStringUtil.escapeJavaScript(e.getMessage()));
-      }
-      content.append("\",");
-    }
-    content.append(lock.getType());
-    content.append(",");
-    int lockedInProject=CmsDbUtil.UNKNOWN_ID;
-    if (lock.isNullLock() && res.getState() != CmsResource.STATE_UNCHANGED) {
-      lockedInProject=res.getProjectLastModified();
-    }
- else {
-      if (res.getState() != CmsResource.STATE_UNCHANGED) {
-        lockedInProject=projectId;
-      }
- else {
-        lockedInProject=lock.getProjectId();
-      }
-    }
-    String lockedInProjectName;
-    try {
-      if (lockedInProject == CmsDbUtil.UNKNOWN_ID) {
-        lockedInProjectName="";
-      }
- else {
-        lockedInProjectName=getCms().readProject(lockedInProject).getName();
-      }
-    }
- catch (    CmsException exc) {
-      if (LOG.isInfoEnabled()) {
-        LOG.info(exc);
-      }
-      lockedInProjectName="";
-    }
-    content.append("\"");
-    content.append(lockedInProjectName);
-    content.append("\",");
-    content.append(lockedInProject);
-    content.append(",\"");
-    if (CmsProject.isInsideProject(projectResources,res)) {
-      content.append("I");
-    }
- else {
-      content.append("O");
-    }
-    content.append("\"");
-    content.append(");\n");
+    resUtil.setResource(res);
+    content.append(getInitializationEntry(resUtil,fullPath,showTitle,showNavText,showPermissions,showDateLastModified,showUserWhoLastModified,showDateCreated,showUserWhoCreated,showDateReleased,showDateExpired));
   }
-  content.append("top.dU(document,");
-  content.append(numberOfPages);
-  content.append(",");
-  content.append(selectedPage);
-  content.append("); \n");
-  if (getSettings().getErrorMessage() != null) {
-    content.append("alert(\"");
-    content.append(CmsStringUtil.escapeJavaScript(getSettings().getErrorMessage().key(getLocale())));
-    content.append("\");\n");
-    getSettings().setErrorMessage(null);
-  }
-  String message=getBroadcastMessageString();
-  if (CmsStringUtil.isNotEmpty(message)) {
-    content.append("alert(decodeURIComponent(\"");
-    content.append(CmsEncoder.escapeWBlanks(message,CmsEncoder.ENCODING_UTF_8));
-    content.append("\"));\n");
-  }
-  content.append("}\n");
+  content.append(getInitializationFooter(numberOfPages,selectedPage));
   return content.toString();
 }

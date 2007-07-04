@@ -1,0 +1,37 @@
+{
+  Map infos=new HashMap();
+  ResultSet res=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_USERDATA_READ_1");
+    stmt.setString(1,userId.toString());
+    res=stmt.executeQuery();
+    while (res.next()) {
+      String key=res.getString(m_sqlManager.readQuery("C_USERDATA_KEY_0"));
+      String type=res.getString(m_sqlManager.readQuery("C_USERDATA_TYPE_0"));
+      byte[] value=m_sqlManager.getBytes(res,m_sqlManager.readQuery("C_USERDATA_VALUE_0"));
+      Object data=null;
+      try {
+        data=CmsDataTypeUtil.dataDeserialize(value,type);
+      }
+ catch (      IOException e) {
+        LOG.error(Messages.get().container(Messages.ERR_READING_ADDITIONAL_INFO_1,userId.toString()).key(),e);
+      }
+catch (      ClassNotFoundException e) {
+        LOG.error(Messages.get().container(Messages.ERR_READING_ADDITIONAL_INFO_1,userId.toString()).key(),e);
+      }
+      if ((key != null) && (data != null)) {
+        infos.put(key,data);
+      }
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  return infos;
+}

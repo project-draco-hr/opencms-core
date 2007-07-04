@@ -1,0 +1,114 @@
+{
+  CmsLock currentLock=getLock(dbc,resource);
+  if (currentLock.getEditionLock().isDirectlyInherited()) {
+    lockResource(dbc,resource,CmsLockType.EXCLUSIVE);
+  }
+  if (resource.isFolder()) {
+    siblingMode=CmsResource.DELETE_PRESERVE_SIBLINGS;
+  }
+  boolean allSiblingsRemoved;
+  List resources;
+  if (siblingMode == CmsResource.DELETE_REMOVE_SIBLINGS) {
+    resources=new ArrayList(readSiblings(dbc,resource,CmsResourceFilter.ALL));
+    allSiblingsRemoved=true;
+    resources.remove(resource);
+    resources.add(resource);
+  }
+ else {
+    resources=Collections.singletonList(resource);
+    allSiblingsRemoved=false;
+  }
+  int size=resources.size();
+  if (size > 1) {
+    CmsMultiException me=new CmsMultiException();
+    for (int i=0; i < size; i++) {
+      CmsResource currentResource=(CmsResource)resources.get(i);
+      currentLock=getLock(dbc,currentResource);
+      if (!currentLock.getEditionLock().isUnlocked() && !currentLock.isOwnedBy(dbc.currentUser())) {
+        CmsRequestContext context=dbc.getRequestContext();
+        me.addException(new CmsLockException(org.opencms.lock.Messages.get().container(org.opencms.lock.Messages.ERR_SIBLING_LOCKED_2,context.getSitePath(currentResource),context.getSitePath(resource))));
+      }
+    }
+    if (!me.getExceptions().isEmpty()) {
+      throw me;
+    }
+  }
+  boolean removeAce=true;
+  if (resource.isFolder()) {
+    Iterator childResources=m_vfsDriver.readChildResources(dbc,dbc.currentProject(),resource,true,true).iterator();
+    CmsUUID projectId=CmsProject.ONLINE_PROJECT_ID;
+    if (dbc.currentProject().isOnlineProject()) {
+      projectId=CmsUUID.getOpenCmsUUID();
+    }
+    StringBuffer errorResNames=new StringBuffer(128);
+    while (childResources.hasNext()) {
+      CmsResource errorRes=(CmsResource)childResources.next();
+      if (errorRes.getState().isDeleted()) {
+        continue;
+      }
+      boolean error=!dbc.currentProject().isOnlineProject();
+      if (!error) {
+        try {
+          String originalPath=m_vfsDriver.readResource(dbc,projectId,errorRes.getRootPath(),true).getRootPath();
+          error=originalPath.equals(errorRes.getRootPath()) || originalPath.startsWith(resource.getRootPath());
+        }
+ catch (        CmsVfsResourceNotFoundException e) {
+        }
+      }
+      if (error) {
+        if (errorResNames.length() != 0) {
+          errorResNames.append(", ");
+        }
+        errorResNames.append("[" + dbc.removeSiteRoot(errorRes.getRootPath()) + "]");
+      }
+    }
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(errorResNames.toString())) {
+      throw new CmsVfsException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_DELETE_NONEMTY_FOLDER_2,dbc.removeSiteRoot(resource.getRootPath()),errorResNames.toString()));
+    }
+  }
+  for (int i=0; i < size; i++) {
+    CmsResource currentResource=(CmsResource)resources.get(i);
+    if (!currentResource.equals(resource) && (CmsSecurityManager.PERM_ALLOWED != m_securityManager.hasPermissions(dbc,currentResource,CmsPermissionSet.ACCESS_WRITE,true,CmsResourceFilter.ALL))) {
+      allSiblingsRemoved=false;
+    }
+ else {
+      boolean existsOnline=m_vfsDriver.validateStructureIdExists(dbc,CmsProject.ONLINE_PROJECT_ID,currentResource.getStructureId());
+      if (!existsOnline) {
+        deleteAllProperties(dbc,currentResource.getRootPath());
+        if (currentResource.isFolder()) {
+          m_vfsDriver.removeFolder(dbc,dbc.currentProject(),currentResource);
+        }
+ else {
+          if (currentResource.isLabeled() && !labelResource(dbc,currentResource,null,2)) {
+            int flags=currentResource.getFlags();
+            flags&=~CmsResource.FLAG_LABELED;
+            currentResource.setFlags(flags);
+          }
+          m_vfsDriver.removeFile(dbc,dbc.currentProject().getUuid(),currentResource);
+        }
+        m_lockManager.removeDeletedResource(dbc,currentResource.getRootPath());
+      }
+ else {
+        removeAce=false;
+        currentResource.setState(CmsResource.STATE_DELETED);
+        m_vfsDriver.writeResourceState(dbc,dbc.currentProject(),currentResource,UPDATE_STRUCTURE,false);
+        m_vfsDriver.writeLastModifiedProjectId(dbc,dbc.currentProject(),dbc.currentProject().getUuid(),currentResource);
+      }
+    }
+    m_vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),currentResource,CmsRelationFilter.TARGETS);
+    m_vfsDriver.updateBrokenRelations(dbc,resource,true);
+  }
+  if ((resource.getSiblingCount() <= 1) || allSiblingsRemoved) {
+    if (removeAce) {
+      m_userDriver.removeAccessControlEntries(dbc,dbc.currentProject(),resource.getResourceId());
+    }
+ else {
+      m_userDriver.deleteAccessControlEntries(dbc,dbc.currentProject(),resource.getResourceId());
+    }
+  }
+  clearAccessControlListCache();
+  OpenCms.getMemoryMonitor().flushProperties();
+  OpenCms.getMemoryMonitor().flushPropertyLists();
+  OpenCms.getMemoryMonitor().flushProjectResources();
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_DELETED,Collections.singletonMap("resources",resources)));
+}

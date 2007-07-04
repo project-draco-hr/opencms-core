@@ -1,0 +1,52 @@
+{
+  List excluded=new ArrayList();
+  List users=new ArrayList();
+  Iterator itGroups=getGroups().iterator();
+  while (itGroups.hasNext()) {
+    String groupName=(String)itGroups.next();
+    try {
+      Iterator itUsers=getCms().getUsersOfGroup(groupName,true).iterator();
+      while (itUsers.hasNext()) {
+        CmsUser user=(CmsUser)itUsers.next();
+        String userName=user.getFullName();
+        if (!users.contains(userName)) {
+          String emailAddress=user.getEmail();
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(emailAddress)) {
+            users.add(userName);
+          }
+ else {
+            excluded.add(userName);
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+  if (!excluded.isEmpty()) {
+    StringBuffer text=new StringBuffer(500);
+    text.append(Messages.get().container(Messages.GUI_EXCLUDED_USERS_WARNING_0).key(getLocale()));
+    text.append("<br>");
+    Iterator it=excluded.iterator();
+    while (it.hasNext()) {
+      text.append("- ");
+      text.append(it.next());
+      text.append("<br>");
+    }
+    setExcludedUsers(text.toString());
+  }
+  if (users.isEmpty()) {
+    setCommitErrors(Collections.singletonList(new CmsIllegalStateException(Messages.get().container(Messages.ERR_NO_SELECTED_USER_WITH_EMAIL_0))));
+    return "";
+  }
+  StringBuffer result=new StringBuffer(256);
+  Iterator itUsers=users.iterator();
+  while (itUsers.hasNext()) {
+    result.append(itUsers.next().toString());
+    if (itUsers.hasNext()) {
+      result.append("; ");
+    }
+  }
+  return result.toString();
+}

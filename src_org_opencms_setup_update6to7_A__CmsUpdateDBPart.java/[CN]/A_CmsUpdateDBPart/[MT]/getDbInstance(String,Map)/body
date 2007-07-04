@@ -1,0 +1,57 @@
+{
+  m_poolData=new HashMap(dbPoolData);
+  if (dbName.indexOf("mysql") > -1) {
+    String engine="MYISAM";
+    CmsSetupDb setupDb=new CmsSetupDb(null);
+    try {
+      setupDb.setConnection((String)m_poolData.get("driver"),(String)m_poolData.get("url"),(String)m_poolData.get("params"),(String)m_poolData.get("user"),(String)m_poolData.get("pwd"));
+      ResultSet res=setupDb.executeSqlStatement("SHOW TABLE STATUS LIKE 'CMS_GROUPS';",null);
+      if (res.next()) {
+        engine=res.getString("Engine").toUpperCase();
+      }
+      res.close();
+    }
+ catch (    SQLException e) {
+      e.printStackTrace();
+    }
+ finally {
+      setupDb.closeConnection();
+    }
+    m_poolData.put("engine",engine);
+    System.out.println("Table engine:               " + engine);
+    return getInstanceForDb("mysql");
+  }
+ else   if (dbName.indexOf("oracle") > -1) {
+    String dataTablespace="users";
+    String indexTablespace="users";
+    CmsSetupDb setupDb=new CmsSetupDb(null);
+    try {
+      setupDb.setConnection((String)m_poolData.get("driver"),(String)m_poolData.get("url"),(String)m_poolData.get("params"),(String)m_poolData.get("user"),(String)m_poolData.get("pwd"));
+      ResultSet res=setupDb.executeSqlStatement("SELECT DISTINCT tablespace_name FROM user_tables",null);
+      if (res.next()) {
+        dataTablespace=res.getString(1).toLowerCase();
+      }
+      res.close();
+      res=setupDb.executeSqlStatement("SELECT DISTINCT tablespace_name FROM user_indexes",null);
+      if (res.next()) {
+        indexTablespace=res.getString(1).toLowerCase();
+      }
+      res.close();
+    }
+ catch (    SQLException e) {
+      e.printStackTrace();
+    }
+ finally {
+      setupDb.closeConnection();
+    }
+    m_poolData.put("indexTablespace",indexTablespace);
+    System.out.println("Index Tablespace:           " + indexTablespace);
+    m_poolData.put("dataTablespace",dataTablespace);
+    System.out.println("Data Tablespace:            " + dataTablespace);
+    return getInstanceForDb("oracle");
+  }
+ else {
+    System.out.println("db " + dbName + " not supported");
+    return null;
+  }
+}

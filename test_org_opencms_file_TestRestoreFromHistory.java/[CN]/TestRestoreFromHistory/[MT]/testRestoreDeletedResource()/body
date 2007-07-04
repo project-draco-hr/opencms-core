@@ -5,26 +5,31 @@
   String contentStr="Hello this is the content";
   cms.createResource(resourcename,CmsResourceTypePlain.getStaticTypeId(),contentStr.getBytes(),null);
   assertContent(cms,resourcename,contentStr.getBytes());
-  List allFiles=cms.readAllBackupFileHeaders(resourcename);
+  List allFiles=cms.readAllAvailableVersions(resourcename);
   if (!allFiles.isEmpty()) {
-    fail("Unexpected backup files for new created resource found.");
+    fail("Unexpected historical files for new created resource found.");
   }
-  cms.unlockProject(cms.getRequestContext().currentProject().getId());
-  cms.publishProject();
-  allFiles=cms.readAllBackupFileHeaders(resourcename);
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  allFiles=cms.readAllAvailableVersions(resourcename);
   if (allFiles.size() != 1) {
-    fail("Unexpected number of backup files for published resource found (one expected)");
+    fail("Unexpected number of historical files for published resource found (one expected)");
   }
+  CmsResource resource=cms.readResource(resourcename);
   cms.lockResource(resourcename);
   cms.deleteResource(resourcename,CmsResource.DELETE_PRESERVE_SIBLINGS);
-  cms.unlockProject(cms.getRequestContext().currentProject().getId());
-  cms.publishProject();
-  cms.createResource(resourcename,CmsResourceTypePlain.getStaticTypeId(),null,null);
-  allFiles=cms.readAllBackupFileHeaders(resourcename);
-  if (allFiles.size() != 1) {
-    fail("Unexpected number of backup files for published resource found (one expected)");
-  }
-  CmsBackupResource backup=(CmsBackupResource)allFiles.get(0);
-  cms.restoreResourceBackup(resourcename,backup.getTagId());
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.createResource(resourcename,CmsResourceTypePlain.getStaticTypeId(),"".getBytes(),null);
+  allFiles=cms.readAllAvailableVersions(resourcename);
+  assertEquals("Unexpected number of historical files for published resource found (zero expected)",0,allFiles.size());
+  cms.deleteResource(resourcename,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  cms.importResource(resourcename,resource,"test".getBytes(),null);
+  allFiles=cms.readAllAvailableVersions(resourcename);
+  assertEquals("Unexpected number of historical files for published resource found (two expected)",2,allFiles.size());
+  I_CmsHistoryResource history=(I_CmsHistoryResource)allFiles.get(0);
+  cms.restoreResourceVersion(history.getStructureId(),history.getVersion());
   assertContent(cms,resourcename,contentStr.getBytes());
 }

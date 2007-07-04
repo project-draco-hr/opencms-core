@@ -1,0 +1,28 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing undo changes after moving a folder several times");
+  String source="/folder1/";
+  String destination="/folder1_undo4/";
+  String source2="/subfolder11/";
+  String destination2="/subfolder11_undo/";
+  cms.lockResource(source);
+  cms.moveResource(source,destination);
+  cms.moveResource(destination + source2,destination2);
+  try {
+    cms.undoChanges(destination2,CmsResource.UNDO_MOVE_CONTENT_RECURSIVE);
+    fail("undo changes should fail, since a parent folder is missing");
+  }
+ catch (  Exception e) {
+  }
+  cms.undoChanges(destination,CmsResource.UNDO_MOVE_CONTENT_RECURSIVE);
+  assertFalse(cms.existsResource(destination,CmsResourceFilter.ALL));
+  assertTrue(cms.existsResource(source));
+  assertFalse(cms.existsResource(destination + source2,CmsResourceFilter.ALL));
+  assertTrue(cms.existsResource(destination2));
+  cms.undoChanges(destination2,CmsResource.UNDO_MOVE_CONTENT_RECURSIVE);
+  assertTrue(cms.existsResource(source + source2));
+  assertFalse(cms.existsResource(destination2,CmsResourceFilter.ALL));
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+}

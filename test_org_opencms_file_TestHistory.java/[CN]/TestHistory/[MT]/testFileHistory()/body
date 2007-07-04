@@ -1,0 +1,39 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing history with one sibling");
+  String filename="/testFileHistory1.txt";
+  String siblingname="/testFileHistory2.txt";
+  int counter=2;
+  String contentStr="content version " + 0;
+  cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId(),contentStr.getBytes(),null);
+  OpenCms.getPublishManager().publishResource(cms,filename);
+  OpenCms.getPublishManager().waitWhileRunning();
+  for (int i=1; i <= counter; i++) {
+    contentStr="content version " + i;
+    CmsFile file=cms.readFile(filename);
+    file.setContents(contentStr.getBytes());
+    cms.lockResource(filename);
+    cms.writeFile(file);
+    cms.unlockResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename);
+    OpenCms.getPublishManager().waitWhileRunning();
+  }
+  cms.copyResource(filename,siblingname,CmsResource.COPY_AS_SIBLING);
+  cms.unlockResource(siblingname);
+  OpenCms.getPublishManager().publishResource(cms,siblingname);
+  OpenCms.getPublishManager().waitWhileRunning();
+  for (int i=1; i <= counter; i++) {
+    contentStr="sibling content version " + (counter + i);
+    CmsFile file=cms.readFile(siblingname);
+    file.setContents(contentStr.getBytes());
+    cms.lockResource(siblingname);
+    cms.writeFile(file);
+    cms.unlockResource(siblingname);
+    OpenCms.getPublishManager().publishResource(cms,siblingname);
+    OpenCms.getPublishManager().waitWhileRunning();
+  }
+  List historyResourcesForFile=cms.readAllAvailableVersions(filename);
+  List historyResourcesForSibling=cms.readAllAvailableVersions(siblingname);
+  assertEquals(1 + counter + 0+ counter,historyResourcesForFile.size());
+  assertEquals(1 + counter + 1+ counter,historyResourcesForSibling.size());
+}

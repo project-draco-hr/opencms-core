@@ -1,0 +1,60 @@
+{
+  Map relations=new HashMap();
+  CmsProgressThread thread=null;
+  if (Thread.currentThread() instanceof CmsProgressThread) {
+    thread=(CmsProgressThread)Thread.currentThread();
+  }
+  List publishResources=publishList.getAllResources();
+  Iterator itCheckList=publishResources.iterator();
+  int count=0;
+  while (itCheckList.hasNext()) {
+    count++;
+    if (thread != null) {
+      if (thread.isInterrupted()) {
+        throw new CmsIllegalStateException(org.opencms.workplace.commons.Messages.get().container(org.opencms.workplace.commons.Messages.ERR_PROGRESS_INTERRUPTED_0));
+      }
+      thread.setProgress(count * 20 / publishResources.size());
+      thread.setDescription(org.opencms.workplace.commons.Messages.get().getBundle().key(org.opencms.workplace.commons.Messages.GUI_PROGRESS_PUBLISH_STEP1_2,new Integer(count),new Integer(publishResources.size())));
+    }
+    CmsResource checkResource=(CmsResource)itCheckList.next();
+    Iterator itRelations=getRelationsForResource(dbc,checkResource,filter).iterator();
+    while (itRelations.hasNext()) {
+      CmsRelation relation=(CmsRelation)itRelations.next();
+      try {
+        CmsResource target;
+        try {
+          target=readResource(dbc,relation.getTargetId(),CmsResourceFilter.ALL);
+        }
+ catch (        CmsVfsResourceNotFoundException e) {
+          String storedSiteRoot=dbc.getRequestContext().getSiteRoot();
+          try {
+            dbc.getRequestContext().setSiteRoot("");
+            target=readResource(dbc,relation.getTargetPath(),CmsResourceFilter.ALL);
+          }
+  finally {
+            dbc.getRequestContext().setSiteRoot(storedSiteRoot);
+          }
+        }
+        if (!publishResources.contains(target) && !relations.containsKey(target.getRootPath()) && !target.getState().isUnchanged()) {
+          relations.put(target.getRootPath(),target);
+          CmsResource parent=m_vfsDriver.readParentFolder(dbc,dbc.currentProject().getUuid(),target.getStructureId());
+          while ((parent != null) && parent.getState().isNew()) {
+            if (!publishResources.contains(parent) && !relations.containsKey(parent.getRootPath())) {
+              relations.put(parent.getRootPath(),parent);
+            }
+            parent=m_vfsDriver.readParentFolder(dbc,dbc.currentProject().getUuid(),parent.getStructureId());
+          }
+        }
+      }
+ catch (      CmsVfsResourceNotFoundException e) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+  }
+  CmsPublishList ret=new CmsPublishList(publishList.getDirectPublishResources(),false,false);
+  ret.addAll(relations.values(),false);
+  ret.initialize();
+  return ret;
+}

@@ -1,0 +1,57 @@
+{
+  echo("Testing role assignments");
+  CmsObject cms=getCmsObject();
+  CmsRoleManager roleMan=OpenCms.getRoleManager();
+  roleMan.checkRoleForResource(cms,CmsRole.ROOT_ADMIN,"/");
+  roleMan.checkRole(cms,CmsRole.ROOT_ADMIN);
+  roleMan.checkRoleForResource(cms,CmsRole.DEVELOPER,"/");
+  roleMan.checkRole(cms,CmsRole.DEVELOPER.forOrgUnit(""));
+  roleMan.checkRoleForResource(cms,CmsRole.WORKPLACE_MANAGER,"/");
+  roleMan.checkRole(cms,CmsRole.WORKPLACE_MANAGER);
+  assertFalse(roleMan.getManageableGroups(cms,"",false).isEmpty());
+  assertFalse(roleMan.getManageableUsers(cms,"",false).isEmpty());
+  assertFalse(roleMan.getOrgUnitsForRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(""),false).isEmpty());
+  assertFalse(roleMan.getRolesOfUser(cms,cms.getRequestContext().currentUser().getName(),"",true,false,false).isEmpty());
+  assertTrue(roleMan.getUsersOfRole(cms,CmsRole.ROOT_ADMIN,true,false).contains(cms.getRequestContext().currentUser()));
+  assertTrue(roleMan.getUsersOfRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(""),true,true).isEmpty());
+  assertEquals(1,roleMan.getUsersOfRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(""),true,false).size());
+  CmsUser user=cms.readUser("test1");
+  assertFalse(roleMan.hasRoleForResource(cms,user.getName(),CmsRole.ROOT_ADMIN,"/"));
+  assertFalse(roleMan.hasRole(cms,user.getName(),CmsRole.ROOT_ADMIN));
+  assertFalse(roleMan.hasRoleForResource(cms,user.getName(),CmsRole.DEVELOPER,"/"));
+  assertFalse(roleMan.hasRole(cms,user.getName(),CmsRole.DEVELOPER.forOrgUnit("")));
+  assertFalse(roleMan.hasRoleForResource(cms,user.getName(),CmsRole.WORKPLACE_MANAGER,"/"));
+  assertFalse(roleMan.hasRole(cms,user.getName(),CmsRole.WORKPLACE_MANAGER));
+  assertEquals(1,roleMan.getRolesOfUser(cms,user.getName(),"",true,false,false).size());
+  assertFalse(roleMan.getUsersOfRole(cms,CmsRole.ROOT_ADMIN,true,false).contains(user));
+  assertTrue(roleMan.getUsersOfRole(cms,CmsRole.ROOT_ADMIN,true,false).contains(cms.getRequestContext().currentUser()));
+  assertTrue(roleMan.getUsersOfRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(""),true,false).contains(cms.getRequestContext().currentUser()));
+  cms.loginUser(user.getName(),"test1");
+  try {
+    cms.createUser("mytest","mytest","my test",null);
+    fail("the user should not have account management permissions");
+  }
+ catch (  CmsRoleViolationException e) {
+  }
+  assertTrue(roleMan.getManageableGroups(cms,"",false).isEmpty());
+  assertTrue(roleMan.getManageableUsers(cms,"",false).isEmpty());
+  assertTrue(roleMan.getOrgUnitsForRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(""),false).isEmpty());
+  cms=getCmsObject();
+  roleMan.addUserToRole(cms,CmsRole.ADMINISTRATOR,user.getName());
+  cms.loginUser(user.getName(),"test1");
+  cms.createUser("mytest","mytest","my test",null);
+  assertFalse(roleMan.hasRoleForResource(cms,user.getName(),CmsRole.ROOT_ADMIN,"/"));
+  assertFalse(roleMan.hasRole(cms,user.getName(),CmsRole.ROOT_ADMIN));
+  assertTrue(roleMan.hasRoleForResource(cms,user.getName(),CmsRole.DEVELOPER,"/"));
+  assertTrue(roleMan.hasRole(cms,user.getName(),CmsRole.DEVELOPER.forOrgUnit("")));
+  assertFalse(roleMan.hasRoleForResource(cms,user.getName(),CmsRole.WORKPLACE_MANAGER,"/"));
+  assertFalse(roleMan.hasRole(cms,user.getName(),CmsRole.WORKPLACE_MANAGER));
+  assertFalse(roleMan.getManageableGroups(cms,"",false).isEmpty());
+  assertFalse(roleMan.getManageableUsers(cms,"",false).isEmpty());
+  assertFalse(roleMan.getOrgUnitsForRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(""),false).isEmpty());
+  assertFalse(roleMan.getRolesOfUser(cms,user.getName(),"",true,false,false).isEmpty());
+  assertTrue(roleMan.getUsersOfRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(""),true,false).contains(cms.getRequestContext().currentUser()));
+  assertTrue(roleMan.getUsersOfRole(cms,CmsRole.ACCOUNT_MANAGER.forOrgUnit(""),true,true).isEmpty());
+  assertTrue(roleMan.getUsersOfRole(cms,CmsRole.ROOT_ADMIN,true,false).contains(cms.readUser("Admin")));
+  assertFalse(roleMan.getUsersOfRole(cms,CmsRole.ROOT_ADMIN,true,false).contains(cms.getRequestContext().currentUser()));
+}

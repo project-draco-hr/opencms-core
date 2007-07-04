@@ -1,0 +1,54 @@
+{
+  boolean copyAsSibling=false;
+  if (!source.isFolder()) {
+    if (siblingMode == CmsResource.COPY_AS_SIBLING) {
+      copyAsSibling=true;
+    }
+    if (siblingMode == CmsResource.COPY_PRESERVE_SIBLING) {
+      if (source.getSiblingCount() > 1) {
+        copyAsSibling=true;
+      }
+    }
+  }
+  List properties=readPropertyObjects(dbc,source,false);
+  if (copyAsSibling) {
+    createSibling(dbc,source,destination,properties);
+    return;
+  }
+  byte[] content=null;
+  if (source.isFile()) {
+    if (source instanceof CmsFile) {
+      content=((CmsFile)source).getContents();
+    }
+    if ((content == null) || (content.length < 1)) {
+      content=m_vfsDriver.readContent(dbc,dbc.currentProject().getUuid(),source.getResourceId());
+    }
+  }
+  String destinationFoldername=CmsResource.getParentFolder(destination);
+  CmsFolder destinationFolder=m_securityManager.readFolder(dbc,destinationFoldername,CmsResourceFilter.IGNORE_EXPIRATION);
+  long currentTime=System.currentTimeMillis();
+  long dateLastModified;
+  CmsUUID userLastModified;
+  if (source.isFolder()) {
+    dateLastModified=currentTime;
+    userLastModified=dbc.currentUser().getId();
+  }
+ else {
+    dateLastModified=source.getDateLastModified();
+    userLastModified=source.getUserLastModified();
+  }
+  int flags=source.getFlags();
+  if (source.isLabeled()) {
+    flags&=~CmsResource.FLAG_LABELED;
+  }
+  CmsResource newResource=new CmsResource(new CmsUUID(),new CmsUUID(),destination,source.getTypeId(),source.isFolder(),flags,dbc.currentProject().getUuid(),CmsResource.STATE_NEW,currentTime,dbc.currentUser().getId(),dateLastModified,userLastModified,source.getDateReleased(),source.getDateExpired(),1,source.getLength(),source.getDateContent(),source.getVersion());
+  newResource.setDateLastModified(dateLastModified);
+  newResource=createResource(dbc,destination,newResource,content,properties,false);
+  copyAccessControlEntries(dbc,source,newResource,false);
+  clearAccessControlListCache();
+  List modifiedResources=new ArrayList();
+  modifiedResources.add(source);
+  modifiedResources.add(newResource);
+  modifiedResources.add(destinationFolder);
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_COPIED,Collections.singletonMap("resources",modifiedResources)));
+}

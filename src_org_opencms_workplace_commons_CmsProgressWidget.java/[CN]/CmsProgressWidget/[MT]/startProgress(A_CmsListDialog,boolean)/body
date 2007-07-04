@@ -1,0 +1,25 @@
+{
+  if (list == null) {
+    throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_PROGRESS_START_INVALID_LIST_0));
+  }
+  if (m_threads.get(getKey()) != null) {
+    if (abortExisting) {
+      Thread thread=(Thread)m_threads.get(getKey());
+      thread.interrupt();
+    }
+ else {
+      throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_PROGRESS_START_THREAD_EXISTS_0));
+    }
+  }
+  Thread thread=new CmsProgressThread(list,getKey(),list.getLocale());
+  m_threads.put(getKey(),thread);
+  thread.start();
+  Iterator iter=m_threads.entrySet().iterator();
+  while (iter.hasNext()) {
+    Map.Entry entry=(Map.Entry)iter.next();
+    CmsProgressThread value=(CmsProgressThread)entry.getValue();
+    if ((!thread.isAlive()) && (System.currentTimeMillis() - value.getFinishTime() > CLEANUP_PERIOD)) {
+      m_threads.remove(entry.getKey());
+    }
+  }
+}

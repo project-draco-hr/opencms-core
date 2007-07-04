@@ -1,0 +1,50 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the import of a resource that has been edited.");
+  String filename1="/newfile6.html";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportChangedContent.zip");
+  try {
+    cms.getRequestContext().setSiteRoot("/");
+    CmsResource res1=cms.createResource(filename1,CmsResourceTypePlain.getStaticTypeId());
+    cms.unlockResource(filename1);
+    OpenCms.getPublishManager().publishResource(cms,filename1);
+    OpenCms.getPublishManager().waitWhileRunning();
+    storeResources(cms,filename1);
+    CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+    vfsExportHandler.setFileName(zipExportFilename);
+    List exportPaths=new ArrayList(1);
+    exportPaths.add(filename1);
+    vfsExportHandler.setExportPaths(exportPaths);
+    vfsExportHandler.setIncludeSystem(false);
+    vfsExportHandler.setIncludeUnchanged(true);
+    vfsExportHandler.setExportUserdata(false);
+    OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+    String content="new content";
+    CmsFile file=new CmsFile(cms.readResource(filename1));
+    file.setContents(content.getBytes());
+    cms.lockResource(filename1);
+    cms.writeFile(file);
+    cms.unlockResource(filename1);
+    OpenCms.getPublishManager().publishResource(cms,filename1);
+    OpenCms.getPublishManager().waitWhileRunning();
+    assertFilter(cms,cms.readResource(filename1),OpenCmsTestResourceFilter.FILTER_REPLACERESOURCE);
+    cms.readResource(res1.getStructureId());
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.unlockResource(filename1);
+    OpenCms.getPublishManager().publishResource(cms,filename1);
+    OpenCms.getPublishManager().waitWhileRunning();
+    assertFilter(cms,cms.readResource(filename1),OpenCmsTestResourceFilter.FILTER_IMPORTEXPORT);
+  }
+  finally {
+    try {
+      if (zipExportFilename != null) {
+        File file=new File(zipExportFilename);
+        if (file.exists()) {
+          file.delete();
+        }
+      }
+    }
+ catch (    Throwable t) {
+    }
+  }
+}

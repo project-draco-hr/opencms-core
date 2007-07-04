@@ -3,45 +3,49 @@
     return;
   }
   ServletRequest req=context.getRequest();
-  if (CmsBackupResourceHandler.isBackupRequest(req)) {
+  if (CmsHistoryResourceHandler.isHistoryRequest(req)) {
     return;
   }
   CmsFlexController controller=CmsFlexController.getController(req);
   CmsObject cms=controller.getCmsObject();
-  if (!cms.getRequestContext().currentProject().isOnlineProject()) {
-    I_CmsDirectEditProvider eb=getDirectEditProvider(context);
+  if (cms.getRequestContext().currentProject().isOnlineProject()) {
+    return;
+  }
+  if (CmsWorkplace.isTemporaryFileName(cms.getRequestContext().getUri())) {
+    return;
+  }
+  I_CmsDirectEditProvider eb=getDirectEditProvider(context);
+  if (eb == null) {
+    if (CmsStringUtil.isNotEmpty(fileName) && CmsStringUtil.isEmpty(provider)) {
+      provider=CmsDirectEditJspIncludeProvider.class.getName();
+    }
+    if (CmsStringUtil.isNotEmpty(provider)) {
+      try {
+        eb=(I_CmsDirectEditProvider)Class.forName(provider).newInstance();
+      }
+ catch (      Exception e) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_DIRECT_EDIT_PROVIDER_1,provider),e);
+      }
+    }
     if (eb == null) {
-      if (CmsStringUtil.isNotEmpty(fileName) && CmsStringUtil.isEmpty(provider)) {
-        provider=CmsDirectEditJspIncludeProvider.class.getName();
-      }
-      if (CmsStringUtil.isNotEmpty(provider)) {
-        try {
-          eb=(I_CmsDirectEditProvider)Class.forName(provider).newInstance();
-        }
- catch (        Exception e) {
-          LOG.error(Messages.get().getBundle().key(Messages.ERR_DIRECT_EDIT_PROVIDER_1,provider),e);
-        }
-      }
-      if (eb == null) {
-        eb=OpenCms.getWorkplaceManager().getDirectEditProvider();
-      }
-      if (mode == null) {
-        mode=CmsDirectEditMode.AUTO;
-      }
-      eb.init(cms,mode,fileName);
-      setDirectEditProvider(context,eb);
+      eb=OpenCms.getWorkplaceManager().getDirectEditProvider();
     }
-    if (eb.isManual(mode)) {
-      CmsDirectEditParams params=getDirectEditProviderParams(context);
-      if (params != null) {
-        eb.insertDirectEditStart(context,params);
-      }
- else {
-        eb.insertDirectEditEnd(context);
-      }
+    if (mode == null) {
+      mode=CmsDirectEditMode.AUTO;
+    }
+    eb.init(cms,mode,fileName);
+    setDirectEditProvider(context,eb);
+  }
+  if (eb.isManual(mode)) {
+    CmsDirectEditParams params=getDirectEditProviderParams(context);
+    if (params != null) {
+      eb.insertDirectEditStart(context,params);
     }
  else {
-      eb.insertDirectEditIncludes(context,new CmsDirectEditParams(cms.getRequestContext().getUri()));
+      eb.insertDirectEditEnd(context);
     }
+  }
+ else {
+    eb.insertDirectEditIncludes(context,new CmsDirectEditParams(cms.getRequestContext().getUri()));
   }
 }

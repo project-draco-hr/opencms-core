@@ -1,0 +1,33 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing restoring moved resources");
+  String resourcename="/test-restore4.txt";
+  String newresname="/test-restore4moved.txt";
+  String contentStr="Hello this is the content";
+  cms.createResource(resourcename,CmsResourceTypePlain.getStaticTypeId(),contentStr.getBytes(),null);
+  assertContent(cms,resourcename,contentStr.getBytes());
+  List allFiles=cms.readAllAvailableVersions(resourcename);
+  if (!allFiles.isEmpty()) {
+    fail("Unexpected historical files for new created resource found.");
+  }
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  allFiles=cms.readAllAvailableVersions(resourcename);
+  if (allFiles.size() != 1) {
+    fail("Unexpected number of historical files for published resource found (one expected)");
+  }
+  cms.lockResource(resourcename);
+  cms.moveResource(resourcename,newresname);
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  allFiles=cms.readAllAvailableVersions(newresname);
+  if (allFiles.size() != 2) {
+    fail("Unexpected number of historical files for published resource found (two expected)");
+  }
+  I_CmsHistoryResource history=(I_CmsHistoryResource)allFiles.get(0);
+  cms.lockResource(newresname);
+  cms.restoreResourceVersion(history.getStructureId(),history.getVersion());
+  assertContent(cms,newresname,contentStr.getBytes());
+}

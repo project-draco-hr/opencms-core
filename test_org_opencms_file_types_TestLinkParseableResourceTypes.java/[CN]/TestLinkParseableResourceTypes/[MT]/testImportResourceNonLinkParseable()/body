@@ -1,0 +1,32 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing 'importResource' method for non link parseable resources");
+  String sourceName="/index_created.html";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportChangeType.zip");
+  try {
+    List relations=cms.getRelationsForResource(sourceName,CmsRelationFilter.TARGETS);
+    assertEquals(relations.size(),1);
+    cms.lockResource(sourceName);
+    cms.chtype(sourceName,CmsResourceTypeBinary.getStaticTypeId());
+    relations=cms.getRelationsForResource(sourceName,CmsRelationFilter.TARGETS);
+    assertTrue(relations.isEmpty());
+    CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+    vfsExportHandler.setFileName(zipExportFilename);
+    List exportPaths=new ArrayList(1);
+    exportPaths.add(sourceName);
+    vfsExportHandler.setExportPaths(exportPaths);
+    vfsExportHandler.setIncludeSystem(false);
+    vfsExportHandler.setIncludeUnchanged(true);
+    vfsExportHandler.setExportUserdata(false);
+    OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.undoChanges(sourceName,CmsResource.UNDO_CONTENT);
+    relations=cms.getRelationsForResource(sourceName,CmsRelationFilter.TARGETS);
+    assertEquals(1,relations.size());
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    relations=cms.getRelationsForResource(sourceName,CmsRelationFilter.TARGETS);
+    assertTrue(relations.isEmpty());
+  }
+  finally {
+    deleteFile(zipExportFilename);
+  }
+}

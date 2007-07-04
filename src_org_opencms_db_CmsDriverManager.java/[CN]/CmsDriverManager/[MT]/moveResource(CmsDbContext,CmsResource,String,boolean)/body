@@ -1,0 +1,32 @@
+{
+  CmsFolder destinationFolder=readFolder(dbc,CmsResource.getParentFolder(destination),CmsResourceFilter.IGNORE_EXPIRATION);
+  m_securityManager.checkPermissions(dbc,destinationFolder,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.IGNORE_EXPIRATION);
+  if (source.isFolder()) {
+    OpenCms.getMemoryMonitor().flushRoles();
+    OpenCms.getMemoryMonitor().flushRoleLists();
+  }
+  m_vfsDriver.moveResource(dbc,dbc.getRequestContext().currentProject().getUuid(),source,destination);
+  m_lockManager.moveResource(source.getRootPath(),destination);
+  if (!internal) {
+    source.setState(source.getState().isNew() ? CmsResource.STATE_NEW : CmsResource.STATE_CHANGED);
+    m_vfsDriver.writeResourceState(dbc,dbc.currentProject(),source,CmsDriverManager.UPDATE_STRUCTURE_STATE,false);
+  }
+  clearAccessControlListCache();
+  OpenCms.getMemoryMonitor().flushProperties();
+  OpenCms.getMemoryMonitor().flushPropertyLists();
+  OpenCms.getMemoryMonitor().flushProjectResources();
+  List resources=new ArrayList(4);
+  resources.add(source);
+  try {
+    resources.add(readFolder(dbc,CmsResource.getParentFolder(source.getRootPath()),CmsResourceFilter.ALL));
+  }
+ catch (  Exception e) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(e);
+    }
+  }
+  CmsResource destRes=readResource(dbc,destination,CmsResourceFilter.ALL);
+  resources.add(destRes);
+  resources.add(destinationFolder);
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_MOVED,Collections.singletonMap("resources",resources)));
+}

@@ -1,8 +1,5 @@
 {
   try {
-    CmsProperty property=null;
-    String key=null, value=null;
-    Element propertyElement=null;
     Element fileElement=m_resourceNode.addElement(CmsImportExportManager.N_FILE);
     String fileName=trimResourceName(getCms().getSitePath(resource));
     if (resource.isFile()) {
@@ -24,6 +21,7 @@
     }
     fileElement.addElement(CmsImportExportManager.N_DESTINATION).addText(fileName);
     fileElement.addElement(CmsImportExportManager.N_TYPE).addText(OpenCms.getResourceManager().getResourceType(resource.getTypeId()).getTypeName());
+    fileElement.addElement(CmsImportExportManager.N_UUIDSTRUCTURE).addText(resource.getStructureId().toString());
     if (resource.isFile()) {
       fileElement.addElement(CmsImportExportManager.N_UUIDRESOURCE).addText(resource.getResourceId().toString());
     }
@@ -56,22 +54,25 @@
     fileElement.addElement(CmsImportExportManager.N_FLAGS).addText(Integer.toString(resFlags));
     Element propertiesElement=fileElement.addElement(CmsImportExportManager.N_PROPERTIES);
     List properties=getCms().readPropertyObjects(getCms().getSitePath(resource),false);
+    Collections.sort(properties);
     for (int i=0, n=properties.size(); i < n; i++) {
-      property=(CmsProperty)properties.get(i);
+      CmsProperty property=(CmsProperty)properties.get(i);
       if (isIgnoredProperty(property)) {
         continue;
       }
-      key=property.getName();
-      for (int j=0; j < 2; j++) {
-        if ((j == 0 && (value=property.getStructureValue()) != null) || (j == 1 && (value=property.getResourceValue()) != null)) {
-          propertyElement=propertiesElement.addElement(CmsImportExportManager.N_PROPERTY);
-          if (j == 1) {
-            propertyElement.addAttribute(CmsImportExportManager.N_PROPERTY_ATTRIB_TYPE,CmsImportExportManager.N_PROPERTY_ATTRIB_TYPE_SHARED);
-          }
-          propertyElement.addElement(CmsImportExportManager.N_NAME).addText(key);
-          propertyElement.addElement(CmsImportExportManager.N_VALUE).addCDATA(value);
-        }
-      }
+      addPropertyNode(propertiesElement,property.getName(),property.getStructureValue(),false);
+      addPropertyNode(propertiesElement,property.getName(),property.getResourceValue(),true);
+    }
+    List relations=getCms().getRelationsForResource(getCms().getSitePath(resource),CmsRelationFilter.TARGETS.filterNotDefinedInContent());
+    CmsRelation relation=null;
+    Element relationsElement=fileElement.addElement(CmsImportExportManager.N_RELATIONS);
+    for (Iterator iter=relations.iterator(); iter.hasNext(); ) {
+      relation=(CmsRelation)iter.next();
+      CmsResource target=relation.getTarget(getCms(),CmsResourceFilter.ALL);
+      String structureId=target.getStructureId().toString();
+      String sitePath=getCms().getSitePath(target);
+      String relationType=relation.getType().getName();
+      addRelationNode(relationsElement,structureId,sitePath,relationType);
     }
     Element acl=fileElement.addElement(CmsImportExportManager.N_ACCESSCONTROL_ENTRIES);
     List fileAcEntries=getCms().getAccessControlEntries(getCms().getSitePath(resource),false);
@@ -82,11 +83,20 @@
       int flags=ace.getFlags();
       String acePrincipalName="";
       CmsUUID acePrincipal=ace.getPrincipal();
-      if ((flags & CmsAccessControlEntry.ACCESS_FLAGS_GROUP) > 0) {
+      if ((flags & CmsAccessControlEntry.ACCESS_FLAGS_ALLOTHERS) > 0) {
+        acePrincipalName=CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_NAME;
+      }
+ else       if ((flags & CmsAccessControlEntry.ACCESS_FLAGS_OVERWRITE_ALL) > 0) {
+        acePrincipalName=CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_NAME;
+      }
+ else       if ((flags & CmsAccessControlEntry.ACCESS_FLAGS_GROUP) > 0) {
         acePrincipalName=getCms().readGroup(acePrincipal).getPrefixedName();
       }
- else {
+ else       if ((flags & CmsAccessControlEntry.ACCESS_FLAGS_USER) > 0) {
         acePrincipalName=getCms().readUser(acePrincipal).getPrefixedName();
+      }
+ else {
+        acePrincipalName=CmsRole.PRINCIPAL_ROLE + "." + CmsRole.valueOfId(acePrincipal).getRoleName();
       }
       a.addElement(CmsImportExportManager.N_ACCESSCONTROL_PRINCIPAL).addText(acePrincipalName);
       a.addElement(CmsImportExportManager.N_FLAGS).addText(Integer.toString(flags));

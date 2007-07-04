@@ -1,0 +1,83 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing history with several siblings");
+  String filename="/testFileRoot.txt";
+  String siblingname="/testFileSibling1.txt";
+  String siblingname2="/testFileSibling2.txt";
+  int counter=3;
+  int counterSibl=4;
+  int counterSibl2=5;
+  String contentStr="content version " + 0;
+  cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId(),contentStr.getBytes(),null);
+  for (int i=1; i <= counter; i++) {
+    contentStr="content version " + i;
+    CmsFile file=cms.readFile(filename);
+    file.setContents(contentStr.getBytes());
+    cms.lockResource(filename);
+    cms.writeFile(file);
+    CmsProperty property=new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"RootTitle" + i,null);
+    cms.writePropertyObject(filename,property);
+    cms.unlockResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename);
+    OpenCms.getPublishManager().waitWhileRunning();
+  }
+  cms.copyResource(filename,siblingname,CmsResource.COPY_AS_SIBLING);
+  cms.unlockResource(siblingname);
+  OpenCms.getPublishManager().publishResource(cms,siblingname);
+  OpenCms.getPublishManager().waitWhileRunning();
+  for (int i=1; i <= counterSibl; i++) {
+    contentStr="sibling content version " + (counter + i);
+    CmsFile file=cms.readFile(siblingname);
+    file.setContents(contentStr.getBytes());
+    cms.lockResource(siblingname);
+    cms.writeFile(file);
+    CmsProperty property=new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"SiblingTitle" + i,null);
+    cms.writePropertyObject(siblingname,property);
+    cms.unlockResource(siblingname);
+    OpenCms.getPublishManager().publishResource(cms,siblingname);
+    OpenCms.getPublishManager().waitWhileRunning();
+  }
+  cms.copyResource(filename,siblingname2,CmsResource.COPY_AS_SIBLING);
+  cms.unlockResource(siblingname2);
+  OpenCms.getPublishManager().publishResource(cms,siblingname2);
+  OpenCms.getPublishManager().waitWhileRunning();
+  for (int i=1; i <= counterSibl2; i++) {
+    contentStr="sibling2 content version " + (counter + counterSibl2 + i);
+    CmsFile file=cms.readFile(siblingname2);
+    file.setContents(contentStr.getBytes());
+    cms.lockResource(siblingname2);
+    cms.writeFile(file);
+    CmsProperty property=new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"Sibling2Title" + i,null);
+    cms.writePropertyObject(siblingname2,property);
+    cms.unlockResource(siblingname2);
+    OpenCms.getPublishManager().publishResource(cms,siblingname2);
+    OpenCms.getPublishManager().waitWhileRunning();
+  }
+  cms.lockResource(filename);
+  cms.deleteResource(filename,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  cms.unlockResource(filename);
+  OpenCms.getPublishManager().publishResource(cms,filename);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.lockResource(siblingname2);
+  cms.deleteResource(siblingname2,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  cms.unlockResource(siblingname2);
+  OpenCms.getPublishManager().publishResource(cms,siblingname2);
+  OpenCms.getPublishManager().waitWhileRunning();
+  List allFiles=cms.readAllAvailableVersions(siblingname);
+  assertEquals(0 + counter + 1+ counterSibl+ 0+ counterSibl2+ 0+ 0 - 3,allFiles.size());
+  cms.deleteHistoricalVersions("/",3,3,-1,new CmsShellReport(cms.getRequestContext().getLocale()));
+  allFiles=cms.readAllAvailableVersions(siblingname);
+  assertEquals(3 + counterSibl2,allFiles.size());
+  I_CmsHistoryResource history=(I_CmsHistoryResource)allFiles.get(1);
+  cms.lockResource(siblingname);
+  cms.restoreResourceVersion(history.getStructureId(),history.getVersion());
+  cms.unlockResource(siblingname);
+  CmsFile file=cms.readFile(siblingname);
+  String restoredContent=getContentString(cms,file.getContents());
+  assertEquals("sibling2 content version 12",restoredContent);
+  CmsProperty prop=cms.readPropertyObject(siblingname,CmsPropertyDefinition.PROPERTY_TITLE,false);
+  assertEquals("SiblingTitle4",prop.getValue());
+  cms.createResource(siblingname2,CmsResourceTypePlain.getStaticTypeId(),null,null);
+  allFiles=cms.readAllAvailableVersions(siblingname2);
+  assertTrue(allFiles.isEmpty());
+}

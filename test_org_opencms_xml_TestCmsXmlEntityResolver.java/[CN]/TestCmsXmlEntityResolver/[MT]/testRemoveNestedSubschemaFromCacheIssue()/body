@@ -1,0 +1,40 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the \"wrong version of nested subschema still cached after change in VFS\" issue");
+  String nestedSchemaUri="/xmlcontent/subarticle.xsd";
+  String schemaUri="/xmlcontent/article.xsd";
+  String xmlContentUri="/xmlcontent/article_0005.html";
+  cms.copyResource(schemaUri,nestedSchemaUri);
+  String rfsname="org/opencms/xml/xmlcontent-definition-1.xsd";
+  String content=CmsFileUtil.readFile(rfsname,CmsEncoder.ENCODING_ISO_8859_1);
+  CmsFile schemaFile=cms.readFile(schemaUri);
+  schemaFile.setContents(content.getBytes(CmsEncoder.ENCODING_UTF_8));
+  cms.lockResource(schemaUri);
+  cms.writeFile(schemaFile);
+  cms.createResource(xmlContentUri,OpenCmsTestCase.ARTICLE_TYPEID);
+  CmsFile xmlContentFile=cms.readFile(xmlContentUri);
+  CmsXmlContent xmlContent=CmsXmlContentFactory.unmarshal(cms,xmlContentFile);
+  System.out.println(xmlContent.toString());
+  String rfsname2="org/opencms/xml/xmlcontent-definition-article-mod1.xsd";
+  String content2=CmsFileUtil.readFile(rfsname2,CmsEncoder.ENCODING_ISO_8859_1);
+  CmsFile schemaFile2=cms.readFile(nestedSchemaUri);
+  schemaFile2.setContents(content2.getBytes(CmsEncoder.ENCODING_UTF_8));
+  cms.writeFile(schemaFile2);
+  CmsFile xmlContentFile2=cms.readFile(xmlContentUri);
+  CmsXmlContent xmlContent2=CmsXmlContentFactory.unmarshal(cms,xmlContentFile2);
+  CmsXmlException ex=null;
+  try {
+    xmlContent2.validateXmlStructure(new CmsXmlEntityResolver(cms));
+  }
+ catch (  CmsXmlException e) {
+    ex=e;
+  }
+  assertNotNull("Validation of XML did not fail even though nested subschema was changed",ex);
+  cms.getRequestContext().setAttribute(CmsXmlContent.AUTO_CORRECTION_ATTRIBUTE,Boolean.TRUE);
+  xmlContentFile2=cms.writeFile(xmlContentFile2);
+  xmlContent2=CmsXmlContentFactory.unmarshal(cms,xmlContentFile2);
+  System.out.println(xmlContent2.toString());
+  if (xmlContent.toString().equals(xmlContent2.toString())) {
+    fail("Content of XML files must not be equal after schema change");
+  }
+}

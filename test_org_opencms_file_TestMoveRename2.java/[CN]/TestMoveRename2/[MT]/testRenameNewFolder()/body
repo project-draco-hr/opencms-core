@@ -1,0 +1,38 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing rename a new folder with content");
+  String source="/folder1";
+  String newFolder="/newfolder";
+  String newFolder2="/testfolder";
+  cms.createResource(newFolder,CmsResourceTypeFolder.getStaticTypeId());
+  cms.lockResource(source);
+  cms.moveResource(source,newFolder + source);
+  assertFalse(cms.getLockedResources("/",CmsLockFilter.FILTER_ALL).contains(source));
+  cms.moveResource(newFolder,newFolder2);
+  assertFalse(cms.getLockedResources("/",CmsLockFilter.FILTER_ALL).contains(newFolder));
+  try {
+    cms.readResource(source,CmsResourceFilter.ALL);
+    fail("source folder still there.");
+  }
+ catch (  CmsException e) {
+  }
+  try {
+    cms.readResource(newFolder,CmsResourceFilter.ALL);
+    fail("new folder still there.");
+  }
+ catch (  CmsException e) {
+  }
+  try {
+    cms.readResource(newFolder2);
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+    fail("folder not found.");
+  }
+  assertState(cms,newFolder2,CmsResource.STATE_NEW);
+  assertState(cms,newFolder2 + source,CmsResource.STATE_CHANGED);
+  cms.undoChanges(newFolder2 + source,CmsResource.UNDO_MOVE_CONTENT_RECURSIVE);
+  assertFalse(cms.getLockedResources(newFolder2,CmsLockFilter.FILTER_ALL).contains(newFolder2 + source));
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+}

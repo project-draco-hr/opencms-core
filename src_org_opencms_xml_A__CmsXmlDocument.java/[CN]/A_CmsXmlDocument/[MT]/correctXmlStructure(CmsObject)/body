@@ -3,6 +3,7 @@
   while (i.hasNext()) {
     Locale locale=(Locale)i.next();
     List names=getNames(locale);
+    List validValues=new ArrayList();
     Iterator j=names.iterator();
     while (j.hasNext()) {
       String name=(String)j.next();
@@ -11,8 +12,60 @@
         String content=value.getStringValue(cms);
         value.setStringValue(cms,content);
       }
+      validValues.add(value);
+    }
+    if (isAutoCorrectionEnabled()) {
+      ArrayList roots=new ArrayList();
+      ArrayList rootCds=new ArrayList();
+      ArrayList validElements=new ArrayList();
+      Iterator it=validValues.iterator();
+      while (it.hasNext()) {
+        I_CmsXmlContentValue value=(I_CmsXmlContentValue)it.next();
+        Element element=value.getElement();
+        validElements.add(element);
+        if (element.supportsParent()) {
+          Element root=element.getParent();
+          if ((root != null) && !roots.contains(root)) {
+            CmsXmlContentDefinition rcd=value.getContentDefinition();
+            if (rcd != null) {
+              roots.add(root);
+              rootCds.add(rcd);
+            }
+ else {
+              throw new CmsXmlException(Messages.get().container(Messages.ERR_CORRECT_NO_CONTENT_DEF_3,value.getName(),value.getTypeName(),value.getPath()));
+            }
+          }
+        }
+      }
+      for (int le=0; le < roots.size(); le++) {
+        Element root=(Element)roots.get(le);
+        CmsXmlContentDefinition cd=(CmsXmlContentDefinition)rootCds.get(le);
+        List nodeLists=new ArrayList();
+        Iterator is=cd.getTypeSequence().iterator();
+        while (is.hasNext()) {
+          I_CmsXmlSchemaType type=(I_CmsXmlSchemaType)is.next();
+          String name=type.getName();
+          List elements=root.elements(name);
+          if (elements.size() > type.getMaxOccurs()) {
+            for (int lo=(elements.size() - 1); lo >= type.getMaxOccurs(); lo--) {
+              elements.remove(lo);
+            }
+          }
+          nodeLists.add(elements);
+        }
+        List nodeList=root.elements();
+        nodeList.clear();
+        Iterator in=nodeLists.iterator();
+        while (in.hasNext()) {
+          List elements=(List)in.next();
+          nodeList.addAll(elements);
+        }
+        cd.addDefaultXml(cms,this,root,locale);
+      }
     }
   }
-  m_file.setContents(marshal());
+  if (m_file != null) {
+    m_file.setContents(marshal());
+  }
   return m_file;
 }

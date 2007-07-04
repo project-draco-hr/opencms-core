@@ -1,0 +1,70 @@
+{
+  Set result=new HashSet();
+  List deletedResources=m_historyDriver.readDeletedResources(dbc,resource.getStructureId(),isVfsManager ? null : dbc.currentUser().getId());
+  result.addAll(deletedResources);
+  List newResult=new ArrayList(result.size());
+  Iterator it=result.iterator();
+  while (it.hasNext()) {
+    I_CmsHistoryResource histRes=(I_CmsHistoryResource)it.next();
+    try {
+      if (!getVfsDriver().validateStructureIdExists(dbc,dbc.currentProject().getUuid(),histRes.getStructureId())) {
+        String resourcePath=histRes.getRootPath();
+        String resName=CmsResource.getName(resourcePath);
+        String path=CmsResource.getParentFolder(resourcePath);
+        CmsUUID parentId=histRes.getParentId();
+        try {
+          path=readResource(dbc,parentId,CmsResourceFilter.IGNORE_EXPIRATION).getRootPath();
+        }
+ catch (        CmsDataAccessException e) {
+          try {
+            parentId=readResource(dbc,path,CmsResourceFilter.IGNORE_EXPIRATION).getStructureId();
+          }
+ catch (          CmsDataAccessException e1) {
+          }
+        }
+        resourcePath=path + resName;
+        boolean isFolder=resourcePath.endsWith("/");
+        if (isFolder) {
+          newResult.add(new CmsHistoryFolder(histRes.getPublishTag(),histRes.getStructureId(),histRes.getResourceId(),resourcePath,histRes.getTypeId(),histRes.getFlags(),histRes.getProjectLastModified(),histRes.getState(),histRes.getDateCreated(),histRes.getUserCreated(),histRes.getDateLastModified(),histRes.getUserLastModified(),histRes.getDateReleased(),histRes.getDateExpired(),histRes.getVersion(),parentId,histRes.getResourceVersion(),histRes.getStructureVersion()));
+        }
+ else {
+          newResult.add(new CmsHistoryFile(histRes.getPublishTag(),histRes.getStructureId(),histRes.getResourceId(),resourcePath,histRes.getTypeId(),histRes.getFlags(),histRes.getProjectLastModified(),histRes.getState(),histRes.getDateCreated(),histRes.getUserCreated(),histRes.getDateLastModified(),histRes.getUserLastModified(),histRes.getDateReleased(),histRes.getDateExpired(),histRes.getLength(),histRes.getDateContent(),histRes.getVersion(),parentId,null,histRes.getResourceVersion(),histRes.getStructureVersion()));
+        }
+      }
+ else {
+        newResult.add(histRes);
+      }
+    }
+ catch (    CmsDataAccessException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+    }
+  }
+  if (readTree) {
+    Iterator itDeleted=deletedResources.iterator();
+    while (itDeleted.hasNext()) {
+      I_CmsHistoryResource delResource=(I_CmsHistoryResource)itDeleted.next();
+      if (delResource.isFolder()) {
+        newResult.addAll(readDeletedResources(dbc,(CmsFolder)delResource,readTree,isVfsManager));
+      }
+    }
+    try {
+      readResource(dbc,resource.getStructureId(),CmsResourceFilter.ALL);
+      Iterator itResources=readResources(dbc,resource,CmsResourceFilter.ALL.addRequireFolder(),readTree).iterator();
+      while (itResources.hasNext()) {
+        CmsResource subResource=(CmsResource)itResources.next();
+        if (subResource.isFolder()) {
+          newResult.addAll(readDeletedResources(dbc,subResource,readTree,isVfsManager));
+        }
+      }
+    }
+ catch (    Exception e) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(e.getLocalizedMessage(),e);
+      }
+    }
+  }
+  Collections.sort(newResult,CmsResource.COMPARE_ROOT_PATH);
+  return newResult;
+}

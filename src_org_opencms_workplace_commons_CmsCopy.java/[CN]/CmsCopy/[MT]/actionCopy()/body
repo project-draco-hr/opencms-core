@@ -44,14 +44,13 @@
     }
   }
  catch (  Throwable e) {
-    if (!isMultiOperation() && (e instanceof CmsVfsResourceAlreadyExistsException) && !(resource.isFolder())) {
+    if (!isMultiOperation() && ((e instanceof CmsVfsResourceAlreadyExistsException) || (e instanceof CmsLockException)) && (resource != null)&& !(resource.isFolder())) {
       int targetType=-1;
-      boolean restoreSiteRoot=false;
+      String storedSiteRoot=null;
       try {
         if (CmsSiteManager.getSiteRoot(getParamTarget()) != null) {
-          getCms().getRequestContext().saveSiteRoot();
+          storedSiteRoot=getCms().getRequestContext().getSiteRoot();
           getCms().getRequestContext().setSiteRoot("/");
-          restoreSiteRoot=true;
         }
         CmsResource targetRes=getCms().readResource(getParamTarget());
         targetType=targetRes.getTypeId();
@@ -62,8 +61,8 @@
         }
       }
  finally {
-        if (restoreSiteRoot) {
-          getCms().getRequestContext().restoreSiteRoot();
+        if (storedSiteRoot != null) {
+          getCms().getRequestContext().setSiteRoot(storedSiteRoot);
         }
       }
       if (resource.getTypeId() == targetType) {

@@ -1,0 +1,47 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing import with structure id.");
+  String filename="/dummy2.txt";
+  String contentStr="This is a comment. I love comments.";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportExportId.zip");
+  byte[] content=contentStr.getBytes();
+  try {
+    cms.getRequestContext().setSiteRoot("/");
+    cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId(),content,null);
+    cms.unlockResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename);
+    OpenCms.getPublishManager().waitWhileRunning();
+    storeResources(cms,filename);
+    CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+    vfsExportHandler.setFileName(zipExportFilename);
+    List exportPaths=new ArrayList(1);
+    exportPaths.add(filename);
+    vfsExportHandler.setExportPaths(exportPaths);
+    vfsExportHandler.setIncludeSystem(false);
+    vfsExportHandler.setIncludeUnchanged(true);
+    vfsExportHandler.setExportUserdata(false);
+    OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.lockResource(filename);
+    cms.deleteResource(filename,CmsResource.DELETE_REMOVE_SIBLINGS);
+    cms.unlockResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename);
+    OpenCms.getPublishManager().waitWhileRunning();
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.unlockResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename);
+    OpenCms.getPublishManager().waitWhileRunning();
+    assertFilter(cms,cms.readResource(filename),OpenCmsTestResourceFilter.FILTER_IMPORTEXPORT);
+  }
+  finally {
+    try {
+      if (zipExportFilename != null) {
+        File file=new File(zipExportFilename);
+        if (file.exists()) {
+          file.delete();
+        }
+      }
+    }
+ catch (    Throwable t) {
+    }
+  }
+}

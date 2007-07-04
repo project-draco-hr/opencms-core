@@ -1,0 +1,25 @@
+{
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_PUBLISH_JOB_START_0));
+  }
+  for (Iterator it=iterator(); it.hasNext(); ) {
+    I_CmsPublishEventListener listener=(I_CmsPublishEventListener)it.next();
+    try {
+      listener.onStart(publishJob);
+    }
+ catch (    Throwable t) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_PUBLISH_JOB_START_ERROR_1,listener.getClass().getName()),t);
+      }
+      if (publishJob.m_publishJob.getPublishReport() != null) {
+        publishJob.m_publishJob.getPublishReport().println(t);
+      }
+    }
+  }
+  boolean busyStart=((System.currentTimeMillis() - publishJob.getEnqueueTime()) > 2000);
+  boolean bigJob=((publishJob.getPublishList().size() > 25) || (OpenCms.getStaticExportManager().getHandler() instanceof CmsAfterPublishStaticExportHandler));
+  if (busyStart || bigJob) {
+    String msgText=Messages.get().getBundle(publishJob.getLocale()).key(Messages.GUI_PUBLISH_JOB_STARTED_1,new Long(publishJob.getEnqueueTime()));
+    m_publishEngine.sendMessage(publishJob.getUserId(),msgText);
+  }
+}

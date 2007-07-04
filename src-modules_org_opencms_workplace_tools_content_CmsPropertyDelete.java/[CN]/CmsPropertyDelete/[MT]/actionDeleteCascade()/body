@@ -4,16 +4,16 @@
     List resourcesWithProperty=getCms().readResourcesWithProperty(getParamPropertyName());
     List resourcesLockedByOtherUser=getResourcesLockedByOtherUser(resourcesWithProperty);
     if (resourcesLockedByOtherUser.isEmpty()) {
-      getCms().getRequestContext().saveSiteRoot();
-      getCms().getRequestContext().setSiteRoot("/");
+      String storedSiteRoot=getCms().getRequestContext().getSiteRoot();
       try {
+        getCms().getRequestContext().setSiteRoot("/");
         Iterator i=resourcesWithProperty.iterator();
         while (i.hasNext()) {
           CmsResource resource=(CmsResource)i.next();
           CmsProperty property=getCms().readPropertyObject(resource.getRootPath(),getParamPropertyName(),false);
           if (!property.isNullProperty()) {
             CmsLock lock=getCms().getLock(resource);
-            if (lock.getType() == CmsLock.TYPE_UNLOCKED) {
+            if (lock.isUnlocked()) {
               getCms().lockResource(resource.getRootPath());
             }
             property.setStructureValue(CmsProperty.DELETE_VALUE);
@@ -25,7 +25,7 @@
         getCms().deletePropertyDefinition(getParamPropertyName());
       }
   finally {
-        getCms().getRequestContext().restoreSiteRoot();
+        getCms().getRequestContext().setSiteRoot(storedSiteRoot);
         actionCloseDialog();
       }
     }

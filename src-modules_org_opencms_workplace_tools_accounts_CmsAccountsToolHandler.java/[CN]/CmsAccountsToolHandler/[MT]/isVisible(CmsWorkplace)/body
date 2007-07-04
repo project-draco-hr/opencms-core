@@ -1,0 +1,57 @@
+{
+  if (getVisibilityFlag().equals(VISIBILITY_NONE)) {
+    return false;
+  }
+  if (getLink().equals(ADDINFO_FILE)) {
+    CmsWorkplaceUserInfoManager manager=OpenCms.getWorkplaceManager().getUserInfoManager();
+    if ((manager == null) || (manager.getBlocks() == null) || manager.getBlocks().isEmpty()) {
+      return false;
+    }
+  }
+  CmsObject cms=wp.getCms();
+  String ouFqn=wp.getJsp().getRequest().getParameter(A_CmsOrgUnitDialog.PARAM_OUFQN);
+  if (ouFqn == null) {
+    ouFqn=cms.getRequestContext().getOuFqn();
+  }
+  String parentOu=CmsOrganizationalUnit.getParentFqn(ouFqn);
+  if (getLink().equals(OVERVIEW_FILE)) {
+    if (parentOu != null) {
+      return (OpenCms.getRoleManager().hasRole(cms,CmsRole.ACCOUNT_MANAGER) && !OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(parentOu)));
+    }
+    return OpenCms.getRoleManager().hasRole(cms,CmsRole.ACCOUNT_MANAGER);
+  }
+ else   if (getLink().equals(EDIT_FILE)) {
+    if (parentOu != null) {
+      return (OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR) && OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(parentOu)));
+    }
+    return false;
+  }
+ else   if (getLink().equals(NEW_FILE)) {
+    return OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR);
+  }
+ else   if (getLink().equals(PARENT_FILE)) {
+    if (parentOu != null) {
+      return OpenCms.getRoleManager().hasRole(cms,CmsRole.ACCOUNT_MANAGER.forOrgUnit(parentOu));
+    }
+    return false;
+  }
+ else   if (getLink().equals(DELETE_FILE)) {
+    if (parentOu != null) {
+      return (OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR) && OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(parentOu)));
+    }
+    return false;
+  }
+ else   if (getLink().equals(ASSIGN_FILE)) {
+    try {
+      List orgUnits=OpenCms.getRoleManager().getOrgUnitsForRole(cms,CmsRole.ACCOUNT_MANAGER.forOrgUnit(""),true);
+      if (orgUnits.size() > 1) {
+        return true;
+      }
+      return false;
+    }
+ catch (    CmsException e) {
+      return super.isVisible(cms);
+    }
+  }
+  return OpenCms.getRoleManager().hasRole(cms,CmsRole.ACCOUNT_MANAGER);
+}

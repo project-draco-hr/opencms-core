@@ -9,7 +9,31 @@
   if (dest.startsWith(resource.getRootPath())) {
     throw new CmsVfsException(org.opencms.file.Messages.get().container(org.opencms.file.Messages.ERR_MOVE_SAME_FOLDER_2,cms.getSitePath(resource),destination));
   }
-  securityManager.checkPermissions(cms.getRequestContext(),resource,CmsPermissionSet.ACCESS_WRITE,true,CmsResourceFilter.IGNORE_EXPIRATION);
-  copyResource(cms,securityManager,resource,destination,CmsResource.COPY_AS_SIBLING);
-  deleteResource(cms,securityManager,resource,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  dest=validateFoldername(dest);
+  securityManager.moveResource(cms.getRequestContext(),resource,dest);
+  CmsFolder folder=securityManager.readFolder(cms.getRequestContext(),dest,CmsResourceFilter.ALL);
+  List resources=securityManager.readResources(cms.getRequestContext(),folder,CmsResourceFilter.ALL,true);
+  if (resources != null) {
+    CmsMultiException me=new CmsMultiException();
+    for (int i=0; i < resources.size(); i++) {
+      CmsResource childResource=(CmsResource)resources.get(i);
+      if (childResource.isFolder()) {
+        continue;
+      }
+      try {
+        getResourceType(childResource).writeFile(cms,securityManager,CmsFile.upgrade(childResource,cms));
+      }
+ catch (      CmsException e) {
+        me.addException(e);
+      }
+catch (      CmsRuntimeException e) {
+        me.addException(new CmsException(e.getMessageContainer(),e));
+      }
+    }
+    if (!me.getExceptions().isEmpty()) {
+      if (LOG.isWarnEnabled()) {
+        LOG.warn(me);
+      }
+    }
+  }
 }

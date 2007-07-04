@@ -1,0 +1,37 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  List locks=new ArrayList(256);
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCE_LOCKS_READALL");
+    ResultSet rs=stmt.executeQuery();
+    while (rs.next()) {
+      String resourcePath=rs.getString(m_sqlManager.readQuery("C_RESOURCE_LOCKS_RESOURCE_PATH"));
+      CmsUUID userId=new CmsUUID(rs.getString(m_sqlManager.readQuery("C_RESOURCE_LOCKS_USER_ID")));
+      CmsUUID projectId=new CmsUUID(rs.getString(m_sqlManager.readQuery("C_RESOURCE_LOCKS_PROJECT_ID")));
+      int lockType=rs.getInt(m_sqlManager.readQuery("C_RESOURCE_LOCKS_LOCK_TYPE"));
+      CmsProject project;
+      try {
+        project=readProject(dbc,projectId);
+      }
+ catch (      CmsDataAccessException dae) {
+        project=null;
+      }
+      if (project != null) {
+        CmsLock lock=new CmsLock(resourcePath,userId,project,CmsLockType.valueOf(lockType));
+        locks.add(lock);
+      }
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DBG_READ_LOCKS_1,new Integer(locks.size())));
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,null);
+  }
+  return locks;
+}

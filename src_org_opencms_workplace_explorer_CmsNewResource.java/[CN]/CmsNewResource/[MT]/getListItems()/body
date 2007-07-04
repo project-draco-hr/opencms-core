@@ -1,0 +1,58 @@
+{
+  List ret=new ArrayList();
+  Iterator i;
+  if (m_limitedRestypes) {
+    List newResTypes;
+    if (m_availableResTypes.indexOf(DELIM_PROPERTYVALUES) > -1) {
+      newResTypes=CmsStringUtil.splitAsList(m_availableResTypes,DELIM_PROPERTYVALUES);
+    }
+ else {
+      newResTypes=CmsStringUtil.splitAsList(m_availableResTypes,CmsProperty.VALUE_LIST_DELIMITER);
+    }
+    Iterator k=newResTypes.iterator();
+    List settings=new ArrayList(newResTypes.size());
+    while (k.hasNext()) {
+      String resType=(String)k.next();
+      CmsExplorerTypeSettings set=OpenCms.getWorkplaceManager().getExplorerTypeSetting(resType);
+      if (set != null) {
+        settings.add(set);
+      }
+    }
+    Collections.sort(settings);
+    i=settings.iterator();
+  }
+ else {
+    i=OpenCms.getWorkplaceManager().getExplorerTypeSettings().iterator();
+  }
+  CmsResource resource=null;
+  try {
+    resource=getCms().readResource(getParamCurrentFolder());
+  }
+ catch (  CmsException e) {
+  }
+  while (i.hasNext()) {
+    CmsExplorerTypeSettings settings=(CmsExplorerTypeSettings)i.next();
+    if (!m_limitedRestypes) {
+      if (m_page == null) {
+        if (CmsStringUtil.isNotEmpty(settings.getNewResourcePage())) {
+          continue;
+        }
+      }
+ else       if (!m_page.equals(settings.getNewResourcePage())) {
+        continue;
+      }
+    }
+    if (CmsStringUtil.isEmpty(settings.getNewResourceUri())) {
+      continue;
+    }
+    if (!settings.isEditable(getCms(),resource)) {
+      continue;
+    }
+    CmsListItem item=getList().newItem(settings.getName());
+    item.set(LIST_COLUMN_NAME,key(settings.getKey()));
+    item.set(LIST_COLUMN_ICON,"<img src=\"" + getSkinUri() + "filetypes/"+ settings.getIcon()+ "\" style=\"width: 16px; height: 16px;\" />");
+    item.set(LIST_COLUMN_URI,CmsEncoder.encode(settings.getNewResourceUri()));
+    ret.add(item);
+  }
+  return ret;
+}

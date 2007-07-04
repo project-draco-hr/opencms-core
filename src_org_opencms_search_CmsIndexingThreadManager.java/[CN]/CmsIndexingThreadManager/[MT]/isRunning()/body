@@ -1,3 +1,24 @@
 {
-  return (m_returnedCounter + m_abandonedCounter < m_fileCounter);
+  if (m_lastLogErrorTime <= 0) {
+    m_lastLogErrorTime=System.currentTimeMillis();
+    m_lastLogWarnTime=m_lastLogErrorTime;
+  }
+ else {
+    long currentTime=System.currentTimeMillis();
+    if ((currentTime - m_lastLogWarnTime) > 30000) {
+      if (LOG.isWarnEnabled()) {
+        LOG.warn(Messages.get().getBundle().key(Messages.LOG_WAITING_ABANDONED_THREADS_2,new Integer(m_abandonedCounter),new Integer((m_startedCounter - m_returnedCounter))));
+      }
+      m_lastLogWarnTime=currentTime;
+    }
+    if ((currentTime - m_lastLogErrorTime) > 600000) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_WAITING_ABANDONED_THREADS_2,new Integer(m_abandonedCounter),new Integer((m_startedCounter - m_returnedCounter))));
+      m_lastLogErrorTime=currentTime;
+    }
+  }
+  boolean result=(m_returnedCounter + m_abandonedCounter < m_startedCounter);
+  if (result && LOG.isInfoEnabled()) {
+    LOG.info(Messages.get().getBundle().key(Messages.LOG_THREADS_FINISHED_0));
+  }
+  return result;
 }

@@ -1,7 +1,32 @@
 {
   CmsResource res=readResource(resourceName,CmsResourceFilter.ALL);
-  I_CmsPrincipal principal=CmsPrincipal.readPrincipal(this,principalType,principalName);
-  CmsAccessControlEntry acEntry=new CmsAccessControlEntry(res.getResourceId(),principal.getId(),permissionString);
-  acEntry.setFlagsForPrincipal(principal);
+  CmsAccessControlEntry acEntry=null;
+  try {
+    I_CmsPrincipal principal=CmsPrincipal.readPrincipal(this,principalType,principalName);
+    acEntry=new CmsAccessControlEntry(res.getResourceId(),principal.getId(),permissionString);
+    acEntry.setFlagsForPrincipal(principal);
+  }
+ catch (  CmsDbEntryNotFoundException e) {
+    if (principalName.equalsIgnoreCase(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_NAME)) {
+      acEntry=new CmsAccessControlEntry(res.getResourceId(),CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID,permissionString);
+      acEntry.setFlags(CmsAccessControlEntry.ACCESS_FLAGS_ALLOTHERS);
+    }
+ else     if (principalName.equalsIgnoreCase(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_NAME)) {
+      acEntry=new CmsAccessControlEntry(res.getResourceId(),CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_ID,permissionString);
+      acEntry.setFlags(CmsAccessControlEntry.ACCESS_FLAGS_OVERWRITE_ALL);
+    }
+ else     if (principalType.equalsIgnoreCase(CmsRole.PRINCIPAL_ROLE)) {
+      m_securityManager.checkRoleForResource(m_context,CmsRole.VFS_MANAGER,res);
+      CmsRole role=CmsRole.valueOfRoleName(principalName);
+      if ((role == null) || (!res.getRootPath().startsWith(CmsWorkplace.VFS_PATH_SYSTEM) && !res.getRootPath().equals("/") && !res.getRootPath().equals("/system"))) {
+        throw e;
+      }
+      acEntry=new CmsAccessControlEntry(res.getResourceId(),role.getId(),permissionString);
+      acEntry.setFlags(CmsAccessControlEntry.ACCESS_FLAGS_ROLE);
+    }
+ else {
+      throw e;
+    }
+  }
   m_securityManager.writeAccessControlEntry(m_context,res,acEntry);
 }

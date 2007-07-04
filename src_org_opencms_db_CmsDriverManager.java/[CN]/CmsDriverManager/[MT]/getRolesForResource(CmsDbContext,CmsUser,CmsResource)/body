@@ -1,0 +1,37 @@
+{
+  if (user.isGuestUser()) {
+    return Collections.EMPTY_LIST;
+  }
+  String key=user.getId().toString() + resource.getRootPath();
+  List result=OpenCms.getMemoryMonitor().getCachedRoleList(key);
+  if (result != null) {
+    return result;
+  }
+  result=new ArrayList();
+  List roles=new ArrayList(getGroupsOfUser(dbc,user.getName(),"",true,true,false,dbc.getRequestContext().getRemoteAddress()));
+  Iterator it=roles.iterator();
+  while (it.hasNext()) {
+    CmsGroup group=(CmsGroup)it.next();
+    CmsRole givenRole=CmsRole.valueOf(group);
+    if (result.contains(givenRole.forOrgUnit(null))) {
+      continue;
+    }
+    if (givenRole.getOuFqn() != null) {
+      CmsOrganizationalUnit orgUnit=readOrganizationalUnit(dbc,givenRole.getOuFqn());
+      Iterator itResources=getResourcesForOrganizationalUnit(dbc,orgUnit).iterator();
+      while (itResources.hasNext()) {
+        CmsResource givenResource=(CmsResource)itResources.next();
+        if (resource.getRootPath().startsWith(givenResource.getRootPath())) {
+          result.add(givenRole.forOrgUnit(null));
+          break;
+        }
+      }
+    }
+ else {
+      result.add(givenRole);
+    }
+  }
+  result=Collections.unmodifiableList(result);
+  OpenCms.getMemoryMonitor().cacheRoleList(key,result);
+  return result;
+}

@@ -1,0 +1,50 @@
+{
+  if (Locale.ENGLISH.equals(locale)) {
+    return new ArrayList();
+  }
+  if (m_excludedBundles.get(locale) == null) {
+    List excludedBundles;
+    List notLocalized=getNotLocalizedBundles(locale);
+    if (notLocalized == null) {
+      excludedBundles=new ArrayList();
+    }
+ else {
+      excludedBundles=new ArrayList(notLocalized);
+    }
+    for (int i=0; i < getTestMessageBundles().length; i++) {
+      I_CmsMessageBundle bundle=getTestMessageBundles()[i];
+      if (excludedBundles.contains(bundle)) {
+        continue;
+      }
+      boolean exclude=true;
+      Field[] fields=bundle.getClass().getDeclaredFields();
+      for (int j=0; j < fields.length; j++) {
+        Field field=fields[j];
+        if (field.getType().equals(String.class)) {
+          String key=field.getName();
+          if (key.startsWith(KEY_PREFIX_ERR) || key.startsWith(KEY_PREFIX_GUI) || key.startsWith(KEY_PREFIX_RPT)) {
+            exclude=false;
+            break;
+          }
+        }
+      }
+      if (!exclude) {
+        continue;
+      }
+      CmsMessages messages=new CmsMessages(bundle.getBundleName(),Locale.ENGLISH);
+      Enumeration bundleKeys=messages.getResourceBundle().getKeys();
+      while (bundleKeys.hasMoreElements()) {
+        String bundleKey=(String)bundleKeys.nextElement();
+        if (!bundleKey.toUpperCase().equals(bundleKey)) {
+          exclude=false;
+          break;
+        }
+      }
+      if (exclude) {
+        excludedBundles.add(bundle);
+      }
+    }
+    m_excludedBundles.put(locale,excludedBundles);
+  }
+  return (List)m_excludedBundles.get(locale);
+}

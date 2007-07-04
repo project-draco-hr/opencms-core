@@ -1,30 +1,36 @@
 {
   CmsObject cms=getCmsObject();
   echo("Testing publish locked files");
+  cms.loginUser("test1","test1");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.getRequestContext().setSiteRoot("/sites/default/");
   String source="/folder2/subfolder21/image1.gif";
   String resource1="/folder2/image1_new.gif";
   String resource2="/folder2/image1_sibling1.gif";
-  CmsProject onlineProject=cms.readProject("Online");
-  CmsProperty prop0;
-  CmsProperty prop1;
-  CmsProperty prop2;
   cms.lockResource(source);
   cms.lockResource(resource1);
   cms.lockResource(resource2);
   cms.writePropertyObject(source,new CmsProperty("Title",source + " modified",null));
   cms.writePropertyObject(resource1,new CmsProperty("Title",resource1 + " modified",null));
   cms.writePropertyObject(resource2,new CmsProperty("Title",resource2 + " modified",null));
+  cms.loginUser("Admin","admin");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.getRequestContext().setSiteRoot("/sites/default/");
   storeResources(cms,source);
   storeResources(cms,resource1);
   storeResources(cms,resource2);
-  cms.publishProject();
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
   assertState(cms,source,CmsResource.STATE_CHANGED);
   assertState(cms,resource1,CmsResource.STATE_CHANGED);
   assertState(cms,resource2,CmsResource.STATE_CHANGED);
-  cms.getRequestContext().setCurrentProject(onlineProject);
-  prop0=cms.readPropertyObject(source,"Title",false);
-  prop1=cms.readPropertyObject(resource1,"Title",false);
-  prop2=cms.readPropertyObject(resource2,"Title",false);
+  cms.changeLock(source);
+  cms.changeLock(resource1);
+  cms.changeLock(resource2);
+  cms.getRequestContext().setCurrentProject(cms.readProject("Online"));
+  CmsProperty prop0=cms.readPropertyObject(source,"Title",false);
+  CmsProperty prop1=cms.readPropertyObject(resource1,"Title",false);
+  CmsProperty prop2=cms.readPropertyObject(resource2,"Title",false);
   if (prop0.getValue().equals((source + " modified"))) {
     fail("Property published for " + source);
   }

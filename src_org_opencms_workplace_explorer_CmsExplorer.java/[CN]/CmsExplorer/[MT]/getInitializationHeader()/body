@@ -1,0 +1,79 @@
+{
+  boolean listView=VIEW_LIST.equals(getSettings().getExplorerMode());
+  String currentResourceName=getSettings().getExplorerResource();
+  CmsResource currentResource=null;
+  try {
+    currentResource=getCms().readResource(currentResourceName,CmsResourceFilter.ALL);
+  }
+ catch (  CmsException e) {
+  }
+  if (currentResource == null) {
+    currentResourceName="/";
+    try {
+      currentResource=getCms().readResource(currentResourceName,CmsResourceFilter.ALL);
+    }
+ catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+      throw new CmsRuntimeException(e.getMessageContainer(),e);
+    }
+  }
+  StringBuffer content=new StringBuffer(1024);
+  content.append("function initialize() {\n");
+  content.append("top.setRootFolder(\"");
+  String rootFolder=getRootFolder();
+  content.append(rootFolder);
+  content.append("\");\n");
+  content.append("top.mode=\"");
+  content.append(getSettings().getExplorerMode());
+  content.append("\";\n");
+  content.append("top.plainresid=");
+  content.append(CmsResourceTypePlain.getStaticTypeId());
+  content.append(";\n");
+  content.append("top.autolock=");
+  content.append(OpenCms.getWorkplaceManager().autoLockResources());
+  content.append(";\n");
+  content.append("top.buttonType=");
+  content.append(getSettings().getUserSettings().getExplorerButtonStyle());
+  content.append(";\n");
+  content.append("top.head.helpUrl='explorer/index.html';\n");
+  content.append("top.setProject('");
+  if (!listView) {
+    content.append(getSettings().getProject());
+  }
+ else {
+    content.append(getSettings().getExplorerProjectId());
+  }
+  content.append("');\n");
+  content.append("top.setOnlineProject('");
+  content.append(CmsProject.ONLINE_PROJECT_ID);
+  content.append("');\n");
+  boolean writeAccess=VIEW_EXPLORER.equals(getSettings().getExplorerMode());
+  if (writeAccess) {
+    writeAccess=getCms().isInsideCurrentProject(currentResourceName);
+  }
+  content.append("top.enableNewButton(");
+  content.append(writeAccess);
+  content.append(");\n");
+  content.append("top.setDirectory(\"");
+  content.append(CmsResource.getFolderPath(currentResource.getRootPath()));
+  content.append("\",\"");
+  content.append(CmsResource.getFolderPath(getSettings().getExplorerResource()));
+  content.append("\");\n");
+  content.append("top.rD();\n");
+  List reloadTreeFolders=(List)getJsp().getRequest().getAttribute(REQUEST_ATTRIBUTE_RELOADTREE);
+  if (reloadTreeFolders != null) {
+    String reloadFolder="";
+    for (int i=0; i < reloadTreeFolders.size(); i++) {
+      reloadFolder=(String)reloadTreeFolders.get(i);
+      if (getSettings().getUserSettings().getRestrictExplorerView()) {
+        if (reloadFolder.length() >= rootFolder.length()) {
+          reloadFolder=reloadFolder.substring(rootFolder.length() - 1);
+        }
+      }
+      content.append("top.addNodeToLoad(\"" + reloadFolder + "\");\n");
+    }
+    content.append("top.reloadNodeList();\n");
+  }
+  content.append("\n");
+  return content.toString();
+}

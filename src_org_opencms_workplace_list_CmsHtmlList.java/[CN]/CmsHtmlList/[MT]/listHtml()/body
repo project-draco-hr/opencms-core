@@ -1,0 +1,63 @@
+{
+  CmsProgressThread thread=null;
+  int progressOffset=0;
+  if (Thread.currentThread() instanceof CmsProgressThread) {
+    thread=(CmsProgressThread)Thread.currentThread();
+    progressOffset=thread.getProgress();
+  }
+  if (isPrintable()) {
+    m_visibleItems=new ArrayList(getContent());
+  }
+ else {
+    m_visibleItems=new ArrayList(getCurrentPageItems());
+  }
+  StringBuffer html=new StringBuffer(5120);
+  html.append(htmlBegin());
+  if (!isPrintable()) {
+    html.append(htmlTitle());
+    html.append(htmlToolBar());
+  }
+ else {
+    html.append("<style type='text/css'>\n");
+    html.append("td.listdetailitem, \n");
+    html.append(".linkdisabled {\n");
+    html.append("\tcolor: black;\n");
+    html.append("}\n");
+    html.append(".list th {\n");
+    html.append("\tborder: 1px solid black;\n");
+    html.append("}\n");
+    html.append(".list {\n");
+    html.append("\tborder: 1px solid black;\n");
+    html.append("}\n");
+    html.append("</style>");
+  }
+  html.append("<table width='100%' cellpadding='1' cellspacing='0' class='list'>\n");
+  html.append(m_metadata.htmlHeader(this));
+  if (m_visibleItems.isEmpty()) {
+    html.append(m_metadata.htmlEmptyTable());
+  }
+ else {
+    Iterator itItems=m_visibleItems.iterator();
+    boolean odd=true;
+    int count=0;
+    while (itItems.hasNext()) {
+      count++;
+      if (thread != null) {
+        if (thread.isInterrupted()) {
+          throw new CmsIllegalStateException(org.opencms.workplace.commons.Messages.get().container(org.opencms.workplace.commons.Messages.ERR_PROGRESS_INTERRUPTED_0));
+        }
+        thread.setProgress((count * (100 - progressOffset) / m_visibleItems.size()) + progressOffset);
+        thread.setDescription(org.opencms.workplace.commons.Messages.get().getBundle(thread.getLocale()).key(org.opencms.workplace.commons.Messages.GUI_PROGRESS_PUBLISH_STEP4_2,new Integer(count),new Integer(m_visibleItems.size())));
+      }
+      CmsListItem item=(CmsListItem)itItems.next();
+      html.append(m_metadata.htmlItem(item,odd,isPrintable()));
+      odd=!odd;
+    }
+  }
+  html.append("</table>\n");
+  if (!isPrintable()) {
+    html.append(htmlPagingBar());
+  }
+  html.append(htmlEnd());
+  return getWp().resolveMacros(html.toString());
+}

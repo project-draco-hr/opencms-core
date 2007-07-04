@@ -1,0 +1,71 @@
+{
+  CmsResourceState resourceState=fixMovedResource(dbc,onlineProject,offlineResource,publishHistoryId,publishTag);
+  CmsResource onlineResource;
+  try {
+    onlineResource=m_driverManager.getVfsDriver().readResource(dbc,onlineProject.getUuid(),offlineResource.getStructureId(),true);
+  }
+ catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_READING_RESOURCE_1,offlineResource.getRootPath()),e);
+    }
+    throw e;
+  }
+  if (offlineResource.isLabeled() && !m_driverManager.labelResource(dbc,offlineResource,null,2)) {
+    int flags=offlineResource.getFlags();
+    flags&=~CmsResource.FLAG_LABELED;
+    offlineResource.setFlags(flags);
+  }
+  CmsFile offlineFile=new CmsFile(offlineResource);
+  offlineFile.setContents(m_driverManager.getVfsDriver().readContent(dbc,dbc.currentProject().getUuid(),offlineFile.getResourceId()));
+  internalWriteHistory(dbc,offlineFile,resourceState,null,publishHistoryId,publishTag);
+  int propertyDeleteOption=-1;
+  try {
+    if (offlineResource.getSiblingCount() > 1) {
+      propertyDeleteOption=CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_VALUES;
+    }
+ else {
+      propertyDeleteOption=CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES;
+    }
+    m_driverManager.getVfsDriver().deletePropertyObjects(dbc,onlineProject.getUuid(),onlineResource,propertyDeleteOption);
+    m_driverManager.getVfsDriver().deletePropertyObjects(dbc,dbc.currentProject().getUuid(),offlineResource,propertyDeleteOption);
+    if (!onlineResource.getResourceId().equals(offlineResource.getResourceId())) {
+      m_driverManager.getVfsDriver().deletePropertyObjects(dbc,dbc.currentProject().getUuid(),onlineResource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+    }
+  }
+ catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_DELETING_PROPERTIES_1,offlineResource.getRootPath()),e);
+    }
+    throw e;
+  }
+  try {
+    m_driverManager.getVfsDriver().removeFile(dbc,dbc.currentProject().getUuid(),offlineResource);
+    m_driverManager.getVfsDriver().removeFile(dbc,onlineProject.getUuid(),onlineResource);
+  }
+ catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_REMOVING_RESOURCE_1,offlineResource.getRootPath()),e);
+    }
+    throw e;
+  }
+  try {
+    m_driverManager.getUserDriver().removeAccessControlEntries(dbc,onlineProject,onlineResource.getResourceId());
+    m_driverManager.getUserDriver().removeAccessControlEntries(dbc,dbc.currentProject(),offlineResource.getResourceId());
+  }
+ catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_REMOVING_ACL_1,offlineResource.toString()),e);
+    }
+    throw e;
+  }
+  try {
+    m_driverManager.getVfsDriver().deleteRelations(dbc,onlineProject.getUuid(),offlineResource,CmsRelationFilter.TARGETS);
+    m_driverManager.getVfsDriver().deleteRelations(dbc,dbc.currentProject().getUuid(),offlineResource,CmsRelationFilter.TARGETS);
+  }
+ catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_REMOVING_RELATIONS_1,offlineResource.toString()),e);
+    }
+    throw e;
+  }
+}

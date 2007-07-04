@@ -1,0 +1,72 @@
+{
+  List errors=new ArrayList();
+  try {
+    if (!Boolean.valueOf(getParamEditall()).booleanValue()) {
+      Iterator it=m_addInfoList.iterator();
+      while (it.hasNext()) {
+        CmsUserAddInfoBean infoBean=(CmsUserAddInfoBean)it.next();
+        if (infoBean.getValue() == null) {
+          m_user.deleteAdditionalInfo(infoBean.getName());
+        }
+ else {
+          m_user.setAdditionalInfo(infoBean.getName(),CmsDataTypeUtil.parse(infoBean.getValue(),infoBean.getType()));
+        }
+      }
+    }
+ else {
+      Map readOnly=new HashMap();
+      Iterator itEntries=m_user.getAdditionalInfo().entrySet().iterator();
+      while (itEntries.hasNext()) {
+        Map.Entry entry=(Map.Entry)itEntries.next();
+        if (!CmsDataTypeUtil.isParseable(entry.getValue().getClass())) {
+          String key=entry.getKey().toString();
+          if (!entry.getValue().getClass().equals(String.class)) {
+            key+="@" + entry.getValue().getClass().getName();
+          }
+          if (m_addInfoReadOnly.containsKey(key)) {
+            readOnly.put(entry.getKey(),entry.getValue());
+          }
+        }
+      }
+      m_user.setAdditionalInfo(readOnly);
+      itEntries=m_addInfoEditable.entrySet().iterator();
+      while (itEntries.hasNext()) {
+        Map.Entry entry=(Map.Entry)itEntries.next();
+        String key=(String)entry.getKey();
+        int pos=key.indexOf("@");
+        if (pos < 0) {
+          m_user.setAdditionalInfo(key,entry.getValue());
+          continue;
+        }
+        String className=key.substring(pos + 1);
+        key=key.substring(0,pos);
+        Class clazz;
+        try {
+          clazz=Class.forName(className);
+        }
+ catch (        Throwable e) {
+          try {
+            clazz=Class.forName(Integer.class.getPackage().getName() + "." + className);
+          }
+ catch (          Throwable e1) {
+            clazz=String.class;
+          }
+        }
+        m_user.setAdditionalInfo(key,CmsDataTypeUtil.parse((String)entry.getValue(),clazz));
+      }
+    }
+    getCms().writeUser(m_user);
+  }
+ catch (  Throwable t) {
+    errors.add(t);
+  }
+  if (errors.isEmpty()) {
+    if (getCurrentToolPath().equals("/accounts/orgunit/users/edit/addinfo/all")) {
+      Map argMap=new HashMap();
+      argMap.put(A_CmsEditUserDialog.PARAM_USERID,m_user.getId());
+      argMap.put("oufqn",m_user.getOuFqn());
+      setParamCloseLink(CmsToolManager.linkForToolPath(getJsp(),"/accounts/orgunit/users/edit/",argMap));
+    }
+  }
+  setCommitErrors(errors);
+}

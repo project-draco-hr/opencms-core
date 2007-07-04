@@ -1,0 +1,39 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing history creating, modifying and deleting a folder");
+  String folderName="/dummy1/";
+  int counter=2;
+  CmsResource res=cms.createResource(folderName,CmsResourceTypeFolder.getStaticTypeId(),null,null);
+  cms.writePropertyObject(folderName,new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"title version 0",null));
+  cms.unlockResource(folderName);
+  OpenCms.getPublishManager().publishResource(cms,folderName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  for (int i=1; i <= counter; i++) {
+    cms.lockResource(folderName);
+    cms.writePropertyObject(folderName,new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"title version " + i,null));
+    OpenCms.getPublishManager().publishResource(cms,folderName);
+    OpenCms.getPublishManager().waitWhileRunning();
+  }
+  cms.lockResource(folderName);
+  cms.writePropertyObject(folderName,new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"title version " + (counter + 1),null));
+  cms.deleteResource(folderName,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  cms.unlockResource(folderName);
+  OpenCms.getPublishManager().publishResource(cms,folderName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.createResource(folderName,CmsResourceTypeFolder.getStaticTypeId(),null,null);
+  List historyResources=cms.readAllAvailableVersions(folderName);
+  assertTrue(historyResources.isEmpty());
+  String importFolder="import/";
+  cms.importResource(importFolder,res,null,null);
+  historyResources=cms.readAllAvailableVersions(importFolder);
+  assertEquals(counter + 2,historyResources.size());
+  for (int i=0; i < counter + 2; i++) {
+    int version=counter + 2 - i;
+    String title="title version " + (version - 1);
+    I_CmsHistoryResource historyResource=(I_CmsHistoryResource)historyResources.get(i);
+    assertEquals(version,historyResource.getVersion());
+    cms.restoreResourceVersion(historyResource.getStructureId(),historyResource.getVersion());
+    CmsProperty property=cms.readPropertyObject(cms.readResource(importFolder),CmsPropertyDefinition.PROPERTY_TITLE,false);
+    assertEquals(title,property.getStructureValue());
+  }
+}

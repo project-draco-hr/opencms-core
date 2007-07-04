@@ -9,8 +9,8 @@
     loaderNode.addAttribute(A_CLASS,handler.getClass().getName());
   }
   Element importElement=importexportElement.addElement(N_IMPORT);
-  importElement.addElement(N_OVERWRITE).setText((new Boolean(m_importExportManager.overwriteCollidingResources())).toString());
-  importElement.addElement(N_CONVERT).setText((new Boolean(m_importExportManager.convertToXmlPage())).toString());
+  importElement.addElement(N_OVERWRITE).setText(String.valueOf(m_importExportManager.overwriteCollidingResources()));
+  importElement.addElement(N_CONVERT).setText(String.valueOf(m_importExportManager.convertToXmlPage()));
   if (m_importExportManager.getOldWebAppUrl() != null) {
     importElement.addElement(N_OLDWEBAPPURL).setText(m_importExportManager.getOldWebAppUrl());
   }
@@ -52,6 +52,17 @@
     exportPathUnmodified=exportPathUnmodified.substring(0,exportPathUnmodified.length() - 1);
   }
   staticexportElement.addElement(N_STATICEXPORT_EXPORTPATH).addText(exportPathUnmodified);
+  String exportWorkPathUnmodified=m_staticExportManager.getExportWorkPathForConfiguration();
+  if (exportWorkPathUnmodified != null) {
+    if (exportWorkPathUnmodified.endsWith(File.separator)) {
+      exportWorkPathUnmodified=exportWorkPathUnmodified.substring(0,exportWorkPathUnmodified.length() - 1);
+    }
+    staticexportElement.addElement(N_STATICEXPORT_EXPORTWORKPATH).addText(exportWorkPathUnmodified);
+  }
+  if (m_staticExportManager.getExportBackups() != null) {
+    String exportBackupsUnmodified=String.valueOf(m_staticExportManager.getExportBackups());
+    staticexportElement.addElement(N_STATICEXPORT_EXPORTBACKUPS).addText(exportBackupsUnmodified);
+  }
   staticexportElement.addElement(N_STATICEXPORT_DEFAULT).addText(m_staticExportManager.getDefault());
   Element defaultsuffixesElement=staticexportElement.addElement(N_STATICEXPORT_DEFAULTSUFFIXES);
   i=m_staticExportManager.getExportSuffixes().iterator();
@@ -130,6 +141,12 @@
       rfsRuleElement.addElement(N_STATICEXPORT_SOURCE).addText(rule.getSource().pattern());
       rfsRuleElement.addElement(N_STATICEXPORT_RFS_PREFIX).addText(rule.getRfsPrefixConfigured());
       rfsRuleElement.addElement(N_STATICEXPORT_EXPORTPATH).addText(rule.getExportPathConfigured());
+      if (rule.getExportWorkPathConfigured() != null) {
+        rfsRuleElement.addElement(N_STATICEXPORT_EXPORTWORKPATH).addText(rule.getExportWorkPathConfigured());
+      }
+      if (rule.getExportBackups() != null) {
+        rfsRuleElement.addElement(N_STATICEXPORT_EXPORTBACKUPS).addText(String.valueOf(rule.getExportBackups()));
+      }
       if (rule.getUseRelativeLinks() != null) {
         rfsRuleElement.addElement(N_STATICEXPORT_RELATIVELINKS).addText(rule.getUseRelativeLinks().toString());
       }
@@ -140,6 +157,14 @@
         relatedSystemRes.addElement(N_STATICEXPORT_REGEX).addText(sysRes.pattern());
       }
     }
+  }
+  Element userExportElement=parent.addElement(N_USERCSVEXPORT);
+  userExportElement.addElement(N_SEPARATOR).setText(m_importExportManager.getUserExportSettings().getSeparator());
+  Element exportColumns=userExportElement.addElement(N_COLUMNS);
+  List exportColumnList=m_importExportManager.getUserExportSettings().getColumns();
+  Iterator itExportColumnList=exportColumnList.iterator();
+  while (itExportColumnList.hasNext()) {
+    exportColumns.addElement(N_COLUMN).setText((String)itExportColumnList.next());
   }
   if (m_repositoryManager.isConfigured()) {
     List repositories=m_repositoryManager.getRepositories();
@@ -154,10 +179,11 @@
         Map config=repository.getConfiguration();
         if ((config != null) && (config.size() > 0)) {
           Element paramsElement=repositoryElement.addElement(N_PARAMS);
-          Iterator it=config.keySet().iterator();
+          Iterator it=config.entrySet().iterator();
           while (it.hasNext()) {
-            String key=(String)it.next();
-            String[] value=(String[])config.get(key);
+            Map.Entry e=(Map.Entry)it.next();
+            String key=(String)e.getKey();
+            String[] value=(String[])e.getValue();
             for (int j=0; j < value.length; j++) {
               Element paramNode=paramsElement.addElement(N_PARAM);
               paramNode.addAttribute(A_NAME,key);

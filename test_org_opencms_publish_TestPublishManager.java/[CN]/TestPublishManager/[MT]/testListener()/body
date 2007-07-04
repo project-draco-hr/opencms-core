@@ -1,0 +1,61 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the publish event listener");
+  String source="/folder2/subfolder21/image1.gif";
+  String destination="/testListener_";
+  int max=12;
+  for (int i=0; i < max; i++) {
+    cms.copyResource(source,destination + (i + 1) + ".gif",CmsResource.COPY_AS_NEW);
+  }
+  TestPublishEventListener firstListener=new TestPublishEventListener(cms.readResource(destination + "1.gif"));
+  OpenCms.getPublishManager().addPublishListener(firstListener);
+  TestPublishEventListener lastListener=new TestPublishEventListener(cms.readResource(destination + max + ".gif"));
+  OpenCms.getPublishManager().addPublishListener(lastListener);
+  long preEnqueueTime=System.currentTimeMillis();
+  assertFalse(OpenCms.getPublishManager().isRunning());
+  OpenCms.getPublishManager().stopPublishing();
+  for (int i=0; i < max; i++) {
+    OpenCms.getPublishManager().publishResource(cms,destination + (i + 1) + ".gif");
+  }
+  assertFalse(OpenCms.getPublishManager().isRunning());
+  List queue=OpenCms.getPublishManager().getPublishQueue();
+  CmsPublishJobEnqueued publishJob=(CmsPublishJobEnqueued)queue.get(queue.size() - 1);
+  OpenCms.getPublishManager().abortPublishJob(cms,publishJob,true);
+  OpenCms.getPublishManager().startPublishing();
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertEquals(0,firstListener.getAborted());
+  assertTrue(preEnqueueTime <= firstListener.getEnqueued());
+  assertTrue(firstListener.getEnqueued() <= firstListener.getStarted());
+  assertTrue(firstListener.getStarted() <= firstListener.getFinished());
+  assertEquals(0,lastListener.getStarted());
+  assertEquals(0,lastListener.getFinished());
+  assertTrue(preEnqueueTime <= lastListener.getEnqueued());
+  assertTrue(lastListener.getEnqueued() <= lastListener.getAborted());
+  assertTrue(lastListener.getAborted() <= lastListener.getRemoved());
+  int[] firstJobsInQueue=firstListener.getJobsInQueueCounter();
+  int[] lastJobsInQueue=lastListener.getJobsInQueueCounter();
+  assertTrue(firstJobsInQueue[0] == 1);
+  assertTrue(lastJobsInQueue[0] == max);
+  assertTrue(firstJobsInQueue[1] == max - 2);
+  assertTrue(lastJobsInQueue[1] == 0);
+  assertTrue(firstJobsInQueue[2] == max - 2);
+  assertTrue(lastJobsInQueue[2] == 0);
+  assertTrue(firstJobsInQueue[3] == 0);
+  assertTrue(lastJobsInQueue[3] == max);
+  assertTrue(firstJobsInQueue[4] == 0);
+  assertTrue(lastJobsInQueue[4] == max - 1);
+  int[] firstJobsInHistory=firstListener.getJobsInHistoryCounter();
+  int[] lastJobsInHistory=lastListener.getJobsInHistoryCounter();
+  assertTrue(firstJobsInHistory[0] == 10);
+  assertTrue(firstJobsInHistory[1] == 10);
+  assertTrue(firstJobsInHistory[2] == 10);
+  assertTrue(firstJobsInHistory[3] == 0);
+  assertTrue(firstJobsInHistory[4] == 9);
+  assertTrue(lastJobsInHistory[0] == 10);
+  assertTrue(lastJobsInHistory[1] == 0);
+  assertTrue(lastJobsInHistory[2] == 0);
+  assertTrue(lastJobsInHistory[3] == 10);
+  assertTrue(lastJobsInHistory[4] == 10);
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+}

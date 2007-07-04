@@ -1,0 +1,53 @@
+{
+  PreparedStatement stmt=null;
+  PreparedStatement commit=null;
+  Connection conn=null;
+  ResultSet res=null;
+  boolean wasInTransaction=false;
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    if (projectId.equals(CmsProject.ONLINE_PROJECT_ID)) {
+      stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_ORACLE_ONLINE_CONTENTS_UPDATECONTENT");
+    }
+ else {
+      stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_ORACLE_OFFLINE_CONTENTS_UPDATECONTENT");
+    }
+    wasInTransaction=!conn.getAutoCommit();
+    if (!wasInTransaction) {
+      conn.setAutoCommit(false);
+    }
+    stmt.setString(1,resourceId.toString());
+    if (projectId.equals(CmsProject.ONLINE_PROJECT_ID)) {
+      stmt.setInt(2,publishTag);
+      stmt.setInt(3,publishTag);
+    }
+    res=((DelegatingResultSet)stmt.executeQuery()).getInnermostDelegate();
+    if (!res.next()) {
+      throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.LOG_READING_RESOURCE_1,resourceId));
+    }
+    OutputStream output=CmsUserDriver.getOutputStreamFromBlob(res,"FILE_CONTENT");
+    output.write(contents,0,contents.length);
+    output.close();
+    if (!wasInTransaction) {
+      commit=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
+      commit.execute();
+      m_sqlManager.closeAll(dbc,null,commit,null);
+    }
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+    commit=null;
+    stmt=null;
+    res=null;
+    if (!wasInTransaction) {
+      conn.setAutoCommit(true);
+    }
+  }
+ catch (  IOException e) {
+    throw new CmsDbIoException(Messages.get().container(Messages.ERR_WRITING_TO_OUTPUT_STREAM_1,resourceId),e);
+  }
+catch (  SQLException e) {
+    throw new CmsDbSqlException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    ((org.opencms.db.oracle.CmsSqlManager)m_sqlManager).closeAllInTransaction(dbc,conn,stmt,res,commit,wasInTransaction);
+  }
+}

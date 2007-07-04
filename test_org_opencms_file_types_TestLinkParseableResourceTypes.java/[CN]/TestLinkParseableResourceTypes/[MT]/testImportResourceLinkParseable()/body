@@ -1,0 +1,43 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing 'importResource' method for link parseable resources");
+  String sourceName="/index.html";
+  CmsResource source=cms.readResource(sourceName);
+  String targetName="folder1/subfolder11/subsubfolder111/jsp.jsp";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportChangeType.zip");
+  try {
+    List relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+    assertTrue(relations.isEmpty());
+    cms.lockResource(targetName);
+    cms.replaceResource(targetName,source.getTypeId(),CmsFile.upgrade(source,cms).getContents(),null);
+    relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+    assertEquals(relations.size(),1);
+    CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+    vfsExportHandler.setFileName(zipExportFilename);
+    List exportPaths=new ArrayList(1);
+    exportPaths.add(targetName);
+    vfsExportHandler.setExportPaths(exportPaths);
+    vfsExportHandler.setIncludeSystem(false);
+    vfsExportHandler.setIncludeUnchanged(true);
+    vfsExportHandler.setExportUserdata(false);
+    OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.undoChanges(targetName,CmsResource.UNDO_CONTENT);
+    relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+    assertTrue(relations.isEmpty());
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+    assertEquals(relations.size(),1);
+  }
+  finally {
+    try {
+      if (zipExportFilename != null) {
+        File file=new File(zipExportFilename);
+        if (file.exists()) {
+          file.delete();
+        }
+      }
+    }
+ catch (    Throwable t) {
+    }
+  }
+}

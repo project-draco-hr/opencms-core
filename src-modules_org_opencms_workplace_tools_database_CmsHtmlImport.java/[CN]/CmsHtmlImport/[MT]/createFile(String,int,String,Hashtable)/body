@@ -8,29 +8,31 @@
       if ((properties.get(CmsPropertyDefinition.PROPERTY_NAVPOS) == null) && (properties.get(CmsPropertyDefinition.PROPERTY_NAVTEXT) != null)) {
         properties.put(CmsPropertyDefinition.PROPERTY_NAVPOS,(position + 1) + "");
       }
-      CmsXmlPage page=new CmsXmlPage(m_locale,OpenCms.getSystemInfo().getDefaultEncoding());
-      page.addValue(m_element,m_locale);
-      page.setStringValue(m_cmsObject,m_element,m_locale,content);
-      CmsLinkTable linkTable=page.getLinkTable(m_element,m_locale);
+      Locale locale=new Locale(m_locale);
+      CmsXmlPage page=new CmsXmlPage(locale,OpenCms.getSystemInfo().getDefaultEncoding());
+      page.addValue(m_element,locale);
+      page.setStringValue(m_cmsObject,m_element,locale,content);
+      CmsLinkTable linkTable=page.getLinkTable(m_element,locale);
       Iterator i=linkTable.iterator();
       while (i.hasNext()) {
         CmsLink link=(CmsLink)i.next();
         String target=link.getTarget();
-        if (target.indexOf("://") == 0) {
+        if (link.isInternal()) {
           target=m_cmsObject.getRequestContext().getFileTranslator().translateResource(target);
           link.updateLink(target,link.getAnchor(),link.getQuery());
+          link.checkConsistency(m_cmsObject);
         }
       }
       byte[] contentByteArray=page.marshal();
       List oldProperties=new ArrayList();
-      if (!m_overwriteMode) {
+      if (!m_overwrite) {
         m_cmsObject.createResource(vfsFileName,CmsResourceTypeXmlPage.getStaticTypeId(),contentByteArray,new ArrayList());
       }
  else {
         try {
           oldProperties=m_cmsObject.readPropertyObjects(vfsFileName,false);
           CmsLock lock=m_cmsObject.getLock(vfsFileName);
-          if (lock.getType() != CmsLock.TYPE_EXCLUSIVE) {
+          if (lock.getType() != CmsLockType.EXCLUSIVE) {
             m_cmsObject.lockResource(vfsFileName);
           }
           m_cmsObject.deleteResource(vfsFileName,CmsResource.DELETE_PRESERVE_SIBLINGS);
@@ -43,11 +45,12 @@
           m_cmsObject.createResource(vfsFileName,CmsResourceTypeXmlPage.getStaticTypeId(),contentByteArray,new ArrayList());
         }
       }
-      Enumeration en=properties.keys();
+      Iterator it=properties.entrySet().iterator();
       List propertyList=new ArrayList();
-      while (en.hasMoreElements()) {
-        String propertyKey=(String)en.nextElement();
-        String propertyVal=(String)properties.get(propertyKey);
+      while (it.hasNext()) {
+        Map.Entry entry=(Map.Entry)it.next();
+        String propertyKey=(String)entry.getKey();
+        String propertyVal=(String)entry.getValue();
         CmsProperty property=new CmsProperty(propertyKey,propertyVal,propertyVal);
         property.setAutoCreatePropertyDefinition(true);
         propertyList.add(property);
@@ -63,7 +66,7 @@
     }
  catch (    CmsException e) {
       m_report.println(e);
-      LOG.error(e);
+      LOG.error(e.getLocalizedMessage(),e);
     }
   }
 }

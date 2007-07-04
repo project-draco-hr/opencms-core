@@ -1,0 +1,87 @@
+{
+  String src=getRelativePath(req);
+  if (m_readOnly) {
+    resp.setStatus(CmsWebdavStatus.SC_FORBIDDEN);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_WEBDAV_READ_ONLY_0));
+    }
+    return;
+  }
+  if (isLocked(req)) {
+    resp.setStatus(CmsWebdavStatus.SC_LOCKED);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_ITEM_LOCKED_1,src));
+    }
+    return;
+  }
+  String dest=parseDestinationHeader(req);
+  if (dest == null) {
+    resp.setStatus(CmsWebdavStatus.SC_BAD_REQUEST);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_PARSE_DEST_HEADER_0));
+    }
+    return;
+  }
+  if (dest.equals(src)) {
+    resp.setStatus(CmsWebdavStatus.SC_FORBIDDEN);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_SRC_DEST_EQUALS_0));
+    }
+    return;
+  }
+  boolean overwrite=parseOverwriteHeader(req);
+  if (!m_session.exists(src)) {
+    resp.setStatus(CmsWebdavStatus.SC_NOT_FOUND);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_ITEM_NOT_FOUND_1,src));
+    }
+    return;
+  }
+  if ((m_session.exists(dest)) && (!overwrite)) {
+    resp.setStatus(CmsWebdavStatus.SC_PRECONDITION_FAILED);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEST_PATH_EXISTS_1,dest));
+    }
+    return;
+  }
+  if ((!m_session.exists(dest)) && (overwrite)) {
+    resp.setStatus(CmsWebdavStatus.SC_CREATED);
+  }
+  try {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_MOVE_ITEM_2,src,dest));
+    }
+    m_session.move(src,dest,overwrite);
+  }
+ catch (  CmsVfsResourceNotFoundException rnfex) {
+    resp.setStatus(CmsWebdavStatus.SC_NOT_FOUND);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_ITEM_NOT_FOUND_1,src));
+    }
+    return;
+  }
+catch (  CmsSecurityException sex) {
+    resp.setStatus(CmsWebdavStatus.SC_FORBIDDEN);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_NO_PERMISSION_0));
+    }
+    return;
+  }
+catch (  CmsVfsResourceAlreadyExistsException raeex) {
+    resp.setStatus(CmsWebdavStatus.SC_PRECONDITION_FAILED);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_ITEM_EXISTS_1,dest));
+    }
+    return;
+  }
+catch (  CmsException ex) {
+    resp.setStatus(CmsWebdavStatus.SC_INTERNAL_SERVER_ERROR);
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_REPOSITORY_ERROR_2,"MOVE",src),ex);
+    }
+    return;
+  }
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_MOVE_ITEM_SUCCESS_0));
+  }
+}

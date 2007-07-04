@@ -1,0 +1,68 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing handling principal associations");
+  CmsOrganizationalUnit rootOu=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,"");
+  CmsOrganizationalUnit ou=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,"test");
+  CmsOrganizationalUnit ou2=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,ou.getName() + "test2");
+  try {
+    OpenCms.getOrgUnitManager().setUsersOrganizationalUnit(cms,ou.getName(),"test1");
+    fail("it should not be possible to move the user to other ou (since it is still member of a group)");
+  }
+ catch (  CmsDbConsistencyException e) {
+  }
+  cms.removeUserFromGroup("test1","group1");
+  OpenCms.getOrgUnitManager().setUsersOrganizationalUnit(cms,ou.getName(),"test1");
+  try {
+    cms.readUser("test1");
+    fail("it should not be possible to read the user in the old ou");
+  }
+ catch (  CmsDbEntryNotFoundException e) {
+  }
+  cms.readUser("test/test1");
+  assertTrue(cms.getGroupsOfUser("test/test1",false).isEmpty());
+  List rootUsers=OpenCms.getOrgUnitManager().getUsers(cms,rootOu.getName(),false);
+  assertEquals(4,rootUsers.size());
+  assertFalse(rootUsers.contains(cms.readUser("test/test1")));
+  List rootSubusers=OpenCms.getOrgUnitManager().getUsers(cms,rootOu.getName(),true);
+  assertEquals(5,rootSubusers.size());
+  assertTrue(rootSubusers.contains(cms.readUser("test/test1")));
+  List ouUsers=OpenCms.getOrgUnitManager().getUsers(cms,ou.getName(),false);
+  assertEquals(1,ouUsers.size());
+  assertTrue(ouUsers.contains(cms.readUser("test/test1")));
+  List ouSubusers=OpenCms.getOrgUnitManager().getUsers(cms,ou.getName(),true);
+  assertEquals(1,ouSubusers.size());
+  assertTrue(ouSubusers.contains(cms.readUser("test/test1")));
+  cms.removeUserFromGroup("test2","Users");
+  cms.removeUserFromGroup("test2","group2");
+  OpenCms.getOrgUnitManager().setUsersOrganizationalUnit(cms,ou2.getName(),"test2");
+  try {
+    cms.readUser("test2");
+    fail("it should not be possible to read the user in the old ou");
+  }
+ catch (  CmsDbEntryNotFoundException e) {
+  }
+  cms.readUser("test/test2/test2");
+  assertTrue(cms.getGroupsOfUser("test/test2/test2",false).isEmpty());
+  rootUsers=OpenCms.getOrgUnitManager().getUsers(cms,rootOu.getName(),false);
+  assertEquals(3,rootUsers.size());
+  assertFalse(rootUsers.contains(cms.readUser("test/test1")));
+  assertFalse(rootUsers.contains(cms.readUser("test/test2/test2")));
+  rootSubusers=OpenCms.getOrgUnitManager().getUsers(cms,rootOu.getName(),true);
+  assertEquals(5,rootSubusers.size());
+  assertTrue(rootSubusers.contains(cms.readUser("test/test1")));
+  assertTrue(rootSubusers.contains(cms.readUser("test/test2/test2")));
+  List ouGroups=OpenCms.getOrgUnitManager().getGroups(cms,ou.getName(),false);
+  assertEquals(1,ouGroups.size());
+  assertTrue(ouGroups.contains(cms.readGroup(ou.getName() + OpenCms.getDefaultUsers().getGroupUsers())));
+  List ouSubgroups=OpenCms.getOrgUnitManager().getGroups(cms,ou.getName(),true);
+  assertEquals(2,ouSubgroups.size());
+  assertTrue(ouSubgroups.contains(cms.readGroup(ou.getName() + OpenCms.getDefaultUsers().getGroupUsers())));
+  assertTrue(ouSubgroups.contains(cms.readGroup(ou2.getName() + OpenCms.getDefaultUsers().getGroupUsers())));
+  ouUsers=OpenCms.getOrgUnitManager().getUsers(cms,ou.getName(),false);
+  assertEquals(1,ouUsers.size());
+  assertTrue(ouUsers.contains(cms.readUser("test/test1")));
+  ouSubusers=OpenCms.getOrgUnitManager().getUsers(cms,ou.getName(),true);
+  assertEquals(2,ouSubusers.size());
+  assertTrue(ouSubusers.contains(cms.readUser("test/test1")));
+  assertTrue(ouSubusers.contains(cms.readUser("test/test2/test2")));
+}

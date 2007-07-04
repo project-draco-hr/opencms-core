@@ -1,0 +1,24 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing to delete a folder structure with (from other user) locked resources inside");
+  String folder="/mytestfolder3";
+  String file="/index.html";
+  cms.createResource(folder,CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  cms.unlockResource(folder);
+  cms.loginUser("test1","test1");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.copyResource(file,folder + file,CmsResource.COPY_AS_SIBLING);
+  assertLock(cms,file,CmsLockType.EXCLUSIVE);
+  assertLock(cms,folder + file,CmsLockType.SHARED_EXCLUSIVE);
+  cms.changeLock(folder + file);
+  assertLock(cms,file,CmsLockType.SHARED_EXCLUSIVE);
+  assertLock(cms,folder + file,CmsLockType.EXCLUSIVE);
+  CmsUser user=cms.getRequestContext().currentUser();
+  cms=getCmsObject();
+  assertLock(cms,file,CmsLockType.SHARED_EXCLUSIVE,user);
+  assertLock(cms,folder + file,CmsLockType.EXCLUSIVE,user);
+  cms.lockResource(folder);
+  assertLock(cms,folder + file,CmsLockType.INHERITED);
+  assertLock(cms,file,CmsLockType.UNLOCKED);
+  cms.deleteResource(folder,CmsResource.DELETE_PRESERVE_SIBLINGS);
+}

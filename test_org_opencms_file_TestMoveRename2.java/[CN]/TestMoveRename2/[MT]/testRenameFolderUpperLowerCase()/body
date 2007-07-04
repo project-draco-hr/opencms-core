@@ -1,0 +1,24 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing to rename a folder to the same name with a different case");
+  String source="/folder1/subfolder11/subsubfolder111";
+  String destination="/folder1/subfolder11/SubSubFolder111";
+  storeResources(cms,source);
+  cms.lockResource(source);
+  cms.moveResource(source,destination);
+  assertFalse(cms.getLockedResources("/folder1",CmsLockFilter.FILTER_ALL).contains(source));
+  try {
+    cms.readResource(source,CmsResourceFilter.ALL);
+    fail("New resource still available after move operation!");
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+  }
+  cms.readResource(destination);
+  assertProject(cms,destination,cms.getRequestContext().currentProject());
+  assertState(cms,destination,CmsResource.STATE_CHANGED);
+  assertLock(cms,destination,CmsLockType.EXCLUSIVE);
+  assertSiblingCount(cms,destination,1);
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+}

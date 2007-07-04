@@ -1,0 +1,63 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing publish moved files");
+  String resource1="/folder1/subfolder12/subsubfolder121/image1.gif";
+  String target1="/folder1/subfolder12/subsubfolder121/image1_new.gif";
+  CmsProject onlineProject=cms.readProject("Online");
+  CmsProject offlineProject=cms.readProject("Offline");
+  cms.lockResource(resource1);
+  cms.moveResource(resource1,target1);
+  cms.unlockResource(target1);
+  storeResources(cms,target1);
+  CmsPublishList publishList=OpenCms.getPublishManager().getPublishList(cms,cms.readResource(target1),false);
+  OpenCms.getPublishManager().publishProject(cms,new CmsShellReport(cms.getRequestContext().getLocale()),publishList);
+  OpenCms.getPublishManager().waitWhileRunning();
+  List pubResources=cms.readPublishedResources(publishList.getPublishHistoryId());
+  assertEquals(2,pubResources.size());
+  CmsPublishedResource pubRes=(CmsPublishedResource)pubResources.get(0);
+  assertEquals(cms.getRequestContext().addSiteRoot(resource1),pubRes.getRootPath());
+  assertEquals(CmsPublishedResource.STATE_MOVED_SOURCE,pubRes.getMovedState());
+  pubRes=(CmsPublishedResource)pubResources.get(1);
+  assertEquals(cms.getRequestContext().addSiteRoot(target1),pubRes.getRootPath());
+  assertEquals(CmsPublishedResource.STATE_MOVED_DESTINATION,pubRes.getMovedState());
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  try {
+    cms.readResource(resource1,CmsResourceFilter.ALL);
+    fail("Resource " + resource1 + " was not deleted online");
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+  }
+catch (  CmsException e) {
+    fail("Resource " + resource1 + " error:"+ e);
+  }
+  try {
+    cms.readResource(target1);
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+    fail("Resource " + target1 + " is not online");
+  }
+catch (  CmsException e) {
+    fail("Resource " + target1 + " error:"+ e);
+  }
+  assertFilter(cms,target1,OpenCmsTestResourceFilter.FILTER_PUBLISHRESOURCE);
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  try {
+    cms.readResource(resource1,CmsResourceFilter.ALL);
+    fail("Resource " + resource1 + " was not deleted offline");
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+  }
+catch (  CmsException e) {
+    fail("Resource " + resource1 + " error:"+ e);
+  }
+  try {
+    cms.readResource(target1);
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+    fail("Resource " + target1 + " is not offline");
+  }
+catch (  CmsException e) {
+    fail("Resource " + target1 + " error:"+ e);
+  }
+  assertState(cms,target1,CmsResource.STATE_UNCHANGED);
+}

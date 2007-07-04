@@ -6,17 +6,19 @@
   storeResources(cms,source);
   cms.lockResource(source);
   cms.moveResource(source,destination);
-  cms.readResource(source,CmsResourceFilter.ALL);
-  assertProject(cms,source,cms.getRequestContext().currentProject());
-  assertState(cms,source,CmsResource.STATE_DELETED);
-  assertLock(cms,source,CmsLock.TYPE_SHARED_EXCLUSIVE);
-  assertPropertyNew(cms,source,new CmsProperty(CmsPropertyDefinition.PROPERTY_INTERNAL,String.valueOf(cms.getRequestContext().currentProject().getId()),null));
-  assertSiblingCountIncremented(cms,source,1);
-  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_MOVE_SOURCE);
+  try {
+    cms.readResource(source,CmsResourceFilter.ALL);
+    fail("source resource still there");
+  }
+ catch (  CmsException e) {
+  }
+  assertFalse(cms.getLockedResources("/folder1",CmsLockFilter.FILTER_ALL).contains(source));
   assertProject(cms,destination,cms.getRequestContext().currentProject());
-  assertState(cms,destination,CmsResource.STATE_NEW);
-  assertLock(cms,destination,CmsLock.TYPE_EXCLUSIVE);
+  assertState(cms,destination,CmsResource.STATE_CHANGED);
+  assertLock(cms,destination,CmsLockType.EXCLUSIVE);
   setMapping(destination,source);
-  assertSiblingCountIncremented(cms,destination,1);
   assertFilter(cms,destination,OpenCmsTestResourceFilter.FILTER_MOVE_DESTINATION);
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
 }

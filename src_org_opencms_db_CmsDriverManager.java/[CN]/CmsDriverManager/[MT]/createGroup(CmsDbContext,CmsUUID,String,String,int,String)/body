@@ -1,5 +1,21 @@
 {
   OpenCms.getValidationHandler().checkGroupName(name);
   name=name.trim();
-  return m_userDriver.createGroup(dbc,id,name,description,flags,parent,null);
+  if (CmsStringUtil.isNotEmpty(parent)) {
+    CmsGroup parentGroup=readGroup(dbc,parent);
+    if (!parentGroup.isRole() && !CmsOrganizationalUnit.getParentFqn(parent).equals(CmsOrganizationalUnit.getParentFqn(name))) {
+      throw new CmsDataAccessException(Messages.get().container(Messages.ERR_PARENT_GROUP_MUST_BE_IN_SAME_OU_3,CmsOrganizationalUnit.getSimpleName(name),CmsOrganizationalUnit.getParentFqn(name),parent));
+    }
+  }
+  CmsGroup group=m_userDriver.createGroup(dbc,id,name,description,flags,parent);
+  if (group.isVirtual()) {
+    String groupname=CmsRole.valueOf(group).getGroupName();
+    Iterator it=getUsersOfGroup(dbc,groupname,true,false,true).iterator();
+    while (it.hasNext()) {
+      CmsUser user=(CmsUser)it.next();
+      addUserToGroup(dbc,user.getName(),group.getName(),true);
+    }
+  }
+  OpenCms.getMemoryMonitor().cacheGroup(group);
+  return group;
 }

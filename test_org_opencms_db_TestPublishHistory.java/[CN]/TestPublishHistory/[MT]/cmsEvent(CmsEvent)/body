@@ -1,0 +1,77 @@
+{
+switch (event.getType()) {
+case I_CmsEventListener.EVENT_PUBLISH_PROJECT:
+    try {
+      CmsObject cms=getCmsObject();
+      CmsUUID publishHistoryId=new CmsUUID((String)event.getData().get(I_CmsEventListener.KEY_PUBLISHID));
+      List publishedResources=cms.readPublishedResources(publishHistoryId);
+      CmsPublishedResource pubRes=null;
+      if (m_test.isNew()) {
+        assertEquals(1,publishedResources.size());
+        pubRes=(CmsPublishedResource)publishedResources.get(0);
+        assertEquals("/sites/default" + RESOURCENAME,pubRes.getRootPath());
+        assertEquals(CmsResource.STATE_NEW,pubRes.getState());
+        assertFalse(pubRes.isMoved());
+      }
+ else       if (m_test.isChanged()) {
+        assertEquals(1,publishedResources.size());
+        pubRes=(CmsPublishedResource)publishedResources.get(0);
+        assertEquals("/sites/default" + RESOURCENAME,pubRes.getRootPath());
+        assertEquals(CmsResource.STATE_CHANGED,pubRes.getState());
+        assertFalse(pubRes.isMoved());
+      }
+ else       if (m_test == CmsPublishedResource.STATE_MOVED_SOURCE) {
+        assertEquals(2,publishedResources.size());
+        pubRes=(CmsPublishedResource)publishedResources.get(0);
+        boolean moved=false;
+        if (pubRes.getRootPath().endsWith(RESOURCENAME)) {
+          assertEquals("/sites/default" + RESOURCENAME,pubRes.getRootPath());
+          assertEquals(CmsResource.STATE_DELETED,pubRes.getState());
+          assertEquals(CmsPublishedResource.STATE_MOVED_SOURCE,pubRes.getMovedState());
+          assertTrue(pubRes.isMoved());
+          moved=false;
+        }
+ else         if (pubRes.getRootPath().endsWith(RESOURCENAME_MOVED)) {
+          assertEquals("/sites/default" + RESOURCENAME_MOVED,pubRes.getRootPath());
+          assertEquals(CmsResource.STATE_NEW,pubRes.getState());
+          assertEquals(CmsPublishedResource.STATE_MOVED_DESTINATION,pubRes.getMovedState());
+          assertTrue(pubRes.isMoved());
+          moved=true;
+        }
+ else {
+          fail("unexpected publish resource " + pubRes.getRootPath());
+        }
+        pubRes=(CmsPublishedResource)publishedResources.get(1);
+        if (moved && pubRes.getRootPath().endsWith(RESOURCENAME)) {
+          assertEquals("/sites/default" + RESOURCENAME,pubRes.getRootPath());
+          assertEquals(CmsResource.STATE_DELETED,pubRes.getState());
+          assertTrue(pubRes.isMoved());
+        }
+ else         if (!moved && pubRes.getRootPath().endsWith(RESOURCENAME_MOVED)) {
+          assertEquals("/sites/default" + RESOURCENAME_MOVED,pubRes.getRootPath());
+          assertEquals(CmsResource.STATE_NEW,pubRes.getState());
+          assertTrue(pubRes.isMoved());
+        }
+ else {
+          fail("unexpected publish resource " + pubRes.getRootPath());
+        }
+      }
+ else       if (m_test.isDeleted()) {
+        assertEquals(1,publishedResources.size());
+        pubRes=(CmsPublishedResource)publishedResources.get(0);
+        assertEquals("/sites/default" + RESOURCENAME_MOVED,pubRes.getRootPath());
+        assertEquals(CmsResource.STATE_DELETED,pubRes.getState());
+        assertFalse(pubRes.isMoved());
+      }
+ else {
+        fail("should never happen!");
+      }
+    }
+ catch (    CmsException e) {
+      fail(e.getMessage());
+    }
+  break;
+default :
+fail("should never happen!");
+}
+}

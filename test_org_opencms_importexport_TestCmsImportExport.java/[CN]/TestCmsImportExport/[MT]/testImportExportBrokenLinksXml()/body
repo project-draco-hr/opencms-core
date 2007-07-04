@@ -1,0 +1,79 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the import of linked Xml Content in a different site, so that the link paths get broken.");
+  String filename1="/xmlcontent.html";
+  String filename2="/xmlcontent2.html";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportExportBrokenLinks.zip");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  cms.getRequestContext().setSiteRoot("/sites/default/");
+  CmsResource res1=cms.createResource(filename1,OpenCmsTestCase.ARTICLE_TYPEID);
+  CmsResource res2=cms.createResource(filename2,OpenCmsTestCase.ARTICLE_TYPEID);
+  CmsFile file2=CmsFile.upgrade(res2,cms);
+  String content2=new String(file2.getContents(),CmsEncoder.ENCODING_UTF_8);
+  CmsXmlContent xmlcontent2=CmsXmlContentFactory.unmarshal(content2,CmsEncoder.ENCODING_UTF_8,resolver);
+  xmlcontent2.getValue("Text",Locale.ENGLISH,0).setStringValue(cms,"<a href='" + filename1 + "'>test</a>");
+  if (!xmlcontent2.hasValue("Homepage",Locale.ENGLISH,0)) {
+    xmlcontent2.addValue(cms,"Homepage",Locale.ENGLISH,0);
+  }
+  xmlcontent2.getValue("Homepage",Locale.ENGLISH,0).setStringValue(cms,filename1);
+  file2.setContents(xmlcontent2.marshal());
+  cms.writeFile(file2);
+  CmsFile file1=CmsFile.upgrade(res1,cms);
+  String content1=new String(file1.getContents(),CmsEncoder.ENCODING_UTF_8);
+  CmsXmlContent xmlcontent1=CmsXmlContentFactory.unmarshal(content1,CmsEncoder.ENCODING_UTF_8,resolver);
+  xmlcontent1.getValue("Text",Locale.ENGLISH,0).setStringValue(cms,"<a href='" + filename2 + "'>test</a>");
+  if (!xmlcontent1.hasValue("Homepage",Locale.ENGLISH,0)) {
+    xmlcontent1.addValue(cms,"Homepage",Locale.ENGLISH,0);
+  }
+  xmlcontent1.getValue("Homepage",Locale.ENGLISH,0).setStringValue(cms,filename2);
+  file1.setContents(xmlcontent1.marshal());
+  cms.writeFile(file1);
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+  vfsExportHandler.setFileName(zipExportFilename);
+  List exportPaths=new ArrayList(1);
+  exportPaths.add(filename1);
+  exportPaths.add(filename2);
+  vfsExportHandler.setExportPaths(exportPaths);
+  vfsExportHandler.setIncludeSystem(false);
+  vfsExportHandler.setIncludeUnchanged(true);
+  vfsExportHandler.setExportUserdata(false);
+  OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+  cms.lockResource(filename1);
+  cms.lockResource(filename2);
+  cms.deleteResource(filename1,CmsResource.DELETE_REMOVE_SIBLINGS);
+  cms.deleteResource(filename2,CmsResource.DELETE_REMOVE_SIBLINGS);
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setSiteRoot("/");
+  try {
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(OpenCmsTestCase.ARTICLE_TYPEID);
+    I_CmsLinkParseable validatable=(I_CmsLinkParseable)type;
+    CmsFile newRes1=cms.readFile(filename1);
+    List links1=validatable.parseLinks(cms,newRes1);
+    assertEquals(links1.size(),2);
+    assertEquals(links1.get(0).toString(),cms.getRequestContext().addSiteRoot(filename2));
+    assertEquals(links1.get(1).toString(),cms.getRequestContext().addSiteRoot(filename2));
+    CmsFile newRes2=cms.readFile(filename2);
+    List links2=validatable.parseLinks(cms,newRes2);
+    assertEquals(links2.size(),2);
+    assertEquals(links2.get(0).toString(),cms.getRequestContext().addSiteRoot(filename1));
+    assertEquals(links2.get(1).toString(),cms.getRequestContext().addSiteRoot(filename1));
+  }
+  finally {
+    try {
+      if (zipExportFilename != null) {
+        File file=new File(zipExportFilename);
+        if (file.exists()) {
+          file.delete();
+        }
+      }
+    }
+ catch (    Throwable t) {
+    }
+  }
+}

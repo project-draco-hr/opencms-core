@@ -1,0 +1,39 @@
+{
+  CmsFile newFile=null;
+  try {
+    CmsUUID projectId=dbc.getProjectId();
+    dbc.setProjectId(CmsUUID.getNullUUID());
+    byte[] offlineContent=m_driverManager.getVfsDriver().readContent(dbc,offlineProject.getUuid(),offlineResource.getResourceId());
+    CmsFile offlineFile=new CmsFile(offlineResource);
+    offlineFile.setContents(offlineContent);
+    dbc.setProjectId(projectId);
+    newFile=(CmsFile)offlineFile.clone();
+    newFile.setState(CmsResource.STATE_UNCHANGED);
+    boolean createSibling=true;
+    if (!offlineFile.getState().isNew()) {
+      createSibling=false;
+    }
+ else {
+      if (!m_driverManager.getVfsDriver().validateResourceIdExists(dbc,onlineProject.getUuid(),offlineFile.getResourceId())) {
+        createSibling=false;
+      }
+    }
+    if (createSibling) {
+      m_driverManager.getVfsDriver().createSibling(dbc,onlineProject,offlineResource);
+      newFile=new CmsFile(offlineResource);
+      newFile.setContents(offlineContent);
+    }
+ else {
+      m_driverManager.getVfsDriver().publishResource(dbc,onlineProject,newFile,offlineFile);
+      m_driverManager.getVfsDriver().createOnlineContent(dbc,offlineFile.getResourceId(),offlineFile.getContents(),publishTag,true,needToUpdateContent);
+    }
+    publishedResourceIds.add(offlineResource.getResourceId());
+  }
+ catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_FILE_CONTENT_1,offlineResource.toString()),e);
+    }
+    throw e;
+  }
+  return newFile;
+}

@@ -1,25 +1,30 @@
 {
-  List files=readChildResources(dbc,currentProject,resource,false,true);
-  if (files.size() == 0) {
-    List folders=readChildResources(dbc,currentProject,resource,true,false);
-    if (folders.size() == 0) {
-      internalRemoveFolder(dbc,currentProject,resource);
-    }
- else {
-      String errorResNames="";
-      for (int i=0, n=folders.size(); i < n; i++) {
-        CmsResource errorRes=(CmsResource)folders.get(i);
-        errorResNames+="[" + dbc.removeSiteRoot(errorRes.getRootPath()) + "]";
+  Iterator childResources=readChildResources(dbc,currentProject,resource,true,true).iterator();
+  CmsUUID projectId=CmsProject.ONLINE_PROJECT_ID;
+  if (currentProject.isOnlineProject()) {
+    projectId=CmsUUID.getOpenCmsUUID();
+  }
+  StringBuffer errorResNames=new StringBuffer(128);
+  while (childResources.hasNext()) {
+    CmsResource errorRes=(CmsResource)childResources.next();
+    boolean error=!currentProject.isOnlineProject();
+    if (!error) {
+      try {
+        String originalPath=m_driverManager.getVfsDriver().readResource(dbc,projectId,errorRes.getRootPath(),true).getRootPath();
+        error=originalPath.equals(errorRes.getRootPath()) || originalPath.startsWith(resource.getRootPath());
       }
-      throw new CmsVfsException(Messages.get().container(Messages.ERR_DELETE_NONEMTY_FOLDER_2,dbc.removeSiteRoot(resource.getRootPath()),errorResNames));
+ catch (      CmsVfsResourceNotFoundException e) {
+      }
+    }
+    if (error) {
+      if (errorResNames.length() != 0) {
+        errorResNames.append(", ");
+      }
+      errorResNames.append("[" + dbc.removeSiteRoot(errorRes.getRootPath()) + "]");
     }
   }
- else {
-    String errorResNames="";
-    for (int i=0, n=files.size(); i < n; i++) {
-      CmsResource errorRes=(CmsResource)files.get(i);
-      errorResNames+="[" + errorRes.getName() + "]";
-    }
-    throw new CmsVfsException(Messages.get().container(Messages.ERR_DELETE_NONEMTY_FOLDER_2,dbc.removeSiteRoot(resource.getRootPath()),errorResNames));
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(errorResNames.toString())) {
+    throw new CmsVfsException(Messages.get().container(Messages.ERR_DELETE_NONEMTY_FOLDER_2,dbc.removeSiteRoot(resource.getRootPath()),errorResNames.toString()));
   }
+  internalRemoveFolder(dbc,currentProject,resource);
 }

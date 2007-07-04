@@ -1,0 +1,31 @@
+{
+  m_oldLoggingDBOffset=m_newLoggingDBOffset;
+  m_newLoggingDBOffset=m_dbUpdateThread.getLoggingThread().getMessages().size();
+  if (isInitialized()) {
+    for (int i=m_oldLoggingDBOffset; i < m_newLoggingDBOffset; i++) {
+      String str=m_dbUpdateThread.getLoggingThread().getMessages().get(i).toString();
+      str=CmsEncoder.escapeWBlanks(str,CmsEncoder.ENCODING_UTF_8);
+      out.println("output[" + (i - m_oldLoggingDBOffset) + "] = \""+ str+ "\";");
+    }
+  }
+ else {
+    out.println("output[0] = 'ERROR';");
+  }
+  boolean threadFinished=m_dbUpdateThread.isFinished();
+  boolean allWritten=m_oldLoggingDBOffset >= m_dbUpdateThread.getLoggingThread().getMessages().size();
+  out.println("function initThread() {");
+  if (isInitialized()) {
+    out.print("send();");
+    if (threadFinished && allWritten) {
+      out.println("setTimeout('top.display.finish()', 1000);");
+    }
+ else {
+      int timeout=5000;
+      if (getUpdateDBThread().getLoggingThread().getMessages().size() < 20) {
+        timeout=2000;
+      }
+      out.println("setTimeout('location.reload()', " + timeout + ");");
+    }
+  }
+  out.println("}");
+}

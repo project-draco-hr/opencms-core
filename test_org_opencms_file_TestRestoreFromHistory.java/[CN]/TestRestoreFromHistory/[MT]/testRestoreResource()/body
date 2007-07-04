@@ -20,15 +20,16 @@
   cms.writePropertyObject(resourcename,rProp1);
   assertContent(cms,resourcename,contentStr1.getBytes());
   assertPropertyNew(cms,resourcename,props1);
-  List allFiles=cms.readAllBackupFileHeaders(resourcename);
+  List allFiles=cms.readAllAvailableVersions(resourcename);
   if (!allFiles.isEmpty()) {
-    fail("Unexpected backup files for new created resource found.");
+    fail("Unexpected historical files for new created resource found.");
   }
-  cms.unlockProject(cms.getRequestContext().currentProject().getId());
-  cms.publishProject();
-  allFiles=cms.readAllBackupFileHeaders(resourcename);
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  allFiles=cms.readAllAvailableVersions(resourcename);
   if (allFiles.size() != 1) {
-    fail("Unexpected number of backup files for published resource found (one expected)");
+    fail("Unexpected number of historical files for published resource found (one expected)");
   }
   this.storeResources(cms,resourcename);
   cms.lockResource(resourcename);
@@ -39,16 +40,17 @@
   cms.writePropertyObject(resourcename,rProp2);
   assertContent(cms,resourcename,contentStr2.getBytes());
   assertPropertyChanged(cms,resourcename,props2);
-  cms.unlockProject(cms.getRequestContext().currentProject().getId());
-  cms.publishProject();
-  allFiles=cms.readAllBackupFileHeaders(resourcename);
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  allFiles=cms.readAllAvailableVersions(resourcename);
   if (allFiles.size() != 2) {
-    fail("Unexpected number of backup files for published resource found (two expected)");
+    fail("Unexpected number of historical files for published resource found (two expected)");
   }
-  CmsBackupResource backup=(CmsBackupResource)allFiles.get(1);
+  I_CmsHistoryResource history=(I_CmsHistoryResource)allFiles.get(1);
   this.storeResources(cms,resourcename);
   cms.lockResource(resourcename);
-  cms.restoreResourceBackup(resourcename,backup.getTagId());
+  cms.restoreResourceVersion(history.getStructureId(),history.getVersion());
   assertContent(cms,resourcename,contentStr1.getBytes());
   assertPropertyChanged(cms,resourcename,props1);
 }

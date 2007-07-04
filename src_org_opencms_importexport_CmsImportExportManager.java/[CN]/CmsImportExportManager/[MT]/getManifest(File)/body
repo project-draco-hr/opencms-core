@@ -1,43 +1,54 @@
 {
-  Document manifest=null;
-  ZipFile zipFile=null;
-  ZipEntry zipFileEntry=null;
-  InputStream input=null;
-  Reader reader=null;
-  SAXReader saxReader=null;
-  File manifestFile=null;
   try {
     if (resource.isFile()) {
       if (!resource.getName().toLowerCase().endsWith(".zip")) {
         return null;
       }
-      zipFile=new ZipFile(resource);
-      zipFileEntry=zipFile.getEntry(EXPORT_MANIFEST);
-      input=zipFile.getInputStream(zipFileEntry);
-      saxReader=new SAXReader();
-      manifest=saxReader.read(input);
-    }
- else     if (resource.isDirectory()) {
-      manifestFile=new File(resource,EXPORT_MANIFEST);
-      reader=new BufferedReader(new FileReader(manifestFile));
-      saxReader=new SAXReader();
-      manifest=saxReader.read(reader);
-    }
-  }
- catch (  Exception e) {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(Messages.get().getBundle().key(Messages.LOG_IMPORTEXPORT_ERROR_READING_MANIFEST_1,resource),e);
-    }
-    manifest=null;
-  }
- finally {
-    try {
-      if (reader != null) {
-        reader.close();
+      ZipFile zipFile=new ZipFile(resource);
+      ZipEntry zipFileEntry=zipFile.getEntry(EXPORT_MANIFEST);
+      if (zipFileEntry == null) {
+        throw new CmsImportExportException(Messages.get().container(Messages.ERR_IMPORTEXPORT_FILE_NOT_FOUND_1,EXPORT_MANIFEST));
+      }
+      InputStream input=null;
+      try {
+        input=zipFile.getInputStream(zipFileEntry);
+        return new SAXReader().read(input);
+      }
+  finally {
+        try {
+          if (input != null) {
+            input.close();
+          }
+        }
+ catch (        Exception e) {
+        }
       }
     }
- catch (    Exception e) {
+ else     if (resource.isDirectory()) {
+      File manifestFile=new File(resource,EXPORT_MANIFEST);
+      if (!manifestFile.exists()) {
+        throw new CmsImportExportException(Messages.get().container(Messages.ERR_IMPORTEXPORT_FILE_NOT_FOUND_1,EXPORT_MANIFEST));
+      }
+      Reader reader=null;
+      try {
+        reader=new BufferedReader(new FileReader(manifestFile));
+        return new SAXReader().read(reader);
+      }
+  finally {
+        try {
+          if (reader != null) {
+            reader.close();
+          }
+        }
+ catch (        Exception e) {
+        }
+      }
     }
   }
-  return manifest;
+ catch (  Throwable e) {
+    if (LOG.isWarnEnabled()) {
+      LOG.warn(Messages.get().getBundle().key(Messages.LOG_IMPORTEXPORT_ERROR_READING_MANIFEST_1,resource),e);
+    }
+  }
+  return null;
 }

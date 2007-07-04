@@ -1,0 +1,33 @@
+{
+  if (CmsStringUtil.isNotEmpty(resource) && CmsStringUtil.isNotEmpty(version)) {
+    I_CmsHistoryResource res=null;
+    String storedSiteRoot=cms.getRequestContext().getSiteRoot();
+    try {
+      cms.getRequestContext().setSiteRoot("/");
+      res=cms.readResource(cms.readResource(resource,CmsResourceFilter.ALL).getStructureId(),Integer.parseInt(version));
+    }
+ catch (    CmsException e) {
+      if (LOG.isInfoEnabled()) {
+        LOG.info(e.getLocalizedMessage());
+      }
+      return "".getBytes();
+    }
+ finally {
+      cms.getRequestContext().setSiteRoot(storedSiteRoot);
+    }
+    if (res.isFile()) {
+      byte[] historyResourceContent=((CmsFile)res).getContents();
+      if ((historyResourceContent == null) || (historyResourceContent.length == 0)) {
+        try {
+          CmsFile file=cms.readFile((CmsResource)res);
+          historyResourceContent=file.getContents();
+        }
+ catch (        CmsException e) {
+        }
+      }
+      historyResourceContent=CmsEncoder.changeEncoding(historyResourceContent,OpenCms.getSystemInfo().getDefaultEncoding(),cms.getRequestContext().getEncoding());
+      return historyResourceContent;
+    }
+  }
+  return "".getBytes();
+}

@@ -4,10 +4,6 @@
   List fileNodes=null, acentryNodes=null;
   Element currentElement=null, currentEntry=null;
   List properties=null;
-  if (m_importingChannelData) {
-    m_cms.getRequestContext().saveSiteRoot();
-    m_cms.getRequestContext().setSiteRoot(CmsResource.VFS_FOLDER_CHANNELS);
-  }
   List immutableResources=OpenCms.getImportExportManager().getImmutableResources();
   if (immutableResources == null) {
     immutableResources=Collections.EMPTY_LIST;
@@ -29,7 +25,13 @@
       source=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_SOURCE);
       destination=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_DESTINATION);
       String typeName=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_TYPE);
-      I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(typeName);
+      I_CmsResourceType type;
+      try {
+        type=OpenCms.getResourceManager().getResourceType(typeName);
+      }
+ catch (      CmsLoaderException e) {
+        type=OpenCms.getResourceManager().getResourceType(CmsResourceTypePlain.getStaticTypeName());
+      }
       if (!type.isFolder()) {
         uuidresource=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_UUIDRESOURCE);
       }
@@ -113,6 +115,9 @@
             }
           }
           importAccessControlEntries(res,aceList);
+          if (OpenCms.getResourceManager().getResourceType(res.getTypeId()) instanceof I_CmsLinkParseable) {
+            m_parseables.add(res);
+          }
           if (LOG.isInfoEnabled()) {
             LOG.info(Messages.get().getBundle().key(Messages.LOG_IMPORTING_4,new Object[]{String.valueOf(i + 1),String.valueOf(importSize),translatedName,destination}));
           }
@@ -136,15 +141,11 @@
   }
  catch (  Exception e) {
     m_report.println(e);
+    m_report.addError(e);
     CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_RESOURCES_0);
     if (LOG.isDebugEnabled()) {
       LOG.debug(message.key(),e);
     }
     throw new CmsImportExportException(message,e);
-  }
- finally {
-    if (m_importingChannelData) {
-      m_cms.getRequestContext().restoreSiteRoot();
-    }
   }
 }

@@ -1,52 +1,86 @@
 {
   fillParamValues(request);
   setParamDialogtype(DIALOG_TYPE);
-  if (CmsStringUtil.isNotEmpty(getParamResource()) || isMultiOperation()) {
+  m_progress=new CmsProgressWidget(getJsp());
+  m_progress.setWidth("300px");
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getParamResource()) || isMultiOperation()) {
     setParamDirectpublish(CmsStringUtil.TRUE);
   }
-  if (DIALOG_CONFIRMED.equals(getParamAction())) {
-    if (showUnlockConfirmation()) {
-      setAction(ACTION_UNLOCK_CONFIRMATION);
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(getParamAction()) || DIALOG_INITIAL.equals(getParamAction())) {
+    setParamPublishsiblings(String.valueOf(getSettings().getUserSettings().getDialogPublishSiblings()));
+    setParamSubresources(Boolean.TRUE.toString());
+    String defValue=CmsStringUtil.TRUE;
+    if (OpenCms.getWorkplaceManager().getDefaultUserSettings().getPublishRelatedResources() == CmsDefaultUserSettings.PUBLISH_RELATED_RESOURCES_MODE_FALSE) {
+      defValue=CmsStringUtil.FALSE;
     }
+    setParamRelatedresources(defValue);
+  }
+  if (DIALOG_TYPE.equals(getParamAction())) {
+    setAction(ACTION_PUBLISH);
+  }
+ else   if (DIALOG_LOCKS_CONFIRMED.equals(getParamAction())) {
+    setAction(ACTION_LOCKS_CONFIRMED);
+  }
+ else   if (DIALOG_RESOURCES_CONFIRMED.equals(getParamAction())) {
+    setAction(ACTION_RESOURCES_CONFIRMED);
+    CmsPublishList publishList=getSettings().getPublishList();
+    if (Boolean.valueOf(getParamRelatedresources()).booleanValue() && publishList.isDirectPublish()) {
+      try {
+        CmsProgressThread thread=CmsProgressWidget.getProgressThread(getParamProgresskey());
+        CmsPublishList storedList=null;
+        if (thread != null) {
+          storedList=((CmsPublishResourcesList)thread.getList()).getPublishList();
+        }
+        if (storedList == null) {
+          CmsPublishList relResources=OpenCms.getPublishManager().getRelatedResourcesToPublish(getCms(),publishList);
+          publishList=OpenCms.getPublishManager().mergePublishLists(getCms(),publishList,relResources);
+        }
  else {
-      setAction(ACTION_CONFIRMED);
+          publishList=storedList;
+        }
+        getSettings().setPublishList(publishList);
+      }
+ catch (      CmsException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+    CmsProgressWidget.removeProgressThread(getProgress().getKey());
+    getProgress().startProgress(getBrokenRelationsList());
+synchronized (this) {
+      try {
+        wait(500);
+      }
+ catch (      InterruptedException e) {
+      }
+    }
+    CmsProgressThread thread=CmsProgressWidget.getProgressThread(getProgress().getKey());
+    if ((!thread.isAlive()) && (thread.getList().getList().getTotalSize() == 0)) {
+      setAction(ACTION_PUBLISH);
     }
   }
- else   if (DIALOG_UNLOCK_CONFIRMED.equals(getParamAction())) {
-    setAction(ACTION_CONFIRMED);
-  }
- else   if (REPORT_UPDATE.equals(getParamAction())) {
-    setAction(ACTION_REPORT_UPDATE);
-  }
- else   if (REPORT_BEGIN.equals(getParamAction())) {
-    setAction(ACTION_REPORT_BEGIN);
-  }
- else   if (REPORT_END.equals(getParamAction())) {
-    if (Boolean.valueOf(getParamThreadHasNext()).booleanValue()) {
-      startPublishThread();
-      setParamAction(REPORT_UPDATE);
-      setAction(ACTION_REPORT_UPDATE);
-    }
- else {
-      setAction(ACTION_REPORT_END);
-    }
+ else   if (DIALOG_WAIT.equals(getParamAction())) {
+    setAction(ACTION_WAIT);
   }
  else   if (DIALOG_CANCEL.equals(getParamAction())) {
     setAction(ACTION_CANCEL);
   }
  else {
     setAction(ACTION_DEFAULT);
-    if (Boolean.valueOf(getParamDirectpublish()).booleanValue()) {
+    if (isDirectPublish()) {
       if (!getCms().isManagerOfProject() && !checkResourcePermissions(CmsPermissionSet.ACCESS_DIRECT_PUBLISH,false)) {
         setAction(ACTION_CANCEL);
         return;
       }
-      computePublishResource();
       setDialogTitle(Messages.GUI_PUBLISH_RESOURCE_1,Messages.GUI_PUBLISH_MULTI_2);
     }
  else {
       setParamTitle(key(Messages.GUI_PUBLISH_PROJECT_0));
       computePublishProject();
+    }
+    if (isLockStateOk()) {
+      setAction(ACTION_LOCKS_CONFIRMED);
     }
   }
 }

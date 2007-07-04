@@ -1,0 +1,41 @@
+{
+  CmsResource xmlPage=findXmlPage(cms,resourcename);
+  if (xmlPage != null) {
+    if (resourcename.endsWith("/")) {
+      resourcename=resourcename.substring(0,resourcename.length() - 1);
+    }
+    String path=getSubPath(cms,xmlPage,resourcename);
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(path)) {
+      cms.deleteResource(resourcename,siblingMode);
+      Iterator iter=getVirtualFiles().iterator();
+      while (iter.hasNext()) {
+        TMP_FILE_TABLE.remove(resourcename + "/" + (String)iter.next());
+      }
+      return true;
+    }
+    CmsFile file=CmsFile.upgrade(xmlPage,cms);
+    CmsXmlPage xml=CmsXmlPageFactory.unmarshal(cms,file);
+    String[] tokens=path.split("/");
+    if (tokens.length == 1) {
+      if (getVirtualFiles().contains(tokens[0])) {
+        TMP_FILE_TABLE.put(resourcename,new Integer(0));
+      }
+ else {
+        xml.removeLocale(new Locale(tokens[0]));
+        file.setContents(xml.marshal());
+        cms.writeFile(file);
+      }
+    }
+ else     if (tokens.length == 2) {
+      String name=tokens[1];
+      if (name.endsWith(EXTENSION_ELEMENT)) {
+        name=name.substring(0,name.length() - EXTENSION_ELEMENT.length() - 1);
+      }
+      xml.removeValue(name,new Locale(tokens[0]));
+      file.setContents(xml.marshal());
+      cms.writeFile(file);
+    }
+    return true;
+  }
+  return false;
+}

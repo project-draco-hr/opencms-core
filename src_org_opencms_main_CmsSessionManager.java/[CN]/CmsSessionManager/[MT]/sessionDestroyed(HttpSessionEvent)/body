@@ -1,19 +1,18 @@
 {
-  m_sessionCountCurrent=(m_sessionCountCurrent <= 0) ? 0 : (m_sessionCountCurrent - 1);
-  String sessionId=event.getSession().getId();
-  CmsSessionInfo sessionInfo=(CmsSessionInfo)m_sessions.get(sessionId);
-  CmsUUID userId=CmsUUID.getNullUUID();
+synchronized (m_lockSessionCount) {
+    m_sessionCountCurrent=(m_sessionCountCurrent <= 0) ? 0 : (m_sessionCountCurrent - 1);
+    if (LOG.isInfoEnabled()) {
+      LOG.info(Messages.get().getBundle().key(Messages.LOG_SESSION_DESTROYED_2,new Integer(m_sessionCountTotal),new Integer(m_sessionCountCurrent)));
+    }
+  }
+  CmsSessionInfo sessionInfo=getSessionInfo(event.getSession());
+  CmsUUID userId=null;
   if (sessionInfo != null) {
-    userId=sessionInfo.getUser().getId();
+    userId=sessionInfo.getUserId();
+    m_sessionStorageProvider.remove(sessionInfo.getSessionId());
   }
-synchronized (m_sessions) {
-    m_sessions.remove(sessionId);
-  }
-  if (!userId.isNullUUID() && getSessionInfos(userId).size() == 0) {
-    OpenCms.getLockManager().removeTempLocks(userId);
-  }
-  if (LOG.isInfoEnabled()) {
-    LOG.info(Messages.get().getBundle().key(Messages.LOG_SESSION_DESTROYED_2,new Integer(m_sessionCountTotal),new Integer(m_sessionCountCurrent)));
+  if ((userId != null) && (getSessionInfos(userId).size() == 0)) {
+    OpenCmsCore.getInstance().getLockManager().removeTempLocks(userId);
   }
   if (LOG.isDebugEnabled()) {
     LOG.debug(Messages.get().getBundle().key(Messages.LOG_SESSION_DESTROYED_1,event.getSession().getId()));

@@ -1,14 +1,5 @@
 {
   StringBuffer result=new StringBuffer(dialogToggleStart(key(Messages.GUI_PERMISSION_BEQUEATH_SUBFOLDER_0),"inheritedpermissions",getSettings().getUserSettings().getDialogExpandInheritedPermissions() || getShowInheritedPermissions()));
-  List allEntries=new ArrayList();
-  try {
-    allEntries=getCms().getAccessControlEntries(getParamResource(),true);
-  }
- catch (  CmsException e) {
-    if (LOG.isInfoEnabled()) {
-      LOG.info(e.getLocalizedMessage());
-    }
-  }
   Map parents=new HashMap();
   String path=CmsResource.getParentFolder(getParamResource());
   List parentResources=new ArrayList();
@@ -25,17 +16,34 @@
     CmsResource curRes=(CmsResource)k.next();
     parents.put(curRes.getResourceId(),curRes.getRootPath());
   }
-  ArrayList ownEntries=new ArrayList(0);
-  ArrayList inheritedEntries=new ArrayList(0);
-  for (int i=0; i < allEntries.size(); i++) {
-    CmsAccessControlEntry curEntry=(CmsAccessControlEntry)allEntries.get(i);
-    if (curEntry.isInherited()) {
+  ArrayList ownEntries=new ArrayList();
+  try {
+    Iterator itAces=getCms().getAccessControlEntries(getParamResource(),false).iterator();
+    while (itAces.hasNext()) {
+      CmsAccessControlEntry curEntry=(CmsAccessControlEntry)itAces.next();
+      if (!curEntry.isInherited()) {
+        ownEntries.add(curEntry);
+      }
+    }
+  }
+ catch (  CmsException e) {
+    if (LOG.isInfoEnabled()) {
+      LOG.info(e.getLocalizedMessage());
+    }
+  }
+  ArrayList inheritedEntries=new ArrayList();
+  try {
+    Iterator itAces=getCms().getAccessControlEntries(path,true).iterator();
+    while (itAces.hasNext()) {
+      CmsAccessControlEntry curEntry=(CmsAccessControlEntry)itAces.next();
       if ("long".equals(getSettings().getPermissionDetailView())) {
         inheritedEntries.add(curEntry);
       }
     }
- else {
-      ownEntries.add(curEntry);
+  }
+ catch (  CmsException e) {
+    if (LOG.isInfoEnabled()) {
+      LOG.info(e.getLocalizedMessage());
     }
   }
   result.append(dialogWhiteBox(HTML_START));

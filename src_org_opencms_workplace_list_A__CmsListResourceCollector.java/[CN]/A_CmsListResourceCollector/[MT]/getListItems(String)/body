@@ -1,0 +1,65 @@
+{
+synchronized (this) {
+    if (parameter == null) {
+      parameter=m_collectorParameter;
+    }
+    Map params=CmsStringUtil.splitAsMap(parameter,I_CmsListResourceCollector.SEP_PARAM,I_CmsListResourceCollector.SEP_KEYVAL);
+    CmsListState state=getState(params);
+    List resources=getInternalResources(getWp().getCms(),params);
+    List ret=new ArrayList();
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_COLLECTOR_PROCESS_ITEMS_START_1,new Integer(resources.size())));
+    }
+    getWp().applyColumnVisibilities();
+    CmsHtmlList list=getWp().getList();
+    CmsProgressThread thread=null;
+    int progressOffset=0;
+    if (Thread.currentThread() instanceof CmsProgressThread) {
+      thread=(CmsProgressThread)Thread.currentThread();
+      progressOffset=thread.getProgress();
+    }
+    Iterator itRes=resources.iterator();
+    int count=0;
+    while (itRes.hasNext()) {
+      count++;
+      if (thread != null) {
+        if (thread.isInterrupted()) {
+          throw new CmsIllegalStateException(org.opencms.workplace.commons.Messages.get().container(org.opencms.workplace.commons.Messages.ERR_PROGRESS_INTERRUPTED_0));
+        }
+        thread.setProgress((count * 40 / resources.size()) + progressOffset);
+        thread.setDescription(org.opencms.workplace.commons.Messages.get().getBundle(thread.getLocale()).key(org.opencms.workplace.commons.Messages.GUI_PROGRESS_PUBLISH_STEP2_2,new Integer(count),new Integer(resources.size())));
+      }
+      Object obj=itRes.next();
+      if (!(obj instanceof CmsResource)) {
+        ret.add(getDummyListItem(list));
+        continue;
+      }
+      CmsResource resource=(CmsResource)obj;
+      CmsListItem item=(CmsListItem)m_liCache.get(resource.getStructureId().toString());
+      if (item == null) {
+        item=createResourceListItem(resource,list);
+        m_liCache.put(resource.getStructureId().toString(),item);
+      }
+      ret.add(item);
+    }
+    CmsListMetadata metadata=list.getMetadata();
+    if (metadata != null) {
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(state.getFilter())) {
+        ret=metadata.getSearchAction().filter(ret,state.getFilter());
+      }
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(state.getColumn())) {
+        if ((metadata.getColumnDefinition(state.getColumn()) != null) && metadata.getColumnDefinition(state.getColumn()).isSorteable()) {
+          I_CmsListItemComparator c=metadata.getColumnDefinition(state.getColumn()).getListItemComparator();
+          Collections.sort(ret,c.getComparator(state.getColumn(),getWp().getLocale()));
+          if (state.getOrder().equals(CmsListOrderEnum.ORDER_DESCENDING)) {
+            Collections.reverse(ret);
+          }
+        }
+      }
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_COLLECTOR_PROCESS_ITEMS_END_1,new Integer(ret.size())));
+    }
+    return ret;
+  }
+}

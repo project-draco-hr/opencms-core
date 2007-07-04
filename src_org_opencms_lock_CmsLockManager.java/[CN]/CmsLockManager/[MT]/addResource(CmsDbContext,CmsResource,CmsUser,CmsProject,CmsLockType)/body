@@ -1,0 +1,29 @@
+{
+  if (!type.isSystem() && !type.isExclusive()) {
+    throw new CmsLockException(Messages.get().container(Messages.ERR_INVALID_LOCK_TYPE_1,type.toString()));
+  }
+  CmsLock currentLock=getLock(dbc,resource);
+  checkLockable(dbc,resource,user,project,type,currentLock);
+  boolean needNewLock=true;
+  if ((type.isExclusive()) && (!type.isTemporary())) {
+    if (!currentLock.getEditionLock().isUnlocked()) {
+      needNewLock=false;
+    }
+  }
+  CmsLock newLock=CmsLock.getNullLock();
+  if (needNewLock) {
+    newLock=new CmsLock(resource.getRootPath(),user.getId(),project,type);
+    lockResource(newLock);
+  }
+  if (resource.isFolder() && newLock.getSystemLock().isUnlocked()) {
+    String resourceName=resource.getRootPath();
+    Iterator itLocks=new ArrayList(OpenCms.getMemoryMonitor().getAllCachedLocks()).iterator();
+    while (itLocks.hasNext()) {
+      CmsLock lock=(CmsLock)itLocks.next();
+      String lockedPath=lock.getResourceName();
+      if (lockedPath.startsWith(resourceName) && !lockedPath.equals(resourceName)) {
+        unlockResource(lockedPath,false);
+      }
+    }
+  }
+}

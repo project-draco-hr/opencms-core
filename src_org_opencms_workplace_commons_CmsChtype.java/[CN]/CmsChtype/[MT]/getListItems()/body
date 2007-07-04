@@ -1,0 +1,39 @@
+{
+  List ret=new ArrayList();
+  CmsObject cms=getCms();
+  CmsResource res=cms.readResource(getParamResource(),CmsResourceFilter.ALL);
+  List resTypes=OpenCms.getWorkplaceManager().getExplorerTypeSettings();
+  boolean isFolder=res.isFolder();
+  for (int i=0; i < resTypes.size(); i++) {
+    boolean changeable=false;
+    CmsExplorerTypeSettings settings=(CmsExplorerTypeSettings)resTypes.get(i);
+    boolean isResourceType;
+    try {
+      OpenCms.getResourceManager().getResourceType(settings.getName());
+      isResourceType=true;
+    }
+ catch (    CmsLoaderException e) {
+      isResourceType=false;
+    }
+    if (isResourceType) {
+      int resTypeId=OpenCms.getResourceManager().getResourceType(settings.getName()).getTypeId();
+      if (isFolder && OpenCms.getResourceManager().getResourceType(resTypeId).isFolder()) {
+        changeable=true;
+      }
+ else       if (!isFolder && !OpenCms.getResourceManager().getResourceType(resTypeId).isFolder()) {
+        changeable=true;
+      }
+      if (changeable) {
+        CmsPermissionSet permissions=settings.getAccess().getPermissions(cms,res);
+        if (!permissions.requiresWritePermission() || !permissions.requiresControlPermission()) {
+          continue;
+        }
+        CmsListItem item=getList().newItem(Integer.toString(resTypeId));
+        item.set(LIST_COLUMN_NAME,key(settings.getKey()));
+        item.set(LIST_COLUMN_ICON,"<img src=\"" + getSkinUri() + "filetypes/"+ settings.getIcon()+ "\" style=\"width: 16px; height: 16px;\" />");
+        ret.add(item);
+      }
+    }
+  }
+  return ret;
+}

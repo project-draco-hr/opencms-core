@@ -1,28 +1,40 @@
 {
   if (!publishList.isDirectPublish()) {
-    List folderList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getId(),CmsDriverManager.READ_IGNORE_PARENT,CmsDriverManager.READ_IGNORE_TYPE,CmsResource.STATE_UNCHANGED,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READMODE_INCLUDE_TREE | CmsDriverManager.READMODE_INCLUDE_PROJECT | CmsDriverManager.READMODE_EXCLUDE_STATE| CmsDriverManager.READMODE_ONLY_FOLDERS);
-    publishList.addFolders(filterResources(dbc,folderList,folderList));
-    List fileList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getId(),CmsDriverManager.READ_IGNORE_PARENT,CmsDriverManager.READ_IGNORE_TYPE,CmsResource.STATE_UNCHANGED,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READMODE_INCLUDE_TREE | CmsDriverManager.READMODE_INCLUDE_PROJECT | CmsDriverManager.READMODE_EXCLUDE_STATE| CmsDriverManager.READMODE_ONLY_FILES);
-    publishList.addFiles(filterResources(dbc,publishList.getFolderList(),fileList));
+    List folderList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getUuid(),CmsDriverManager.READ_IGNORE_PARENT,CmsDriverManager.READ_IGNORE_TYPE,CmsResource.STATE_UNCHANGED,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READMODE_INCLUDE_TREE | CmsDriverManager.READMODE_INCLUDE_PROJECT | CmsDriverManager.READMODE_EXCLUDE_STATE| CmsDriverManager.READMODE_ONLY_FOLDERS);
+    publishList.addAll(filterResources(dbc,null,folderList),true);
+    List fileList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getUuid(),CmsDriverManager.READ_IGNORE_PARENT,CmsDriverManager.READ_IGNORE_TYPE,CmsResource.STATE_UNCHANGED,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READMODE_INCLUDE_TREE | CmsDriverManager.READMODE_INCLUDE_PROJECT | CmsDriverManager.READMODE_EXCLUDE_STATE| CmsDriverManager.READMODE_ONLY_FILES);
+    publishList.addAll(filterResources(dbc,publishList,fileList),true);
   }
  else {
     Iterator it=publishList.getDirectPublishResources().iterator();
     while (it.hasNext()) {
       CmsResource directPublishResource=(CmsResource)it.next();
       if (directPublishResource.isFolder()) {
-        if (CmsResource.STATE_UNCHANGED != directPublishResource.getState() && getLock(dbc,directPublishResource).isNullLock()) {
-          publishList.addFolder(directPublishResource);
+        CmsLock lock=getLock(dbc,directPublishResource);
+        if (!directPublishResource.getState().isUnchanged() && lock.isLockableBy(dbc.currentUser())) {
+          try {
+            m_securityManager.checkPermissions(dbc,directPublishResource,CmsPermissionSet.ACCESS_DIRECT_PUBLISH,false,CmsResourceFilter.ALL);
+            publishList.add(directPublishResource,true);
+          }
+ catch (          CmsException e) {
+          }
         }
         if (publishList.isPublishSubResources()) {
-          List folderList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getId(),directPublishResource.getRootPath(),CmsDriverManager.READ_IGNORE_TYPE,CmsResource.STATE_UNCHANGED,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READMODE_INCLUDE_TREE | CmsDriverManager.READMODE_INCLUDE_PROJECT | CmsDriverManager.READMODE_EXCLUDE_STATE| CmsDriverManager.READMODE_ONLY_FOLDERS);
-          publishList.addFolders(filterResources(dbc,publishList.getFolderList(),folderList));
-          List fileList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getId(),directPublishResource.getRootPath(),CmsDriverManager.READ_IGNORE_TYPE,CmsResource.STATE_UNCHANGED,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READMODE_INCLUDE_TREE | CmsDriverManager.READMODE_INCLUDE_PROJECT | CmsDriverManager.READMODE_EXCLUDE_STATE| CmsDriverManager.READMODE_ONLY_FILES);
-          publishList.addFiles(filterResources(dbc,publishList.getFolderList(),fileList));
+          List folderList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getUuid(),directPublishResource.getRootPath(),CmsDriverManager.READ_IGNORE_TYPE,CmsResource.STATE_UNCHANGED,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READMODE_INCLUDE_TREE | CmsDriverManager.READMODE_INCLUDE_PROJECT | CmsDriverManager.READMODE_EXCLUDE_STATE| CmsDriverManager.READMODE_ONLY_FOLDERS);
+          publishList.addAll(filterResources(dbc,publishList,folderList),true);
+          List fileList=m_vfsDriver.readResourceTree(dbc,dbc.currentProject().getUuid(),directPublishResource.getRootPath(),CmsDriverManager.READ_IGNORE_TYPE,CmsResource.STATE_UNCHANGED,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READMODE_INCLUDE_TREE | CmsDriverManager.READMODE_INCLUDE_PROJECT | CmsDriverManager.READMODE_EXCLUDE_STATE| CmsDriverManager.READMODE_ONLY_FILES);
+          publishList.addAll(filterResources(dbc,publishList,fileList),true);
         }
       }
- else       if (directPublishResource.isFile() && CmsResource.STATE_UNCHANGED != directPublishResource.getState()) {
-        if (getLock(dbc,directPublishResource).isNullLock()) {
-          publishList.addFile(directPublishResource);
+ else       if (directPublishResource.isFile() && !directPublishResource.getState().isUnchanged()) {
+        CmsLock lock=getLock(dbc,directPublishResource);
+        if (lock.isLockableBy(dbc.currentUser())) {
+          try {
+            m_securityManager.checkPermissions(dbc,directPublishResource,CmsPermissionSet.ACCESS_DIRECT_PUBLISH,false,CmsResourceFilter.ALL);
+            publishList.add(directPublishResource,true);
+          }
+ catch (          CmsException e) {
+          }
         }
       }
     }
@@ -30,13 +42,14 @@
   if (publishList.isPublishSiblings()) {
     List publishFiles=publishList.getFileList();
     int size=publishFiles.size();
+    Set siblingsClosure=new HashSet(publishFiles);
     for (int i=0; i < size; i++) {
       CmsResource currentFile=(CmsResource)publishFiles.get(i);
       if (currentFile.getSiblingCount() > 1) {
-        publishList.addFiles(filterSiblings(dbc,currentFile,publishList.getFolderList(),readSiblings(dbc,currentFile,CmsResourceFilter.ALL_MODIFIED)));
+        siblingsClosure.addAll(readSiblings(dbc,currentFile,CmsResourceFilter.ALL_MODIFIED));
       }
     }
+    publishList.addAll(filterSiblings(dbc,publishList,siblingsClosure),true);
   }
   publishList.initialize();
-  return publishList;
 }

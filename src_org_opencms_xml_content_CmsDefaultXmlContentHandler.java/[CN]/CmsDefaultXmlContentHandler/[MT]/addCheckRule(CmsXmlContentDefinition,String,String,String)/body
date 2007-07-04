@@ -1,0 +1,36 @@
+{
+  I_CmsXmlSchemaType schemaType=contentDefinition.getSchemaType(elementName);
+  if (schemaType == null) {
+    throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_CHECK_INVALID_ELEM_1,elementName));
+  }
+  if (!CmsXmlVfsFileValue.TYPE_NAME.equals(schemaType.getTypeName()) && !CmsXmlVarLinkValue.TYPE_NAME.equals(schemaType.getTypeName())) {
+    throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_CHECK_INVALID_TYPE_1,elementName));
+  }
+  Boolean invalidateParent=null;
+  if ((invalidate == null) || invalidate.equalsIgnoreCase(Boolean.TRUE.toString()) || invalidate.equalsIgnoreCase(APPINFO_ATTR_TYPE_NODE)) {
+    invalidateParent=Boolean.FALSE;
+  }
+ else   if (invalidate.equalsIgnoreCase(APPINFO_ATTR_TYPE_PARENT)) {
+    invalidateParent=Boolean.TRUE;
+  }
+  if (invalidateParent != null) {
+    m_relations.put(elementName,invalidateParent);
+  }
+  CmsRelationType relationType=(type == null ? CmsRelationType.XML_WEAK : CmsRelationType.valueOfXml(type));
+  m_relations.put(RELATION_TYPE_PREFIX + elementName,relationType);
+  if (invalidateParent != null) {
+    String path=elementName;
+    while (CmsStringUtil.isNotEmptyOrWhitespaceOnly(path)) {
+      if (!isInvalidateParent(path)) {
+        if (contentDefinition.getSchemaType(path).getMinOccurs() > 0) {
+          throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_CHECK_NOT_OPTIONAL_1,path));
+        }
+        break;
+      }
+ else       if (!CmsXmlUtils.isDeepXpath(path)) {
+        throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_CHECK_NOT_EMPTY_DOC_0));
+      }
+      path=CmsXmlUtils.removeLastXpathElement(path);
+    }
+  }
+}

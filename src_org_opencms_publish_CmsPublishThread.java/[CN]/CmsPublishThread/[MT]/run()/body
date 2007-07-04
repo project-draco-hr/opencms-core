@@ -1,0 +1,42 @@
+{
+  try {
+    m_publishJob.start(getUUID());
+    m_report=m_publishJob.getPublishReport();
+    m_publishEngine.publishJobStarted(m_publishJob);
+    m_started=true;
+    if (isAborted()) {
+      return;
+    }
+    m_report.println(Messages.get().container(Messages.RPT_PUBLISH_RESOURCE_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+    CmsDbContext dbc=m_publishEngine.getDbContextFactory().getDbContext(getCms().getRequestContext());
+    try {
+      m_publishEngine.getDriverManager().publishJob(getCms(),dbc,m_publishJob.getPublishList(),m_report);
+    }
+ catch (    Throwable e) {
+      m_report.println(e);
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISH_PROJECT_FAILED_0),e);
+    }
+ finally {
+      dbc.clear();
+      dbc=null;
+      if (m_updateSessionInfo) {
+        OpenCms.getSessionManager().updateSessionInfos(getCms());
+      }
+      m_report.println(Messages.get().container(Messages.RPT_PUBLISH_RESOURCE_END_0),I_CmsReport.FORMAT_HEADLINE);
+    }
+  }
+ catch (  Throwable e) {
+    LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISH_PROJECT_FAILED_0),e);
+  }
+ finally {
+    try {
+      m_publishEngine.publishJobFinished(getPublishJob());
+    }
+ catch (    CmsException exc) {
+      LOG.error(exc.getLocalizedMessage(),exc);
+    }
+catch (    Throwable e) {
+      LOG.error(e.getMessage(),e);
+    }
+  }
+}

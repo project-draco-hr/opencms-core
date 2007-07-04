@@ -3,6 +3,7 @@
   if (OpenCms.getWorkplaceManager() != null) {
     defaultAccess=OpenCms.getWorkplaceManager().getDefaultAccess();
   }
+  CmsMenuRuleTranslator menuRuleTranslator=new CmsMenuRuleTranslator();
   Iterator i=explorerTypes.iterator();
   while (i.hasNext()) {
     CmsExplorerTypeSettings settings=(CmsExplorerTypeSettings)i.next();
@@ -19,10 +20,13 @@
         newResElement.addAttribute(A_PAGE,settings.getNewResourcePage());
       }
       newResElement.addAttribute(A_HANDLER,settings.getNewResourceHandlerClassName());
-      newResElement.addAttribute(A_URI,settings.getNewResourceUri());
+      newResElement.addAttribute(A_URI,CmsEncoder.escapeXml(settings.getNewResourceUri()));
       newResElement.addAttribute(A_ORDER,settings.getNewResourceOrder());
       newResElement.addAttribute(A_AUTOSETNAVIGATION,String.valueOf(settings.isAutoSetNavigation()));
       newResElement.addAttribute(A_AUTOSETTITLE,String.valueOf(settings.isAutoSetTitle()));
+      newResElement.addAttribute(A_INFO,settings.getInfo());
+      newResElement.addAttribute(A_ICON,settings.getDescriptionImage());
+      newResElement.addAttribute(A_KEY,settings.getTitleKey());
       CmsExplorerTypeAccess access=settings.getAccess();
       if (access != defaultAccess) {
         List accessEntries=new ArrayList(access.getAccessEntries().keySet());
@@ -45,31 +49,14 @@
         defaultPropertiesElement.addAttribute(A_ENABLED,String.valueOf(settings.isPropertiesEnabled()));
         defaultPropertiesElement.addAttribute(A_SHOWNAVIGATION,String.valueOf(settings.isShowNavigation()));
         Iterator m=settings.getProperties().iterator();
-        String propNode=N_PROPERTY;
-        if (module) {
-          propNode=N_DEFAULTPROPERTY;
-        }
         while (m.hasNext()) {
-          defaultPropertiesElement.addElement(propNode).addAttribute(A_NAME,(String)m.next());
+          defaultPropertiesElement.addElement(N_DEFAULTPROPERTY).addAttribute(A_NAME,(String)m.next());
         }
         Element contextMenuElement=editOptionsElement.addElement(N_CONTEXTMENU);
         m=settings.getContextMenuEntries().iterator();
         while (m.hasNext()) {
           CmsExplorerContextMenuItem item=(CmsExplorerContextMenuItem)m.next();
-          Element itemElement;
-          if (CmsExplorerContextMenuItem.TYPE_ENTRY.equals(item.getType())) {
-            itemElement=contextMenuElement.addElement(N_ENTRY);
-            itemElement.addAttribute(A_KEY,item.getKey());
-            itemElement.addAttribute(A_URI,item.getUri());
-            if (item.getTarget() != null) {
-              itemElement.addAttribute(A_TARGET,item.getTarget());
-            }
-            itemElement.addAttribute(A_RULES,item.getRules());
-          }
- else {
-            itemElement=contextMenuElement.addElement(N_SEPARATOR);
-          }
-          itemElement.addAttribute(A_ORDER,"" + item.getOrder());
+          generateContextMenuItemXml(contextMenuElement,menuRuleTranslator,item);
         }
       }
     }

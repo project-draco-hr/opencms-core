@@ -1,0 +1,37 @@
+{
+  if ((doc == null) || (index == null) || (params == null)|| (analyzer == null)|| (query == null)) {
+    return null;
+  }
+  Highlighter highlighter=null;
+  Iterator excerptFieldNames=index.getFieldConfiguration().getExcerptFieldNames().iterator();
+  StringBuffer excerptBuffer=new StringBuffer();
+  while (excerptFieldNames.hasNext()) {
+    String fieldName=(String)excerptFieldNames.next();
+    boolean createExcerpt=!params.isExcerptOnlySearchedFields() || params.getFields().contains(fieldName);
+    if (createExcerpt && (doc.getField(fieldName) != null)) {
+      String text=doc.getField(fieldName).stringValue();
+      TokenStream stream=analyzer.tokenStream(fieldName,new StringReader(text));
+      if (highlighter == null) {
+        highlighter=new Highlighter(new QueryScorer(query));
+      }
+      String fragment=highlighter.getBestFragments(stream,text,EXCERPT_REQUIRED_FRAGMENTS,EXCERPT_FRAGMENT_SEPARATOR);
+      fragment=fragment.replace('\t',' ');
+      fragment=fragment.replace('\n',' ');
+      fragment=fragment.replace('\r',' ');
+      fragment=fragment.replace('\f',' ');
+      if (excerptBuffer.length() > 0) {
+        excerptBuffer.append(EXCERPT_FRAGMENT_SEPARATOR);
+      }
+      excerptBuffer.append(fragment);
+    }
+  }
+  String result=null;
+  if (excerptBuffer.length() > 0) {
+    result=excerptBuffer.toString();
+  }
+  int maxLength=OpenCms.getSearchManager().getMaxExcerptLength();
+  if ((result != null) && (result.length() > maxLength)) {
+    result=result.substring(0,maxLength);
+  }
+  return result;
+}

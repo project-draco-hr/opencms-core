@@ -5,10 +5,10 @@
     setParamAction(EDITOR_ACTION_NEW);
   }
  else {
-    if (getParamTempfile() != null && !"null".equals(getParamTempfile())) {
+    if ((getParamTempfile() != null) && !"null".equals(getParamTempfile())) {
       try {
         m_file=getCms().readFile(this.getParamTempfile(),CmsResourceFilter.ALL);
-        m_content=CmsXmlContentFactory.unmarshal(getCms(),m_file);
+        m_content=CmsXmlContentFactory.unmarshal(getCloneCms(),m_file);
       }
  catch (      CmsException e) {
         try {
@@ -73,7 +73,7 @@
         LOG.error(org.opencms.workplace.Messages.get().getBundle().key(org.opencms.workplace.Messages.LOG_INCLUDE_ERRORPAGE_FAILED_0));
       }
     }
-    if (getAction() != ACTION_CANCEL && getAction() != ACTION_SHOW_ERRORMESSAGE) {
+    if ((getAction() != ACTION_CANCEL) && (getAction() != ACTION_SHOW_ERRORMESSAGE)) {
       setAction(ACTION_SHOW);
     }
   }
@@ -87,7 +87,7 @@
         LOG.error(org.opencms.workplace.Messages.get().getBundle().key(org.opencms.workplace.Messages.LOG_INCLUDE_ERRORPAGE_FAILED_0));
       }
     }
-    if (getAction() != ACTION_CANCEL && getAction() != ACTION_SHOW_ERRORMESSAGE) {
+    if ((getAction() != ACTION_CANCEL) && (getAction() != ACTION_SHOW_ERRORMESSAGE)) {
       setAction(ACTION_SHOW);
     }
   }
@@ -101,7 +101,7 @@
         LOG.error(org.opencms.workplace.Messages.get().getBundle().key(org.opencms.workplace.Messages.LOG_INCLUDE_ERRORPAGE_FAILED_0));
       }
     }
-    if (getAction() != ACTION_CANCEL && getAction() != ACTION_SHOW_ERRORMESSAGE) {
+    if ((getAction() != ACTION_CANCEL) && (getAction() != ACTION_SHOW_ERRORMESSAGE)) {
       setAction(ACTION_SHOW);
     }
   }
@@ -115,7 +115,7 @@
         LOG.error(org.opencms.workplace.Messages.get().getBundle().key(org.opencms.workplace.Messages.LOG_INCLUDE_ERRORPAGE_FAILED_0));
       }
     }
-    if (getAction() != ACTION_CANCEL && getAction() != ACTION_SHOW_ERRORMESSAGE) {
+    if ((getAction() != ACTION_CANCEL) && (getAction() != ACTION_SHOW_ERRORMESSAGE)) {
       setAction(ACTION_SHOW);
     }
   }
@@ -126,18 +126,45 @@
  else   if (EDITOR_PREVIEW.equals(getParamAction())) {
     setAction(ACTION_PREVIEW);
   }
+ else   if (EDITOR_CORRECTIONCONFIRMED.equals(getParamAction())) {
+    setAction(ACTION_SHOW);
+    try {
+      correctXmlStructure();
+    }
+ catch (    CmsException e) {
+      try {
+        showErrorPage(this,e);
+      }
+ catch (      JspException exc) {
+        if (LOG.isInfoEnabled()) {
+          LOG.info(exc);
+        }
+      }
+    }
+  }
  else {
     setAction(ACTION_DEFAULT);
     try {
       if (Boolean.valueOf(getParamDirectedit()).booleanValue()) {
-        checkLock(getParamResource(),CmsLock.TEMPORARY);
+        checkLock(getParamResource(),CmsLockType.TEMPORARY);
       }
  else {
         checkLock(getParamResource());
       }
       setParamTempfile(createTempFile());
       m_file=getCms().readFile(this.getParamTempfile(),CmsResourceFilter.ALL);
-      m_content=CmsXmlContentFactory.unmarshal(getCms(),m_file);
+      m_content=CmsXmlContentFactory.unmarshal(getCloneCms(),m_file);
+      try {
+        m_content.validateXmlStructure(new CmsXmlEntityResolver(getCms()));
+      }
+ catch (      CmsXmlException eXml) {
+        if (OpenCms.getWorkplaceManager().isXmlContentAutoCorrect()) {
+          correctXmlStructure();
+        }
+ else {
+          setAction(ACTION_CONFIRMCORRECTION);
+        }
+      }
     }
  catch (    CmsException e) {
       try {

@@ -2,18 +2,23 @@
   if (CmsStringUtil.isEmpty(localeName)) {
     return getDefaultLocale();
   }
-  Locale locale;
-  locale=(Locale)m_localeCache.get(localeName);
-  if (locale == null) {
-    try {
-      String[] localeNames=CmsStringUtil.splitAsArray(localeName,'_');
-      locale=new Locale(localeNames[0],(localeNames.length > 1) ? localeNames[1] : "",(localeNames.length > 2) ? localeNames[2] : "");
-    }
- catch (    Throwable t) {
-      LOG.debug(Messages.get().getBundle().key(Messages.LOG_CREATE_LOCALE_FAILED_1,localeName),t);
-      locale=getDefaultLocale();
-    }
-    m_localeCache.put(localeName,locale);
+  Locale locale=null;
+  if (OpenCms.getMemoryMonitor() != null) {
+    locale=OpenCms.getMemoryMonitor().getCachedLocale(localeName);
+  }
+  if (locale != null) {
+    return locale;
+  }
+  try {
+    String[] localeNames=CmsStringUtil.splitAsArray(localeName,'_');
+    locale=new Locale(localeNames[0],(localeNames.length > 1) ? localeNames[1] : "",(localeNames.length > 2) ? localeNames[2] : "");
+  }
+ catch (  Throwable t) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_CREATE_LOCALE_FAILED_1,localeName),t);
+    locale=getDefaultLocale();
+  }
+  if (OpenCms.getMemoryMonitor() != null) {
+    OpenCms.getMemoryMonitor().cacheLocale(localeName,locale);
   }
   return locale;
 }

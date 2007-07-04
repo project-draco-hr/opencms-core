@@ -1,0 +1,41 @@
+{
+  boolean recursive=mode.isRecursive();
+  if (mode == CmsResource.UNDO_MOVE_CONTENT) {
+    String originalPath=securityManager.resourceOriginalPath(cms.getRequestContext(),resource);
+    if (originalPath.equals(resource.getRootPath())) {
+      recursive=false;
+    }
+  }
+  List resources=null;
+  if (recursive) {
+    resources=securityManager.readChildResources(cms.getRequestContext(),resource,CmsResourceFilter.ALL,true,true);
+  }
+  super.undoChanges(cms,securityManager,resource,mode);
+  CmsResource undoneResource2=securityManager.readResource(cms.getRequestContext(),resource.getStructureId(),CmsResourceFilter.ALL);
+  boolean isMoved=!undoneResource2.getRootPath().equals(resource.getRootPath());
+  if (recursive && (resources != null)) {
+    for (int i=0; i < resources.size(); i++) {
+      CmsResource childResource=(CmsResource)resources.get(i);
+      I_CmsResourceType type=getResourceType(childResource);
+      if (isMoved) {
+        securityManager.lockResource(cms.getRequestContext(),childResource,CmsLockType.EXCLUSIVE);
+      }
+      if (childResource.isFolder()) {
+        type.undoChanges(cms,securityManager,childResource,mode);
+      }
+ else       if (!childResource.getState().isNew()) {
+        securityManager.undoChanges(cms.getRequestContext(),childResource,mode);
+      }
+ else {
+        if (mode.isUndoMove()) {
+          String newPath=cms.getRequestContext().removeSiteRoot(securityManager.readResource(cms.getRequestContext(),resource.getStructureId(),CmsResourceFilter.ALL).getRootPath() + childResource.getName());
+          type.moveResource(cms,securityManager,childResource,newPath);
+        }
+      }
+    }
+    for (int i=0; i < resources.size(); i++) {
+      CmsResource childResource=(CmsResource)resources.get(i);
+      updateRelationForUndo(cms,securityManager,childResource);
+    }
+  }
+}

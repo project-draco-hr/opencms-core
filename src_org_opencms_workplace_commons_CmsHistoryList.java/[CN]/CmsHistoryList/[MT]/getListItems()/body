@@ -1,41 +1,72 @@
 {
   List result=new ArrayList();
-  List backupFileHeaders=getCms().readAllBackupFileHeaders(getParamResource());
-  Iterator i=backupFileHeaders.iterator();
-  while (i.hasNext()) {
-    CmsBackupResource file=(CmsBackupResource)i.next();
-    if (-1 != file.getVersionId() && getCms().existsResource(getCms().getRequestContext().removeSiteRoot(file.getRootPath()))) {
-      int tagId=file.getTagId();
-      CmsBackupProject project=getCms().readBackupProject(tagId);
-      String versionId=new Integer(project.getVersionId()).toString();
-      String filetype=String.valueOf(file.getTypeId());
-      String dateLastModified=getMessages().getDateTime(file.getDateLastModified());
-      String datePublished=getMessages().getDateTime(project.getPublishingDate());
-      CmsListItem item=getList().newItem(versionId);
-      item.set(LIST_COLUMN_VERSION,new CmsVersionWrapper(new Integer(file.getVersionId())));
-      item.set(LIST_COLUMN_DATE_PUBLISHED,datePublished);
-      item.set(LIST_COLUMN_DATE_LAST_MODIFIED,dateLastModified);
-      item.set(LIST_COLUMN_FILE_TYPE,filetype);
-      item.set(LIST_COLUMN_USER,readUserNameOfBackupFile(getCms(),file));
-      item.set(LIST_COLUMN_RESOURCE_PATH,file.getRootPath());
-      item.set(LIST_COLUMN_SIZE,new Integer(file.getLength()).toString());
-      result.add(item);
-      item.set(LIST_COLUMN_BACKUP_TAG,new Integer(tagId));
+  List historicalVersions=getCms().readAllAvailableVersions(getParamResource());
+  Iterator itVersions=historicalVersions.iterator();
+  while (itVersions.hasNext()) {
+    I_CmsHistoryResource histRes=(I_CmsHistoryResource)itVersions.next();
+    int publishTag=histRes.getPublishTag();
+    CmsHistoryProject project=getCms().readHistoryProject(publishTag);
+    String filetype=String.valueOf(histRes.getTypeId());
+    String dateLastModified=getMessages().getDateTime(histRes.getDateLastModified());
+    String datePublished=getMessages().getDateTime(project.getPublishingDate());
+    CmsListItem item=getList().newItem("" + histRes.getVersion());
+    int factor=1;
+    if (result.isEmpty() && !histRes.getState().isDeleted()) {
+      factor=-1;
     }
-  }
-  CmsFile offlineFile=getCms().readFile(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
-  if (offlineFile.getState() != CmsResource.STATE_UNCHANGED) {
-    CmsListItem item=getList().newItem("-1");
-    item.set(LIST_COLUMN_VERSION,new CmsVersionWrapper(OFFLINE_PROJECT));
-    item.set(LIST_COLUMN_DATE_PUBLISHED,"-");
-    item.set(LIST_COLUMN_DATE_LAST_MODIFIED,getMessages().getDateTime(offlineFile.getDateLastModified()));
-    item.set(LIST_COLUMN_FILE_TYPE,String.valueOf(offlineFile.getTypeId()));
-    item.set(LIST_COLUMN_USER,getCms().readUser(offlineFile.getUserLastModified()).getName());
-    item.set(LIST_COLUMN_SIZE,new Integer(offlineFile.getLength()).toString());
-    item.set(LIST_COLUMN_RESOURCE_PATH,offlineFile.getRootPath());
+    CmsVersionWrapper version=new CmsVersionWrapper(factor * histRes.getVersion());
+    item.set(LIST_COLUMN_VERSION,version);
+    item.set(LIST_COLUMN_DATE_PUBLISHED,datePublished);
+    item.set(LIST_COLUMN_DATE_LAST_MODIFIED,dateLastModified);
+    item.set(LIST_COLUMN_FILE_TYPE,filetype);
+    item.set(LIST_COLUMN_USER,CmsPrincipal.readPrincipalIncludingHistory(getCms(),histRes.getUserLastModified()).getName());
+    item.set(LIST_COLUMN_RESOURCE_PATH,getCms().getRequestContext().removeSiteRoot(histRes.getRootPath()));
+    item.set(LIST_COLUMN_SIZE,new Integer(histRes.getLength()).toString());
+    item.set(LIST_COLUMN_PUBLISH_TAG,new Integer(publishTag));
+    item.set(LIST_COLUMN_STRUCTURE_ID,histRes.getStructureId().toString());
     result.add(item);
   }
-  getList().getMetadata().getColumnDefinition(LIST_COLUMN_SEL1).setVisible(result.size() > 1);
-  getList().getMetadata().getColumnDefinition(LIST_COLUMN_SEL2).setVisible(result.size() > 1);
+  if (result.isEmpty()) {
+    CmsResource onlineResource=null;
+    CmsProject project=getCms().getRequestContext().currentProject();
+    try {
+      getCms().getRequestContext().setCurrentProject(getCms().readProject(CmsProject.ONLINE_PROJECT_ID));
+      onlineResource=getCms().readResource(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
+      CmsListItem item=getList().newItem("" + onlineResource.getVersion());
+      item.set(LIST_COLUMN_VERSION,new CmsVersionWrapper(-1 * onlineResource.getVersion()));
+      item.set(LIST_COLUMN_DATE_PUBLISHED,"-");
+      item.set(LIST_COLUMN_DATE_LAST_MODIFIED,getMessages().getDateTime(onlineResource.getDateLastModified()));
+      item.set(LIST_COLUMN_FILE_TYPE,String.valueOf(onlineResource.getTypeId()));
+      item.set(LIST_COLUMN_USER,CmsPrincipal.readPrincipalIncludingHistory(getCms(),onlineResource.getUserLastModified()).getName());
+      item.set(LIST_COLUMN_SIZE,new Integer(onlineResource.getLength()).toString());
+      item.set(LIST_COLUMN_RESOURCE_PATH,getCms().getSitePath(onlineResource));
+      item.set(LIST_COLUMN_STRUCTURE_ID,onlineResource.getStructureId().toString());
+      result.add(item);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+    }
+ finally {
+      getCms().getRequestContext().setCurrentProject(project);
+    }
+  }
+  CmsResource offlineResource=getCms().readResource(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
+  getList().getMetadata().getColumnDefinition(LIST_COLUMN_SIZE).setVisible(offlineResource.isFile());
+  getList().getMetadata().getColumnDefinition(LIST_COLUMN_ICON).setVisible(offlineResource.isFile());
+  if (!offlineResource.getState().isUnchanged()) {
+    CmsListItem item=getList().newItem("" + offlineResource.getVersion());
+    item.set(LIST_COLUMN_VERSION,new CmsVersionWrapper(CmsHistoryResourceHandler.PROJECT_OFFLINE_VERSION));
+    item.set(LIST_COLUMN_DATE_PUBLISHED,"-");
+    item.set(LIST_COLUMN_DATE_LAST_MODIFIED,getMessages().getDateTime(offlineResource.getDateLastModified()));
+    item.set(LIST_COLUMN_FILE_TYPE,String.valueOf(offlineResource.getTypeId()));
+    item.set(LIST_COLUMN_USER,getCms().readUser(offlineResource.getUserLastModified()).getName());
+    item.set(LIST_COLUMN_SIZE,new Integer(offlineResource.getLength()).toString());
+    item.set(LIST_COLUMN_RESOURCE_PATH,getCms().getSitePath(offlineResource));
+    item.set(LIST_COLUMN_STRUCTURE_ID,offlineResource.getStructureId().toString());
+    result.add(item);
+  }
+  boolean comparable=(result.size() > 1);
+  getList().getMetadata().getColumnDefinition(LIST_COLUMN_SEL1).setVisible(comparable);
+  getList().getMetadata().getColumnDefinition(LIST_COLUMN_SEL2).setVisible(comparable);
+  getList().getMetadata().getMultiAction(LIST_MACTION_COMPARE).setVisible(comparable);
   return result;
 }

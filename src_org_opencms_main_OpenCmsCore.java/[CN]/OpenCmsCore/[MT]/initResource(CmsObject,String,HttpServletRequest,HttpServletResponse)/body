@@ -1,47 +1,15 @@
 {
-  CmsResource resource=null;
   CmsException tmpException=null;
+  CmsResource resource;
   try {
-    resource=cms.readResource(resourceName);
-    if (resource.isFolder()) {
-      try {
-        String defaultFileName=cms.readPropertyObject(CmsResource.getFolderPath(cms.getSitePath(resource)),CmsPropertyDefinition.PROPERTY_DEFAULT_FILE,false).getValue();
-        if (defaultFileName != null) {
-          String tmpResourceName=CmsResource.getFolderPath(cms.getSitePath(resource)) + defaultFileName;
-          resource=cms.readResource(tmpResourceName);
-          cms.getRequestContext().setUri(tmpResourceName);
-        }
-      }
- catch (      CmsSecurityException se) {
-        throw se;
-      }
-catch (      CmsException e) {
-      }
-      if (resource.isFolder()) {
-        for (int i=0; i < m_defaultFiles.size(); i++) {
-          String tmpResourceName=CmsResource.getFolderPath(cms.getSitePath(resource)) + m_defaultFiles.get(i);
-          try {
-            resource=cms.readResource(tmpResourceName);
-            cms.getRequestContext().setUri(tmpResourceName);
-            break;
-          }
- catch (          CmsSecurityException se) {
-            throw se;
-          }
-catch (          CmsException e) {
-          }
-        }
-      }
-    }
-    if (resource.isFolder()) {
-      resource=null;
-    }
+    resource=cms.readDefaultFile(resourceName);
   }
  catch (  CmsException e) {
     tmpException=e;
     resource=null;
   }
   if (resource != null) {
+    cms.getRequestContext().setUri(cms.getSitePath(resource));
     if ((resource.getFlags() & CmsResource.FLAG_INTERNAL) > 0) {
       throw new CmsException(Messages.get().container(Messages.ERR_READ_INTERNAL_RESOURCE_1,cms.getRequestContext().getUri()));
     }
@@ -77,7 +45,7 @@ catch (          CmsException e) {
       break;
     }
   }
-  if (resource == null && tmpException != null) {
+  if ((resource == null) && (tmpException != null)) {
     throw tmpException;
   }
   return resource;

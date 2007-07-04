@@ -1,0 +1,32 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the chacc method for the special 'all others' principal");
+  CmsPermissionSet permissions=CmsPermissionSet.ACCESS_READ;
+  String resource="/folder1/subfolder11/";
+  int flags=CmsAccessControlEntry.ACCESS_FLAGS_OVERWRITE + CmsAccessControlEntry.ACCESS_FLAGS_ALLOTHERS + CmsAccessControlEntry.ACCESS_FLAGS_INHERIT;
+  storeResources(cms,resource,true);
+  cms.lockResource(resource);
+  cms.chacc(resource,I_CmsPrincipal.PRINCIPAL_GROUP,CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_NAME,permissions.getAllowedPermissions(),permissions.getDeniedPermissions(),flags);
+  cms.unlockResource(resource);
+  assertFilter(cms,resource,OpenCmsTestResourceFilter.FILTER_CHACC);
+  CmsResource res=cms.readResource(resource,CmsResourceFilter.ALL);
+  CmsAccessControlEntry ace=new CmsAccessControlEntry(res.getResourceId(),CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID,permissions.getAllowedPermissions(),permissions.getDeniedPermissions(),flags);
+  assertAce(cms,resource,ace);
+  int denied=permissions.getDeniedPermissions();
+  if ((flags & CmsAccessControlEntry.ACCESS_FLAGS_OVERWRITE) > 0) {
+    denied=0;
+  }
+  CmsPermissionSet permission=new CmsPermissionSet(permissions.getAllowedPermissions(),denied);
+  assertAcl(cms,resource,CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID,permission);
+  List subresources=cms.readResources(resource,CmsResourceFilter.ALL);
+  Iterator j=subresources.iterator();
+  while (j.hasNext()) {
+    CmsResource subRes=(CmsResource)j.next();
+    String subResName=cms.getSitePath(subRes);
+    assertFilter(cms,subResName,OpenCmsTestResourceFilter.FILTER_CHACC);
+    ace=new CmsAccessControlEntry(res.getResourceId(),CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID,permissions.getAllowedPermissions(),permissions.getDeniedPermissions(),flags + CmsAccessControlEntry.ACCESS_FLAGS_INHERITED);
+    assertAce(cms,subResName,ace);
+    permission=new CmsPermissionSet(permissions.getAllowedPermissions(),denied);
+    assertAcl(cms,resource,subResName,CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID,permission);
+  }
+}

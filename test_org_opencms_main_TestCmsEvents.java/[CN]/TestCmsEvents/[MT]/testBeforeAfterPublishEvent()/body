@@ -2,21 +2,22 @@
   CmsObject cms=getCmsObject();
   echo("Testing to event before / after publish project");
   String projectName="PublishEventTest";
-  cms.getRequestContext().saveSiteRoot();
-  cms.getRequestContext().setSiteRoot("/");
+  String storedSiteRoot=cms.getRequestContext().getSiteRoot();
   try {
+    cms.getRequestContext().setSiteRoot("/");
     CmsProject project=cms.createProject(projectName,"Unit test project for publish events",OpenCms.getDefaultUsers().getGroupUsers(),OpenCms.getDefaultUsers().getGroupProjectmanagers(),CmsProject.PROJECT_TYPE_NORMAL);
     cms.getRequestContext().setCurrentProject(project);
     cms.copyResourceToProject("/sites/default/");
   }
   finally {
-    cms.getRequestContext().restoreSiteRoot();
+    cms.getRequestContext().setSiteRoot(storedSiteRoot);
   }
-  TestEventListener handler=new TestEventListener();
+  CmsTestEventListener handler=new CmsTestEventListener();
   OpenCms.addCmsEventListener(handler,new int[]{I_CmsEventListener.EVENT_BEFORE_PUBLISH_PROJECT,I_CmsEventListener.EVENT_PUBLISH_PROJECT});
   CmsProject current=cms.readProject(projectName);
   cms.getRequestContext().setCurrentProject(current);
-  cms.publishProject();
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
   assertTrue(handler.hasRecievedEvent(I_CmsEventListener.EVENT_BEFORE_PUBLISH_PROJECT));
   assertTrue(handler.hasRecievedEvent(I_CmsEventListener.EVENT_PUBLISH_PROJECT));
   assertEquals(2,handler.getEvents().size());

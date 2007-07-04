@@ -1,137 +1,220 @@
 {
   StringBuffer result=new StringBuffer(8);
+  editable&=isRoleEditable();
   I_CmsPrincipal principal=getCms().lookupPrincipal(entry.getPrincipal());
-  String name=(principal != null) ? principal.getName() : entry.getPrincipal().toString();
-  String type=getEntryType(entry.getFlags());
-  if (name == null) {
-    name="";
+  String id=(principal != null) ? principal.getName() : entry.getPrincipal().toString();
+  String name;
+  String ou=null;
+  if (principal instanceof CmsGroup) {
+    name=key(org.opencms.security.Messages.GUI_ORGUNIT_DISPLAY_NAME_2,new Object[]{((CmsGroup)principal).getDescription(getLocale()),principal.getSimpleName()});
+    ou=CmsOrganizationalUnit.getParentFqn(id);
+  }
+ else   if (principal instanceof CmsUser) {
+    name=((CmsUser)principal).getFullName();
+    ou=CmsOrganizationalUnit.getParentFqn(id);
+  }
+ else   if ((id != null) && id.equals(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID.toString())) {
+    name=key(Messages.GUI_LABEL_ALLOTHERS_0);
+  }
+ else   if ((id != null) && id.equals(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_ID.toString())) {
+    name=key(Messages.GUI_LABEL_OVERWRITEALL_0);
+  }
+ else {
+    CmsRole role=CmsRole.valueOfId(entry.getPrincipal());
+    if (role != null) {
+      name=role.getName(getLocale());
+      id=role.getRoleName();
+    }
+ else {
+      name=entry.getPrincipal().toString();
+    }
+  }
+  String type=getEntryType(entry.getFlags(),false);
+  if (id == null) {
+    id="";
   }
   setParamType(type);
-  setParamName(name);
-  String idValue=type + name + entry.getResource();
+  setParamName(id);
+  String idValue=type + id + entry.getResource();
   String typeLocalized=getTypesLocalized()[getEntryTypeInt(entry.getFlags())];
-  String typeImg=getEntryType(entry.getFlags()).toLowerCase();
+  String typeImg=getEntryType(entry.getFlags(),true).toLowerCase();
   CmsPermissionSet permissions=entry.getPermissions();
   String disabled="";
   if (!editable) {
     disabled=" disabled=\"disabled\"";
   }
-  result.append(dialogRow(HTML_START));
-  if (extendedView) {
-    result.append("<a href=\"javascript:toggleDetail('").append(idValue).append("');\">");
-    result.append("<img src=\"").append(getSkinUri()).append("commons/plus.png\" class=\"noborder\" id=\"ic-").append(idValue).append("\"></a>");
-  }
-  result.append("<img src=\"").append(getSkinUri()).append("commons/");
-  result.append(typeImg);
-  result.append(".png\" class=\"noborder\" width=\"16\" height=\"16\" alt=\"");
-  result.append(typeLocalized);
-  result.append("\" title=\"");
-  result.append(typeLocalized);
-  result.append("\">&nbsp;<span class=\"textbold\">");
-  result.append(name);
-  result.append("</span>");
-  if (extendedView) {
-    result.append("&nbsp;(").append(entry.getPermissions().getPermissionString()).append(entry.getResponsibleString()).append(")");
-    result.append(dialogRow(HTML_END));
-    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(inheritRes)) {
-      result.append("<div class=\"dialogpermissioninherit\">");
-      result.append(key(Messages.GUI_PERMISSION_INHERITED_FROM_1,new Object[]{inheritRes}));
-      result.append("</div>\n");
+  if (!id.equals(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_ID.toString())) {
+    result.append(dialogRow(HTML_START));
+    if (extendedView) {
+      result.append("<a href=\"javascript:toggleDetail('").append(idValue).append("');\">");
+      result.append("<img src=\"").append(getSkinUri()).append("commons/plus.png\" class=\"noborder\" id=\"ic-").append(idValue).append("\"></a>");
     }
-    result.append("<div id =\"").append(idValue).append("\" class=\"hide\">");
-  }
  else {
+      result.append("<img src='").append(getSkinUri()).append("explorer/project_none.gif' class='noborder' width='16' height='16' >");
+    }
+    result.append("<img src=\"").append(getSkinUri()).append("commons/");
+    result.append(typeImg);
+    result.append(".png\" class=\"noborder\" width=\"16\" height=\"16\" alt=\"");
+    result.append(typeLocalized);
+    result.append("\" title=\"");
+    result.append(typeLocalized);
+    result.append("\">&nbsp;<span class=\"textbold\">");
+    result.append(name);
+    result.append("</span>");
+    if (!id.equals(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID.toString())) {
+      if (extendedView) {
+        result.append("&nbsp;(").append(entry.getPermissions().getPermissionString()).append(")");
+      }
+      try {
+        if ((ou != null) && (OpenCms.getOrgUnitManager().getOrganizationalUnits(getCms(),"",true).size() > 1)) {
+          result.append("<br>");
+          result.append("<img src='").append(getSkinUri()).append("explorer/project_none.gif' class='noborder' width='16' height='16' >");
+          result.append("<img src='").append(getSkinUri()).append("explorer/project_none.gif' class='noborder' width='16' height='16' >");
+          result.append("&nbsp;");
+          try {
+            result.append(OpenCms.getOrgUnitManager().readOrganizationalUnit(getCms(),ou).getDisplayName(getLocale()));
+          }
+ catch (          CmsException e) {
+            result.append(ou);
+          }
+        }
+      }
+ catch (      CmsException e) {
+        if (LOG.isInfoEnabled()) {
+          LOG.info(e.getLocalizedMessage());
+        }
+      }
+    }
     result.append(dialogRow(HTML_END));
-  }
-  result.append("<table class=\"dialogpermissiondetails\">\n");
-  if (editable) {
-    result.append("<form action=\"").append(getDialogUri()).append("\" method=\"post\" class=\"nomargin\" name=\"set").append(idValue).append("\">\n");
-    setParamAction(DIALOG_SET);
-    result.append(paramsAsHidden());
-  }
+    if (extendedView) {
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(inheritRes)) {
+        result.append("<div class=\"dialogpermissioninherit\">");
+        result.append("<img src='").append(getSkinUri()).append("explorer/project_none.gif' class='noborder' width='16' height='16' >");
+        result.append("&nbsp;");
+        result.append(key(Messages.GUI_PERMISSION_INHERITED_FROM_1,new Object[]{inheritRes}));
+        result.append("</div>\n");
+      }
+      result.append("<div id =\"").append(idValue).append("\" class=\"hide\">");
+    }
+    result.append("<table class=\"dialogpermissiondetails\">\n");
+    if (editable) {
+      result.append("<form action=\"").append(getDialogUri()).append("\" method=\"post\" class=\"nomargin\" name=\"set").append(idValue).append("\">\n");
+      setParamAction(DIALOG_SET);
+      result.append(paramsAsHidden());
+    }
  else {
-    result.append("<form class=\"nomargin\">\n");
-  }
-  result.append("<tr>\n");
-  result.append("\t<td class=\"dialogpermissioncell\"><span class=\"textbold\" unselectable=\"on\">");
-  result.append(key(Messages.GUI_PERMISSION_0)).append("</span></td>\n");
-  result.append("\t<td class=\"dialogpermissioncell textcenter\"><span class=\"textbold\" unselectable=\"on\">");
-  result.append(key(Messages.GUI_PERMISSION_ALLOWED_0)).append("</span></td>\n");
-  result.append("\t<td class=\"dialogpermissioncell textcenter\"><span class=\"textbold\" unselectable=\"on\">");
-  result.append(key(Messages.GUI_PERMISSION_DENIED_0)).append("</span></td>\n");
-  result.append("</tr>");
-  Iterator i=m_permissionKeys.iterator();
-  while (i.hasNext()) {
-    String key=(String)i.next();
-    int value=CmsPermissionSet.getPermissionValue(key);
-    String keyMessage=key(key);
+      result.append("<form class=\"nomargin\">\n");
+    }
     result.append("<tr>\n");
-    result.append("\t<td class=\"dialogpermissioncell\">").append(keyMessage).append("</td>\n");
-    result.append("\t<td class=\"dialogpermissioncell textcenter\"><input type=\"checkbox\" name=\"");
-    result.append(value).append(PERMISSION_ALLOW).append("\" value=\"").append(value).append("\"").append(disabled);
-    if (isAllowed(permissions,value)) {
-      result.append(" checked=\"checked\"");
-    }
-    result.append("></td>\n");
-    result.append("\t<td class=\"dialogpermissioncell textcenter\"><input type=\"checkbox\" name=\"");
-    result.append(value).append(PERMISSION_DENY).append("\" value=\"").append(value).append("\"").append(disabled);
-    if (isDenied(permissions,value)) {
-      result.append(" checked=\"checked\"");
-    }
-    result.append("></td>\n");
-    result.append("</tr>\n");
-  }
-  if (editable) {
-    result.append("<tr>\n");
-    result.append("\t<td class=\"dialogpermissioncell\">").append(key(Messages.GUI_LABEL_RESPONSIBLE_0)).append("</td>\n");
-    result.append("\t<td class=\"dialogpermissioncell textcenter\">");
-    result.append("<input type=\"checkbox\" name=\"").append(PARAM_RESPONSIBLE).append("\" value=\"true\"").append(disabled);
-    if (isResponsible(entry.getFlags())) {
-      result.append(" checked=\"checked\"");
-    }
-    result.append("></td>\n");
-    result.append("\t<td class=\"dialogpermissioncell\">&nbsp;</td>\n");
-    result.append("</tr>\n");
-    result.append("<tr>\n");
-    result.append("\t<td class=\"dialogpermissioncell\">").append(key(Messages.GUI_PERMISSION_OVERWRITE_INHERITED_0)).append("</td>\n");
-    result.append("\t<td class=\"dialogpermissioncell textcenter\">");
-    result.append("<input type=\"checkbox\" name=\"").append(PARAM_OVERWRITEINHERITED).append("\" value=\"true\"").append(disabled);
-    if (isOverWritingInherited(entry.getFlags())) {
-      result.append(" checked=\"checked\"");
-    }
-    result.append("></td>\n");
-    result.append("\t<td class=\"dialogpermissioncell\">&nbsp;</td>\n");
-    result.append("</tr>\n");
-    if (getInheritOption()) {
+    result.append("\t<td class=\"dialogpermissioncell\"><span class=\"textbold\" unselectable=\"on\">");
+    result.append(key(Messages.GUI_PERMISSION_0)).append("</span></td>\n");
+    result.append("\t<td class=\"dialogpermissioncell textcenter\"><span class=\"textbold\" unselectable=\"on\">");
+    result.append(key(Messages.GUI_PERMISSION_ALLOWED_0)).append("</span></td>\n");
+    result.append("\t<td class=\"dialogpermissioncell textcenter\"><span class=\"textbold\" unselectable=\"on\">");
+    result.append(key(Messages.GUI_PERMISSION_DENIED_0)).append("</span></td>\n");
+    result.append("</tr>");
+    Iterator i=m_permissionKeys.iterator();
+    while (i.hasNext()) {
+      String key=(String)i.next();
+      int value=CmsPermissionSet.getPermissionValue(key);
+      String keyMessage=key(key);
       result.append("<tr>\n");
-      result.append("\t<td class=\"dialogpermissioncell\">").append(key(Messages.GUI_PERMISSION_INHERIT_ON_SUBFOLDERS_0)).append("</td>\n");
+      result.append("\t<td class=\"dialogpermissioncell\">").append(keyMessage).append("</td>\n");
+      result.append("\t<td class=\"dialogpermissioncell textcenter\"><input type=\"checkbox\" name=\"");
+      result.append(value).append(PERMISSION_ALLOW).append("\" value=\"").append(value).append("\"").append(disabled);
+      if (isAllowed(permissions,value)) {
+        result.append(" checked=\"checked\"");
+      }
+      result.append("></td>\n");
+      result.append("\t<td class=\"dialogpermissioncell textcenter\"><input type=\"checkbox\" name=\"");
+      result.append(value).append(PERMISSION_DENY).append("\" value=\"").append(value).append("\"").append(disabled);
+      if (isDenied(permissions,value)) {
+        result.append(" checked=\"checked\"");
+      }
+      result.append("></td>\n");
+      result.append("</tr>\n");
+    }
+    if (editable) {
+      if (!id.equals(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID.toString())) {
+        result.append("<tr>\n");
+        result.append("\t<td class=\"dialogpermissioncell\">").append(key(Messages.GUI_LABEL_RESPONSIBLE_0)).append("</td>\n");
+        result.append("\t<td class=\"dialogpermissioncell textcenter\">");
+        result.append("<input type=\"checkbox\" name=\"").append(PARAM_RESPONSIBLE).append("\" value=\"true\"").append(disabled);
+        if (isResponsible(entry.getFlags())) {
+          result.append(" checked=\"checked\"");
+        }
+        result.append("></td>\n");
+        result.append("\t<td class=\"dialogpermissioncell\">&nbsp;</td>\n");
+        result.append("</tr>\n");
+      }
+      result.append("<tr>\n");
+      result.append("\t<td class=\"dialogpermissioncell\">").append(key(Messages.GUI_PERMISSION_OVERWRITE_INHERITED_0)).append("</td>\n");
       result.append("\t<td class=\"dialogpermissioncell textcenter\">");
-      result.append("<input type=\"checkbox\" name=\"").append(PARAM_INHERIT).append("\" value=\"true\"").append(disabled);
-      if (isInheriting(entry.getFlags())) {
+      result.append("<input type=\"checkbox\" name=\"").append(PARAM_OVERWRITEINHERITED).append("\" value=\"true\"").append(disabled);
+      if (isOverWritingInherited(entry.getFlags())) {
         result.append(" checked=\"checked\"");
       }
       result.append("></td>\n");
       result.append("\t<td class=\"dialogpermissioncell\">&nbsp;</td>\n");
       result.append("</tr>\n");
+      if (getInheritOption()) {
+        result.append("<tr>\n");
+        result.append("\t<td class=\"dialogpermissioncell\">").append(key(Messages.GUI_PERMISSION_INHERIT_ON_SUBFOLDERS_0)).append("</td>\n");
+        result.append("\t<td class=\"dialogpermissioncell textcenter\">");
+        result.append("<input type=\"checkbox\" name=\"").append(PARAM_INHERIT).append("\" value=\"true\"").append(disabled);
+        if (entry.isInheriting()) {
+          result.append(" checked=\"checked\"");
+        }
+        result.append("></td>\n");
+        result.append("\t<td class=\"dialogpermissioncell\">&nbsp;</td>\n");
+        result.append("</tr>\n");
+      }
+      result.append("<tr>\n");
+      result.append("\t<td>&nbsp;</td>\n");
+      result.append("\t<td class=\"textcenter\"><input class=\"dialogbutton\" type=\"submit\" value=\"").append(key(Messages.GUI_LABEL_SET_0)).append("\"></form></td>\n");
+      result.append("\t<td class=\"textcenter\">\n");
+      result.append("\t\t<form class=\"nomargin\" action=\"").append(getDialogUri()).append("\" method=\"post\" name=\"delete").append(idValue).append("\">\n");
+      setParamAction(DIALOG_DELETE);
+      result.append(paramsAsHidden());
+      result.append("\t\t<input class=\"dialogbutton\" type=\"submit\" value=\"").append(key(Messages.GUI_LABEL_DELETE_0)).append("\">\n");
+      result.append("\t\t</form>\n");
+      result.append("\t</td>\n");
+      result.append("</tr>\n");
     }
-    result.append("<tr>\n");
-    result.append("\t<td>&nbsp;</td>\n");
-    result.append("\t<td class=\"textcenter\"><input class=\"dialogbutton\" type=\"submit\" value=\"").append(key(Messages.GUI_LABEL_SET_0)).append("\"></form></td>\n");
-    result.append("\t<td class=\"textcenter\">\n");
-    result.append("\t\t<form class=\"nomargin\" action=\"").append(getDialogUri()).append("\" method=\"post\" name=\"delete").append(idValue).append("\">\n");
-    setParamAction(DIALOG_DELETE);
-    result.append(paramsAsHidden());
-    result.append("\t\t<input class=\"dialogbutton\" type=\"submit\" value=\"").append(key(Messages.GUI_LABEL_DELETE_0)).append("\">\n");
-    result.append("\t\t</form>\n");
-    result.append("\t</td>\n");
-    result.append("</tr>\n");
+ else {
+      result.append("</form>\n");
+    }
+    result.append("</table>\n");
+    if (extendedView) {
+      result.append("</div>");
+    }
   }
  else {
-    result.append("</form>\n");
-  }
-  result.append("</table>\n");
-  if (extendedView) {
-    result.append("</div>");
+    result.append(dialogRow(HTML_START));
+    result.append("<table style='margin-left: 13px;' class=\"dialogpermissiondetails\">\n");
+    result.append("<tr>\n");
+    result.append("\t<td style=\"width: 280px;\"><span class=\"textbold\" unselectable=\"on\">");
+    result.append("<img src=\"").append(getSkinUri()).append("commons/");
+    result.append(typeImg);
+    result.append(".png\" class=\"noborder\" width=\"16\" height=\"16\" alt=\"");
+    result.append(typeLocalized);
+    result.append("\" title=\"");
+    result.append(typeLocalized);
+    result.append("\">&nbsp;<span class=\"textbold\">");
+    result.append(name);
+    result.append("</span></td>\n");
+    result.append("\t<td class=\"dialogpermissioncell textcenter\"><span class=\"textbold\" unselectable=\"on\">");
+    if (editable) {
+      result.append("\t\t<form class=\"nomargin\" action=\"").append(getDialogUri()).append("\" method=\"post\" name=\"delete").append(idValue).append("\">\n");
+      setParamAction(DIALOG_DELETE);
+      result.append(paramsAsHidden());
+      result.append("\t\t<input class=\"dialogbutton\" type=\"submit\" value=\"").append(key(Messages.GUI_LABEL_DELETE_0)).append("\">\n");
+      result.append("\t\t</form>\n");
+    }
+    result.append("</td>\n");
+    result.append("</tr>");
+    result.append("</table>\n");
+    result.append(dialogRow(HTML_END));
   }
   return result;
 }

@@ -1,0 +1,143 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the behaviour during publishing depending on the content date");
+  String resName="/newtext.txt";
+  long time=System.currentTimeMillis();
+synchronized (this) {
+    wait(50);
+  }
+  CmsResource offlineResource=cms.createResource(resName,CmsResourceTypePlain.getStaticTypeId(),null,null);
+  CmsFile offlineFile=cms.readFile(offlineResource);
+  offlineFile.setContents("abc".getBytes());
+  offlineFile=cms.writeFile(offlineFile);
+synchronized (this) {
+    wait(50);
+  }
+  assertTrue(offlineResource.getDateContent() < System.currentTimeMillis());
+  assertDateContentAfter(cms,resName,time);
+  OpenCms.getPublishManager().publishResource(cms,resName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  CmsProject onlineProject=cms.readProject("Online");
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertDateContentAfter(cms,resName,offlineResource.getDateContent());
+synchronized (this) {
+    wait(50);
+  }
+  assertTrue(cms.readResource(offlineResource.getStructureId()).getDateContent() < System.currentTimeMillis());
+  CmsProject offlineProject=cms.readProject("Offline");
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  cms.lockResource(resName);
+  offlineFile=cms.readFile(offlineResource);
+  time=System.currentTimeMillis();
+synchronized (this) {
+    wait(50);
+  }
+  offlineFile.setContents("xyz".getBytes());
+  offlineFile=cms.writeFile(offlineFile);
+  offlineFile=cms.readFile(resName);
+  assertTrue(offlineFile.getDateContent() < System.currentTimeMillis());
+  assertDateContentAfter(cms,resName,time);
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertDateContentAfter(cms,resName,offlineResource.getDateContent());
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  OpenCms.getPublishManager().publishResource(cms,resName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertDateContentAfter(cms,resName,offlineResource.getDateContent());
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  cms.lockResource(resName);
+  time=cms.readResource(resName).getDateContent();
+synchronized (this) {
+    wait(50);
+  }
+  cms.writePropertyObject(resName,new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"abc","def"));
+  cms.setDateExpired(resName,System.currentTimeMillis() + 100000,false);
+  assertDateContent(cms,resName,time);
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertDateContentAfter(cms,resName,time);
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  time=cms.readResource(resName).getDateContent();
+synchronized (this) {
+    wait(50);
+  }
+  OpenCms.getPublishManager().publishResource(cms,resName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertDateContentAfter(cms,resName,time);
+  String sibName="/newtext_sib.txt";
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  time=cms.readResource(resName).getDateContent();
+synchronized (this) {
+    wait(50);
+  }
+  CmsResource siblingOffline=cms.createSibling(resName,sibName,null);
+  assertDateContent(cms,sibName,time);
+  assertDateContent(cms,resName,time);
+synchronized (this) {
+    wait(50);
+  }
+  OpenCms.getPublishManager().publishResource(cms,sibName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertDateContentAfter(cms,sibName,time);
+  assertDateContentAfter(cms,resName,time);
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  cms.lockResource(resName);
+  offlineFile=cms.readFile(resName);
+  time=System.currentTimeMillis();
+synchronized (this) {
+    wait(50);
+  }
+  offlineFile.setContents("test".getBytes());
+  offlineFile=cms.writeFile(offlineFile);
+  offlineFile=cms.readFile(resName);
+synchronized (this) {
+    wait(50);
+  }
+  assertTrue(offlineFile.getDateContent() < System.currentTimeMillis());
+  assertDateContentAfter(cms,resName,time);
+  assertDateContentAfter(cms,sibName,time);
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertDateContentAfter(cms,resName,offlineResource.getDateContent());
+  siblingOffline=cms.readResource(sibName);
+  assertDateContentAfter(cms,sibName,siblingOffline.getDateContent());
+  cms.getRequestContext().setCurrentProject(offlineProject);
+synchronized (this) {
+    wait(50);
+  }
+  OpenCms.getPublishManager().publishResource(cms,resName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertDateContentAfter(cms,resName,offlineResource.getDateContent());
+  assertDateContentAfter(cms,sibName,offlineResource.getDateContent());
+  assertDateContent(cms,sibName,cms.readResource(resName).getDateContent());
+  long onlineTime=cms.readResource(resName).getDateContent();
+  String movedName="/newtext_mov.txt";
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  cms.lockResource(resName);
+  time=System.currentTimeMillis();
+synchronized (this) {
+    wait(50);
+  }
+  cms.moveResource(resName,movedName);
+  offlineFile=cms.readFile(movedName);
+  assertDateContentAfter(cms,movedName,time);
+  assertDateContentAfter(cms,sibName,time);
+  time=offlineFile.getDateContent();
+synchronized (this) {
+    wait(50);
+  }
+  assertDateContent(cms,sibName,time);
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertDateContent(cms,resName,onlineTime);
+  assertDateContent(cms,sibName,onlineTime);
+  cms.getRequestContext().setCurrentProject(offlineProject);
+synchronized (this) {
+    wait(50);
+  }
+  OpenCms.getPublishManager().publishResource(cms,movedName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertDateContentAfter(cms,movedName,time);
+  assertDateContentAfter(cms,sibName,time);
+}

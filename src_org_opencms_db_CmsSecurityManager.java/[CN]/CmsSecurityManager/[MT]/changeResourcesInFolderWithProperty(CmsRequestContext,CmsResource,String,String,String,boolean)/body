@@ -1,46 +1,14 @@
 {
-  int todo=0;
-  List resources=new ArrayList();
-  if (recursive) {
-    resources=readResourcesWithProperty(context,resource.getRootPath(),propertyDefinition);
-  }
- else {
-    resources.add(resource);
-  }
-  Pattern oldPattern;
+  CmsDbContext dbc=m_dbContextFactory.getDbContext(context);
+  List result=null;
   try {
-    oldPattern=Pattern.compile(oldValue);
+    result=m_driverManager.changeResourcesInFolderWithProperty(dbc,resource,propertyDefinition,oldValue,newValue,recursive);
   }
- catch (  PatternSyntaxException e) {
-    throw new CmsVfsException(Messages.get().container(Messages.ERR_CHANGE_RESOURCES_IN_FOLDER_WITH_PROP_4,new Object[]{propertyDefinition,oldValue,newValue,context.getSitePath(resource)}),e);
+ catch (  Exception e) {
+    dbc.report(null,Messages.get().container(Messages.ERR_CHANGE_RESOURCES_IN_FOLDER_WITH_PROP_4,new Object[]{propertyDefinition,oldValue,newValue,context.getSitePath(resource)}),e);
   }
-  List changedResources=new ArrayList(resources.size());
-  CmsPermissionSet perm=CmsPermissionSet.ACCESS_WRITE;
-  CmsResourceFilter filter=CmsResourceFilter.IGNORE_EXPIRATION;
-  for (int i=0; i < resources.size(); i++) {
-    CmsResource res=(CmsResource)resources.get(i);
-    try {
-      checkPermissions(context,res,perm,true,filter);
-    }
- catch (    Exception e) {
-      continue;
-    }
-    CmsProperty property=readPropertyObject(context,res,propertyDefinition,false);
-    String structureValue=property.getStructureValue();
-    String resourceValue=property.getResourceValue();
-    boolean changed=false;
-    if (structureValue != null && oldPattern.matcher(structureValue).matches()) {
-      property.setStructureValue(newValue);
-      changed=true;
-    }
-    if (resourceValue != null && oldPattern.matcher(resourceValue).matches()) {
-      property.setResourceValue(newValue);
-      changed=true;
-    }
-    if (changed) {
-      writePropertyObject(context,res,property);
-      changedResources.add(res);
-    }
+ finally {
+    dbc.clear();
   }
-  return changedResources;
+  return result;
 }

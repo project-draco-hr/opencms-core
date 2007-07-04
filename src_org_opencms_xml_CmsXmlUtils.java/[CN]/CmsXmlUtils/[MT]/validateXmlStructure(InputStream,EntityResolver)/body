@@ -1,0 +1,66 @@
+{
+  XMLReader reader;
+  try {
+    reader=XMLReaderFactory.createXMLReader("org.apache.xerces.parsers.SAXParser");
+  }
+ catch (  SAXException e) {
+    if (LOG.isWarnEnabled()) {
+      LOG.warn(Messages.get().getBundle().key(Messages.LOG_VALIDATION_INIT_XERXES_SAX_READER_FAILED_0),e);
+    }
+    return;
+  }
+  try {
+    reader.setFeature("http://xml.org/sax/features/validation",true);
+    reader.setFeature("http://apache.org/xml/features/validation/schema",true);
+    reader.setFeature("http://xml.org/sax/features/namespaces",true);
+    reader.setFeature("http://xml.org/sax/features/namespace-prefixes",false);
+  }
+ catch (  SAXNotRecognizedException e) {
+    if (LOG.isWarnEnabled()) {
+      LOG.warn(Messages.get().getBundle().key(Messages.LOG_SAX_READER_FEATURE_NOT_RECOGNIZED_0),e);
+    }
+    return;
+  }
+catch (  SAXNotSupportedException e) {
+    if (LOG.isWarnEnabled()) {
+      LOG.warn(Messages.get().getBundle().key(Messages.LOG_SAX_READER_FEATURE_NOT_SUPPORTED_0),e);
+    }
+    return;
+  }
+  CmsXmlValidationErrorHandler errorHandler=new CmsXmlValidationErrorHandler();
+  reader.setErrorHandler(errorHandler);
+  if (resolver != null) {
+    reader.setEntityResolver(resolver);
+  }
+  try {
+    reader.parse(new InputSource(xmlStream));
+  }
+ catch (  IOException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_READ_XML_FROM_BYTE_ARR_FAILED_0),e);
+    }
+    return;
+  }
+catch (  SAXException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_PARSE_SAX_EXC_0),e);
+    }
+    return;
+  }
+  if (errorHandler.getErrors().elements().size() > 0) {
+    StringWriter out=new StringWriter(256);
+    OutputFormat format=OutputFormat.createPrettyPrint();
+    XMLWriter writer=new XMLWriter(out,format);
+    try {
+      writer.write(errorHandler.getErrors());
+      writer.write(errorHandler.getWarnings());
+      writer.close();
+    }
+ catch (    IOException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_STRINGWRITER_IO_EXC_0),e);
+      }
+    }
+    throw new CmsXmlException(Messages.get().container(Messages.ERR_XML_VALIDATION_1,out.toString()));
+  }
+}

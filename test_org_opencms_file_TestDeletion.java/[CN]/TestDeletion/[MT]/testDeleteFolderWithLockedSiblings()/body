@@ -1,0 +1,21 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing to delete a folder structure with (from other user) locked siblings inside");
+  String folder="/mytestfolder2";
+  String file="/index.html";
+  cms.createResource(folder,CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  cms.unlockResource(folder);
+  cms.loginUser("test1","test1");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.copyResource(file,folder + file,CmsResource.COPY_AS_SIBLING);
+  cms.unlockResource(folder + file);
+  cms.lockResource(file);
+  CmsUser user=cms.getRequestContext().currentUser();
+  cms=getCmsObject();
+  int sibCount=cms.readResource(file).getSiblingCount();
+  assertLock(cms,folder + file,CmsLockType.SHARED_EXCLUSIVE,user);
+  cms.lockResource(folder);
+  assertLock(cms,folder + file,CmsLockType.SHARED_INHERITED,user);
+  cms.deleteResource(folder,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  assertSiblingCount(cms,file,sibCount - 1);
+}

@@ -1,0 +1,68 @@
+{
+  I_CmsReport report=new CmsShellReport(m_cms.getRequestContext().getLocale());
+  report.println(Messages.get().container(Messages.RPT_START_UPDATE_RELATIONS_0),I_CmsReport.FORMAT_HEADLINE);
+  String storedSite=m_cms.getRequestContext().getSiteRoot();
+  CmsProject project=null;
+  try {
+    String projectName="Update relations project";
+    try {
+      project=m_cms.readProject(projectName);
+    }
+ catch (    CmsException e) {
+      project=m_cms.createProject(projectName,projectName,OpenCms.getDefaultUsers().getGroupAdministrators(),OpenCms.getDefaultUsers().getGroupAdministrators(),CmsProject.PROJECT_TYPE_TEMPORARY);
+    }
+    m_cms.getRequestContext().setSiteRoot("");
+    m_cms.getRequestContext().setCurrentProject(project);
+    List types=OpenCms.getResourceManager().getResourceTypes();
+    int n=types.size();
+    int m=0;
+    Iterator itTypes=types.iterator();
+    while (itTypes.hasNext()) {
+      I_CmsResourceType type=(I_CmsResourceType)itTypes.next();
+      m++;
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,String.valueOf(m),String.valueOf(n)),I_CmsReport.FORMAT_NOTE);
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,type.getTypeName()));
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+      if (type instanceof I_CmsLinkParseable) {
+        try {
+          CmsXmlContentRepairSettings settings=new CmsXmlContentRepairSettings(m_cms);
+          settings.setIncludeSubFolders(true);
+          settings.setVfsFolder("/");
+          settings.setResourceType(type.getTypeName());
+          CmsXmlContentRepairThread t=new CmsXmlContentRepairThread(m_cms,settings);
+          t.start();
+synchronized (this) {
+            t.join();
+          }
+          report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+        }
+ catch (        Exception e) {
+          report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ERROR_0),I_CmsReport.FORMAT_ERROR);
+          report.addError(e);
+          e.printStackTrace(System.err);
+        }
+      }
+ else {
+        report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SKIPPED_0),I_CmsReport.FORMAT_WARNING);
+      }
+    }
+  }
+  finally {
+    try {
+      if (project != null) {
+        try {
+          m_cms.unlockProject(project.getUuid());
+          OpenCms.getPublishManager().publishProject(m_cms,report,OpenCms.getPublishManager().getPublishList(m_cms));
+          OpenCms.getPublishManager().waitWhileRunning();
+        }
+  finally {
+          m_cms.getRequestContext().setCurrentProject(m_cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+        }
+      }
+    }
+  finally {
+      m_cms.getRequestContext().setSiteRoot(storedSite);
+    }
+    report.println(Messages.get().container(Messages.RPT_FINISH_UPDATE_RELATIONS_0),I_CmsReport.FORMAT_HEADLINE);
+  }
+}

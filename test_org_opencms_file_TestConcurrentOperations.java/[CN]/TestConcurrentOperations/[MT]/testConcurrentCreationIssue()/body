@@ -1,0 +1,72 @@
+{
+  int count=50;
+  echo("Concurrent folder creation test: Testing concurrent folder creation with " + count + " threads");
+  CmsObject cms=getCmsObject();
+  cms.createResource("/testfolder/",CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  cms.createResource("/testfolder/sub1/",CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  cms.createResource("/testfolder/sub1/sub2/",CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  cms.createResource("/testfolder/sub1/sub2/sub3/",CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  String name="doConcurrentCreationOperation";
+  Integer[] value=new Integer[1];
+  value[0]=new Integer(0);
+  Object[] parameters=new Object[]{OpenCmsThreadedTestCaseSuite.PARAM_CMSOBJECT,OpenCmsThreadedTestCaseSuite.PARAM_COUNTER,value};
+  OpenCmsThreadedTestCaseSuite suite=new OpenCmsThreadedTestCaseSuite(count,this,name,parameters);
+  OpenCmsThreadedTestCase[] threads=suite.run();
+  if (suite.getThrowable() != null) {
+    throw new Exception(suite.getThrowable());
+  }
+  int c=0;
+  int ec=0;
+  for (int i=0; i < count; i++) {
+    Throwable e=threads[i].getThrowable();
+    if (e instanceof CmsVfsException) {
+      c++;
+    }
+    if (e instanceof CmsVfsResourceAlreadyExistsException) {
+      CmsVfsResourceAlreadyExistsException e2=(CmsVfsResourceAlreadyExistsException)e;
+      if (e2.getMessageContainer().getKey() == org.opencms.db.generic.Messages.ERR_RESOURCE_WITH_NAME_CURRENTLY_CREATED_1) {
+        ec++;
+      }
+ else {
+        e=e2.getCause();
+        if (e instanceof CmsVfsResourceAlreadyExistsException) {
+          e2=(CmsVfsResourceAlreadyExistsException)e;
+          if (e2.getMessageContainer().getKey() == org.opencms.db.generic.Messages.ERR_RESOURCE_WITH_NAME_CURRENTLY_CREATED_1) {
+            ec++;
+          }
+        }
+      }
+    }
+  }
+  List resources=cms.readResources("/testfolder/sub1/sub2/sub3/",CmsResourceFilter.ALL);
+  Iterator i=resources.iterator();
+  Set names=new HashSet();
+  List duplicates=new ArrayList();
+  while (i.hasNext()) {
+    CmsResource res=(CmsResource)i.next();
+    if (names.contains(res.getRootPath())) {
+      duplicates.add(res);
+    }
+ else {
+      names.add(res.getRootPath());
+    }
+  }
+  i=duplicates.iterator();
+  int c2=0;
+  while (i.hasNext()) {
+    c2++;
+    CmsResource res=(CmsResource)i.next();
+    System.err.println("Duplicate resource " + c2 + " : "+ res.getRootPath()+ " - "+ res.getStructureId());
+  }
+  if (duplicates.size() > 0) {
+    fail("There where " + duplicates.size() + " duplicate resources created");
+  }
+  if (c != (count - value[0].intValue())) {
+    fail("Exception count " + c + " id not return the expected result "+ (count - value[0].intValue()));
+  }
+  if (ec != 0) {
+    fail("Did catch concurrent creation exception at least once - no concurrent exceptions expected!");
+  }
+  echo("Concurrent folder creation test success: No duplicates created - " + ec + " concurrent modification exceptions caught");
+  echo("Total runtime of concurrent test suite: " + CmsStringUtil.formatRuntime(suite.getRuntime()));
+}

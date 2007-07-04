@@ -1,0 +1,62 @@
+{
+  CmsResourceFilter filter=CmsResourceFilter.IGNORE_EXPIRATION.addRequireType(m_settings.getResourceTypeId());
+  String path=CmsResource.getFolderPath(m_settings.getVfsFolder());
+  List resources=getCms().readResources(path,filter,m_settings.isIncludeSubFolders());
+  int count=0;
+  int resSize=resources.size();
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(getCms());
+  Iterator i=resources.iterator();
+  while (i.hasNext()) {
+    count++;
+    CmsResource res=(CmsResource)i.next();
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,String.valueOf(count),String.valueOf(resSize)),I_CmsReport.FORMAT_NOTE);
+    getReport().print(Messages.get().container(Messages.RPT_PROCESSING_XMLCONTENT_0),I_CmsReport.FORMAT_NOTE);
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,getCms().getSitePath(res)));
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    try {
+      CmsFile file=CmsFile.upgrade(res,getCms());
+      CmsXmlContent xmlContent=CmsXmlContentFactory.unmarshal(getCms(),file);
+      boolean fixFile=false;
+      try {
+        xmlContent.validateXmlStructure(resolver);
+      }
+ catch (      CmsXmlException e) {
+        fixFile=true;
+      }
+      if (fixFile) {
+        CmsLock lock=getCms().getLock(res);
+        boolean isLocked=false;
+        boolean canWrite=false;
+        if (lock.isNullLock()) {
+          getCms().lockResource(getCms().getSitePath(res));
+          isLocked=true;
+          canWrite=true;
+        }
+ else         if (lock.isOwnedBy(getCms().getRequestContext().currentUser())) {
+          canWrite=true;
+        }
+        if (canWrite) {
+          xmlContent.setAutoCorrectionEnabled(true);
+          xmlContent.correctXmlStructure(getCms());
+          file.setContents(xmlContent.marshal());
+          getCms().writeFile(file);
+        }
+ else {
+          getReport().println(Messages.get().container(Messages.RPT_XMLCONTENTREPAIR_NOTLOCKED_0),I_CmsReport.FORMAT_NOTE);
+        }
+        if (isLocked) {
+          getCms().unlockResource(getCms().getSitePath(res));
+        }
+        if (canWrite) {
+          getReport().println(Messages.get().container(Messages.RPT_XMLCONTENTREPAIR_REPAIRED_0),I_CmsReport.FORMAT_OK);
+        }
+      }
+ else {
+        getReport().println(Messages.get().container(Messages.RPT_XMLCONTENTREPAIR_SKIPFILE_0),I_CmsReport.FORMAT_NOTE);
+      }
+    }
+ catch (    CmsException e) {
+      getReport().println(e);
+    }
+  }
+}

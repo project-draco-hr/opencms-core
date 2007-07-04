@@ -1,0 +1,29 @@
+{
+  unlockPublishList(publishJob);
+  if ((m_currentPublishThread != null) && (m_currentPublishThread.isAborted())) {
+    new Thread(this).start();
+    return;
+  }
+  CmsDbContext dbc=m_dbContextFactory.getDbContext(publishJob.getCmsObject().getRequestContext());
+  try {
+    Map eventData=new HashMap();
+    eventData.put(I_CmsEventListener.KEY_REPORT,publishJob.getPublishReport());
+    eventData.put(I_CmsEventListener.KEY_PUBLISHID,publishJob.getPublishList().getPublishHistoryId().toString());
+    eventData.put(I_CmsEventListener.KEY_PROJECTID,dbc.currentProject().getUuid());
+    eventData.put(I_CmsEventListener.KEY_DBCONTEXT,dbc);
+    CmsEvent afterPublishEvent=new CmsEvent(I_CmsEventListener.EVENT_PUBLISH_PROJECT,eventData);
+    OpenCms.fireCmsEvent(afterPublishEvent);
+  }
+ catch (  Throwable t) {
+    publishJob.getPublishReport().println(t);
+  }
+ finally {
+    dbc.clear();
+    dbc=null;
+  }
+  m_listeners.fireFinish(new CmsPublishJobRunning(publishJob));
+  publishJob.finish();
+  m_publishHistory.add(publishJob);
+  m_currentPublishThread=null;
+  new Thread(this).start();
+}

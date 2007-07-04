@@ -1,0 +1,45 @@
+{
+  echo("Testing subroles operations");
+  CmsObject cms=getCmsObject();
+  CmsRoleManager roleMan=OpenCms.getRoleManager();
+  List adminRoles=roleMan.getRolesOfUser(cms,cms.getRequestContext().currentUser().getName(),"",false,true,false);
+  assertEquals(1,adminRoles.size());
+  assertTrue(adminRoles.contains(CmsRole.ROOT_ADMIN));
+  roleMan.addUserToRole(cms,CmsRole.DEVELOPER.forOrgUnit(""),cms.getRequestContext().currentUser().getName());
+  adminRoles=roleMan.getRolesOfUser(cms,cms.getRequestContext().currentUser().getName(),"",false,true,false);
+  assertEquals(1,adminRoles.size());
+  assertTrue(adminRoles.contains(CmsRole.ROOT_ADMIN));
+  CmsUser user=cms.readUser("test2");
+  List roles=roleMan.getRolesOfUser(cms,user.getName(),"",true,true,false);
+  assertEquals(1,roles.size());
+  assertTrue(roles.contains(CmsRole.WORKPLACE_USER.forOrgUnit(user.getOuFqn())));
+  roleMan.addUserToRole(cms,CmsRole.VFS_MANAGER.forOrgUnit(user.getOuFqn()),user.getName());
+  roles=roleMan.getRolesOfUser(cms,user.getName(),"",true,true,false);
+  assertEquals(2,roles.size());
+  assertTrue(roles.contains(CmsRole.VFS_MANAGER.forOrgUnit(user.getOuFqn())));
+  assertTrue(roles.contains(CmsRole.WORKPLACE_USER.forOrgUnit(user.getOuFqn())));
+  roles=roleMan.getRolesOfUser(cms,user.getName(),"",true,false,false);
+  List children=CmsRole.VFS_MANAGER.forOrgUnit("").getChildren(true);
+  children.add(CmsRole.VFS_MANAGER.forOrgUnit(""));
+  children.addAll(CmsRole.WORKPLACE_USER.forOrgUnit("").getChildren(true));
+  children.add(CmsRole.WORKPLACE_USER.forOrgUnit(""));
+  assertEquals(children.size(),roles.size());
+  Iterator it=roles.iterator();
+  while (it.hasNext()) {
+    CmsRole role=(CmsRole)it.next();
+    assertTrue(children.contains(role));
+  }
+  roleMan.addUserToRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(user.getOuFqn()),user.getName());
+  roles=roleMan.getRolesOfUser(cms,user.getName(),"",true,true,false);
+  assertEquals(1,roles.size());
+  assertTrue(roles.contains(CmsRole.ADMINISTRATOR.forOrgUnit(user.getOuFqn())));
+  roles=roleMan.getRolesOfUser(cms,user.getName(),"",true,false,false);
+  children=CmsRole.ADMINISTRATOR.forOrgUnit("").getChildren(true);
+  children.add(CmsRole.ADMINISTRATOR.forOrgUnit(""));
+  assertEquals(children.size(),roles.size());
+  it=roles.iterator();
+  while (it.hasNext()) {
+    CmsRole role=(CmsRole)it.next();
+    assertTrue(children.contains(role));
+  }
+}

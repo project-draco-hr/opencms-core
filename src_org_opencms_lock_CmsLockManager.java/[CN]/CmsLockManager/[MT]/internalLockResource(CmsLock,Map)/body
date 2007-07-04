@@ -1,0 +1,37 @@
+{
+  CmsLock currentLock=null;
+  if (locks == null) {
+    currentLock=OpenCms.getMemoryMonitor().getCachedLock(lock.getResourceName());
+  }
+ else {
+    currentLock=(CmsLock)locks.get(lock.getResourceName());
+  }
+  if (currentLock != null) {
+    if (currentLock.getSystemLock().equals(lock) || currentLock.getEditionLock().equals(lock)) {
+      return;
+    }
+    if (!currentLock.getSystemLock().isUnlocked() && lock.getSystemLock().isUnlocked()) {
+      lock.setRelatedLock(currentLock);
+      if (locks == null) {
+        OpenCms.getMemoryMonitor().cacheLock(lock);
+      }
+ else {
+        locks.put(lock.getResourceName(),lock);
+      }
+    }
+ else     if (currentLock.getSystemLock().isUnlocked() && !lock.getSystemLock().isUnlocked()) {
+      currentLock.setRelatedLock(lock);
+    }
+ else {
+      throw new CmsLockException(Messages.get().container(Messages.ERR_LOCK_ILLEGAL_STATE_2,currentLock,lock));
+    }
+  }
+ else {
+    if (locks == null) {
+      OpenCms.getMemoryMonitor().cacheLock(lock);
+    }
+ else {
+      locks.put(lock.getResourceName(),lock);
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  String cacheKey=projectId + "_" + mode.toString();
+  List result=OpenCms.getMemoryMonitor().getCachedProjectResources(cacheKey);
+  if (result != null) {
+    return result;
+  }
+  List projectResources=readProjectResources(dbc,readProject(dbc,projectId));
+  result=new ArrayList();
+  String currentProjectResource=null;
+  List resources=new ArrayList();
+  CmsResource currentResource=null;
+  CmsLock currentLock=null;
+  for (int i=0; i < projectResources.size(); i++) {
+    currentProjectResource=(String)projectResources.get(i);
+    try {
+      currentResource=readResource(dbc,currentProjectResource,CmsResourceFilter.ALL);
+      if (currentResource.isFolder()) {
+        resources.addAll(readResources(dbc,currentResource,CmsResourceFilter.ALL,true));
+      }
+ else {
+        resources.add(currentResource);
+      }
+    }
+ catch (    CmsException e) {
+      if (!(e instanceof CmsVfsResourceNotFoundException)) {
+        throw e;
+      }
+    }
+  }
+  for (int j=0; j < resources.size(); j++) {
+    currentResource=(CmsResource)resources.get(j);
+    currentLock=getLock(dbc,currentResource).getEditionLock();
+    if (!currentResource.getState().isUnchanged()) {
+      if ((currentLock.isNullLock() && (currentResource.getProjectLastModified().equals(projectId))) || (currentLock.isOwnedBy(dbc.currentUser()) && (currentLock.getProjectId().equals(projectId)))) {
+        if ((mode == RCPRM_FILES_AND_FOLDERS_MODE) || (currentResource.isFolder() && (mode == RCPRM_FOLDERS_ONLY_MODE)) || (currentResource.isFile() && (mode == RCPRM_FILES_ONLY_MODE))) {
+          result.add(currentResource);
+        }
+      }
+    }
+  }
+  resources.clear();
+  resources=null;
+  OpenCms.getMemoryMonitor().cacheProjectResources(cacheKey,result);
+  return result;
+}

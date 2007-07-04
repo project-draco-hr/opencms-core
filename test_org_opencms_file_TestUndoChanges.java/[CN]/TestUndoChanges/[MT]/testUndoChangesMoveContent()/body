@@ -1,0 +1,58 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing undo changes for the content changes only");
+  String source="/folder1/";
+  String destination="/folder1_undo2/";
+  String sourceFile="page1.html";
+  String newFile="filenew.html";
+  storeResources(cms,source,true);
+  cms.lockResource(source);
+  cms.moveResource(source,destination);
+  cms.writePropertyObject(destination + sourceFile,new CmsProperty("test property","a","b",true));
+  cms.createResource(destination + newFile,CmsResourceTypePlain.getStaticTypeId());
+  cms.undoChanges(destination,CmsResource.UNDO_CONTENT_RECURSIVE);
+  setMapping(destination,source);
+  assertFilter(cms,destination,OpenCmsTestResourceFilter.FILTER_UNDOCHANGES_CONTENT);
+  assertProject(cms,destination,cms.getRequestContext().currentProject());
+  Iterator subresources=cms.readResources(destination,CmsResourceFilter.ALL).iterator();
+  while (subresources.hasNext()) {
+    CmsResource res=(CmsResource)subresources.next();
+    String resName=cms.getSitePath(res);
+    if (resName.equals(destination + newFile)) {
+      assertState(cms,resName,CmsResource.STATE_NEW);
+    }
+ else {
+      setMapping(resName,CmsStringUtil.substitute(resName,destination,source));
+      assertFilter(cms,resName,OpenCmsTestResourceFilter.FILTER_UNDOCHANGES_CONTENT);
+    }
+    assertProject(cms,resName,cms.getRequestContext().currentProject());
+  }
+  assertTrue(cms.existsResource(destination));
+  assertTrue(cms.existsResource(destination + sourceFile));
+  assertTrue(cms.existsResource(destination + newFile));
+  assertFalse(cms.existsResource(source,CmsResourceFilter.ALL));
+  cms.undoChanges(destination,CmsResource.UNDO_MOVE_CONTENT);
+  resetMapping();
+  assertFilter(cms,source,OpenCmsTestResourceFilter.FILTER_UNDOCHANGES_ALL);
+  assertProject(cms,source,cms.getRequestContext().currentProject());
+  subresources=cms.readResources(source,CmsResourceFilter.ALL).iterator();
+  while (subresources.hasNext()) {
+    CmsResource res=(CmsResource)subresources.next();
+    String resName=cms.getSitePath(res);
+    if (resName.equals(source + newFile)) {
+      assertState(cms,resName,CmsResource.STATE_NEW);
+    }
+ else {
+      assertFilter(cms,resName,OpenCmsTestResourceFilter.FILTER_UNDOCHANGES_ALL);
+    }
+    assertProject(cms,resName,cms.getRequestContext().currentProject());
+  }
+  assertTrue(cms.existsResource(source));
+  assertTrue(cms.existsResource(source + sourceFile));
+  assertTrue(cms.existsResource(source + newFile));
+  assertFalse(cms.existsResource(destination,CmsResourceFilter.ALL));
+  cms.deleteResource(source + newFile,CmsResource.DELETE_REMOVE_SIBLINGS);
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+}

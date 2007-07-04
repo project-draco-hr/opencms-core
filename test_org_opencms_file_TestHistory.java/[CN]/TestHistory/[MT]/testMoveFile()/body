@@ -1,0 +1,49 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing history after moving a resource n-times");
+  String filename="/dummyMove";
+  String ext=".txt";
+  String resName=filename + 0 + ext;
+  int counter=2;
+  CmsResource res=cms.createResource(resName,CmsResourceTypePlain.getStaticTypeId(),"content version 0".getBytes(),null);
+  cms.unlockResource(resName);
+  OpenCms.getPublishManager().publishResource(cms,resName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  for (int i=1; i <= counter; i++) {
+    String contentStr="content version " + i;
+    CmsFile file=cms.readFile(resName);
+    file.setContents(contentStr.getBytes());
+    cms.lockResource(resName);
+    cms.writeFile(file);
+    String newName=filename + i + ext;
+    cms.moveResource(resName,newName);
+    OpenCms.getPublishManager().publishResource(cms,newName);
+    OpenCms.getPublishManager().waitWhileRunning();
+    resName=newName;
+  }
+  CmsFile file=cms.readFile(resName);
+  file.setContents("content version 3".getBytes());
+  cms.lockResource(resName);
+  cms.writeFile(file);
+  cms.deleteResource(resName,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  cms.unlockResource(resName);
+  OpenCms.getPublishManager().publishResource(cms,resName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.createResource(resName,CmsResourceTypePlain.getStaticTypeId(),null,null);
+  List historyResources=cms.readAllAvailableVersions(resName);
+  assertTrue(historyResources.isEmpty());
+  String importFile="import.txt";
+  cms.importResource(importFile,res,"blah-blah".getBytes(),null);
+  historyResources=cms.readAllAvailableVersions(importFile);
+  assertEquals(counter + 2,historyResources.size());
+  for (int i=0; i < counter + 2; i++) {
+    int version=counter + 2 - i;
+    String contentStr="content version " + (version - 1);
+    I_CmsHistoryResource historyResource=(I_CmsHistoryResource)historyResources.get(i);
+    assertEquals(version,historyResource.getVersion());
+    cms.restoreResourceVersion(historyResource.getStructureId(),historyResource.getVersion());
+    file=cms.readFile(importFile);
+    String restoredContent=getContentString(cms,file.getContents());
+    assertEquals(contentStr,restoredContent);
+  }
+}

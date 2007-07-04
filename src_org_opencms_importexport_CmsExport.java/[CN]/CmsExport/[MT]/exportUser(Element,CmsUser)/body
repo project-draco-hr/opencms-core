@@ -4,33 +4,38 @@
     e.addElement(CmsImportExportManager.N_NAME).addText(user.getName());
     String passwd=new String(Base64.encodeBase64(user.getPassword().getBytes()));
     e.addElement(CmsImportExportManager.N_PASSWORD).addCDATA(passwd);
-    e.addElement(CmsImportExportManager.N_DESCRIPTION).addCDATA(user.getDescription());
     e.addElement(CmsImportExportManager.N_FIRSTNAME).addText(user.getFirstname());
     e.addElement(CmsImportExportManager.N_LASTNAME).addText(user.getLastname());
     e.addElement(CmsImportExportManager.N_EMAIL).addText(user.getEmail());
     e.addElement(CmsImportExportManager.N_FLAGS).addText(Integer.toString(user.getFlags()));
-    e.addElement(CmsImportExportManager.N_TAG_ADDRESS).addCDATA(user.getAddress());
-    e.addElement(CmsImportExportManager.N_TYPE).addText(Integer.toString(user.getType()));
-    try {
-      String datfileName="/~" + CmsImportExportManager.N_USERINFO + "/"+ user.getName()+ ".dat";
-      e.addElement(CmsImportExportManager.N_USERINFO).addText(datfileName);
-      ByteArrayOutputStream bout=new ByteArrayOutputStream();
-      ObjectOutputStream oout=new ObjectOutputStream(bout);
-      oout.writeObject(user.getAdditionalInfo());
-      oout.close();
-      byte[] serializedInfo=bout.toByteArray();
-      ZipEntry entry=new ZipEntry(datfileName);
-      getExportZipStream().putNextEntry(entry);
-      getExportZipStream().write(serializedInfo);
-      getExportZipStream().closeEntry();
-    }
- catch (    IOException ioe) {
-      getReport().println(ioe);
-      if (LOG.isErrorEnabled()) {
-        LOG.error(Messages.get().getBundle().key(Messages.ERR_IMPORTEXPORT_ERROR_EXPORTING_USER_1,user.getName()),ioe);
+    e.addElement(CmsImportExportManager.N_DATECREATED).addText(Long.toString(user.getDateCreated()));
+    Element userInfoNode=e.addElement(CmsImportExportManager.N_USERINFO);
+    List keys=new ArrayList(user.getAdditionalInfo().keySet());
+    Collections.sort(keys);
+    Iterator itInfoKeys=keys.iterator();
+    while (itInfoKeys.hasNext()) {
+      String key=(String)itInfoKeys.next();
+      if (key == null) {
+        continue;
+      }
+      Object value=user.getAdditionalInfo(key);
+      if (value == null) {
+        continue;
+      }
+      Element entryNode=userInfoNode.addElement(CmsImportExportManager.N_USERINFO_ENTRY);
+      entryNode.addAttribute(CmsImportExportManager.A_NAME,key);
+      entryNode.addAttribute(CmsImportExportManager.A_TYPE,value.getClass().getName());
+      try {
+        entryNode.addCDATA(CmsDataTypeUtil.dataExport(value));
+      }
+ catch (      IOException ioe) {
+        getReport().println(ioe);
+        if (LOG.isErrorEnabled()) {
+          LOG.error(Messages.get().getBundle().key(Messages.ERR_IMPORTEXPORT_ERROR_EXPORTING_USER_1,user.getName()),ioe);
+        }
       }
     }
-    List userGroups=getCms().getDirectGroupsOfUser(user.getName());
+    List userGroups=getCms().getGroupsOfUser(user.getName(),true);
     Element g=e.addElement(CmsImportExportManager.N_USERGROUPS);
     for (int i=0; i < userGroups.size(); i++) {
       String groupName=((CmsGroup)userGroups.get(i)).getName();
@@ -39,10 +44,9 @@
     digestElement(parent,e);
   }
  catch (  CmsException e) {
-    CmsMessageContainer message=org.opencms.db.Messages.get().container(org.opencms.db.Messages.ERR_GET_GROUPS_OF_USER_1,user.getName());
     if (LOG.isDebugEnabled()) {
-      LOG.debug(message.key(),e);
+      LOG.debug(e.getLocalizedMessage(),e);
     }
-    throw new CmsImportExportException(message,e);
+    throw new CmsImportExportException(e.getMessageContainer(),e);
   }
 }

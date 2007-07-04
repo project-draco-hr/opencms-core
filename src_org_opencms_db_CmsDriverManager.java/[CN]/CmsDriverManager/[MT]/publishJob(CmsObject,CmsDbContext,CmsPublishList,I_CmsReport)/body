@@ -1,0 +1,57 @@
+{
+  try {
+    List allResources=new ArrayList(publishList.getFolderList());
+    allResources.addAll(publishList.getDeletedFolderList());
+    allResources.addAll(publishList.getFileList());
+    Iterator itResources=allResources.iterator();
+    while (itResources.hasNext()) {
+      CmsResource resource=(CmsResource)itResources.next();
+      try {
+        resource=readResource(dbc,resource.getStructureId(),CmsResourceFilter.ALL);
+      }
+ catch (      CmsVfsResourceNotFoundException e) {
+        continue;
+      }
+      if (resource.getState().isUnchanged()) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.RPT_PUBLISH_REMOVED_RESOURCE_1,dbc.removeSiteRoot(resource.getRootPath())));
+        }
+        publishList.remove(resource);
+        unlockResource(dbc,resource,true,true);
+        continue;
+      }
+      CmsLock lock=m_lockManager.getLock(dbc,resource,false);
+      if (!lock.getSystemLock().isPublish()) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.RPT_PUBLISH_REMOVED_RESOURCE_1,dbc.removeSiteRoot(resource.getRootPath())));
+        }
+        publishList.remove(resource);
+        continue;
+      }
+    }
+    CmsProject onlineProject=readProject(dbc,CmsProject.ONLINE_PROJECT_ID);
+    clearcache(false);
+    int publishTag=getNextPublishTag(dbc);
+    getProjectDriver().publishProject(dbc,report,onlineProject,publishList,publishTag);
+    Iterator i=OpenCms.getModuleManager().getModuleNames().iterator();
+    while (i.hasNext()) {
+      CmsModule module=OpenCms.getModuleManager().getModule(i.next().toString());
+      if ((module != null) && (module.getActionInstance() != null)) {
+        module.getActionInstance().publishProject(cms,publishList,publishTag,report);
+      }
+    }
+    boolean temporaryProject=(cms.getRequestContext().currentProject().getType() == CmsProject.PROJECT_TYPE_TEMPORARY);
+    if ((temporaryProject) && (!publishList.isDirectPublish())) {
+      try {
+        getProjectDriver().deleteProject(dbc,dbc.currentProject());
+      }
+ catch (      CmsException e) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_DELETE_TEMP_PROJECT_FAILED_1,cms.getRequestContext().currentProject().getName()));
+      }
+      cms.getRequestContext().setCurrentProject(onlineProject);
+    }
+  }
+  finally {
+    clearcache(false);
+  }
+}

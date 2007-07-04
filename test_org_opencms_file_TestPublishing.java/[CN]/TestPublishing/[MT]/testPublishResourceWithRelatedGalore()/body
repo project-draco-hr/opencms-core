@@ -1,0 +1,25 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing publishing a resource with related resources with an iteration");
+  String resourcename="index.html";
+  cms.lockResource("/");
+  cms.setDateLastModified("/",System.currentTimeMillis(),true);
+  CmsPublishList pubList=OpenCms.getPublishManager().getPublishList(cms,cms.readResource(resourcename),false);
+  CmsPublishList relatedList=OpenCms.getPublishManager().getRelatedResourcesToPublish(cms,pubList);
+  pubList=OpenCms.getPublishManager().mergePublishLists(cms,pubList,relatedList);
+  for (int i=0; i < 10; i++) {
+    CmsPublishList publishList=OpenCms.getPublishManager().getPublishList(cms,cms.readResource(resourcename,CmsResourceFilter.ALL),false);
+    CmsPublishList relResources=OpenCms.getPublishManager().getRelatedResourcesToPublish(cms,publishList);
+    publishList=OpenCms.getPublishManager().mergePublishLists(cms,publishList,relResources);
+    OpenCms.getPublishManager().publishProject(cms,new CmsShellReport(cms.getRequestContext().getLocale()),publishList);
+  }
+  OpenCms.getPublishManager().waitWhileRunning();
+  List pubHistory=OpenCms.getPublishManager().getPublishHistory();
+  assertEquals(10,pubHistory.size());
+  CmsPublishJobFinished pubJob=(CmsPublishJobFinished)pubHistory.get(0);
+  assertEquals(pubList.size(),pubJob.getSize());
+  for (int i=1; i < 10; i++) {
+    pubJob=(CmsPublishJobFinished)pubHistory.get(i);
+    assertEquals("pubJob: " + i,0,pubJob.getSize());
+  }
+}

@@ -1,7 +1,7 @@
 {
   try {
     if (getFormConfiguration().isConfirmationMailEnabled()) {
-      if (!getFormConfiguration().isConfirmationMailOptional() || Boolean.valueOf(getRequest().getParameter(CmsForm.PARAM_SENDCONFIRMATION)).booleanValue()) {
+      if (!getFormConfiguration().isConfirmationMailOptional() || Boolean.valueOf(getParameter(CmsForm.PARAM_SENDCONFIRMATION)).booleanValue()) {
         sendConfirmationMail();
       }
     }
@@ -17,6 +17,15 @@
       theMail.setSubject(getFormConfiguration().getMailSubjectPrefix() + getFormConfiguration().getMailSubject());
       theMail.setHtmlMsg(createMailTextFromFields(true,false));
       theMail.setTextMsg(createMailTextFromFields(false,false));
+      Map fileUploads=(Map)getRequest().getSession().getAttribute(ATTRIBUTE_FILEITEMS);
+      Iterator i=fileUploads.values().iterator();
+      while (i.hasNext()) {
+        FileItem attachment=(FileItem)i.next();
+        if (attachment != null) {
+          String filename=attachment.getName().substring(attachment.getName().lastIndexOf(File.separator) + 1);
+          theMail.attach(new CmsByteArrayDataSource(filename,attachment.get(),OpenCms.getResourceManager().getMimeType(filename,null,"application/octet-stream")),filename,filename);
+        }
+      }
       theMail.send();
     }
  else {
@@ -35,7 +44,7 @@
   }
  catch (  Exception e) {
     if (LOG.isErrorEnabled()) {
-      LOG.error(e);
+      LOG.error(e.getLocalizedMessage(),e);
     }
     m_errors.put("sendmail",e.getMessage());
     return false;

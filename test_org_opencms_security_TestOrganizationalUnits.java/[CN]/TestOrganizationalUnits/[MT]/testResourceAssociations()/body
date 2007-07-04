@@ -1,0 +1,111 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing handling with resource associations");
+  CmsOrganizationalUnit rootOu=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,"");
+  CmsOrganizationalUnit ou=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,"test");
+  CmsOrganizationalUnit ou2=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,"test/test2");
+  try {
+    OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,"/doesnotexist/test2/","my test ou2",0,"");
+    fail("should not be possible to create a new ou with a not valid parent");
+  }
+ catch (  CmsDataAccessException e) {
+    assertEquals(2,OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),true).size());
+    assertTrue(OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),true).contains(ou));
+    assertTrue(OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),true).contains(ou2));
+  }
+  try {
+    OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,ou2.getName() + "test3/","my test ou3",0,"/folder2");
+    fail("should not be possible to create a new ou with a resource out of the parent scope");
+  }
+ catch (  CmsDataAccessException e) {
+    assertEquals(2,OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),true).size());
+    assertTrue(OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),true).contains(ou));
+    assertTrue(OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),true).contains(ou2));
+  }
+  assertEquals(1,OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).size());
+  assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).contains(cms.readResource("/folder1")));
+  CmsOrganizationalUnit ou3=OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,ou2.getName() + "test3","it will not last too long",0,"/folder1");
+  assertEquals(1,OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou3.getName()).size());
+  assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou3.getName()).contains(cms.readResource("/folder1")));
+  OpenCms.getOrgUnitManager().deleteOrganizationalUnit(cms,ou3.getName());
+  assertEquals(1,OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).size());
+  assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).contains(cms.readResource("/folder1")));
+  try {
+    OpenCms.getOrgUnitManager().removeResourceFromOrgUnit(cms,ou2.getName(),"/folder1");
+    fail("it should not be possible to remove all resources");
+  }
+ catch (  CmsDataAccessException e) {
+    assertEquals(((CmsDataAccessException)e.getCause()).getMessageContainer().getKey(),org.opencms.db.generic.Messages.ERR_ORGUNIT_REMOVE_LAST_RESOURCE_2);
+    assertEquals(1,OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).size());
+    assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).contains(cms.readResource("/folder1")));
+  }
+  CmsProject defProj=cms.readProject(ou.getName() + "Offline");
+  try {
+    OpenCms.getOrgUnitManager().addResourceToOrgUnit(cms,ou.getName(),"/folder1");
+    fail("it should not be possible to add a resource that is contained in another ou resource");
+  }
+ catch (  CmsDataAccessException e) {
+    assertEquals(1,OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou.getName()).size());
+    assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou.getName()).contains(cms.readResource("/")));
+  }
+  List projRes=cms.readProjectResources(defProj);
+  List ouResources=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou.getName());
+  assertEquals(ouResources.size(),projRes.size());
+  for (int i=0; i < projRes.size(); i++) {
+    assertTrue(projRes.contains(((CmsResource)ouResources.get(i)).getRootPath()));
+    assertTrue(ouResources.contains(cms.readResource(cms.getRequestContext().removeSiteRoot((String)projRes.get(i)))));
+  }
+  try {
+    OpenCms.getOrgUnitManager().addResourceToOrgUnit(cms,ou.getName(),"/sites/doesnotexist");
+    fail("should not be possible to add an unexistent resource to an ou");
+  }
+ catch (  CmsDataAccessException e) {
+    assertEquals(1,OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou.getName()).size());
+    assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou.getName()).contains(cms.readResource("/")));
+  }
+  projRes=cms.readProjectResources(defProj);
+  ouResources=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou.getName());
+  assertEquals(ouResources.size(),projRes.size());
+  for (int i=0; i < projRes.size(); i++) {
+    assertTrue(projRes.contains(((CmsResource)ouResources.get(i)).getRootPath()));
+    assertTrue(ouResources.contains(cms.readResource(cms.getRequestContext().removeSiteRoot((String)projRes.get(i)))));
+  }
+  OpenCms.getOrgUnitManager().addResourceToOrgUnit(cms,ou2.getName(),"/folder2");
+  assertEquals(2,OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).size());
+  assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).contains(cms.readResource("/folder1")));
+  assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).contains(cms.readResource("/folder2")));
+  CmsProject defProj2=cms.readProject(ou2.getName() + "Offline");
+  List projRes2=cms.readProjectResources(defProj2);
+  List ou2Resources=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName());
+  assertEquals(ou2Resources.size(),projRes2.size());
+  for (int i=0; i < projRes2.size(); i++) {
+    assertTrue(projRes2.contains(((CmsResource)ou2Resources.get(i)).getRootPath()));
+    assertTrue(ou2Resources.contains(cms.readResource(cms.getRequestContext().removeSiteRoot((String)projRes2.get(i)))));
+  }
+  try {
+    OpenCms.getOrgUnitManager().removeResourceFromOrgUnit(cms,ou2.getName(),"/folder1/index.html");
+    fail("should not be possible to remove an not associated resource from an ou");
+  }
+ catch (  CmsDataAccessException e) {
+    assertEquals(2,OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).size());
+    assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).contains(cms.readResource("/folder1")));
+    assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).contains(cms.readResource("/folder2")));
+  }
+  projRes2=cms.readProjectResources(defProj2);
+  ou2Resources=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName());
+  assertEquals(ou2Resources.size(),projRes2.size());
+  for (int i=0; i < projRes2.size(); i++) {
+    assertTrue(projRes2.contains(((CmsResource)ou2Resources.get(i)).getRootPath()));
+    assertTrue(ou2Resources.contains(cms.readResource(cms.getRequestContext().removeSiteRoot((String)projRes2.get(i)))));
+  }
+  OpenCms.getOrgUnitManager().removeResourceFromOrgUnit(cms,ou2.getName(),"/folder1");
+  assertEquals(1,OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).size());
+  assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName()).contains(cms.readResource("/folder2")));
+  projRes2=cms.readProjectResources(defProj2);
+  ou2Resources=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName());
+  assertEquals(ou2Resources.size(),projRes2.size());
+  for (int i=0; i < projRes2.size(); i++) {
+    assertTrue(projRes2.contains(((CmsResource)ou2Resources.get(i)).getRootPath()));
+    assertTrue(ou2Resources.contains(cms.readResource(cms.getRequestContext().removeSiteRoot((String)projRes2.get(i)))));
+  }
+}

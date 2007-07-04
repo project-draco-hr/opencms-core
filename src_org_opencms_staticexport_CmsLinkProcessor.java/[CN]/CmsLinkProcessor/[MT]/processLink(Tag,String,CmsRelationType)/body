@@ -1,0 +1,48 @@
+{
+  if (tag.getAttribute(attr) == null) {
+    return;
+  }
+  CmsLink link=null;
+switch (m_mode) {
+case PROCESS_LINKS:
+    link=m_linkTable.getLink(CmsMacroResolver.stripMacro(tag.getAttribute(attr)));
+  if (link != null) {
+    String l=link.getLink(m_cms,m_processEditorLinks);
+    if (TAG_PARAM.equals(tag.getTagName())) {
+      if (!l.endsWith(CmsRequestUtil.URL_DELIMITER) && !l.endsWith(CmsRequestUtil.PARAMETER_DELIMITER)) {
+        if (l.indexOf(CmsRequestUtil.URL_DELIMITER) > 0) {
+          l+=CmsRequestUtil.PARAMETER_DELIMITER;
+        }
+ else {
+          l+=CmsRequestUtil.URL_DELIMITER;
+        }
+      }
+    }
+    tag.setAttribute(attr,CmsEncoder.escapeXml(l));
+  }
+break;
+case REPLACE_LINKS:
+String targetUri=tag.getAttribute(attr);
+if (CmsStringUtil.isNotEmpty(targetUri)) {
+String internalUri=CmsLinkManager.getSitePath(m_cms,m_relativePath,targetUri);
+if (!TAG_PARAM.equals(tag.getTagName()) || targetUri.endsWith(CmsRequestUtil.URL_DELIMITER) || targetUri.endsWith(CmsRequestUtil.PARAMETER_DELIMITER)) {
+if (internalUri != null) {
+  internalUri=rewriteUri(internalUri);
+  link=m_linkTable.addLink(type,internalUri,true);
+  link.checkConsistency(m_cms);
+  if ("IMG".equals(tag.getTagName()) || TAG_AREA.equals(tag.getTagName())) {
+    setAltAttributeFromTitle(tag,internalUri);
+  }
+}
+ else {
+  link=m_linkTable.addLink(type,targetUri,false);
+}
+}
+if (link != null) {
+tag.setAttribute(attr,CmsMacroResolver.formatMacro(link.getName()));
+}
+}
+break;
+default :
+}
+}

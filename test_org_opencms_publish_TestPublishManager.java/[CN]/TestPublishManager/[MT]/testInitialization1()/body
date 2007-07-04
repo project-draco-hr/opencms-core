@@ -1,0 +1,45 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing initializing the publish manager/engine");
+  assertFalse(OpenCms.getPublishManager().isRunning());
+  OpenCms.getPublishManager().stopPublishing();
+  String source="/folder2/subfolder21/image1.gif";
+  String destination1="/testInitialization1_";
+  if (!cms.getLock(source).isNullLock()) {
+    cms.unlockResource(source);
+  }
+  int max=12;
+  for (int i=0; i < max; i++) {
+    cms.copyResource(source,destination1 + (i + 1) + ".gif",CmsResource.COPY_AS_NEW);
+    OpenCms.getPublishManager().publishResource(cms,destination1 + (i + 1) + ".gif");
+  }
+  List oldQueue=OpenCms.getPublishManager().getPublishQueue();
+  List oldHistory=OpenCms.getPublishManager().getPublishHistory();
+  OpenCms.getPublishManager().initialize(cms);
+  List newQueue=OpenCms.getPublishManager().getPublishQueue();
+  List newHistory=OpenCms.getPublishManager().getPublishHistory();
+  echo("Checking revived publish queue (" + oldQueue.size() + " items)");
+  if (newQueue.size() != oldQueue.size()) {
+    fail("Old and new queue have not the same size: Expected <" + oldQueue.size() + ">, was <"+ newQueue.size()+ ">");
+  }
+  Iterator n=newQueue.iterator();
+  Iterator o=oldQueue.iterator();
+  while (n.hasNext() && o.hasNext()) {
+    CmsPublishJobEnqueued newJob=(CmsPublishJobEnqueued)n.next();
+    CmsPublishJobEnqueued oldJob=(CmsPublishJobEnqueued)o.next();
+    assertEquals(newJob,oldJob,true,true);
+  }
+  echo("Checking revived publish history (" + oldHistory.size() + " items)");
+  if (newHistory.size() != oldHistory.size()) {
+    fail("Old and new history have not the same size: Expected <" + oldHistory.size() + ">, was <"+ newHistory.size()+ ">");
+  }
+  n=newHistory.iterator();
+  o=oldHistory.iterator();
+  while (n.hasNext() && o.hasNext()) {
+    CmsPublishJobFinished newJob=(CmsPublishJobFinished)n.next();
+    CmsPublishJobFinished oldJob=(CmsPublishJobFinished)o.next();
+    assertEquals(newJob,oldJob,false,true);
+  }
+  OpenCms.getPublishManager().startPublishing();
+  OpenCms.getPublishManager().waitWhileRunning();
+}

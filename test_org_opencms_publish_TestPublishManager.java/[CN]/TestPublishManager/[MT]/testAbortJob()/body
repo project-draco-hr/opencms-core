@@ -1,0 +1,45 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing aborting an enqueued publish job");
+  String source="/folder2/subfolder21/image1.gif";
+  String destination="/folder1/image1_new";
+  assertFalse(OpenCms.getPublishManager().isRunning());
+  OpenCms.getPublishManager().stopPublishing();
+  int max=10;
+  for (int i=0; i < max; i++) {
+    cms.copyResource(source,destination + (i + 1) + ".gif",CmsResource.COPY_AS_NEW);
+    OpenCms.getPublishManager().publishResource(cms,destination + (i + 1) + ".gif");
+  }
+  List queue=OpenCms.getPublishManager().getPublishQueue();
+  CmsPublishJobEnqueued publishJob=(CmsPublishJobEnqueued)queue.get(queue.size() - 1);
+  cms.loginUser("test1","test1");
+  try {
+    OpenCms.getPublishManager().abortPublishJob(cms,publishJob,true);
+    fail("should not be possible to abort a publish job by another user");
+  }
+ catch (  CmsSecurityException e) {
+  }
+  cms.loginUser("Admin","admin");
+  OpenCms.getPublishManager().abortPublishJob(cms,publishJob,true);
+  try {
+    OpenCms.getPublishManager().abortPublishJob(cms,publishJob,true);
+    fail("should not be possible to abort a publish job that has been already aborted");
+  }
+ catch (  CmsPublishException e) {
+  }
+  OpenCms.getPublishManager().startPublishing();
+  OpenCms.getPublishManager().waitWhileRunning();
+  for (int i=1; i < max; i++) {
+    assertState(cms,destination + i + ".gif",CmsResource.STATE_UNCHANGED);
+  }
+  assertFalse(cms.existsResource(destination + max + ".gif"));
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  for (int i=1; i < max; i++) {
+    assertState(cms,destination + i + ".gif",CmsResource.STATE_UNCHANGED);
+    assertLock(cms,destination + i + ".gif",CmsLockType.UNLOCKED);
+  }
+  assertState(cms,destination + max + ".gif",CmsResource.STATE_NEW);
+  assertLock(cms,destination + max + ".gif",CmsLockType.UNLOCKED);
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+}

@@ -1,0 +1,24 @@
+{
+  List locks=new ArrayList();
+  Iterator itLocks=OpenCms.getMemoryMonitor().getAllCachedLocks().iterator();
+  while (itLocks.hasNext()) {
+    CmsLock lock=(CmsLock)itLocks.next();
+    if (filter.isSharedExclusive()) {
+      CmsResource resource=m_driverManager.readResource(dbc,lock.getResourceName(),CmsResourceFilter.ALL);
+      if (resource.getSiblingCount() > 1) {
+        Iterator itSiblings=internalReadSiblings(dbc,resource).iterator();
+        while (itSiblings.hasNext()) {
+          CmsResource sibling=(CmsResource)itSiblings.next();
+          CmsLock siblingLock=internalSiblingLock(lock,sibling.getRootPath());
+          if (filter.match(resourceName,siblingLock)) {
+            locks.add(siblingLock);
+          }
+        }
+      }
+    }
+    if (filter.match(resourceName,lock)) {
+      locks.add(lock);
+    }
+  }
+  return locks;
+}

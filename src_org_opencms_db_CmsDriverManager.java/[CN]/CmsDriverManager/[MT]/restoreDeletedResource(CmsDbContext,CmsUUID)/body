@@ -1,0 +1,54 @@
+{
+  int version=m_historyDriver.readLastVersion(dbc,structureId);
+  I_CmsHistoryResource histRes=m_historyDriver.readResource(dbc,structureId,version);
+  CmsResource parent;
+  try {
+    parent=m_vfsDriver.readResource(dbc,dbc.currentProject().getUuid(),histRes.getParentId(),true);
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+    try {
+      parent=m_vfsDriver.readResource(dbc,dbc.currentProject().getUuid(),CmsResource.getParentFolder(histRes.getRootPath()),true);
+    }
+ catch (    CmsVfsResourceNotFoundException e1) {
+      restoreDeletedResource(dbc,histRes.getParentId());
+      parent=readResource(dbc,histRes.getParentId(),CmsResourceFilter.IGNORE_EXPIRATION);
+    }
+  }
+  m_securityManager.checkPermissions(dbc,parent,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.IGNORE_EXPIRATION);
+  String path=CmsResource.getParentFolder(histRes.getRootPath());
+  String resName=CmsResource.getName(histRes.getRootPath());
+  String ext="";
+  if (resName.charAt(resName.length() - 1) == '/') {
+    resName=resName.substring(0,resName.length() - 1);
+  }
+ else {
+    ext=CmsFileUtil.getExtension(resName);
+  }
+  String nameWOExt=resName.substring(0,resName.length() - ext.length());
+  for (int i=1; true; i++) {
+    try {
+      readResource(dbc,path + resName,CmsResourceFilter.ALL);
+      resName=nameWOExt + "_" + i+ ext;
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      break;
+    }
+  }
+  CmsUUID id=structureId;
+  if (m_vfsDriver.validateStructureIdExists(dbc,dbc.currentProject().getUuid(),structureId)) {
+    id=new CmsUUID();
+  }
+  byte[] contents=null;
+  boolean isFolder=true;
+  if (histRes instanceof CmsFile) {
+    contents=((CmsFile)histRes).getContents();
+    if ((contents == null) || (contents.length == 0)) {
+      contents=m_historyDriver.readContent(dbc,histRes.getResourceId(),histRes.getPublishTag());
+    }
+    isFolder=false;
+  }
+  List properties=m_historyDriver.readProperties(dbc,histRes);
+  CmsResource newResource=new CmsResource(id,histRes.getResourceId(),path + resName,histRes.getTypeId(),isFolder,histRes.getFlags(),dbc.currentProject().getUuid(),CmsResource.STATE_NEW,histRes.getDateCreated(),histRes.getUserCreated(),histRes.getDateLastModified(),dbc.currentUser().getId(),histRes.getDateReleased(),histRes.getDateExpired(),histRes.getSiblingCount(),histRes.getLength(),histRes.getDateContent(),histRes.getVersion() + 1);
+  newResource.setDateLastModified(newResource.getDateLastModified());
+  createResource(dbc,path + resName,newResource,contents,properties,true);
+}

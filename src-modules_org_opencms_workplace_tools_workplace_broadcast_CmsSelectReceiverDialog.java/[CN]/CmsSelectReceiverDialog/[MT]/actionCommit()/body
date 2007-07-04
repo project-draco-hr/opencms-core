@@ -1,0 +1,52 @@
+{
+  List errors=new ArrayList();
+  boolean isEmail=(getParamMsgtype() != null) && getParamMsgtype().equals(MSGTYPE_EMAIL);
+  if ((m_groups == null) || m_groups.isEmpty()) {
+    setCommitErrors(Collections.singletonList(new CmsIllegalStateException(Messages.get().container(Messages.ERR_NO_SELECTED_GROUP_0))));
+    return;
+  }
+  boolean hasUser=false;
+  Iterator itGroups=getGroups().iterator();
+  while (!hasUser && itGroups.hasNext()) {
+    String groupName=(String)itGroups.next();
+    try {
+      Iterator itUsers=getCms().getUsersOfGroup(groupName,true).iterator();
+      while (!hasUser && itUsers.hasNext()) {
+        CmsUser user=(CmsUser)itUsers.next();
+        if (!isEmail) {
+          if (!OpenCms.getSessionManager().getSessionInfos(user.getId()).isEmpty()) {
+            hasUser=true;
+          }
+        }
+ else {
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(user.getEmail())) {
+            hasUser=true;
+          }
+        }
+      }
+    }
+ catch (    CmsException e) {
+    }
+  }
+  if (!hasUser) {
+    setCommitErrors(Collections.singletonList(new CmsIllegalStateException(Messages.get().container(Messages.ERR_NO_SELECTED_RECEIVERS_0))));
+    return;
+  }
+  try {
+    Set groups=new HashSet(m_groups);
+    Map params=new HashMap();
+    params.put(CmsToolDialog.PARAM_STYLE,CmsToolDialog.STYLE_NEW);
+    params.put(CmsSendEmailGroupsDialog.PARAM_GROUPS,CmsStringUtil.collectionAsString(groups,CmsHtmlList.ITEM_SEPARATOR));
+    params.put(CmsDialog.PARAM_CLOSELINK,CmsToolManager.linkForToolPath(getJsp(),"/workplace/broadcast"));
+    if (isEmail) {
+      getToolManager().jspForwardPage(this,"/system/workplace/admin/workplace/groups_send_email.jsp",params);
+    }
+ else {
+      getToolManager().jspForwardPage(this,"/system/workplace/admin/workplace/groups_send_popup.jsp",params);
+    }
+  }
+ catch (  Throwable t) {
+    errors.add(t);
+  }
+  setCommitErrors(errors);
+}

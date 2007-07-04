@@ -1,0 +1,66 @@
+{
+  CmsExtendedCollectorData data=new CmsExtendedCollectorData(param);
+  if ((data.getCategoryTypes() != null) && (data.getCategoryTypes().size() > 0)) {
+    List result=new ArrayList();
+    Map sortCategories=new HashMap();
+    String foldername=null;
+    boolean includeSubTree=false;
+    if (data.getFileName() != null) {
+      foldername=CmsResource.getFolderPath(data.getFileName());
+      includeSubTree=data.isSubTree();
+    }
+ else {
+      foldername="/";
+      includeSubTree=true;
+    }
+    CmsResourceFilter filter=CmsResourceFilter.DEFAULT.addExcludeFlags(CmsResource.FLAG_TEMPFILE);
+    if (data.getType() != -1) {
+      filter=filter.addRequireType(data.getType());
+    }
+    List resources=cms.readResources(foldername,filter,includeSubTree);
+    List categoryTypes=data.getCategoryTypes();
+    Iterator itResources=resources.iterator();
+    CmsResource resource;
+    CmsCategoryService service=CmsCategoryService.getInstance();
+    while (itResources.hasNext()) {
+      resource=(CmsResource)itResources.next();
+      Iterator itCategories=service.readResourceCategories(cms,cms.getSitePath(resource)).iterator();
+      while (itCategories.hasNext()) {
+        CmsCategory category=(CmsCategory)itCategories.next();
+        if (categoryTypes.contains(category.getPath())) {
+          if ((data.getSortBy() != null) && data.getSortBy().equals("category")) {
+            if (sortCategories.containsKey(category.getPath())) {
+              ((List)sortCategories.get(category.getPath())).add(resource);
+            }
+ else {
+              List sortResources=new ArrayList();
+              sortResources.add(resource);
+              sortCategories.put(category.getPath(),sortResources);
+            }
+          }
+ else {
+            if (!result.contains(resource)) {
+              result.add(resource);
+            }
+          }
+        }
+      }
+    }
+    if ((data.getSortBy() != null) && data.getSortBy().equals("date")) {
+      if (!data.isSortAsc()) {
+        Collections.sort(result,COMPARE_DATE_RELEASED_DESC);
+      }
+ else {
+        Collections.sort(result,CmsResource.COMPARE_DATE_RELEASED);
+      }
+    }
+ else     if ((data.getSortBy() != null) && data.getSortBy().equals("category")) {
+      Iterator itCategoryTypes=categoryTypes.iterator();
+      while (itCategoryTypes.hasNext()) {
+        result.addAll((List)sortCategories.get(itCategoryTypes.next()));
+      }
+    }
+    return shrinkToFit(result,data.getCount());
+  }
+  return null;
+}

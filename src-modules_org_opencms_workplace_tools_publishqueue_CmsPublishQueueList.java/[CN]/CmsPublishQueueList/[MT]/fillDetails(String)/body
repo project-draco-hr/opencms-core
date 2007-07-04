@@ -1,0 +1,42 @@
+{
+  List publishJobs=getList().getAllContent();
+  Iterator itPublishJobs=publishJobs.iterator();
+  while (itPublishJobs.hasNext()) {
+    CmsListItem item=(CmsListItem)itPublishJobs.next();
+    int state=((Integer)item.get(LIST_COLUMN_STATE)).intValue();
+    boolean enabled=((state == STATE_PROCEED) && (OpenCms.getRoleManager().hasRole(getCms(),CmsRole.ROOT_ADMIN) || getCms().getRequestContext().currentUser().getName().equals(item.get(LIST_COLUMN_USER))));
+    enabled=enabled || (OpenCms.getRoleManager().hasRole(getCms(),CmsRole.ROOT_ADMIN) || (state == STATE_OWN));
+    if (!enabled) {
+      continue;
+    }
+    CmsUUID publishHistoryId=new CmsUUID(item.getId());
+    CmsPublishJobBase publishJob=OpenCms.getPublishManager().getJobByPublishHistoryId(publishHistoryId);
+    StringBuffer html=new StringBuffer(32);
+    if (publishJob != null && detailId.equals(LIST_DETAIL_RESOURCES)) {
+      CmsPublishList publishList;
+      if (publishJob instanceof CmsPublishJobEnqueued) {
+        publishList=((CmsPublishJobEnqueued)publishJob).getPublishList();
+      }
+ else       if (publishJob instanceof CmsPublishJobRunning) {
+        publishList=((CmsPublishJobRunning)publishJob).getPublishList();
+      }
+ else {
+        continue;
+      }
+      List resources=new ArrayList(publishList.size());
+      resources.addAll(publishList.getFolderList());
+      resources.addAll(publishList.getFileList());
+      resources.addAll(publishList.getDeletedFolderList());
+      Iterator itResources=resources.iterator();
+      while (itResources.hasNext()) {
+        CmsResource resource=(CmsResource)itResources.next();
+        html.append(getCms().getSitePath(resource));
+        html.append("<br>");
+      }
+    }
+ else {
+      continue;
+    }
+    item.set(detailId,html.toString());
+  }
+}

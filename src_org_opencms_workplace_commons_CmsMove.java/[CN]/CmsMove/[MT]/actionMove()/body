@@ -1,16 +1,31 @@
 {
   getJsp().getRequest().setAttribute(SESSION_WORKPLACE_CLASS,this);
-  CmsResource resource=null;
   try {
     boolean isFolder=false;
     String source=(String)getResourceList().get(0);
     String target=CmsLinkManager.getAbsoluteUri(getParamTarget(),CmsResource.getParentFolder(source));
     if (!isMultiOperation()) {
-      resource=getCms().readResource(source,CmsResourceFilter.ALL);
+      CmsResource resource=getCms().readResource(source,CmsResourceFilter.ALL);
       isFolder=resource.isFolder();
     }
  else {
-      resource=getCms().readResource(target,CmsResourceFilter.ALL);
+      String siteRootFolder=null;
+      CmsResource resource;
+      try {
+        if (CmsSiteManager.getSiteRoot(target) != null) {
+          siteRootFolder=getCms().getRequestContext().getSiteRoot();
+          if (siteRootFolder.endsWith("/")) {
+            siteRootFolder=siteRootFolder.substring(0,siteRootFolder.length() - 1);
+          }
+          getCms().getRequestContext().setSiteRoot("/");
+        }
+        resource=getCms().readResource(target,CmsResourceFilter.ALL);
+      }
+  finally {
+        if (siteRootFolder != null) {
+          getCms().getRequestContext().setSiteRoot(siteRootFolder);
+        }
+      }
       if (!resource.isFolder()) {
         throw new CmsVfsException(Messages.get().container(Messages.ERR_MOVE_MULTI_TARGET_NOFOLDER_1,target));
       }
@@ -19,11 +34,18 @@
       if (isMultiOperation() || isFolder) {
         List folderList=new ArrayList(2);
         String sourceParent=CmsResource.getParentFolder(source);
-        String targetParent=CmsResource.getParentFolder(target);
-        if (!targetParent.equals(sourceParent)) {
-          folderList.add(targetParent);
-        }
         folderList.add(sourceParent);
+        try {
+          String targetParent=CmsResource.getParentFolder(target);
+          if (!targetParent.equals(sourceParent)) {
+            folderList.add(targetParent);
+          }
+        }
+ catch (        Exception e) {
+          if (LOG.isInfoEnabled()) {
+            LOG.info(e);
+          }
+        }
         getJsp().getRequest().setAttribute(REQUEST_ATTRIBUTE_RELOADTREE,folderList);
       }
       actionCloseDialog();
@@ -33,38 +55,6 @@
     }
   }
  catch (  Throwable e) {
-    if (!isMultiOperation() && (e instanceof CmsVfsResourceAlreadyExistsException) && !(resource.isFolder())) {
-      int targetType=-1;
-      boolean restoreSiteRoot=false;
-      try {
-        if (CmsSiteManager.getSiteRoot(getParamTarget()) != null) {
-          getCms().getRequestContext().saveSiteRoot();
-          getCms().getRequestContext().setSiteRoot("/");
-          restoreSiteRoot=true;
-        }
-        CmsResource targetRes=getCms().readResource(getParamTarget());
-        targetType=targetRes.getTypeId();
-      }
- catch (      CmsException e2) {
-        if (LOG.isInfoEnabled()) {
-          LOG.info(e2.getLocalizedMessage());
-        }
-      }
- finally {
-        if (restoreSiteRoot) {
-          getCms().getRequestContext().restoreSiteRoot();
-        }
-      }
-      if (resource.getTypeId() == targetType) {
-        setParamMessage(CmsStringUtil.escapeHtml(key(Messages.GUI_COPY_CONFIRM_OVERWRITE_2,new Object[]{getParamResource(),getParamTarget()})));
-        getJsp().include(FILE_DIALOG_SCREEN_CONFIRM);
-      }
- else {
-        includeErrorpage(this,e);
-      }
-    }
- else {
-      includeErrorpage(this,e);
-    }
+    includeErrorpage(this,e);
   }
 }

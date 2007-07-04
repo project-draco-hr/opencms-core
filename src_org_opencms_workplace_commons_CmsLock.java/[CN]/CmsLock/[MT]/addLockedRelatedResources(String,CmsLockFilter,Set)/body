@@ -1,0 +1,30 @@
+{
+  try {
+    Iterator itRelations=getCms().getRelationsForResource(resName,CmsRelationFilter.TARGETS.filterStrong().filterIncludeChildren()).iterator();
+    while (itRelations.hasNext()) {
+      CmsRelation relation=(CmsRelation)itRelations.next();
+      CmsResource target=relation.getTarget(getCms(),CmsResourceFilter.ALL);
+      if (target.getState().isUnchanged()) {
+        continue;
+      }
+      String targetName=getCms().getSitePath(target);
+      if (lockedResources.contains(targetName) || lockedResources.contains(targetName + "*")) {
+        continue;
+      }
+      if (m_lockedResources != null) {
+        if (m_lockedResources.contains(targetName) || m_lockedResources.contains(targetName + "*")) {
+          continue;
+        }
+      }
+      org.opencms.lock.CmsLock lock=getCms().getLock(targetName);
+      if (!lock.isUnlocked() && filter.match("/",lock)) {
+        lockedResources.add(targetName + "*");
+      }
+    }
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(getLocale()),e);
+    }
+  }
+}

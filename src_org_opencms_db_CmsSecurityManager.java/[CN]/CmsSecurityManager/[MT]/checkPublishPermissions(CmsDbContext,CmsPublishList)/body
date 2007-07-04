@@ -1,9 +1,5 @@
 {
   checkOfflineProject(dbc);
-  if (dbc.currentProject().getFlags() != CmsProject.PROJECT_STATE_UNLOCKED) {
-    CmsMessageContainer errMsg=org.opencms.security.Messages.get().container(org.opencms.security.Messages.ERR_RESOURCE_LOCKED_1,dbc.currentProject().getName());
-    throw new CmsLockException(errMsg);
-  }
   if (!publishList.isDirectPublish()) {
     checkManagerOfProjectRole(dbc,dbc.getRequestContext().currentProject());
   }
@@ -17,21 +13,16 @@
       String parentFolder=CmsResource.getParentFolder(res.getRootPath());
       if ((parentFolder != null) && !parentFolders.contains(parentFolder)) {
         CmsResource parent=readResource(dbc,parentFolder,CmsResourceFilter.ALL);
-        if (parent.getState() == CmsResource.STATE_DELETED) {
+        if (parent.getState().isDeleted()) {
           resourceIssues.addException(new CmsVfsException(Messages.get().container(Messages.ERR_DIRECT_PUBLISH_PARENT_DELETED_2,dbc.getRequestContext().removeSiteRoot(res.getRootPath()),parentFolder)));
         }
-        if (parent.getState() == CmsResource.STATE_NEW) {
+        if (parent.getState().isNew()) {
           resourceIssues.addException(new CmsVfsException(Messages.get().container(Messages.ERR_DIRECT_PUBLISH_PARENT_NEW_2,dbc.removeSiteRoot(res.getRootPath()),parentFolder)));
         }
         parentFolders.add(parentFolder);
       }
       if (PERM_ALLOWED != hasPermissions(dbc.getRequestContext(),res,CmsPermissionSet.ACCESS_DIRECT_PUBLISH,true,CmsResourceFilter.ALL)) {
         permissionIssues.addException(new CmsSecurityException(Messages.get().container(Messages.ERR_DIRECT_PUBLISH_NO_PERMISSIONS_1,dbc.removeSiteRoot(res.getRootPath()))));
-      }
-    }
-    if (permissionIssues.hasExceptions()) {
-      if (hasManagerOfProjectRole(dbc,dbc.getRequestContext().currentProject())) {
-        permissionIssues=new CmsMultiException();
       }
     }
     if (resourceIssues.hasExceptions() || permissionIssues.hasExceptions()) {

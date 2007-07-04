@@ -1,0 +1,32 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  String changedSchema="org/opencms/xml/content/xmlcontent-definition-2.mod.xsd";
+  String originalFile="org/opencms/xml/content/xmlcontent-2.mod.xml";
+  String filename="/testVfsFile.html";
+  cacheSchema(resolver,"http://www.opencms.org/test2.xsd",changedSchema);
+  String content=CmsFileUtil.readFile(originalFile,CmsEncoder.ENCODING_UTF_8);
+  CmsXmlContent xmlcontent=CmsXmlContentFactory.unmarshal(content,CmsEncoder.ENCODING_UTF_8,resolver);
+  System.out.println(xmlcontent.toString());
+  try {
+    xmlcontent.validateXmlStructure(resolver);
+    fail("xml content should not be valid");
+  }
+ catch (  CmsXmlException e) {
+  }
+  xmlcontent.setAutoCorrectionEnabled(true);
+  xmlcontent.correctXmlStructure(cms);
+  System.out.println(xmlcontent.toString());
+  xmlcontent.validateXmlStructure(resolver);
+  cms.createResource(filename,OpenCms.getResourceManager().getResourceType("xmlcontent").getTypeId(),CmsFileUtil.readFile(originalFile),Collections.EMPTY_LIST);
+  CmsFile file=cms.readFile(filename);
+  try {
+    cms.writeFile(file);
+    fail("should fail to write the old xml file");
+  }
+ catch (  CmsXmlException e) {
+  }
+  cms.getRequestContext().setAttribute(CmsXmlContent.AUTO_CORRECTION_ATTRIBUTE,Boolean.TRUE);
+  file=cms.writeFile(file);
+  System.out.println(new String(file.getContents()));
+}

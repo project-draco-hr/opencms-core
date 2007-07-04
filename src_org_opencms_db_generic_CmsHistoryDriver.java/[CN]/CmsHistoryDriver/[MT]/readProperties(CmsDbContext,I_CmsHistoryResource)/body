@@ -1,0 +1,53 @@
+{
+  ResultSet res=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  Map propertyMap=new HashMap();
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    int pubTag=-1;
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_HISTORY_READ_PUBTAG");
+    stmt.setString(1,resource.getStructureId().toString());
+    stmt.setInt(2,resource.getPublishTag());
+    res=stmt.executeQuery();
+    if (res.next()) {
+      pubTag=res.getInt(1);
+      while (res.next()) {
+      }
+    }
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+    if (pubTag > 0) {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_HISTORY_READALL_STR");
+      stmt.setString(1,resource.getStructureId().toString());
+      stmt.setInt(2,pubTag);
+      res=stmt.executeQuery();
+      while (res.next()) {
+        String propertyKey=res.getString(1);
+        String propertyValue=res.getString(2);
+        int mappingType=res.getInt(3);
+        internalAddToPropMap(propertyMap,resource,propertyKey,propertyValue,mappingType);
+      }
+      m_sqlManager.closeAll(dbc,null,stmt,res);
+    }
+    if (pubTag != resource.getPublishTag()) {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_HISTORY_READALL_RES");
+      stmt.setString(1,resource.getStructureId().toString());
+      stmt.setInt(2,resource.getPublishTag());
+      res=stmt.executeQuery();
+      while (res.next()) {
+        String propertyKey=res.getString(1);
+        String propertyValue=res.getString(2);
+        int mappingType=res.getInt(3);
+        internalAddToPropMap(propertyMap,resource,propertyKey,propertyValue,mappingType);
+      }
+      m_sqlManager.closeAll(dbc,null,stmt,res);
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  return new ArrayList(propertyMap.values());
+}

@@ -1,0 +1,45 @@
+{
+  CmsGroup group=readGroup(dbc,groupname);
+  if ((group != null) && ((!readRoles && !group.isRole()) || (readRoles && group.isRole()))) {
+    String prefix="_" + includeOtherOuUsers + "_"+ directUsersOnly+ "_"+ ouFqn;
+    String cacheKey=m_keyGenerator.getCacheKeyForGroupUsers(prefix,dbc,group);
+    List allUsers=OpenCms.getMemoryMonitor().getCachedUserGroups(cacheKey);
+    if (allUsers == null) {
+      Set users=new HashSet(m_userDriver.readUsersOfGroup(dbc,groupname,includeOtherOuUsers));
+      if (readRoles && !directUsersOnly) {
+        CmsRole role=CmsRole.valueOf(group);
+        if (role.getParentRole() != null) {
+          try {
+            String parentGroup=role.getParentRole().getGroupName();
+            readGroup(dbc,parentGroup);
+            users.addAll(internalUsersOfGroup(dbc,ouFqn,parentGroup,includeOtherOuUsers,directUsersOnly,readRoles));
+          }
+ catch (          CmsDbEntryNotFoundException e) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(e.getLocalizedMessage(),e);
+            }
+          }
+        }
+        String parentOu=CmsOrganizationalUnit.getParentFqn(group.getOuFqn());
+        if (parentOu != null) {
+          users.addAll(internalUsersOfGroup(dbc,ouFqn,parentOu + group.getSimpleName(),includeOtherOuUsers,directUsersOnly,readRoles));
+        }
+        if (!includeOtherOuUsers) {
+          Iterator itUsers=users.iterator();
+          while (itUsers.hasNext()) {
+            CmsUser user=(CmsUser)itUsers.next();
+            if (!user.getOuFqn().equals(ouFqn)) {
+              itUsers.remove();
+            }
+          }
+        }
+      }
+      allUsers=Collections.unmodifiableList(new ArrayList(users));
+      OpenCms.getMemoryMonitor().cacheUserGroups(cacheKey,allUsers);
+    }
+    return allUsers;
+  }
+ else {
+    throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_UNKNOWN_GROUP_1,groupname));
+  }
+}

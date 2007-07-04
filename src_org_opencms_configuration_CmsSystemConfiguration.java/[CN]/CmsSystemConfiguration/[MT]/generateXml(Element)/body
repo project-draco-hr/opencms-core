@@ -4,8 +4,9 @@
     m_localeManager=OpenCms.getLocaleManager();
     m_mailSettings=OpenCms.getSystemInfo().getMailSettings();
     m_configuredJobs=OpenCms.getScheduleManager().getJobs();
-    m_versionHistoryEnabled=OpenCms.getSystemInfo().isVersionHistoryEnabled();
-    m_versionHistoryMaxCount=OpenCms.getSystemInfo().getVersionHistoryMaxCount();
+    m_historyEnabled=OpenCms.getSystemInfo().isHistoryEnabled();
+    m_historyVersions=OpenCms.getSystemInfo().getHistoryVersions();
+    m_historyVersionsAfterDeletion=OpenCms.getSystemInfo().getHistoryVersionsAfterDeletion();
     m_siteManager=OpenCms.getSiteManager();
     m_loginManager=OpenCms.getLoginManager();
     m_loginMessage=OpenCms.getLoginManager().getLoginMessage();
@@ -57,10 +58,11 @@
     Map jobParameters=jobInfo.getConfiguration();
     if ((jobParameters != null) && (jobParameters.size() > 0)) {
       Element parameterElement=jobElement.addElement(N_PARAMETERS);
-      Iterator it=jobParameters.keySet().iterator();
+      Iterator it=jobParameters.entrySet().iterator();
       while (it.hasNext()) {
-        String name=(String)it.next();
-        String value=jobParameters.get(name).toString();
+        Map.Entry entry=(Map.Entry)it.next();
+        String name=(String)entry.getKey();
+        String value=(String)entry.getValue();
         Element paramNode=parameterElement.addElement(N_PARAM);
         paramNode.addAttribute(A_NAME,name);
         paramNode.addText(value);
@@ -70,7 +72,10 @@
   Element eventsElement=systemElement.addElement(N_EVENTS);
   Element eventManagerElement=eventsElement.addElement(N_EVENTMANAGER);
   eventManagerElement.addAttribute(A_CLASS,m_eventManager.getClass().getName());
-  systemElement.addElement(N_VERSIONHISTORY).addAttribute(A_ENABLED,new Boolean(m_versionHistoryEnabled).toString()).addAttribute(A_COUNT,new Integer(m_versionHistoryMaxCount).toString());
+  Element historyElement=systemElement.addElement(N_VERSIONHISTORY);
+  historyElement.addAttribute(A_ENABLED,String.valueOf(m_historyEnabled));
+  historyElement.addAttribute(A_COUNT,new Integer(m_historyVersions).toString());
+  historyElement.addAttribute(A_DELETED,new Integer(m_historyVersionsAfterDeletion).toString());
   Element resourceinitElement=systemElement.addElement(N_RESOURCEINIT);
   i=m_resourceInitHandlers.iterator();
   while (i.hasNext()) {
@@ -90,10 +95,11 @@
   passwordhandlerElement.addElement(N_DIGESTTYPE).addText(m_passwordHandler.getDigestType());
   Map handlerParameters=m_passwordHandler.getConfiguration();
   if (handlerParameters != null) {
-    Iterator it=handlerParameters.keySet().iterator();
+    Iterator it=handlerParameters.entrySet().iterator();
     while (it.hasNext()) {
-      String name=(String)it.next();
-      String value=handlerParameters.get(name).toString();
+      Map.Entry entry=(Map.Entry)it.next();
+      String name=(String)entry.getKey();
+      String value=(String)entry.getValue();
       Element paramNode=passwordhandlerElement.addElement(N_PARAM);
       paramNode.addAttribute(A_NAME,name);
       paramNode.addText(value);
@@ -101,7 +107,7 @@
   }
   if (m_validationHandler != null) {
     Element valHandlerElem=systemElement.addElement(N_VALIDATIONHANDLER);
-    valHandlerElem.addAttribute(A_CLASS,m_validationHandler.getClass().getName());
+    valHandlerElem.addAttribute(A_CLASS,m_validationHandler);
   }
   if (m_loginManager != null) {
     Element managerElement=systemElement.addElement(N_LOGINMANAGER);
@@ -168,6 +174,9 @@
   systemElement.addElement(N_DEFAULT_CONTENT_ENCODING).addText(getDefaultContentEncoding());
   if (m_cmsMemoryMonitorConfiguration != null) {
     Element memorymonitorElement=systemElement.addElement(N_MEMORYMONITOR);
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_cmsMemoryMonitorConfiguration.getClassName())) {
+      memorymonitorElement.addAttribute(A_CLASS,m_cmsMemoryMonitorConfiguration.getClassName());
+    }
     if (m_cmsMemoryMonitorConfiguration.getMaxUsagePercent() > 0) {
       memorymonitorElement.addElement(N_MAXUSAGE_PERCENT).addText(String.valueOf(m_cmsMemoryMonitorConfiguration.getMaxUsagePercent()));
     }
@@ -193,12 +202,12 @@
     }
   }
   Element flexcacheElement=systemElement.addElement(N_FLEXCACHE);
-  flexcacheElement.addElement(N_CACHE_ENABLED).addText(String.valueOf(m_cmsFlexCacheConfiguration.isCacheEnabled()).toString());
-  flexcacheElement.addElement(N_CACHE_OFFLINE).addText(String.valueOf(m_cmsFlexCacheConfiguration.isCacheOffline()).toString());
-  flexcacheElement.addElement(N_MAXCACHEBYTES).addText(String.valueOf(m_cmsFlexCacheConfiguration.getMaxCacheBytes()).toString());
-  flexcacheElement.addElement(N_AVGCACHEBYTES).addText(String.valueOf(m_cmsFlexCacheConfiguration.getAvgCacheBytes()).toString());
-  flexcacheElement.addElement(N_MAXENTRYBYTES).addText(String.valueOf(m_cmsFlexCacheConfiguration.getMaxEntryBytes()).toString());
-  flexcacheElement.addElement(N_MAXKEYS).addText(String.valueOf(m_cmsFlexCacheConfiguration.getMaxKeys()).toString());
+  flexcacheElement.addElement(N_CACHE_ENABLED).addText(String.valueOf(m_cmsFlexCacheConfiguration.isCacheEnabled()));
+  flexcacheElement.addElement(N_CACHE_OFFLINE).addText(String.valueOf(m_cmsFlexCacheConfiguration.isCacheOffline()));
+  flexcacheElement.addElement(N_MAXCACHEBYTES).addText(String.valueOf(m_cmsFlexCacheConfiguration.getMaxCacheBytes()));
+  flexcacheElement.addElement(N_AVGCACHEBYTES).addText(String.valueOf(m_cmsFlexCacheConfiguration.getAvgCacheBytes()));
+  flexcacheElement.addElement(N_MAXENTRYBYTES).addText(String.valueOf(m_cmsFlexCacheConfiguration.getMaxEntryBytes()));
+  flexcacheElement.addElement(N_MAXKEYS).addText(String.valueOf(m_cmsFlexCacheConfiguration.getMaxKeys()));
   Element httpAuthenticationElement=systemElement.addElement(N_HTTP_AUTHENTICATION);
   httpAuthenticationElement.addElement(N_BROWSER_BASED).setText(Boolean.toString(m_httpAuthenticationSettings.useBrowserBasedHttpAuthentication()));
   if (m_httpAuthenticationSettings.getFormBasedHttpAuthenticationUri() != null) {
@@ -208,21 +217,47 @@
   cacheElement.addElement(N_KEYGENERATOR).setText(m_cacheSettings.getCacheKeyGenerator());
   cacheElement.addElement(N_SIZE_USERS).setText(Integer.toString(m_cacheSettings.getUserCacheSize()));
   cacheElement.addElement(N_SIZE_GROUPS).setText(Integer.toString(m_cacheSettings.getGroupCacheSize()));
+  if (m_cacheSettings.getConfiguredOrgUnitCacheSize() > -1) {
+    cacheElement.addElement(N_SIZE_ORGUNITS).setText(Integer.toString(m_cacheSettings.getConfiguredOrgUnitCacheSize()));
+  }
   cacheElement.addElement(N_SIZE_USERGROUPS).setText(Integer.toString(m_cacheSettings.getUserGroupsCacheSize()));
   cacheElement.addElement(N_SIZE_PROJECTS).setText(Integer.toString(m_cacheSettings.getProjectCacheSize()));
+  if (m_cacheSettings.getConfiguredProjectResourcesCacheSize() > -1) {
+    cacheElement.addElement(N_SIZE_PROJECTRESOURCES).setText(Integer.toString(m_cacheSettings.getConfiguredProjectResourcesCacheSize()));
+  }
   cacheElement.addElement(N_SIZE_RESOURCES).setText(Integer.toString(m_cacheSettings.getResourceCacheSize()));
+  if (m_cacheSettings.getConfiguredRolesCacheSize() > -1) {
+    cacheElement.addElement(N_SIZE_ROLES).setText(Integer.toString(m_cacheSettings.getConfiguredRolesCacheSize()));
+  }
   cacheElement.addElement(N_SIZE_RESOURCELISTS).setText(Integer.toString(m_cacheSettings.getResourcelistCacheSize()));
   cacheElement.addElement(N_SIZE_PROPERTIES).setText(Integer.toString(m_cacheSettings.getPropertyCacheSize()));
+  if (m_cacheSettings.getConfiguredPropertyListsCacheSize() > -1) {
+    cacheElement.addElement(N_SIZE_PROPERTYLISTS).setText(Integer.toString(m_cacheSettings.getConfiguredPropertyListsCacheSize()));
+  }
   cacheElement.addElement(N_SIZE_ACLS).setText(Integer.toString(m_cacheSettings.getAclCacheSize()));
   cacheElement.addElement(N_SIZE_PERMISSIONS).setText(Integer.toString(m_cacheSettings.getPermissionCacheSize()));
-  if (m_notificationTime != null || m_notificationProject != null) {
+  if ((m_notificationTime != null) || (m_notificationProject != null)) {
     Element notificationElement=systemElement.addElement(N_CONTENT_NOTIFICATION);
     if (m_notificationTime != null) {
       notificationElement.addElement(N_NOTIFICATION_TIME).setText(m_notificationTime.toString());
     }
     if (m_notificationProject != null) {
-      notificationElement.addElement(N_NOTIFICATION_PROJECT).setText(m_notificationProject.toString());
+      notificationElement.addElement(N_NOTIFICATION_PROJECT).setText(m_notificationProject);
     }
+  }
+  if (m_authorizationHandler != null) {
+    Element authorizationHandlerElem=systemElement.addElement(N_AUTHORIZATIONHANDLER);
+    authorizationHandlerElem.addAttribute(A_CLASS,m_authorizationHandler);
+  }
+  if (m_publishManager != null) {
+    Element pubHistElement=systemElement.addElement(N_PUBLISHMANAGER);
+    pubHistElement.addElement(N_HISTORYSIZE).setText(String.valueOf(m_publishManager.getPublishHistorySize()));
+    pubHistElement.addElement(N_QUEUEPERSISTANCE).setText(String.valueOf(m_publishManager.isPublishQueuePersistanceEnabled()));
+    pubHistElement.addElement(N_QUEUESHUTDOWNTIME).setText(String.valueOf(m_publishManager.getPublishQueueShutdowntime()));
+  }
+  if (m_sessionStorageProvider != null) {
+    Element sessionStorageProviderElem=systemElement.addElement(N_SESSION_STORAGEPROVIDER);
+    sessionStorageProviderElem.addAttribute(A_CLASS,m_sessionStorageProvider);
   }
   return systemElement;
 }

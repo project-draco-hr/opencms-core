@@ -1,23 +1,27 @@
 {
+  String storedSiteRoot=cms.getRequestContext().getSiteRoot();
   try {
-    cms.getRequestContext().saveSiteRoot();
     cms.getRequestContext().setSiteRoot("/");
     if (publishedResources == null) {
       return getAllResources(cms);
     }
  else {
-      Set resourceSet=new HashSet();
+      Map resourceMap=new HashMap();
       Iterator itPubRes=publishedResources.iterator();
       while (itPubRes.hasNext()) {
         CmsPublishedResource pubResource=(CmsPublishedResource)itPubRes.next();
         if (cms.existsResource(pubResource.getRootPath())) {
           CmsResource vfsResource=cms.readResource(pubResource.getRootPath());
           if ((vfsResource.getFlags() & CmsResource.FLAG_INTERNAL) != CmsResource.FLAG_INTERNAL) {
-            resourceSet.add(pubResource);
+            Iterator itSiblings=getSiblings(cms,pubResource).iterator();
+            while (itSiblings.hasNext()) {
+              CmsPublishedResource sibling=(CmsPublishedResource)itSiblings.next();
+              resourceMap.put(sibling.getRootPath(),sibling);
+            }
           }
         }
  else {
-          resourceSet.add(pubResource);
+          resourceMap.put(pubResource.getRootPath(),pubResource);
         }
         boolean match=false;
         Iterator itExportRules=OpenCms.getStaticExportManager().getExportRules().iterator();
@@ -25,7 +29,11 @@
           CmsStaticExportExportRule rule=(CmsStaticExportExportRule)itExportRules.next();
           Set relatedResources=rule.getRelatedResources(cms,pubResource);
           if (relatedResources != null) {
-            resourceSet.addAll(relatedResources);
+            Iterator itRelatedRes=relatedResources.iterator();
+            while (itRelatedRes.hasNext()) {
+              CmsPublishedResource relatedRes=(CmsPublishedResource)itRelatedRes.next();
+              resourceMap.put(relatedRes.getRootPath(),relatedRes);
+            }
             match=true;
           }
         }
@@ -33,10 +41,10 @@
           return getAllResources(cms);
         }
       }
-      return new ArrayList(resourceSet);
+      return new ArrayList(resourceMap.values());
     }
   }
   finally {
-    cms.getRequestContext().restoreSiteRoot();
+    cms.getRequestContext().setSiteRoot(storedSiteRoot);
   }
 }

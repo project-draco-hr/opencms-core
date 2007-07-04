@@ -1,0 +1,72 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing deleting organizational units");
+  OpenCms.getRoleManager().addUserToRole(cms,CmsRole.ROOT_ADMIN,"test/test1");
+  cms.loginUser("test/test2/test1","test1");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  try {
+    OpenCms.getOrgUnitManager().deleteOrganizationalUnit(cms,cms.getRequestContext().getOuFqn());
+    fail("it should not be possible to delete an organizational unit that is used in the current request context");
+  }
+ catch (  CmsDbConsistencyException e) {
+    assertEquals(((CmsDbConsistencyException)e.getCause()).getMessageContainer().getKey(),org.opencms.db.Messages.ERR_ORGUNIT_DELETE_IN_CONTEXT_1);
+  }
+  try {
+    OpenCms.getOrgUnitManager().deleteOrganizationalUnit(cms,cms.getRequestContext().currentUser().getOuFqn());
+    fail("it should not be possible to delete an organizational unit that is used by the current user");
+  }
+ catch (  CmsDbConsistencyException e) {
+    assertEquals(((CmsDbConsistencyException)e.getCause()).getMessageContainer().getKey(),org.opencms.db.Messages.ERR_ORGUNIT_DELETE_CURRENT_USER_1);
+  }
+  cms.loginUser("Admin","admin");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  try {
+    OpenCms.getOrgUnitManager().deleteOrganizationalUnit(cms,"test");
+    fail("it should not be possible to delete an organizational unit that has sub-organizational units");
+  }
+ catch (  CmsDbConsistencyException e) {
+    assertEquals(((CmsDbConsistencyException)e.getCause()).getMessageContainer().getKey(),org.opencms.db.Messages.ERR_ORGUNIT_DELETE_SUB_ORGUNITS_1);
+  }
+  CmsOrganizationalUnit ou2=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,"test/test2");
+  cms.createGroup(ou2.getName() + "group2","test group",0,null);
+  try {
+    OpenCms.getOrgUnitManager().deleteOrganizationalUnit(cms,ou2.getName());
+    fail("it should not be possible to delete an organizational unit that has groups & users units");
+  }
+ catch (  CmsDbConsistencyException e) {
+    assertEquals(((CmsDbConsistencyException)e.getCause()).getMessageContainer().getKey(),org.opencms.db.Messages.ERR_ORGUNIT_DELETE_GROUPS_1);
+  }
+  Iterator itGroups=OpenCms.getOrgUnitManager().getGroups(cms,ou2.getName(),false).iterator();
+  while (itGroups.hasNext()) {
+    CmsGroup group=(CmsGroup)itGroups.next();
+    cms.deleteGroup(group.getName());
+  }
+  assertTrue(OpenCms.getOrgUnitManager().getGroups(cms,ou2.getName(),true).isEmpty());
+  try {
+    OpenCms.getOrgUnitManager().deleteOrganizationalUnit(cms,ou2.getName());
+    fail("it should not be possible to delete an organizational unit that has users units");
+  }
+ catch (  CmsDbConsistencyException e) {
+    assertEquals(((CmsDbConsistencyException)e.getCause()).getMessageContainer().getKey(),org.opencms.db.Messages.ERR_ORGUNIT_DELETE_USERS_1);
+  }
+  Iterator itUsers=OpenCms.getOrgUnitManager().getUsers(cms,ou2.getName(),false).iterator();
+  while (itUsers.hasNext()) {
+    CmsUser user=(CmsUser)itUsers.next();
+    cms.deleteUser(user.getName());
+  }
+  assertTrue(OpenCms.getOrgUnitManager().getUsers(cms,ou2.getName(),true).isEmpty());
+  OpenCms.getOrgUnitManager().deleteOrganizationalUnit(cms,ou2.getName());
+  try {
+    cms.readFolder("/system/orgunits/root/test/test2",CmsResourceFilter.ALL);
+    fail("it should not be possible to read the underlying resource after deleting an organizational unit");
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+  }
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  try {
+    cms.readFolder("/system/orgunits/root/test/test2",CmsResourceFilter.ALL);
+    fail("it should not be possible to read the underlying resource after deleting an organizational unit");
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+  }
+}

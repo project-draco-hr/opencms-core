@@ -2,15 +2,19 @@
   m_vfsDriver.replaceResource(dbc,resource,content,type);
   if ((properties != null) && (properties != Collections.EMPTY_LIST)) {
     m_vfsDriver.writePropertyObjects(dbc,dbc.currentProject(),resource,properties);
-    m_propertyCache.clear();
+    OpenCms.getMemoryMonitor().flushProperties();
+    OpenCms.getMemoryMonitor().flushPropertyLists();
   }
-  if (resource.getState() == CmsResource.STATE_UNCHANGED) {
+  if (resource.getState().isUnchanged()) {
     resource.setState(CmsResource.STATE_CHANGED);
   }
   resource.setUserLastModified(dbc.currentUser().getId());
   setDateLastModified(dbc,resource,System.currentTimeMillis());
-  m_vfsDriver.writeResourceState(dbc,dbc.currentProject(),resource,UPDATE_RESOURCE);
+  m_vfsDriver.writeResourceState(dbc,dbc.currentProject(),resource,UPDATE_RESOURCE,false);
+  deleteRelationsWithSiblings(dbc,resource);
   clearResourceCache();
-  content=null;
-  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_MODIFIED,Collections.singletonMap("resource",resource)));
+  HashMap data=new HashMap(2);
+  data.put("resource",resource);
+  data.put("change",new Integer(CHANGED_RESOURCE | CHANGED_CONTENT));
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_MODIFIED,data));
 }

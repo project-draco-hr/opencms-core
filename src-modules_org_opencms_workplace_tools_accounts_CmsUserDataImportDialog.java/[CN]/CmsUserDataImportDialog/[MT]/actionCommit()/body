@@ -1,0 +1,50 @@
+{
+  List errors=new ArrayList();
+  Iterator it=getMultiPartFileItems().iterator();
+  FileItem fi=null;
+  while (it.hasNext()) {
+    fi=(FileItem)it.next();
+    if (fi.getName() != null) {
+      break;
+    }
+ else {
+      continue;
+    }
+  }
+  if (fi != null && CmsStringUtil.isNotEmptyOrWhitespaceOnly(fi.getName())) {
+    byte[] content=fi.get();
+    File importFile=File.createTempFile("import_users",".csv");
+    m_importFile=importFile.getAbsolutePath();
+    FileOutputStream fileOutput=new FileOutputStream(importFile);
+    fileOutput.write(content);
+    fileOutput.close();
+    fi.delete();
+    FileReader fileReader=new FileReader(importFile);
+    BufferedReader bufferedReader=new BufferedReader(fileReader);
+    String line=bufferedReader.readLine();
+    if (line != null) {
+      List colDefs=CmsStringUtil.splitAsList(line,CmsXsltUtil.getPreferredDelimiter(line));
+      if (!colDefs.contains("name")) {
+        errors.add(new CmsRuntimeException(Messages.get().container(Messages.ERR_USERDATA_IMPORT_CSV_MISSING_NAME_0)));
+      }
+      if ((line.indexOf("password") == -1) && CmsStringUtil.isEmptyOrWhitespaceOnly(m_password)) {
+        errors.add(new CmsRuntimeException(Messages.get().container(Messages.ERR_USERDATA_IMPORT_CSV_MISSING_PASSWORD_0)));
+      }
+    }
+    bufferedReader.close();
+  }
+ else {
+    errors.add(new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_USERDATA_IMPORT_NO_CONTENT_0)));
+  }
+  if (errors.isEmpty()) {
+    Map params=new HashMap();
+    params.put("groups",CmsStringUtil.collectionAsString(getGroups(),","));
+    params.put("roles",CmsStringUtil.collectionAsString(getRoles(),","));
+    params.put("importfile",m_importFile);
+    params.put("password",m_password);
+    params.put(A_CmsOrgUnitDialog.PARAM_OUFQN,getParamOufqn());
+    params.put(CmsDialog.PARAM_ACTION,CmsDialog.DIALOG_INITIAL);
+    getToolManager().jspForwardTool(this,getCurrentToolPath() + "/list",params);
+  }
+  setCommitErrors(errors);
+}

@@ -1,77 +1,54 @@
 {
-  int publishProjectId=dbc.currentProject().getId();
-  boolean temporaryProject=(dbc.currentProject().getType() == CmsProject.PROJECT_TYPE_TEMPORARY);
-  boolean backupEnabled=OpenCms.getSystemInfo().isVersionHistoryEnabled();
-  boolean directPublish=publishList.isDirectPublish();
-  int backupTagId=0;
-  if (backupEnabled) {
-    backupTagId=getBackupTagId(dbc);
-  }
+  checkParentFolders(dbc,publishList);
+  Iterator itResources=new ArrayList(publishList.getAllResources()).iterator();
+  while (itResources.hasNext()) {
+    CmsResource resource=(CmsResource)itResources.next();
+    CmsLock lock=m_lockManager.getLock(dbc,resource,false);
+    if (lock.getSystemLock().isUnlocked() && lock.isLockableBy(dbc.currentUser())) {
+      if (getLock(dbc,resource).getEditionLock().isNullLock()) {
+        lockResource(dbc,resource,CmsLockType.PUBLISH);
+      }
  else {
-    backupTagId=0;
-  }
-  int maxVersions=OpenCms.getSystemInfo().getVersionHistoryMaxCount();
-  if (directPublish) {
-    Iterator it=publishList.getDirectPublishResources().iterator();
-    List parentFolderNames=new ArrayList();
-    while (it.hasNext()) {
-      CmsResource res=(CmsResource)it.next();
-      String parentFolderName=CmsResource.getParentFolder(res.getRootPath());
-      if (parentFolderName != null) {
-        parentFolderNames.add(parentFolderName);
+        changeLock(dbc,resource,CmsLockType.PUBLISH);
       }
     }
-    parentFolderNames=CmsFileUtil.removeRedundancies(parentFolderNames);
-    String parentFolderName=null;
-    try {
-      Iterator parentIt=parentFolderNames.iterator();
-      while (parentIt.hasNext()) {
-        parentFolderName=(String)parentIt.next();
-        getVfsDriver().readFolder(dbc,CmsProject.ONLINE_PROJECT_ID,parentFolderName);
+ else     if (lock.getSystemLock().isPublish()) {
+      if (LOG.isWarnEnabled()) {
+        LOG.warn(Messages.get().getBundle().key(Messages.RPT_PUBLISH_REMOVED_RESOURCE_1,dbc.removeSiteRoot(resource.getRootPath())));
       }
+      publishList.remove(resource);
+      continue;
     }
- catch (    CmsException e) {
-      report.println(Messages.get().container(Messages.RPT_PARENT_FOLDER_NOT_PUBLISHED_1,parentFolderName),I_CmsReport.FORMAT_ERROR);
-      return;
+ else {
+      changeLock(dbc,resource,CmsLockType.PUBLISH);
+    }
+    lock=m_lockManager.getLock(dbc,resource,false);
+    if (!lock.getSystemLock().isPublish()) {
+      if (report != null) {
+        report.println(Messages.get().container(Messages.RPT_PUBLISH_REMOVED_RESOURCE_1,dbc.removeSiteRoot(resource.getRootPath())),I_CmsReport.FORMAT_WARNING);
+      }
+      if (LOG.isWarnEnabled()) {
+        LOG.warn(Messages.get().getBundle().key(Messages.RPT_PUBLISH_REMOVED_RESOURCE_1,dbc.removeSiteRoot(resource.getRootPath())));
+      }
+      publishList.remove(resource);
     }
   }
-synchronized (this) {
-    try {
-      Map eventData=new HashMap();
-      eventData.put(I_CmsEventListener.KEY_REPORT,report);
-      eventData.put(I_CmsEventListener.KEY_PUBLISHLIST,publishList);
-      eventData.put(I_CmsEventListener.KEY_PROJECTID,new Integer(publishProjectId));
-      eventData.put(I_CmsEventListener.KEY_DBCONTEXT,dbc);
-      CmsEvent beforePublishEvent=new CmsEvent(I_CmsEventListener.EVENT_BEFORE_PUBLISH_PROJECT,eventData);
-      OpenCms.fireCmsEvent(beforePublishEvent);
-      clearcache(false);
-      m_projectDriver.publishProject(dbc,report,readProject(dbc,CmsProject.ONLINE_PROJECT_ID),publishList,OpenCms.getSystemInfo().isVersionHistoryEnabled(),backupTagId,maxVersions);
-      Iterator i=OpenCms.getModuleManager().getModuleNames().iterator();
-      while (i.hasNext()) {
-        CmsModule module=OpenCms.getModuleManager().getModule(i.next().toString());
-        if (module != null && module.getActionInstance() != null) {
-          module.getActionInstance().publishProject(cms,publishList,backupTagId,report);
-        }
-      }
-      if ((temporaryProject) && (!directPublish)) {
-        try {
-          m_projectDriver.deleteProject(dbc,dbc.currentProject());
-        }
- catch (        CmsException e) {
-          LOG.error(Messages.get().getBundle().key(Messages.LOG_DELETE_TEMP_PROJECT_FAILED_1,new Integer(publishProjectId)));
-        }
-        cms.getRequestContext().setCurrentProject(readProject(dbc,CmsProject.ONLINE_PROJECT_ID));
+  CmsException enqueueException=null;
+  try {
+    m_publishEngine.enqueuePublishJob(cms,publishList,report);
+  }
+ catch (  CmsException exc) {
+    enqueueException=exc;
+  }
+  if (enqueueException != null) {
+    itResources=publishList.getAllResources().iterator();
+    while (itResources.hasNext()) {
+      CmsResource resource=(CmsResource)itResources.next();
+      CmsLock lock=m_lockManager.getLock(dbc,resource,false);
+      if (lock.getSystemLock().isPublish() && lock.getSystemLock().isOwnedInProjectBy(cms.getRequestContext().currentUser(),cms.getRequestContext().currentProject())) {
+        unlockResource(dbc,resource,true,true);
       }
     }
-  finally {
-      clearcache(false);
-      Map eventData=new HashMap();
-      eventData.put(I_CmsEventListener.KEY_REPORT,report);
-      eventData.put(I_CmsEventListener.KEY_PUBLISHID,publishList.getPublishHistoryId().toString());
-      eventData.put(I_CmsEventListener.KEY_PROJECTID,new Integer(publishProjectId));
-      eventData.put(I_CmsEventListener.KEY_DBCONTEXT,dbc);
-      CmsEvent afterPublishEvent=new CmsEvent(I_CmsEventListener.EVENT_PUBLISH_PROJECT,eventData);
-      OpenCms.fireCmsEvent(afterPublishEvent);
-    }
+    throw enqueueException;
   }
 }

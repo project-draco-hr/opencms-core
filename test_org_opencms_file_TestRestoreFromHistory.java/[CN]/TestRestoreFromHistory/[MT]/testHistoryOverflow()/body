@@ -2,29 +2,31 @@
   final int C_MAX_VERSIONS=10;
   CmsObject cms=getCmsObject();
   echo("Testing history overflow");
+  OpenCms.getSystemInfo().setVersionHistorySettings(true,C_MAX_VERSIONS,C_MAX_VERSIONS);
   String resourcename="/test-overflow1.txt";
   String contentStr="1";
   cms.createResource(resourcename,CmsResourceTypePlain.getStaticTypeId(),contentStr.getBytes(),null);
   this.storeResources(cms,resourcename);
-  cms.unlockProject(cms.getRequestContext().currentProject().getId());
-  cms.publishProject();
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
   int version;
   for (version=1; version < 20; version++) {
     cms.lockResource(resourcename);
-    List allFiles=cms.readAllBackupFileHeaders(resourcename);
+    List allFiles=cms.readAllAvailableVersions(resourcename);
     if (version <= C_MAX_VERSIONS) {
       if (allFiles.size() != version) {
-        fail("Number of backup files found = " + allFiles.size() + " != "+ version+ " expected");
+        fail("Number of historical files found = " + allFiles.size() + " != "+ version+ " expected");
       }
     }
  else {
       if (allFiles.size() != C_MAX_VERSIONS) {
-        fail("Number of backup files found = " + allFiles.size() + " != "+ C_MAX_VERSIONS+ " expected");
+        fail("Number of historical files found = " + allFiles.size() + " != "+ C_MAX_VERSIONS+ " expected");
       }
     }
     if (version > 1) {
-      CmsBackupResource backup=(CmsBackupResource)allFiles.get(1);
-      cms.restoreResourceBackup(resourcename,backup.getTagId());
+      I_CmsHistoryResource history=(I_CmsHistoryResource)allFiles.get(1);
+      cms.restoreResourceVersion(history.getStructureId(),history.getVersion());
       assertContent(cms,resourcename,Integer.toString(version - 1).getBytes());
     }
     contentStr=Integer.toString(version + 1);
@@ -32,7 +34,8 @@
     update.setContents(contentStr.getBytes());
     cms.writeFile(update);
     this.storeResources(cms,resourcename);
-    cms.unlockProject(cms.getRequestContext().currentProject().getId());
-    cms.publishProject();
+    cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+    OpenCms.getPublishManager().publishProject(cms);
+    OpenCms.getPublishManager().waitWhileRunning();
   }
 }

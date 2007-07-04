@@ -1,21 +1,38 @@
 {
+  List manageableUsers=OpenCms.getRoleManager().getManageableUsers(getCms(),"",true);
   List ret=new ArrayList();
-  List sessions=OpenCms.getSessionManager().getSessionInfos();
-  Iterator itSessions=sessions.iterator();
+  List sessionInfos=OpenCms.getSessionManager().getSessionInfos();
+  Iterator itSessions=sessionInfos.iterator();
   while (itSessions.hasNext()) {
-    CmsSessionInfo session=(CmsSessionInfo)itSessions.next();
-    CmsListItem item=getList().newItem(session.getSessionId());
-    item.set(LIST_COLUMN_USER,session.getUser().getFullName());
-    item.set(LIST_COLUMN_EMAIL,session.getUser().getEmail());
-    item.set(LIST_COLUMN_CREATION,new Date(session.getTimeCreated()));
-    item.set(LIST_COLUMN_INACTIVE,new Long(System.currentTimeMillis() - session.getTimeUpdated()));
+    CmsSessionInfo sessionInfo=(CmsSessionInfo)itSessions.next();
+    CmsListItem item=getList().newItem(sessionInfo.getSessionId().toString());
+    CmsUser user=getCms().readUser(sessionInfo.getUserId());
+    if (!manageableUsers.contains(user)) {
+      continue;
+    }
+    item.set(LIST_COLUMN_USER,user.getFullName());
+    item.set(LIST_COLUMN_ORGUNIT,OpenCms.getOrgUnitManager().readOrganizationalUnit(getCms(),user.getOuFqn()).getDisplayName(getLocale()));
+    item.set(LIST_COLUMN_CREATION,new Date(sessionInfo.getTimeCreated()));
+    item.set(LIST_COLUMN_INACTIVE,new Long(System.currentTimeMillis() - sessionInfo.getTimeUpdated()));
     try {
-      item.set(LIST_COLUMN_PROJECT,getCms().readProject(session.getProject()).getName());
+      item.set(LIST_COLUMN_PROJECT,getCms().readProject(sessionInfo.getProject()).getName());
     }
  catch (    Exception e) {
     }
-    item.set(LIST_COLUMN_SITE,session.getSiteRoot());
+    item.set(LIST_COLUMN_SITE,sessionInfo.getSiteRoot());
     ret.add(item);
+  }
+  try {
+    if (OpenCms.getOrgUnitManager().getOrganizationalUnits(getCms(),"",true).isEmpty()) {
+      getList().getMetadata().getColumnDefinition(LIST_COLUMN_ORGUNIT).setVisible(false);
+      getList().getMetadata().getColumnDefinition(LIST_COLUMN_USER).setWidth("40%");
+    }
+ else {
+      getList().getMetadata().getColumnDefinition(LIST_COLUMN_ORGUNIT).setVisible(true);
+      getList().getMetadata().getColumnDefinition(LIST_COLUMN_USER).setWidth("20%");
+    }
+  }
+ catch (  CmsException e) {
   }
   return ret;
 }

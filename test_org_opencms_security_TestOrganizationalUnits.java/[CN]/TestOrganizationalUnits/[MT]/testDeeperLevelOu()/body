@@ -1,0 +1,47 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing handling with a deeper level ou");
+  CmsOrganizationalUnit rootOu=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,"");
+  CmsOrganizationalUnit ou=OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,"test");
+  CmsOrganizationalUnit ou2=OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,ou.getName() + "test2/","my test ou2",0,"/folder1");
+  CmsProject defProj2=cms.readProject(ou2.getName() + "Offline");
+  assertEquals(0,ou2.getFlags());
+  assertEquals("test/",ou2.getParentFqn());
+  assertEquals("test/test2/",ou2.getName());
+  assertEquals(cms.readFolder("/system/orgunits/test/test2").getStructureId(),ou2.getId());
+  assertEquals(defProj2.getUuid(),ou2.getProjectId());
+  List ou2Resources=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou2.getName());
+  assertEquals(1,ou2Resources.size());
+  assertTrue(ou2Resources.contains(cms.readResource("/folder1")));
+  List projRes2=cms.readProjectResources(defProj2);
+  assertEquals(ou2Resources.size(),projRes2.size());
+  for (int i=0; i < projRes2.size(); i++) {
+    assertTrue(projRes2.contains(((CmsResource)ou2Resources.get(i)).getRootPath()));
+    assertTrue(ou2Resources.contains(cms.readResource(cms.getRequestContext().removeSiteRoot((String)projRes2.get(i)))));
+  }
+  List rootOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),false);
+  assertEquals(1,rootOus.size());
+  assertTrue(rootOus.contains(ou));
+  List ouOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,ou.getName(),false);
+  assertEquals(1,ouOus.size());
+  assertTrue(ouOus.contains(ou2));
+  List ou2Ous=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,ou2.getName(),false);
+  assertTrue(ou2Ous.isEmpty());
+  List rootSubOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,rootOu.getName(),true);
+  assertEquals(2,rootSubOus.size());
+  assertTrue(rootSubOus.contains(ou));
+  assertTrue(rootSubOus.contains(ou2));
+  List ouSubOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,ou.getName(),true);
+  assertEquals(1,ouSubOus.size());
+  assertTrue(ouSubOus.contains(ou2));
+  List ou2SubOus=OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,ou2.getName(),true);
+  assertTrue(ou2SubOus.isEmpty());
+  OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,ou.getName());
+  try {
+    OpenCms.getOrgUnitManager().deleteOrganizationalUnit(cms,ou.getName());
+    fail("should not be possible to delete a ou having sub-ous");
+  }
+ catch (  CmsDataAccessException e) {
+  }
+  OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,ou.getName());
+}

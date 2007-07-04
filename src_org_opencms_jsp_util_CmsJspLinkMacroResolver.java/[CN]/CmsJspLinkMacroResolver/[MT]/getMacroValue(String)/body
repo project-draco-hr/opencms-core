@@ -1,0 +1,77 @@
+{
+  String path=null;
+  String id=null;
+  Iterator it=VALUE_NAMES.iterator();
+  while (it.hasNext()) {
+    String cmd=it.next().toString();
+    if (macro.startsWith(cmd)) {
+      path=macro.substring(cmd.length());
+      macro=cmd;
+      break;
+    }
+  }
+  if (path == null) {
+    return null;
+  }
+  int pos=path.indexOf(KEY_SEPARATOR);
+  if ((pos > -1) && (path.length() > pos + 1)) {
+    id=path.substring(pos + 1);
+  }
+  if (pos > -1) {
+    path=path.substring(0,pos);
+  }
+  CmsUUID uuid=null;
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(id)) {
+    if (path != null) {
+      id=path;
+    }
+ else {
+      id=null;
+    }
+  }
+  if (id != null) {
+    try {
+      uuid=new CmsUUID(id);
+    }
+ catch (    Exception e) {
+    }
+  }
+  if ((path == null) || (path.trim().length() == 0)) {
+    path=null;
+  }
+ else {
+    boolean isAbsolute=(path.charAt(0) == '/');
+    path=CmsFileUtil.normalizePath(path,'/');
+    if (!isAbsolute) {
+      path=path.substring(1);
+    }
+    if (isAbsolute && !path.startsWith(m_cms.getRequestContext().getSiteRoot())) {
+      path=m_cms.getRequestContext().addSiteRoot(path);
+    }
+ else     if (m_jspRootPath != null) {
+      path=CmsLinkManager.getAbsoluteUri(path,CmsResource.getParentFolder(m_jspRootPath));
+    }
+  }
+  CmsRelationType type=CmsRelationType.JSP_WEAK;
+  if (macro == MACRO_LINK_STRONG) {
+    type=CmsRelationType.JSP_STRONG;
+  }
+  CmsLink link=new CmsLink("link0",type,uuid,path,true);
+  link.checkConsistency(m_cms);
+  m_links.add(link);
+  if (m_forRfs) {
+    return m_cms.getRequestContext().removeSiteRoot(link.getTarget());
+  }
+ else {
+    StringBuffer newMacro=new StringBuffer(128);
+    newMacro.append(I_CmsMacroResolver.MACRO_DELIMITER);
+    newMacro.append(I_CmsMacroResolver.MACRO_START);
+    newMacro.append(macro);
+    newMacro.append(link.getVfsUri());
+    if ((link.getStructureId() != null) && !link.getStructureId().isNullUUID()) {
+      newMacro.append(KEY_SEPARATOR).append(link.getStructureId());
+    }
+    newMacro.append(I_CmsMacroResolver.MACRO_END);
+    return newMacro.toString();
+  }
+}

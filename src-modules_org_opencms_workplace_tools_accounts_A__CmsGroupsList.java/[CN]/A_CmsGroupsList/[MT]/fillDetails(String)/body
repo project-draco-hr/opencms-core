@@ -7,49 +7,70 @@
     StringBuffer html=new StringBuffer(512);
     try {
       if (detailId.equals(LIST_DETAIL_USERS)) {
-        Iterator itUsers=getCms().getUsersOfGroup(groupName).iterator();
+        List users=getCms().getUsersOfGroup(groupName,true);
+        Iterator itUsers=users.iterator();
         while (itUsers.hasNext()) {
-          html.append(((CmsUser)itUsers.next()).getFullName());
+          CmsUser user=(CmsUser)itUsers.next();
+          if (user.getOuFqn().equals(getParamOufqn())) {
+            html.append(user.getFullName());
+          }
+ else {
+            html.append(user.getDisplayName(getCms(),getLocale()));
+          }
           if (itUsers.hasNext()) {
             html.append("<br>");
           }
           html.append("\n");
         }
       }
- else       if (detailId.equals(LIST_DETAIL_CHILDS)) {
-        Iterator itChilds=getCms().getChild(groupName).iterator();
-        while (itChilds.hasNext()) {
-          html.append(((CmsGroup)itChilds.next()).getName());
-          if (itChilds.hasNext()) {
+ else       if (detailId.equals(LIST_DETAIL_CHILDREN)) {
+        Iterator itChildren=getCms().getChildren(groupName,false).iterator();
+        while (itChildren.hasNext()) {
+          CmsGroup group=(CmsGroup)itChildren.next();
+          if (group.getOuFqn().equals(getParamOufqn())) {
+            html.append(group.getSimpleName());
+          }
+ else {
+            html.append(group.getDisplayName(getCms(),getLocale()));
+          }
+          if (itChildren.hasNext()) {
             html.append("<br>");
           }
           html.append("\n");
         }
       }
+ else       if (detailId.equals(LIST_DETAIL_PARENT)) {
+        CmsGroup parent=getCms().readGroup(getCms().readGroup(groupName).getParentId());
+        html.append(parent.getName());
+      }
  else       if (detailId.equals(LIST_DETAIL_SET_PERM)) {
-        getCms().getRequestContext().saveSiteRoot();
-        getCms().getRequestContext().setSiteRoot("/");
-        CmsGroup group=getCms().readGroup(groupName);
-        Iterator itRes=getCms().getResourcesForPrincipal(group.getId(),null,false).iterator();
-        while (itRes.hasNext()) {
-          CmsResource resource=(CmsResource)itRes.next();
-          html.append(resource.getRootPath());
-          Iterator itAces=getCms().getAccessControlEntries(resource.getRootPath(),false).iterator();
-          while (itAces.hasNext()) {
-            CmsAccessControlEntry ace=(CmsAccessControlEntry)itAces.next();
-            if (ace.getPrincipal().equals(group.getId())) {
-              if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(ace.getPermissions().getPermissionString())) {
-                html.append(" (" + ace.getPermissions().getPermissionString() + ")");
+        String storedSiteRoot=getCms().getRequestContext().getSiteRoot();
+        try {
+          getCms().getRequestContext().setSiteRoot("/");
+          CmsGroup group=getCms().readGroup(groupName);
+          Iterator itRes=getCms().getResourcesForPrincipal(group.getId(),null,false).iterator();
+          while (itRes.hasNext()) {
+            CmsResource resource=(CmsResource)itRes.next();
+            html.append(resource.getRootPath());
+            Iterator itAces=getCms().getAccessControlEntries(resource.getRootPath(),false).iterator();
+            while (itAces.hasNext()) {
+              CmsAccessControlEntry ace=(CmsAccessControlEntry)itAces.next();
+              if (ace.getPrincipal().equals(group.getId())) {
+                if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(ace.getPermissions().getPermissionString())) {
+                  html.append(" (" + ace.getPermissions().getPermissionString() + ")");
+                }
+                break;
               }
-              break;
             }
+            if (itRes.hasNext()) {
+              html.append("<br>");
+            }
+            html.append("\n");
           }
-          if (itRes.hasNext()) {
-            html.append("<br>");
-          }
-          html.append("\n");
         }
-        getCms().getRequestContext().restoreSiteRoot();
+  finally {
+          getCms().getRequestContext().setSiteRoot(storedSiteRoot);
+        }
       }
  else {
         continue;

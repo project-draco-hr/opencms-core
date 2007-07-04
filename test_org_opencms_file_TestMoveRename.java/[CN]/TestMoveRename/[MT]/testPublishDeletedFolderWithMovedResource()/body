@@ -1,0 +1,24 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing to publish a deleted folder with a unpublished moved resource");
+  String deletedFolder="/folder1/subfolder11/";
+  String source="index.html";
+  String destination="abc.html";
+  cms.lockResource(deletedFolder + source);
+  cms.moveResource(deletedFolder + source,destination);
+  assertFalse(cms.getLockedResources(deletedFolder,CmsLockFilter.FILTER_ALL).contains(deletedFolder + source));
+  cms.lockResource(deletedFolder);
+  cms.deleteResource(deletedFolder,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  cms.unlockResource(deletedFolder);
+  OpenCms.getPublishManager().publishResource(cms,deletedFolder);
+  OpenCms.getPublishManager().waitWhileRunning();
+  try {
+    cms.undoChanges(destination,CmsResource.UNDO_MOVE_CONTENT);
+    fail("undoing the changes to a deleted folder must cause an exception");
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+  }
+  cms.unlockResource(destination);
+  OpenCms.getPublishManager().publishResource(cms,destination);
+  OpenCms.getPublishManager().waitWhileRunning();
+}

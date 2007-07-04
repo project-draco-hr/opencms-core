@@ -1,0 +1,115 @@
+{
+  CmsCacheSettings cacheSettings=configuration.getCacheSettings();
+  m_memoryAverage=new CmsMemoryStatus();
+  m_memoryCurrent=new CmsMemoryStatus();
+  m_warningSendSinceLastStatus=false;
+  m_warningLoggedSinceLastStatus=false;
+  m_lastEmailWarning=0;
+  m_lastEmailStatus=0;
+  m_lastLogStatus=0;
+  m_lastLogWarning=0;
+  m_lastClearCache=0;
+  m_configuration=configuration.getCmsMemoryMonitorConfiguration();
+  m_intervalWarning=720 * 60000;
+  m_maxUsagePercent=90;
+  m_intervalEmail=m_configuration.getEmailInterval() * 1000;
+  m_intervalLog=m_configuration.getLogInterval() * 1000;
+  if (m_configuration.getWarningInterval() > 0) {
+    m_intervalWarning=m_configuration.getWarningInterval();
+  }
+  m_intervalWarning*=1000;
+  if (m_configuration.getMaxUsagePercent() > 0) {
+    m_maxUsagePercent=m_configuration.getMaxUsagePercent();
+  }
+  if (CmsLog.INIT.isInfoEnabled()) {
+    CmsLog.INIT.info(Messages.get().getBundle().key(Messages.LOG_MM_INTERVAL_LOG_1,new Integer(m_intervalLog / 1000)));
+    CmsLog.INIT.info(Messages.get().getBundle().key(Messages.LOG_MM_INTERVAL_EMAIL_1,new Integer(m_intervalEmail / 1000)));
+    CmsLog.INIT.info(Messages.get().getBundle().key(Messages.LOG_MM_INTERVAL_WARNING_1,new Integer(m_intervalWarning / 1000)));
+    CmsLog.INIT.info(Messages.get().getBundle().key(Messages.LOG_MM_INTERVAL_MAX_USAGE_1,new Integer(m_maxUsagePercent)));
+    if ((m_configuration.getEmailReceiver() == null) || (m_configuration.getEmailSender() == null)) {
+      CmsLog.INIT.info(Messages.get().getBundle().key(Messages.LOG_MM_EMAIL_DISABLED_0));
+    }
+ else {
+      CmsLog.INIT.info(Messages.get().getBundle().key(Messages.LOG_MM_EMAIL_SENDER_1,m_configuration.getEmailSender()));
+      Iterator i=m_configuration.getEmailReceiver().iterator();
+      int n=0;
+      while (i.hasNext()) {
+        CmsLog.INIT.info(Messages.get().getBundle().key(Messages.LOG_MM_EMAIL_RECEIVER_2,new Integer(n + 1),i.next()));
+        n++;
+      }
+    }
+  }
+  LRUMap xmlTemporaryCache=new LRUMap(128);
+  m_xmlTemporaryEntityCache=Collections.synchronizedMap(xmlTemporaryCache);
+  register(CmsXmlEntityResolver.class.getName() + ".xmlEntityTemporaryCache",m_xmlTemporaryEntityCache);
+  Map xmlPermanentCache=new HashMap(32);
+  m_xmlPermanentEntityCache=Collections.synchronizedMap(xmlPermanentCache);
+  register(CmsXmlEntityResolver.class.getName() + ".xmlEntityPermanentCache",m_xmlPermanentEntityCache);
+  LRUMap contentDefinitionsCache=new LRUMap(64);
+  m_contentDefinitionsCache=Collections.synchronizedMap(contentDefinitionsCache);
+  register(CmsXmlEntityResolver.class.getName() + ".contentDefinitionsCache",m_contentDefinitionsCache);
+  Map lockCache=new HashMap();
+  m_lockCache=Collections.synchronizedMap(lockCache);
+  register(CmsLockManager.class.getName(),lockCache);
+  Map map=new HashMap();
+  m_localeCache=Collections.synchronizedMap(map);
+  register(CmsLocaleManager.class.getName(),map);
+  LRUMap lruMap=new LRUMap(cacheSettings.getPermissionCacheSize());
+  m_permissionCache=Collections.synchronizedMap(lruMap);
+  register(CmsSecurityManager.class.getName(),lruMap);
+  lruMap=new LRUMap(cacheSettings.getUserCacheSize());
+  m_userCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".userCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getGroupCacheSize());
+  m_groupCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".groupCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getOrgUnitCacheSize());
+  m_orgUnitCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".orgUnitCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getUserGroupsCacheSize());
+  m_userGroupsCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".userGroupsCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getProjectCacheSize());
+  m_projectCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".projectCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getProjectResourcesCacheSize());
+  m_projectResourcesCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".projectResourcesCache",lruMap);
+  int size=configuration.getPublishManager().getPublishHistorySize();
+  Buffer buffer=CmsPublishHistory.getQueue(size);
+  m_publishHistory=SynchronizedBuffer.decorate(buffer);
+  register(CmsPublishHistory.class.getName() + ".publishHistory",buffer);
+  buffer=CmsPublishQueue.getQueue();
+  m_publishQueue=SynchronizedBuffer.decorate(buffer);
+  register(CmsPublishQueue.class.getName() + ".publishQueue",buffer);
+  lruMap=new LRUMap(cacheSettings.getResourceCacheSize());
+  m_resourceCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".resourceCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getRolesCacheSize());
+  m_rolesCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".rolesCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getRolesCacheSize());
+  m_roleListsCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".roleListsCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getResourcelistCacheSize());
+  m_resourceListCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".resourceListCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getPropertyCacheSize());
+  m_propertyCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".propertyCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getPropertyListsCacheSize());
+  m_propertyListCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".propertyListCache",lruMap);
+  lruMap=new LRUMap(cacheSettings.getAclCacheSize());
+  m_accessControlListCache=Collections.synchronizedMap(lruMap);
+  register(CmsDriverManager.class.getName() + ".accessControlListCache",lruMap);
+  Map vfsObjectCache=new HashMap();
+  m_vfsObjectCache=Collections.synchronizedMap(vfsObjectCache);
+  register(CmsVfsMemoryObjectCache.class.getName(),vfsObjectCache);
+  Map memObjectCache=new HashMap();
+  m_memObjectCache=Collections.synchronizedMap(memObjectCache);
+  register(CmsMemoryObjectCache.class.getName(),memObjectCache);
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_MM_CREATED_1,new Date(System.currentTimeMillis())));
+  }
+}

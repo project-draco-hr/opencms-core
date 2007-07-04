@@ -1,0 +1,26 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing rename a new folder with content");
+  String folder="/myfolder/";
+  String movedFolder="/myfolder_mov/";
+  String file="file.txt";
+  String newFile="newfile.txt";
+  cms.createResource(folder,CmsResourceTypeFolder.getStaticTypeId());
+  cms.createResource(folder + file,CmsResourceTypePlain.getStaticTypeId());
+  cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.createResource(folder + newFile,CmsResourceTypePlain.getStaticTypeId());
+  storeResources(cms,folder,true);
+  cms.lockResource(folder);
+  cms.moveResource(folder,movedFolder);
+  assertFalse(cms.getLockedResources("/",CmsLockFilter.FILTER_ALL).contains(folder));
+  CmsResource res=cms.readResource(movedFolder + file);
+  CmsResource newRes=cms.readResource(movedFolder + newFile);
+  setMapping(movedFolder + file,folder + file);
+  assertFilter(cms,res,OpenCmsTestResourceFilter.FILTER_MOVE_DESTINATION);
+  assertState(cms,movedFolder + file,CmsResource.STATE_CHANGED);
+  setMapping(movedFolder + newFile,folder + newFile);
+  assertFilter(cms,newRes,OpenCmsTestResourceFilter.FILTER_MOVE_DESTINATION);
+  assertState(cms,movedFolder + newFile,CmsResource.STATE_NEW);
+}

@@ -1,0 +1,40 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    if (needToUpdateContent) {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_ONLINE_CONTENTS_HISTORY");
+      stmt.setString(1,resourceId.toString());
+      stmt.executeUpdate();
+      m_sqlManager.closeAll(dbc,null,stmt,null);
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_ONLINE_CONTENTS_WRITE");
+      stmt.setString(1,resourceId.toString());
+      stmt.setInt(2,publishTag);
+      stmt.setInt(3,publishTag);
+      stmt.setInt(4,keepOnline ? 1 : 0);
+      stmt.executeUpdate();
+      m_sqlManager.closeAll(dbc,null,stmt,null);
+      internalWriteContent(dbc,CmsProject.ONLINE_PROJECT_ID,resourceId,contents,publishTag);
+    }
+ else {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_HISTORY_CONTENTS_UPDATE");
+      stmt.setInt(1,publishTag);
+      stmt.setString(2,resourceId.toString());
+      stmt.executeUpdate();
+      m_sqlManager.closeAll(dbc,null,stmt,null);
+      if (!keepOnline) {
+        stmt=m_sqlManager.getPreparedStatement(conn,"C_ONLINE_CONTENTS_HISTORY");
+        stmt.setString(1,resourceId.toString());
+        stmt.executeUpdate();
+        m_sqlManager.closeAll(dbc,null,stmt,null);
+      }
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,null);
+  }
+}

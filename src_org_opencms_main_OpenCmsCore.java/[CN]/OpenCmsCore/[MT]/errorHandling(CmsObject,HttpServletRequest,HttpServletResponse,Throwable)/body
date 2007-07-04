@@ -1,8 +1,8 @@
 {
   CmsFlexController.removeController(req);
-  boolean canWrite=!res.isCommitted() && !res.containsHeader("Location");
+  boolean canWrite=(!res.isCommitted() && !res.containsHeader("Location"));
   int status=-1;
-  boolean isNotGuest=false;
+  boolean isGuest=true;
   if (t instanceof ServletException) {
     ServletException s=(ServletException)t;
     if (s.getRootCause() != null) {
@@ -21,7 +21,7 @@
   }
  else   if (t instanceof CmsDbEntryNotFoundException) {
     status=HttpServletResponse.SC_SERVICE_UNAVAILABLE;
-    isNotGuest=true;
+    isGuest=false;
   }
  else   if (t instanceof CmsVfsResourceNotFoundException) {
     status=HttpServletResponse.SC_NOT_FOUND;
@@ -36,14 +36,16 @@
   }
   res.setStatus(status);
   try {
-    isNotGuest=isNotGuest || (cms != null && cms.getRequestContext().currentUser() != null && (!OpenCms.getDefaultUsers().getUserGuest().equals(cms.getRequestContext().currentUser().getName())) && ((cms.userInGroup(cms.getRequestContext().currentUser().getName(),OpenCms.getDefaultUsers().getGroupUsers())) || (cms.userInGroup(cms.getRequestContext().currentUser().getName(),OpenCms.getDefaultUsers().getGroupProjectmanagers())) || (cms.userInGroup(cms.getRequestContext().currentUser().getName(),OpenCms.getDefaultUsers().getGroupAdministrators()))));
+    if ((cms != null) && (cms.getRequestContext().currentUser() != null)) {
+      isGuest=isGuest && (cms.getRequestContext().currentUser().isGuestUser() || cms.userInGroup(cms.getRequestContext().currentUser().getName(),OpenCms.getDefaultUsers().getGroupGuests()));
+    }
   }
  catch (  CmsException e) {
   }
   if (canWrite) {
     res.setContentType("text/html");
     CmsRequestUtil.setNoCacheHeaders(res);
-    if (isNotGuest && cms != null && !cms.getRequestContext().currentProject().isOnlineProject()) {
+    if (!isGuest && (cms != null) && !cms.getRequestContext().currentProject().isOnlineProject()) {
       try {
         res.setStatus(HttpServletResponse.SC_OK);
         res.getWriter().print(createErrorBox(t,req,cms));

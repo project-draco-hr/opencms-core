@@ -7,7 +7,7 @@
   List resources=new ArrayList();
   CmsFolder folder=null;
   String oldSiteRoot=getCms().getRequestContext().getSiteRoot();
-  boolean restoreSiteRoot=false;
+  String storedSiteRoot=null;
   if (targetFolder != null) {
     StringTokenizer T=new StringTokenizer(targetFolder,"|");
     while (T.hasMoreTokens()) {
@@ -22,15 +22,9 @@
   try {
     while (targets.hasNext()) {
       String currentTargetFolder=(String)targets.next();
-      if ("channelselector".equals(getTreeType())) {
-        restoreSiteRoot=true;
-        getCms().getRequestContext().saveSiteRoot();
-        getCms().getRequestContext().setSiteRoot(CmsResource.VFS_FOLDER_CHANNELS);
-      }
- else       if (getSettings().getTreeSite(getTreeType()) != null) {
-        restoreSiteRoot=true;
-        getCms().getRequestContext().saveSiteRoot();
-        if (newTree() && currentTargetFolder == null) {
+      if (getSettings().getTreeSite(getTreeType()) != null) {
+        storedSiteRoot=getCms().getRequestContext().getSiteRoot();
+        if (newTree() && (currentTargetFolder == null)) {
           currentTargetFolder="/";
         }
         getCms().getRequestContext().setSiteRoot(getSettings().getTreeSite(getTreeType()));
@@ -106,8 +100,13 @@
     while (i.hasNext()) {
       CmsResource resource=(CmsResource)i.next();
       grey=!CmsProject.isInsideProject(projectResources,resource);
-      if ((!grey) && (!getSettings().getResourceTypes().containsKey(new Integer(resource.getTypeId())))) {
-        grey=true;
+      if (!grey) {
+        try {
+          OpenCms.getResourceManager().getResourceType(resource.getTypeId());
+        }
+ catch (        CmsLoaderException e) {
+          grey=true;
+        }
       }
       result.append(getNode(resource.getRootPath(),resource.getName(),resource.getTypeId(),resource.isFolder(),resource.getState(),grey));
     }
@@ -128,26 +127,28 @@
     result.append("parent.setRootFolder(\"");
     result.append(getRootFolder());
     result.append("\");\n");
-    if (newTree()) {
-      result.append("parent.showTree(parent.tree_display.document, \"");
-      result.append(folder.getRootPath().hashCode());
-      result.append("\");\n");
-    }
- else {
-      if (resources.size() == 0) {
-        result.append("parent.setNoChilds(\"");
+    if (folder != null) {
+      if (newTree()) {
+        result.append("parent.showTree(parent.tree_display.document, \"");
         result.append(folder.getRootPath().hashCode());
         result.append("\");\n");
       }
-      result.append("parent.showLoadedNodes(parent.tree_display.document,\"");
-      result.append(folder.getRootPath().hashCode());
-      result.append("\");\n");
+ else {
+        if (resources.size() == 0) {
+          result.append("parent.setNoChilds(\"");
+          result.append(folder.getRootPath().hashCode());
+          result.append("\");\n");
+        }
+        result.append("parent.showLoadedNodes(parent.tree_display.document,\"");
+        result.append(folder.getRootPath().hashCode());
+        result.append("\");\n");
+      }
     }
     result.append("}\n");
   }
   finally {
-    if (restoreSiteRoot) {
-      getCms().getRequestContext().restoreSiteRoot();
+    if (storedSiteRoot != null) {
+      getCms().getRequestContext().setSiteRoot(storedSiteRoot);
     }
   }
   return result.toString();

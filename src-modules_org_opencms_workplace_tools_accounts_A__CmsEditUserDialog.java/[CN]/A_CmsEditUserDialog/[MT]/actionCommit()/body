@@ -4,8 +4,8 @@
     if (CmsStringUtil.isNotEmpty(m_pwdInfo.getNewPwd())) {
       m_pwdInfo.setConfirmation(m_pwdInfo.getConfirmation());
     }
-    if (m_user.getId() == null) {
-      CmsUser newUser=createUser(m_user.getName(),m_pwdInfo.getNewPwd(),m_user.getDescription(),m_user.getAdditionalInfo());
+    if (isNewUser()) {
+      CmsUser newUser=createUser(m_paramOufqn + m_user.getSimpleName(),m_pwdInfo.getNewPwd(),m_user.getDescription(),m_user.getAdditionalInfo());
       newUser.setFirstname(m_user.getFirstname());
       newUser.setLastname(m_user.getLastname());
       newUser.setEmail(m_user.getEmail());
@@ -18,7 +18,28 @@
       }
       getCms().setPassword(m_user.getName(),m_pwdInfo.getNewPwd());
     }
+    if (isNewUser() && CmsStringUtil.isNotEmptyOrWhitespaceOnly(getGroup())) {
+      getCms().readGroup(getGroup());
+    }
     writeUser(m_user);
+    if (isNewUser()) {
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getGroup())) {
+        getCms().addUserToGroup(m_user.getName(),getGroup());
+      }
+    }
+    CmsUserSettings settings=new CmsUserSettings(m_user);
+    settings.setLocale(CmsLocaleManager.getLocale(getLanguage()));
+    settings.setStartSite(getSite());
+    if (isNewUser()) {
+      try {
+        String prj=getCms().readProject(getParamOufqn() + OpenCms.getWorkplaceManager().getDefaultUserSettings().getStartProject()).getName();
+        settings.setStartProject(prj);
+      }
+ catch (      CmsException e) {
+        settings.setStartProject(OpenCms.getWorkplaceManager().getDefaultUserSettings().getStartProject());
+      }
+    }
+    settings.save(getCms());
     Map objects=(Map)getSettings().getListObject();
     if (objects != null) {
       objects.remove(getListClass());
@@ -30,8 +51,8 @@
   if (errors.isEmpty() && isNewUser()) {
     if (getParamCloseLink() != null && getParamCloseLink().indexOf("path=" + getListRootPath()) > -1) {
       Map argMap=new HashMap();
-      argMap.put("userid",m_user.getId());
-      argMap.put("username",m_user.getName());
+      argMap.put(PARAM_USERID,m_user.getId());
+      argMap.put("oufqn",m_paramOufqn);
       setParamCloseLink(CmsToolManager.linkForToolPath(getJsp(),getListRootPath() + "/edit",argMap));
     }
   }

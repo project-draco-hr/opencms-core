@@ -1,11 +1,12 @@
 {
-  if (CmsStringUtil.isNotEmpty(getParamVersionid())) {
-    byte[] result=getBackupResourceContent(getCms(),getParamResource(),getParamVersionid());
+  String resourceStr=getParamResource();
+  if (CmsStringUtil.isNotEmpty(getParamVersion())) {
+    byte[] result=getHistoricalResourceContent(getCms(),resourceStr,getParamVersion());
     if (result != null) {
-      String contentType=OpenCms.getResourceManager().getMimeType(getParamResource(),getCms().getRequestContext().getEncoding());
+      String contentType=OpenCms.getResourceManager().getMimeType(resourceStr,getCms().getRequestContext().getEncoding());
       HttpServletResponse res=getJsp().getResponse();
       HttpServletRequest req=getJsp().getRequest();
-      res.setHeader(CmsRequestUtil.HEADER_CONTENT_DISPOSITION,new StringBuffer("attachment; filename=\"").append(getParamResource()).append("\"").toString());
+      res.setHeader(CmsRequestUtil.HEADER_CONTENT_DISPOSITION,new StringBuffer("attachment; filename=\"").append(resourceStr).append("\"").toString());
       res.setContentLength(result.length);
       CmsFlexController controller=CmsFlexController.getController(req);
       res=controller.getTopResponse();
@@ -23,9 +24,19 @@
     }
   }
  else {
-    if (getCms().existsResource(getParamResource(),CmsResourceFilter.DEFAULT)) {
-      String url=getJsp().link(getParamResource());
-      if (url.indexOf("://") < 0 && getCms().getRequestContext().currentProject().isOnlineProject()) {
+    CmsResource resource=null;
+    try {
+      resource=getCms().readResource(resourceStr,CmsResourceFilter.ALL);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+    }
+    if (resource != null) {
+      if (resource.getState().isDeleted()) {
+        throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_RESOURCE_DELETED_2,resourceStr,getCms().getRequestContext().currentProject().getName()));
+      }
+      autoTimeWarp(resource);
+      String url=getJsp().link(resourceStr);
+      if ((url.indexOf("://") < 0) && getCms().getRequestContext().currentProject().isOnlineProject()) {
         String site=getCms().getRequestContext().getSiteRoot();
         if (CmsStringUtil.isEmptyOrWhitespaceOnly(site)) {
           site=OpenCms.getSiteManager().getDefaultUri();
@@ -45,7 +56,7 @@
         try {
           CmsStaticExportManager manager=OpenCms.getStaticExportManager();
           HttpURLConnection.setFollowRedirects(false);
-          URL exportUrl=new URL(manager.getExportUrl() + manager.getRfsName(getCms(),getParamResource()));
+          URL exportUrl=new URL(manager.getExportUrl() + manager.getRfsName(getCms(),resourceStr));
           HttpURLConnection urlcon=(HttpURLConnection)exportUrl.openConnection();
           urlcon.setRequestMethod("GET");
           urlcon.setRequestProperty(CmsRequestUtil.HEADER_OPENCMS_EXPORT,Boolean.TRUE.toString());
@@ -66,20 +77,15 @@
           urlcon.disconnect();
         }
  catch (        Exception e) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(e.getLocalizedMessage(),e);
+          }
         }
       }
       getJsp().getResponse().sendRedirect(url);
     }
  else {
-      if (getCms().existsResource(getParamResource(),CmsResourceFilter.ALL)) {
-        if (getCms().existsResource(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION)) {
-          throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_RESOURCE_OUTSIDE_TIMEWINDOW_1,getParamResource()));
-        }
- else {
-          throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_RESOURCE_DELETED_2,getParamResource(),getCms().getRequestContext().currentProject().getName()));
-        }
-      }
-      throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_RESOURCE_DOES_NOT_EXIST_3,getParamResource(),getCms().getRequestContext().currentProject().getName(),getCms().getRequestContext().getSiteRoot()));
+      throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_RESOURCE_DOES_NOT_EXIST_3,resourceStr,getCms().getRequestContext().currentProject().getName(),getCms().getRequestContext().getSiteRoot()));
     }
   }
 }

@@ -1,0 +1,56 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the import of a resource that has been moved.");
+  String filename1="/newfile4.html";
+  String filename2="/movedfile.html";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportExportMovedResource.zip");
+  try {
+    cms.getRequestContext().setSiteRoot("/");
+    CmsResource resBefore=cms.createResource(filename1,CmsResourceTypePlain.getStaticTypeId());
+    cms.unlockResource(filename1);
+    OpenCms.getPublishManager().publishResource(cms,filename1);
+    OpenCms.getPublishManager().waitWhileRunning();
+    storeResources(cms,filename1);
+    CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+    vfsExportHandler.setFileName(zipExportFilename);
+    List exportPaths=new ArrayList(1);
+    exportPaths.add(filename1);
+    vfsExportHandler.setExportPaths(exportPaths);
+    vfsExportHandler.setIncludeSystem(false);
+    vfsExportHandler.setIncludeUnchanged(true);
+    vfsExportHandler.setExportUserdata(false);
+    OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.lockResource(filename1);
+    cms.moveResource(filename1,filename2);
+    cms.unlockResource(filename2);
+    OpenCms.getPublishManager().publishResource(cms,filename2);
+    OpenCms.getPublishManager().waitWhileRunning();
+    assertFalse(cms.existsResource(filename1));
+    assertTrue(cms.existsResource(filename2));
+    cms.readResource(resBefore.getStructureId());
+    try {
+      cms.readResource(filename1);
+      fail("should not be found");
+    }
+ catch (    Exception e) {
+    }
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.unlockResource(filename1);
+    OpenCms.getPublishManager().publishResource(cms,filename1);
+    OpenCms.getPublishManager().waitWhileRunning();
+    assertFalse(cms.existsResource(filename2));
+    assertFilter(cms,cms.readResource(filename1),OpenCmsTestResourceFilter.FILTER_IMPORTEXPORT);
+  }
+  finally {
+    try {
+      if (zipExportFilename != null) {
+        File file=new File(zipExportFilename);
+        if (file.exists()) {
+          file.delete();
+        }
+      }
+    }
+ catch (    Throwable t) {
+    }
+  }
+}

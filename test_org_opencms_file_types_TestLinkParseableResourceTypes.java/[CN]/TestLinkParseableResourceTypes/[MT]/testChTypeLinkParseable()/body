@@ -1,0 +1,26 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing 'chType' method, change type link parseable with non link parseable");
+  String sourceName="/index_created.html";
+  String targetName="/folder1/image2.gif";
+  CmsResource target=cms.readResource(targetName);
+  List relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  int sources=cms.getRelationsForResource(targetName,CmsRelationFilter.SOURCES).size();
+  cms.lockResource(sourceName);
+  cms.chtype(sourceName,CmsResourceTypeBinary.getStaticTypeId());
+  CmsResource changed=cms.readResource(sourceName);
+  assertRelationOperation(cms,changed,target,sources - 1,0);
+  CmsProject project=cms.getRequestContext().currentProject();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  sources=cms.getRelationsForResource(targetName,CmsRelationFilter.SOURCES).size();
+  assertRelationOperation(cms,changed,target,sources,1);
+  cms.getRequestContext().setCurrentProject(project);
+  cms.unlockResource(sourceName);
+  OpenCms.getPublishManager().publishResource(cms,sourceName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  assertRelationOperation(cms,changed,target,sources - 1,0);
+}

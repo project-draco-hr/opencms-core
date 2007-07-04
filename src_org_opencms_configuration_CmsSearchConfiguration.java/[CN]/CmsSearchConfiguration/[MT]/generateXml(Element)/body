@@ -3,21 +3,17 @@
   if (OpenCms.getRunLevel() >= OpenCms.RUNLEVEL_3_SHELL_ACCESS) {
     m_searchManager=OpenCms.getSearchManager();
   }
-  searchElement.addElement(N_CACHE).addText(m_searchManager.getResultCacheSize());
   searchElement.addElement(N_DIRECTORY).addText(m_searchManager.getDirectory());
-  searchElement.addElement(N_TIMEOUT).addText(m_searchManager.getTimeout());
+  searchElement.addElement(N_TIMEOUT).addText(String.valueOf(m_searchManager.getTimeout()));
+  if (m_searchManager.getForceunlock() != null) {
+    searchElement.addElement(N_FORCEUNLOCK).addText(m_searchManager.getForceunlock().toString());
+  }
   searchElement.addElement(N_EXCERPT).addText(String.valueOf(m_searchManager.getMaxExcerptLength()));
+  searchElement.addElement(N_EXTRACTION_CACHE_MAX_AGE).addText(String.valueOf(m_searchManager.getExtractionCacheMaxAge()));
   searchElement.addElement(N_HIGHLIGHTER).addText(m_searchManager.getHighlighter().getClass().getName());
   Element documenttypesElement=searchElement.addElement(N_DOCUMENTTYPES);
-  List docTypeKeyList=new ArrayList(m_searchManager.getDocumentTypeConfigs().keySet());
-  Collections.sort(docTypeKeyList);
-  List sortedDocTypeList=new ArrayList();
-  Iterator i=docTypeKeyList.iterator();
-  while (i.hasNext()) {
-    CmsSearchDocumentType currDocType=m_searchManager.getDocumentTypeConfig((String)i.next());
-    sortedDocTypeList.add(currDocType);
-  }
-  Iterator docTypeIterator=sortedDocTypeList.iterator();
+  List docTypeKeyList=m_searchManager.getDocumentTypeConfigs();
+  Iterator docTypeIterator=docTypeKeyList.iterator();
   while (docTypeIterator.hasNext()) {
     CmsSearchDocumentType currSearchDocType=(CmsSearchDocumentType)docTypeIterator.next();
     Element documenttypeElement=documenttypesElement.addElement(N_DOCUMENTTYPE);
@@ -35,17 +31,17 @@
     }
   }
   Element analyzersElement=searchElement.addElement(N_ANALYZERS);
-  List analyzerList=new ArrayList(m_searchManager.getAnalyzers().keySet());
-  Collections.sort(analyzerList);
-  Iterator analyzersIterator=analyzerList.iterator();
-  while (analyzersIterator.hasNext()) {
-    CmsSearchAnalyzer searchAnalyzer=m_searchManager.getCmsSearchAnalyzer((String)analyzersIterator.next());
+  List analyzerLocaleList=new ArrayList(m_searchManager.getAnalyzers().keySet());
+  Collections.sort(analyzerLocaleList,CmsLocaleComparator.getComparator());
+  Iterator analyzersLocaleInterator=analyzerLocaleList.iterator();
+  while (analyzersLocaleInterator.hasNext()) {
+    CmsSearchAnalyzer searchAnalyzer=m_searchManager.getCmsSearchAnalyzer((Locale)analyzersLocaleInterator.next());
     Element analyzerElement=analyzersElement.addElement(N_ANALYZER);
     analyzerElement.addElement(N_CLASS).addText(searchAnalyzer.getClassName());
     if (searchAnalyzer.getStemmerAlgorithm() != null) {
       analyzerElement.addElement(N_STEMMER).addText(searchAnalyzer.getStemmerAlgorithm());
     }
-    analyzerElement.addElement(N_LOCALE).addText(searchAnalyzer.getLocale());
+    analyzerElement.addElement(N_LOCALE).addText(searchAnalyzer.getLocale().toString());
   }
   Element indexesElement=searchElement.addElement(N_INDEXES);
   Iterator indexIterator=m_searchManager.getSearchIndexes().iterator();
@@ -55,7 +51,11 @@
     indexElement.addElement(N_NAME).addText(searchIndex.getName());
     indexElement.addElement(N_REBUILD).addText(searchIndex.getRebuildMode());
     indexElement.addElement(N_PROJECT).addText(searchIndex.getProject());
-    indexElement.addElement(N_LOCALE).addText(searchIndex.getLocale());
+    indexElement.addElement(N_LOCALE).addText(searchIndex.getLocale().toString());
+    String fieldConfigurationName=searchIndex.getFieldConfigurationName();
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(fieldConfigurationName)) {
+      indexElement.addElement(N_CONFIGURATION).addText(fieldConfigurationName);
+    }
     Element sourcesElement=indexElement.addElement(N_SOURCES);
     Iterator sourcesIterator=searchIndex.getSourceNames().iterator();
     while (sourcesIterator.hasNext()) {
@@ -63,10 +63,11 @@
     }
     Map indexConfiguration=searchIndex.getConfiguration();
     if (indexConfiguration != null) {
-      Iterator it=indexConfiguration.keySet().iterator();
+      Iterator it=indexConfiguration.entrySet().iterator();
       while (it.hasNext()) {
-        String name=(String)it.next();
-        String value=indexConfiguration.get(name).toString();
+        Map.Entry entry=(Map.Entry)it.next();
+        String name=(String)entry.getKey();
+        String value=(String)entry.getValue();
         Element paramNode=indexElement.addElement(N_PARAM);
         paramNode.addAttribute(A_NAME,name);
         paramNode.addText(value);
@@ -82,10 +83,12 @@
     indexsourceElement.addElement(N_NAME).addText(searchIndexSource.getName());
     Element indexerElement=indexsourceElement.addElement(N_INDEXER).addAttribute(N_CLASS,searchIndexSource.getIndexerClassName());
     Map params=searchIndexSource.getParams();
-    Iterator paramIterator=params.keySet().iterator();
+    Iterator paramIterator=params.entrySet().iterator();
     while (paramIterator.hasNext()) {
-      String paramKey=(String)paramIterator.next();
-      indexerElement.addElement(I_CmsXmlConfiguration.N_PARAM).addAttribute(I_CmsXmlConfiguration.A_NAME,paramKey).addText((String)params.get(paramKey));
+      Map.Entry entry=(Map.Entry)paramIterator.next();
+      String name=(String)entry.getKey();
+      String value=(String)entry.getValue();
+      indexerElement.addElement(I_CmsXmlConfiguration.N_PARAM).addAttribute(I_CmsXmlConfiguration.A_NAME,name).addText(value);
     }
     Element resourcesElement=indexsourceElement.addElement(N_RESOURCES);
     Iterator resourceIterator=searchIndexSource.getResourcesNames().iterator();
@@ -96,6 +99,61 @@
     Iterator doctypesIterator=searchIndexSource.getDocumentTypes().iterator();
     while (doctypesIterator.hasNext()) {
       doctypes_indexedElement.addElement(N_NAME).addText((String)doctypesIterator.next());
+    }
+  }
+  Element configurationsElement=searchElement.addElement(N_FIELDCONFIGURATIONS);
+  Iterator configs=m_searchManager.getFieldConfigurations().iterator();
+  while (configs.hasNext()) {
+    CmsSearchFieldConfiguration config=(CmsSearchFieldConfiguration)configs.next();
+    Element configElement=configurationsElement.addElement(N_FIELDCONFIGURATION);
+    configElement.addElement(N_NAME).setText(config.getName());
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(config.getDescription())) {
+      configElement.addElement(N_DESCRIPTION).setText(config.getDescription());
+    }
+    Element fieldsElement=configElement.addElement(N_FIELDS);
+    Iterator fields=config.getFields().iterator();
+    while (fields.hasNext()) {
+      CmsSearchField field=(CmsSearchField)fields.next();
+      Element fieldElement=fieldsElement.addElement(N_FIELD);
+      fieldElement.addAttribute(A_NAME,field.getName());
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(field.getDisplayNameForConfiguration())) {
+        fieldElement.addAttribute(A_DISPLAY,field.getDisplayNameForConfiguration());
+      }
+      fieldElement.addAttribute(A_STORE,String.valueOf(field.isStored()));
+      String index;
+      if (field.isIndexed()) {
+        if (field.isTokenizedAndIndexed()) {
+          index=CmsStringUtil.TRUE;
+        }
+ else {
+          index=CmsSearchField.STR_UN_TOKENIZED;
+        }
+      }
+ else {
+        index=CmsStringUtil.FALSE;
+      }
+      fieldElement.addAttribute(A_INDEX,index);
+      if (field.getBoost() != CmsSearchField.BOOST_DEFAULT) {
+        fieldElement.addAttribute(A_BOOST,String.valueOf(field.getBoost()));
+      }
+      if (field.isInExcerptAndStored()) {
+        fieldElement.addAttribute(A_EXCERPT,String.valueOf(true));
+      }
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(field.getDefaultValue())) {
+        fieldElement.addAttribute(A_DEFAULT,field.getDefaultValue());
+      }
+      Iterator mappings=field.getMappings().iterator();
+      while (mappings.hasNext()) {
+        CmsSearchFieldMapping mapping=(CmsSearchFieldMapping)mappings.next();
+        Element mappingElement=fieldElement.addElement(N_MAPPING);
+        mappingElement.addAttribute(A_TYPE,mapping.getType().toString());
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(mapping.getDefaultValue())) {
+          mappingElement.addAttribute(A_DEFAULT,mapping.getDefaultValue());
+        }
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(mapping.getParam())) {
+          mappingElement.setText(mapping.getParam());
+        }
+      }
     }
   }
   return searchElement;

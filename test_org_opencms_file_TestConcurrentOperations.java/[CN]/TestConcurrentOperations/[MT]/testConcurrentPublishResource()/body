@@ -1,0 +1,35 @@
+{
+  int count=10;
+  CmsObject cms=getCmsObject();
+  echo("Testing concurrently publish same resource with " + count + " threads");
+  String resName="index.html";
+  cms.lockResource(resName);
+  cms.setDateLastModified(resName,System.currentTimeMillis(),true);
+  String name="doConcurrentPublishResourceOperation";
+  Integer[] value=new Integer[1];
+  value[0]=new Integer(0);
+  Object[] parameters=new Object[]{OpenCmsThreadedTestCaseSuite.PARAM_CMSOBJECT,OpenCmsThreadedTestCaseSuite.PARAM_COUNTER,value};
+  OpenCmsThreadedTestCaseSuite suite=new OpenCmsThreadedTestCaseSuite(count,this,name,parameters);
+  suite.setAllowedRuntime(10000);
+  OpenCmsThreadedTestCase[] threads=suite.run();
+  if (suite.getThrowable() != null) {
+    throw new Exception(suite.getThrowable());
+  }
+  OpenCms.getPublishManager().waitWhileRunning();
+  for (int i=0; i < count; i++) {
+    Throwable e=threads[i].getThrowable();
+    if (e != null) {
+      throw new Exception(e);
+    }
+  }
+  List pubHistory=OpenCms.getPublishManager().getPublishHistory();
+  assertEquals(10,pubHistory.size());
+  CmsPublishJobFinished pubJob=(CmsPublishJobFinished)pubHistory.get(0);
+  assertEquals(1,pubJob.getSize());
+  for (int i=1; i < 10; i++) {
+    pubJob=(CmsPublishJobFinished)pubHistory.get(i);
+    assertEquals("pubJob: " + i,0,pubJob.getSize());
+  }
+  echo("Concurrent publish resource test success");
+  echo("Total runtime of concurrent test suite: " + CmsStringUtil.formatRuntime(suite.getRuntime()));
+}

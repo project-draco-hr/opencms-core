@@ -1,0 +1,62 @@
+{
+  String resourcename=dbc.removeSiteRoot(resource.getRootPath());
+  String siteRoot=dbc.getRequestContext().getSiteRoot();
+  dbc.getRequestContext().setSiteRoot("");
+  String destination=CmsDriverManager.LOST_AND_FOUND_FOLDER + resourcename;
+  try {
+    String folderPath=CmsResource.getParentFolder(destination);
+    folderPath=folderPath.substring(1,folderPath.length() - 1);
+    Iterator folders=CmsStringUtil.splitAsList(folderPath,'/').iterator();
+    folderPath="/";
+    while (folders.hasNext()) {
+      folderPath+=folders.next().toString() + "/";
+      try {
+        readFolder(dbc,folderPath,CmsResourceFilter.IGNORE_EXPIRATION);
+      }
+ catch (      Exception e1) {
+        if (returnNameOnly) {
+          break;
+        }
+        createResource(dbc,folderPath,CmsResourceTypeFolder.RESOURCE_TYPE_ID,null,Collections.EMPTY_LIST);
+      }
+    }
+    String des=destination;
+    int postfix=1;
+    boolean found=true;
+    while (found) {
+      try {
+        found=true;
+        readResource(dbc,des,CmsResourceFilter.ALL);
+        String path=destination.substring(0,destination.lastIndexOf('/') + 1);
+        String filename=destination.substring(destination.lastIndexOf('/') + 1,destination.length());
+        des=path;
+        if (filename.lastIndexOf('.') > 0) {
+          des+=filename.substring(0,filename.lastIndexOf('.'));
+        }
+ else {
+          des+=filename;
+        }
+        des+="_" + postfix;
+        if (filename.lastIndexOf('.') > 0) {
+          des+=filename.substring(filename.lastIndexOf('.'),filename.length());
+        }
+        postfix++;
+      }
+ catch (      CmsException e3) {
+        found=false;
+      }
+    }
+    destination=des;
+    if (!returnNameOnly) {
+      copyResource(dbc,resource,destination,CmsResource.COPY_AS_SIBLING);
+      deleteResource(dbc,resource,CmsResource.DELETE_PRESERVE_SIBLINGS);
+    }
+  }
+ catch (  CmsException e2) {
+    throw e2;
+  }
+ finally {
+    dbc.getRequestContext().setSiteRoot(siteRoot);
+  }
+  return destination;
+}

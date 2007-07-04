@@ -1,0 +1,27 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing initializing the publish manager/engine");
+  assertFalse(OpenCms.getPublishManager().isRunning());
+  OpenCms.getPublishManager().stopPublishing();
+  String source="/folder2/subfolder21/image1.gif";
+  String destination2="/testInitialization2_";
+  if (!cms.getLock(source).isNullLock()) {
+    cms.unlockResource(source);
+  }
+  int max=12;
+  for (int i=0; i < max; i++) {
+    cms.copyResource(source,destination2 + (i + 1) + ".gif",CmsResource.COPY_AS_NEW);
+  }
+  OpenCms.getPublishManager().publishProject(cms);
+  List oldQueue=OpenCms.getPublishManager().getPublishQueue();
+  OpenCms.getPublishManager().addPublishListener(new TestPublishEventListener2(cms));
+  OpenCms.getPublishManager().startPublishing();
+  OpenCms.getPublishManager().waitWhileRunning();
+  List newQueue=OpenCms.getPublishManager().getPublishQueue();
+  List newHistory=OpenCms.getPublishManager().getPublishHistory();
+  assertEquals(1,oldQueue.size());
+  assertEquals(0,newQueue.size());
+  CmsPublishJobEnqueued jobInQueue=(CmsPublishJobEnqueued)oldQueue.get(0);
+  CmsPublishJobFinished jobInHistory=(CmsPublishJobFinished)newHistory.get(newHistory.size() - 1);
+  assertEquals(jobInQueue,jobInHistory,false,false);
+}

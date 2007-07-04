@@ -1,0 +1,32 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing 'replaceResource' method, replace link parseable with non link parseable resource");
+  String sourceName="/folder1/subfolder11/subsubfolder111/jsp.jsp";
+  CmsResource source=cms.readResource(sourceName);
+  String targetName="/folder1/image2.gif";
+  CmsResource target=cms.readResource(targetName);
+  List relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  int sources=cms.getRelationsForResource(targetName,CmsRelationFilter.SOURCES).size();
+  String replacedName="/index_created.html";
+  cms.lockResource(replacedName);
+  cms.replaceResource(replacedName,source.getTypeId(),CmsFile.upgrade(source,cms).getContents(),null);
+  CmsResource replaced=cms.readResource(replacedName);
+  relations=cms.getRelationsForResource(replacedName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  assertRelationOperation(cms,replaced,target,sources - 1,0);
+  CmsProject project=cms.getRequestContext().currentProject();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  sources=cms.getRelationsForResource(targetName,CmsRelationFilter.SOURCES).size();
+  assertRelationOperation(cms,replaced,target,sources,1);
+  cms.getRequestContext().setCurrentProject(project);
+  cms.unlockResource(replacedName);
+  OpenCms.getPublishManager().publishResource(cms,replacedName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  relations=cms.getRelationsForResource(replacedName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  assertRelationOperation(cms,replaced,target,sources - 1,0);
+}

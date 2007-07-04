@@ -1,0 +1,26 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing 'moveResource' method");
+  String sourceName="/index_sibling.html";
+  String targetName="/folder1/image2.gif";
+  CmsResource target=cms.readResource(targetName);
+  List relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  int sources=cms.getRelationsForResource(targetName,CmsRelationFilter.SOURCES).size();
+  String movedName="/index_moved.html";
+  cms.lockResource(sourceName);
+  cms.moveResource(sourceName,movedName);
+  CmsResource moved=cms.readResource(movedName);
+  assertRelationOperation(cms,moved,target,sources,1);
+  CmsProject project=cms.getRequestContext().currentProject();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  relations=cms.getRelationsForResource(targetName,CmsRelationFilter.TARGETS);
+  assertTrue(relations.isEmpty());
+  sources=cms.getRelationsForResource(targetName,CmsRelationFilter.SOURCES).size();
+  cms.getRequestContext().setCurrentProject(project);
+  cms.unlockResource(movedName);
+  OpenCms.getPublishManager().publishResource(cms,movedName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  assertRelationOperation(cms,moved,target,sources,1);
+}

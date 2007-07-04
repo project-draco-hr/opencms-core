@@ -6,7 +6,11 @@
     LOG.debug(Messages.get().getBundle().key(Messages.LOG_THREAD_POOL_UNAVAILABLE_0));
     return false;
   }
-  if ((m_currentThreadCount == 0) || (m_nextRunnable != null)) {
+  boolean hasNextRunnable;
+synchronized (m_nextRunnableLock) {
+    hasNextRunnable=(m_nextRunnable != null);
+  }
+  if (hasNextRunnable || (m_currentThreadCount == 0)) {
     growThreadPool();
   }
 synchronized (m_nextRunnableLock) {
@@ -23,7 +27,8 @@ synchronized (m_nextRunnableLock) {
     }
   }
   if (m_isShutdown) {
-    new CmsSchedulerThread(this,m_threadGroup,m_threadNamePrefix + "(final)",m_threadPriority,false,runnable);
+    CmsSchedulerThread thread=new CmsSchedulerThread(this,m_threadGroup,m_threadNamePrefix + "(final)",m_threadPriority,false,runnable);
+    thread.start();
   }
   return true;
 }

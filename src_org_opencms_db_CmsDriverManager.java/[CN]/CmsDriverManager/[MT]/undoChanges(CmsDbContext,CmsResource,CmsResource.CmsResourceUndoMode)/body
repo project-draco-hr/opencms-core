@@ -1,0 +1,28 @@
+{
+  if (resource.getState().isNew()) {
+    throw new CmsVfsException(Messages.get().container(Messages.ERR_UNDO_CHANGES_FOR_RESOURCE_NEW_0));
+  }
+  CmsProject onlineProject=readProject(dbc,CmsProject.ONLINE_PROJECT_ID);
+  CmsResource onlineResource=m_vfsDriver.readResource(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getStructureId(),true);
+  CmsResource onlineResourceByPath=null;
+  try {
+    onlineResourceByPath=m_vfsDriver.readResource(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getRootPath(),true);
+    if (!mode.isUndoMove() && !onlineResourceByPath.getRootPath().equals(onlineResource.getRootPath())) {
+      mode=mode.includeMove();
+    }
+  }
+ catch (  Exception e) {
+  }
+  boolean moved=!onlineResource.getRootPath().equals(resource.getRootPath());
+  if (moved && mode.isUndoMove()) {
+    moveResource(dbc,resource,onlineResource.getRootPath(),true);
+    if ((onlineResourceByPath != null) && !onlineResourceByPath.getRootPath().equals(onlineResource.getRootPath())) {
+      undoContentChanges(dbc,onlineProject,null,onlineResourceByPath,CmsResource.STATE_UNCHANGED,true);
+    }
+  }
+  CmsResourceState newState=CmsResource.STATE_UNCHANGED;
+  if (moved && !mode.isUndoMove()) {
+    newState=CmsResource.STATE_CHANGED;
+  }
+  undoContentChanges(dbc,onlineProject,resource,onlineResource,newState,moved && mode.isUndoMove());
+}

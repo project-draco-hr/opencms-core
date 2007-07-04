@@ -1,0 +1,44 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing history creating, modifying and deleting a file");
+  String filename="/dummy1.txt";
+  int counter=2;
+  CmsResource res=cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId(),"content version 0".getBytes(),null);
+  cms.unlockResource(filename);
+  OpenCms.getPublishManager().publishResource(cms,filename);
+  OpenCms.getPublishManager().waitWhileRunning();
+  for (int i=1; i <= counter; i++) {
+    String contentStr="content version " + i;
+    CmsFile file=cms.readFile(filename);
+    file.setContents(contentStr.getBytes());
+    cms.lockResource(filename);
+    cms.writeFile(file);
+    OpenCms.getPublishManager().publishResource(cms,filename);
+    OpenCms.getPublishManager().waitWhileRunning();
+  }
+  CmsFile file=cms.readFile(filename);
+  file.setContents(("content version " + (counter + 1)).getBytes());
+  cms.lockResource(filename);
+  cms.writeFile(file);
+  cms.deleteResource(filename,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  cms.unlockResource(filename);
+  OpenCms.getPublishManager().publishResource(cms,filename);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId(),null,null);
+  List historyResources=cms.readAllAvailableVersions(filename);
+  assertTrue(historyResources.isEmpty());
+  String importFile="import.txt";
+  cms.importResource(importFile,res,"blah-blah".getBytes(),null);
+  historyResources=cms.readAllAvailableVersions(importFile);
+  assertEquals(counter + 2,historyResources.size());
+  for (int i=0; i < counter + 2; i++) {
+    int version=counter + 2 - i;
+    String contentStr="content version " + (version - 1);
+    I_CmsHistoryResource historyResource=(I_CmsHistoryResource)historyResources.get(i);
+    assertEquals(version,historyResource.getVersion());
+    cms.restoreResourceVersion(historyResource.getStructureId(),historyResource.getVersion());
+    file=cms.readFile(importFile);
+    String restoredContent=getContentString(cms,file.getContents());
+    assertEquals(contentStr,restoredContent);
+  }
+}

@@ -1,0 +1,323 @@
+{
+  CmsObject cms=getCmsObject();
+  String filename1, filename2, filename3, filename4, filename5, filename6, filename7, filename8;
+switch (mode) {
+case MODE_XMLCONTENT_BOTH:
+    filename1="/xmlcontent1.html";
+  filename2="/xmlcontent2.html";
+filename3="/xmlcontent3.html";
+filename4="/xmlcontent4.html";
+filename5="/xmlcontent5.html";
+filename6="/xmlcontent6.html";
+filename7="/xmlcontent7.html";
+filename8="/xmlcontent8.html";
+break;
+case MODE_XMLCONTENT_HTML_ONLY:
+filename1="/xmlcontent1html.html";
+filename2="/xmlcontent2html.html";
+filename3="/xmlcontent3html.html";
+filename4="/xmlcontent4html.html";
+filename5="/xmlcontent5html.html";
+filename6="/xmlcontent6html.html";
+filename7="/xmlcontent7html.html";
+filename8="/xmlcontent8html.html";
+break;
+case MODE_XMLCONTENT_FILEREF_ONLY:
+filename1="/xmlcontent1ref.html";
+filename2="/xmlcontent2ref.html";
+filename3="/xmlcontent3ref.html";
+filename4="/xmlcontent4ref.html";
+filename5="/xmlcontent5ref.html";
+filename6="/xmlcontent6ref.html";
+filename7="/xmlcontent7ref.html";
+filename8="/xmlcontent8ref.html";
+break;
+default :
+filename1="/xmlpage1.html";
+filename2="/xmlpage2.html";
+filename3="/xmlpage3.html";
+filename4="/xmlpage4.html";
+filename5="/xmlpage5.html";
+filename6="/xmlpage6.html";
+filename7="/xmlpage7.html";
+filename8="/xmlpage8.html";
+break;
+}
+int type;
+if (mode > MODE_XMLPAGE) {
+type=OpenCmsTestCase.ARTICLE_TYPEID;
+}
+ else {
+type=CmsResourceTypeXmlPage.getStaticTypeId();
+}
+CmsResource res1=cms.createResource(filename1,type);
+CmsResource res2=cms.createResource(filename2,type);
+CmsResource res3=cms.createResource(filename3,type);
+CmsResource res4=cms.createResource(filename4,type);
+CmsResource res5=cms.createResource(filename5,type);
+CmsResource res6=cms.createResource(filename6,type);
+CmsResource res7=cms.createResource(filename7,type);
+String content1="<a href='" + filename2 + "'>file2</a><br><a href='"+ filename3+ "'>file3</a>";
+String content4="<a href='" + filename2 + "'>file2</a>";
+String content5="<a href='" + filename6 + "'>file6</a>";
+String content6="<a href='" + filename5 + "'>file5</a>";
+CmsRelationType relType1=null;
+switch (mode) {
+case MODE_XMLCONTENT_BOTH:
+setXmlContent(cms,filename1,content1,filename2);
+setXmlContent(cms,filename4,content4,filename2);
+setXmlContent(cms,filename5,content5,filename6);
+setXmlContent(cms,filename6,content6,filename5);
+relType1=CmsRelationType.HYPERLINK;
+break;
+case MODE_XMLCONTENT_HTML_ONLY:
+setXmlContentHtml(cms,filename1,content1);
+setXmlContentHtml(cms,filename4,content4);
+setXmlContentHtml(cms,filename5,content5);
+setXmlContentHtml(cms,filename6,content6);
+relType1=CmsRelationType.HYPERLINK;
+break;
+case MODE_XMLCONTENT_FILEREF_ONLY:
+setXmlContentFileRef(cms,filename1,filename2,filename3);
+setXmlContentFileRef(cms,filename4,filename2,null);
+setXmlContentFileRef(cms,filename5,filename6,null);
+setXmlContentFileRef(cms,filename6,filename5,null);
+relType1=CmsRelationType.XML_WEAK;
+break;
+default :
+setContent(cms,filename1,content1);
+setContent(cms,filename4,content4);
+setContent(cms,filename5,content5);
+setContent(cms,filename6,content6);
+relType1=CmsRelationType.HYPERLINK;
+break;
+}
+CmsShellReport report=new CmsShellReport(cms.getRequestContext().getLocale());
+cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+Map validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,Collections.singletonList(res1),false),report);
+assertEquals(validation.size(),1);
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename1)));
+List brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename1));
+assertEquals(brokenLinks.size(),(mode == MODE_XMLCONTENT_BOTH ? 3 : 2));
+assertTrue(brokenLinks.contains(new CmsRelation(res1,res2,relType1)));
+assertTrue(brokenLinks.contains(new CmsRelation(res1,res3,relType1)));
+if (mode == MODE_XMLCONTENT_BOTH) {
+assertTrue(brokenLinks.contains(new CmsRelation(res1,res2,CmsRelationType.XML_WEAK)));
+}
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,Collections.singletonList(res2),false),report);
+assertTrue(validation.isEmpty());
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,Collections.singletonList(res3),false),report);
+assertTrue(validation.isEmpty());
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,Collections.singletonList(res4),false),report);
+assertEquals(validation.size(),1);
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename4)));
+brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename4));
+assertEquals(brokenLinks.size(),(mode == MODE_XMLCONTENT_BOTH ? 2 : 1));
+assertTrue(brokenLinks.contains(new CmsRelation(res4,res2,relType1)));
+if (mode == MODE_XMLCONTENT_BOTH) {
+assertTrue(brokenLinks.contains(new CmsRelation(res4,res2,CmsRelationType.XML_WEAK)));
+}
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,Collections.singletonList(res5),false),report);
+assertEquals(validation.size(),1);
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename5)));
+brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename5));
+assertEquals(brokenLinks.size(),(mode == MODE_XMLCONTENT_BOTH ? 2 : 1));
+assertTrue(brokenLinks.contains(new CmsRelation(res5,res6,relType1)));
+if (mode == MODE_XMLCONTENT_BOTH) {
+assertTrue(brokenLinks.contains(new CmsRelation(res5,res6,CmsRelationType.XML_WEAK)));
+}
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,Collections.singletonList(res6),false),report);
+assertEquals(validation.size(),1);
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename6)));
+brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename6));
+assertEquals(brokenLinks.size(),(mode == MODE_XMLCONTENT_BOTH ? 2 : 1));
+assertTrue(brokenLinks.contains(new CmsRelation(res6,res5,relType1)));
+if (mode == MODE_XMLCONTENT_BOTH) {
+assertTrue(brokenLinks.contains(new CmsRelation(res6,res5,CmsRelationType.XML_WEAK)));
+}
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,Collections.singletonList(res7),false),report);
+assertTrue(validation.isEmpty());
+List res56=new ArrayList();
+res56.add(res5);
+res56.add(res6);
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,res56,false),report);
+assertTrue(validation.isEmpty());
+List res123=new ArrayList();
+res123.add(res1);
+res123.add(res2);
+res123.add(res3);
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,res123,false),report);
+assertTrue(validation.isEmpty());
+List resAll=new ArrayList();
+resAll.add(res1);
+resAll.add(res2);
+resAll.add(res3);
+resAll.add(res4);
+resAll.add(res5);
+resAll.add(res6);
+resAll.add(res7);
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,resAll,false),report);
+assertTrue(validation.isEmpty());
+cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+OpenCms.getPublishManager().publishProject(cms,report);
+OpenCms.getPublishManager().waitWhileRunning();
+touchResources(cms,resAll);
+validation=validateAfterDelete(cms,Collections.singletonList(res1),resAll,report);
+assertTrue(validation.isEmpty());
+validation=validateAfterDelete(cms,Collections.singletonList(res2),resAll,report);
+assertEquals(validation.size(),2);
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename1)));
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename4)));
+brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename1));
+assertEquals(brokenLinks.size(),(mode == MODE_XMLCONTENT_BOTH ? 2 : 1));
+assertTrue(brokenLinks.contains(new CmsRelation(res1,res2,relType1)));
+if (mode == MODE_XMLCONTENT_BOTH) {
+assertTrue(brokenLinks.contains(new CmsRelation(res1,res2,CmsRelationType.XML_WEAK)));
+}
+brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename4));
+assertEquals(brokenLinks.size(),(mode == MODE_XMLCONTENT_BOTH ? 2 : 1));
+assertTrue(brokenLinks.contains(new CmsRelation(res4,res2,relType1)));
+if (mode == MODE_XMLCONTENT_BOTH) {
+assertTrue(brokenLinks.contains(new CmsRelation(res4,res2,CmsRelationType.XML_WEAK)));
+}
+validation=validateAfterDelete(cms,Collections.singletonList(res3),resAll,report);
+assertEquals(validation.size(),1);
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename1)));
+brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename1));
+assertEquals(brokenLinks.size(),1);
+assertTrue(brokenLinks.contains(new CmsRelation(res1,res3,relType1)));
+validation=validateAfterDelete(cms,Collections.singletonList(res4),resAll,report);
+assertTrue(validation.isEmpty());
+validation=validateAfterDelete(cms,Collections.singletonList(res5),resAll,report);
+assertEquals(validation.size(),1);
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename6)));
+brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename6));
+assertEquals(brokenLinks.size(),(mode == MODE_XMLCONTENT_BOTH ? 2 : 1));
+assertTrue(brokenLinks.contains(new CmsRelation(res6,res5,relType1)));
+if (mode == MODE_XMLCONTENT_BOTH) {
+assertTrue(brokenLinks.contains(new CmsRelation(res6,res5,CmsRelationType.XML_WEAK)));
+}
+validation=validateAfterDelete(cms,Collections.singletonList(res6),resAll,report);
+assertEquals(validation.size(),1);
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename5)));
+brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename5));
+assertEquals(brokenLinks.size(),(mode == MODE_XMLCONTENT_BOTH ? 2 : 1));
+assertTrue(brokenLinks.contains(new CmsRelation(res5,res6,relType1)));
+if (mode == MODE_XMLCONTENT_BOTH) {
+assertTrue(brokenLinks.contains(new CmsRelation(res5,res6,CmsRelationType.XML_WEAK)));
+}
+validation=validateAfterDelete(cms,Collections.singletonList(res7),resAll,report);
+assertTrue(validation.isEmpty());
+validation=validateAfterDelete(cms,res56,resAll,report);
+assertTrue(validation.isEmpty());
+CmsResource file5=cms.readResource(filename5);
+delete(cms,filename5,report);
+switch (mode) {
+case 1:
+setXmlContent(cms,filename6,"<a href='" + filename7 + "'>file7</a>",filename7);
+break;
+case 2:
+setXmlContentHtml(cms,filename6,"<a href='" + filename7 + "'>file7</a>");
+break;
+case 3:
+setXmlContentFileRef(cms,filename6,filename7,null);
+break;
+default :
+setContent(cms,filename6,"<a href='" + filename7 + "'>file7</a>");
+break;
+}
+List resources=new ArrayList(resAll);
+resources.remove(res5);
+cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,resources,false),report);
+assertTrue(validation.isEmpty());
+switch (mode) {
+case 1:
+setXmlContent(cms,filename6,content6,filename5);
+break;
+case 2:
+setXmlContentHtml(cms,filename6,content6);
+break;
+case 3:
+setXmlContentFileRef(cms,filename6,filename5,null);
+break;
+default :
+setContent(cms,filename6,content6);
+break;
+}
+restore(cms,file5,report);
+CmsResource file2=cms.readResource(filename2);
+delete(cms,filename2,report);
+switch (mode) {
+case 1:
+setXmlContent(cms,filename1,"no link!",null);
+setXmlContent(cms,filename4,"<a href='" + filename7 + "'>file7</a>",filename7);
+break;
+case 2:
+setXmlContentHtml(cms,filename1,"no link!");
+setXmlContentHtml(cms,filename4,"<a href='" + filename7 + "'>file7</a>");
+break;
+case 3:
+setXmlContentFileRef(cms,filename1,null,null);
+setXmlContentFileRef(cms,filename4,filename7,null);
+break;
+default :
+setContent(cms,filename1,"no link!");
+setContent(cms,filename4,"<a href='" + filename7 + "'>file7</a>");
+break;
+}
+resources=new ArrayList(resAll);
+resources.remove(res2);
+cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,resources,false),report);
+assertTrue(validation.isEmpty());
+switch (mode) {
+case 1:
+setXmlContent(cms,filename1,content1,filename2);
+setXmlContent(cms,filename4,content4,filename2);
+break;
+case 2:
+setXmlContentHtml(cms,filename1,content1);
+setXmlContentHtml(cms,filename4,content4);
+break;
+case 3:
+setXmlContentFileRef(cms,filename1,filename2,filename3);
+setXmlContentFileRef(cms,filename4,filename2,null);
+break;
+default :
+setContent(cms,filename1,content1);
+setContent(cms,filename4,content4);
+break;
+}
+restore(cms,file2,report);
+CmsResource res8=cms.createResource(filename8,CmsResourceTypeXmlPage.getStaticTypeId());
+switch (mode) {
+case 1:
+setXmlContent(cms,filename7,"<a href='" + filename8 + "'>file8</a>",filename8);
+break;
+case 2:
+setXmlContentHtml(cms,filename7,"<a href='" + filename8 + "'>file8</a>");
+break;
+case 3:
+setXmlContentFileRef(cms,filename7,filename8,null);
+break;
+default :
+setContent(cms,filename7,"<a href='" + filename8 + "'>file8</a>");
+break;
+}
+cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,Collections.singletonList(res7),false),report);
+assertEquals(validation.size(),1);
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename7)));
+brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename7));
+assertEquals(brokenLinks.size(),(mode == MODE_XMLCONTENT_BOTH ? 2 : 1));
+assertTrue(brokenLinks.contains(new CmsRelation(res7,res8,relType1)));
+if (mode == MODE_XMLCONTENT_BOTH) {
+assertTrue(brokenLinks.contains(new CmsRelation(res7,res8,CmsRelationType.XML_WEAK)));
+}
+List res78=new ArrayList();
+res78.add(res7);
+res78.add(res8);
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,res78,false),report);
+assertTrue(validation.isEmpty());
+}

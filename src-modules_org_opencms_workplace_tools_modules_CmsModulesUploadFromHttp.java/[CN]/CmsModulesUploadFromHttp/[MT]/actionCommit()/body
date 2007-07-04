@@ -3,10 +3,13 @@
     copyFileToServer(OpenCms.getSystemInfo().getPackagesRfsPath() + File.separator + CmsSystemInfo.FOLDER_MODULES);
   }
  catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(getLocale()),e);
+    }
     setException(e);
     return;
   }
-  List errors=new ArrayList();
+  CmsConfigurationException exception=null;
   CmsModule module=null;
   try {
     String importpath=OpenCms.getSystemInfo().getPackagesRfsPath();
@@ -23,13 +26,13 @@
         dep.append(dependency.getVersion());
         dep.append(")");
       }
-      errors.add(Messages.get().container(Messages.ERR_ACTION_MODULE_DEPENDENCY_2,getParamImportfile(),new String(dep)));
+      exception=new CmsConfigurationException(Messages.get().container(Messages.ERR_ACTION_MODULE_DEPENDENCY_2,getParamImportfile(),new String(dep)));
     }
   }
  catch (  CmsConfigurationException e) {
-    errors.add(Messages.get().container(Messages.ERR_ACTION_MODULE_UPLOAD_1,getParamImportfile()));
+    exception=e;
   }
-  if (errors.isEmpty()) {
+  if ((module != null) && (exception == null)) {
     Map objects=(Map)getSettings().getListObject();
     if (objects != null) {
       objects.remove(CmsModulesList.class.getName());
@@ -47,14 +50,11 @@
     }
   }
  else {
-    Iterator it=errors.iterator();
-    CmsMessageContainer msg;
-    while (it.hasNext()) {
-      msg=(CmsMessageContainer)it.next();
+    if (exception != null) {
       if (LOG.isErrorEnabled()) {
-        LOG.error(msg.key(getLocale()));
+        LOG.error(exception.getLocalizedMessage(getLocale()),exception);
       }
-      throw new CmsIllegalStateException(msg);
+      throw new CmsRuntimeException(exception.getMessageContainer(),exception);
     }
   }
 }

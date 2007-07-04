@@ -1,0 +1,38 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  String changedSchema="org/opencms/xml/content/xmlcontent-definition-1.mod4.xsd";
+  String originalFile="org/opencms/xml/content/xmlcontent-1.xml";
+  String filename="/testUsageDemo.html";
+  cacheSchema(resolver,SCHEMA_SYSTEM_ID_1,changedSchema);
+  String content=CmsFileUtil.readFile(originalFile,CmsEncoder.ENCODING_UTF_8);
+  CmsXmlContent xmlcontent=CmsXmlContentFactory.unmarshal(content,CmsEncoder.ENCODING_UTF_8,resolver);
+  System.out.println(xmlcontent.toString());
+  Exception ex=null;
+  try {
+    xmlcontent.validateXmlStructure(resolver);
+  }
+ catch (  CmsXmlException e) {
+    ex=e;
+  }
+  assertNotNull(ex);
+  xmlcontent.setAutoCorrectionEnabled(true);
+  xmlcontent.correctXmlStructure(cms);
+  System.out.println(xmlcontent.toString());
+  xmlcontent.validateXmlStructure(resolver);
+  cms.createResource(filename,OpenCms.getResourceManager().getResourceType("xmlcontent").getTypeId(),xmlcontent.toString().getBytes(xmlcontent.getEncoding()),Collections.EMPTY_LIST);
+  changedSchema="org/opencms/xml/content/xmlcontent-definition-1.mod5.xsd";
+  cacheSchema(resolver,SCHEMA_SYSTEM_ID_1,changedSchema);
+  CmsFile file=cms.readFile(filename);
+  ex=null;
+  try {
+    file=cms.writeFile(file);
+  }
+ catch (  CmsXmlException e) {
+    ex=e;
+  }
+  assertNotNull(ex);
+  cms.getRequestContext().setAttribute(CmsXmlContent.AUTO_CORRECTION_ATTRIBUTE,Boolean.TRUE);
+  file=cms.writeFile(file);
+  System.out.println(new String(file.getContents()));
+}
