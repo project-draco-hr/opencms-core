@@ -1,16 +1,11 @@
 {
-  StringBuffer result=new StringBuffer();
-  if (getKey() == null) {
-    result.append(createError(Messages.get().getBundle(getJsp().getRequestContext().getLocale()).key(Messages.GUI_PROGRESS_KEY_NOT_SET_0)));
-    return result.toString();
-  }
   try {
     CmsProgressThread thread;
     if (getProgressThread(getKey()) != null) {
       thread=(CmsProgressThread)m_threads.get(getKey());
       if (thread.isAlive()) {
-        if (thread.getRuntime() < m_showWaitTime) {
-          while ((thread.getRuntime() < m_showWaitTime) && (thread.isAlive())) {
+        if (thread.getRuntime() < getShowWaitTime()) {
+          while ((thread.getRuntime() < getShowWaitTime()) && (thread.isAlive())) {
 synchronized (this) {
               wait(500);
             }
@@ -24,25 +19,29 @@ synchronized (this) {
       }
       if (!thread.isAlive()) {
         if (thread.getError() != null) {
-          result.append(createError(Messages.get().getBundle(getJsp().getRequestContext().getLocale()).key(Messages.GUI_PROGRESS_ERROR_IN_THREAD_0),thread.getError()));
-          return result.toString();
+          return createError(Messages.get().getBundle(getJsp().getRequestContext().getLocale()).key(Messages.GUI_PROGRESS_ERROR_IN_THREAD_0),thread.getError());
         }
         return thread.getResult();
       }
+      StringBuffer result=new StringBuffer();
       result.append("PRO");
       result.append(thread.getProgress());
       result.append("%");
       result.append("|");
       result.append(thread.getDescription());
+      return result.toString();
     }
  else {
-      result.append(createError(Messages.get().getBundle(getJsp().getRequestContext().getLocale()).key(Messages.GUI_PROGRESS_THREAD_NOT_FOUND_1,getKey())));
-      return result.toString();
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_PROGRESS_THREAD_NOT_FOUND_1,getKey()));
+      }
+      return createError(Messages.get().getBundle(getJsp().getRequestContext().getLocale()).key(Messages.GUI_PROGRESS_THREAD_NOT_FOUND_1,getKey()));
     }
   }
  catch (  Throwable t) {
-    result.append(createError(Messages.get().getBundle(getJsp().getRequestContext().getLocale()).key(Messages.GUI_PROGRESS_ERROR_CALCULATING_0),t));
-    return result.toString();
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_PROGRESS_ERROR_CALC_PROGRESS_0),t);
+    }
+    return createError(Messages.get().getBundle(getJsp().getRequestContext().getLocale()).key(Messages.GUI_PROGRESS_ERROR_CALCULATING_0),t);
   }
-  return result.toString();
 }
