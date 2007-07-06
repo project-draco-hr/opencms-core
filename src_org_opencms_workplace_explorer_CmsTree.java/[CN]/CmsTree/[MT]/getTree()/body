@@ -1,15 +1,8 @@
 {
   StringBuffer result=new StringBuffer(2048);
-  String targetFolder=getTargetFolder();
-  String startFolder=getStartFolder();
   List targetFolderList=new ArrayList();
-  boolean grey;
-  List resources=new ArrayList();
-  CmsFolder folder=null;
-  String oldSiteRoot=getCms().getRequestContext().getSiteRoot();
-  String storedSiteRoot=null;
-  if (targetFolder != null) {
-    StringTokenizer T=new StringTokenizer(targetFolder,"|");
+  if (getTargetFolder() != null) {
+    StringTokenizer T=new StringTokenizer(getTargetFolder(),"|");
     while (T.hasMoreTokens()) {
       String currentFolder=T.nextToken().trim();
       targetFolderList.add(currentFolder);
@@ -18,8 +11,12 @@
  else {
     targetFolderList.add(null);
   }
-  Iterator targets=targetFolderList.iterator();
+  String storedSiteRoot=null;
   try {
+    CmsFolder folder=null;
+    List resources=new ArrayList();
+    String oldSiteRoot=getCms().getRequestContext().getSiteRoot();
+    Iterator targets=targetFolderList.iterator();
     while (targets.hasNext()) {
       String currentTargetFolder=(String)targets.next();
       if (getSettings().getTreeSite(getTreeType()) != null) {
@@ -44,6 +41,7 @@
  catch (      CmsException e) {
         return printError(e);
       }
+      String startFolder=getStartFolder();
       if ((startFolder == null) || (!currentTargetFolder.startsWith(startFolder))) {
         try {
           if (includeFiles()) {
@@ -86,20 +84,24 @@
       result.append("parent.initTree();\n");
       result.append(getRootNode());
     }
-    List projectResources;
-    try {
-      projectResources=getCms().readProjectResources(getCms().getRequestContext().currentProject());
-    }
- catch (    CmsException e) {
-      if (LOG.isInfoEnabled()) {
-        LOG.info(e);
+    List projectResources=new ArrayList();
+    if (isProjectAware()) {
+      try {
+        projectResources=getCms().readProjectResources(getCms().getRequestContext().currentProject());
       }
-      projectResources=new ArrayList();
+ catch (      CmsException e) {
+        if (LOG.isInfoEnabled()) {
+          LOG.info(e);
+        }
+      }
     }
     Iterator i=resources.iterator();
     while (i.hasNext()) {
       CmsResource resource=(CmsResource)i.next();
-      grey=!CmsProject.isInsideProject(projectResources,resource);
+      boolean grey=false;
+      if (isProjectAware()) {
+        grey=!CmsProject.isInsideProject(projectResources,resource);
+      }
       if (!grey) {
         try {
           OpenCms.getResourceManager().getResourceType(resource.getTypeId());
@@ -113,6 +115,7 @@
     if (includeFiles()) {
       result.append("parent.setIncludeFiles(true);\n");
     }
+    result.append("parent.setProjectAware(").append(isProjectAware()).append(");\n");
     if (getTreeType() != null) {
       result.append("parent.setTreeType(\"");
       result.append(getTreeType());
