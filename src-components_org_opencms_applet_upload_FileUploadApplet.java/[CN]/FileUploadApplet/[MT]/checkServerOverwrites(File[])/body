@@ -8,44 +8,53 @@
   }
   StringBuffer uploadFiles=new StringBuffer();
   Iterator it=fileNames.iterator();
-  while (it.hasNext()) {
-    uploadFiles.append(((String)it.next())).append('\n');
-  }
+  int count=0;
+  List duplications;
   HttpClient client=new HttpClient();
-  PostMethod post=new PostMethod(m_targetUrl);
+  this.m_overwrites=new ArrayList();
   try {
-    Header postHeader=new Header("uploadFiles",URLEncoder.encode(uploadFiles.toString(),"utf-8"));
-    post.addRequestHeader(postHeader);
-    Header header2=new Header("uploadFolder",URLEncoder.encode(getParameter("filelist"),"utf-8"));
-    post.addRequestHeader(header2);
-    post.setParameter("action",DIALOG_CHECK_OVERWRITE);
-    String sessionId=getParameter("sessionId");
-    String query=";" + C_JSESSIONID.toLowerCase() + "="+ sessionId;
-    post.setQueryString(query);
-    post.addRequestHeader(C_JSESSIONID,sessionId);
-    HttpConnectionParams connectionParams=client.getHttpConnectionManager().getParams();
-    connectionParams.setConnectionTimeout(5000);
-    client.getState();
-    client.getHostConfiguration().getHost();
-    HttpState initialState=new HttpState();
-    URI uri=new URI(m_targetUrl,false);
-    Cookie sessionCookie=new Cookie(uri.getHost(),C_JSESSIONID,sessionId,"/",null,false);
-    initialState.addCookie(sessionCookie);
-    client.setState(initialState);
-    int status=client.executeMethod(post);
-    if (status == HttpStatus.SC_OK) {
-      String response=post.getResponseBodyAsString();
-      m_overwrites=parseDuplicateFiles(URLDecoder.decode(response,"utf-8"));
-      if (m_overwrites.size() > 0) {
-        rtv=showDuplicationsDialog(m_overwrites);
-      }
+    while (it.hasNext()) {
+      count++;
+      uploadFiles.append(((String)it.next())).append('\n');
+      if (((count % 40) == 0) || (!it.hasNext())) {
+        PostMethod post=new PostMethod(m_targetUrl);
+        Header postHeader=new Header("uploadFiles",URLEncoder.encode(uploadFiles.toString(),"utf-8"));
+        post.addRequestHeader(postHeader);
+        Header header2=new Header("uploadFolder",URLEncoder.encode(getParameter("filelist"),"utf-8"));
+        post.addRequestHeader(header2);
+        post.setParameter("action",DIALOG_CHECK_OVERWRITE);
+        String sessionId=getParameter("sessionId");
+        String query=";" + C_JSESSIONID.toLowerCase() + "="+ sessionId;
+        post.setQueryString(query);
+        post.addRequestHeader(C_JSESSIONID,sessionId);
+        HttpConnectionParams connectionParams=client.getHttpConnectionManager().getParams();
+        connectionParams.setConnectionTimeout(5000);
+        client.getState();
+        client.getHostConfiguration().getHost();
+        HttpState initialState=new HttpState();
+        URI uri=new URI(m_targetUrl,false);
+        Cookie sessionCookie=new Cookie(uri.getHost(),C_JSESSIONID,sessionId,"/",null,false);
+        initialState.addCookie(sessionCookie);
+        client.setState(initialState);
+        int status=client.executeMethod(post);
+        if (status == HttpStatus.SC_OK) {
+          String response=post.getResponseBodyAsString();
+          duplications=parseDuplicateFiles(URLDecoder.decode(response,"utf-8"));
+          this.m_overwrites.addAll(duplications);
+        }
  else {
-        rtv=ModalDialog.APPROVE_OPTION;
+          String error=m_errorLine1 + "\n" + post.getStatusLine();
+          System.err.println(error);
+        }
+        count=0;
+        uploadFiles=new StringBuffer();
       }
     }
+    if (m_overwrites.size() > 0) {
+      rtv=showDuplicationsDialog(m_overwrites);
+    }
  else {
-      String error=m_errorLine1 + "\n" + post.getStatusLine();
-      System.err.println(error);
+      rtv=ModalDialog.APPROVE_OPTION;
     }
   }
  catch (  HttpException e) {
