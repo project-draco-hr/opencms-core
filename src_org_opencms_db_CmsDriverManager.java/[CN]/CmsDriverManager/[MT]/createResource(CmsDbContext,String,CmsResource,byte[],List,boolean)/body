@@ -1,5 +1,8 @@
 {
   CmsResource newResource=null;
+  if (resource.isFolder()) {
+    resourcePath=CmsFileUtil.addTrailingSeparator(resourcePath);
+  }
   try {
     boolean useLostAndFound=importCase && !OpenCms.getImportExportManager().overwriteCollidingResources();
     CmsResource currentResourceByName=null;
@@ -32,13 +35,7 @@
       if (!importCase) {
         throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_RESOURCE_WITH_ID_ALREADY_EXISTS_3,dbc.removeSiteRoot(resource.getRootPath()),currentResourceById.getRootPath(),currentResourceById.getStructureId()));
       }
-      CmsLock currentLock=getLock(dbc,currentResourceById);
-      if (currentLock.isUnlocked()) {
-        lockResource(dbc,currentResourceById,CmsLockType.EXCLUSIVE);
-      }
- else       if (!currentLock.isOwnedInProjectBy(dbc.currentUser(),dbc.currentProject())) {
-        changeLock(dbc,currentResourceById,CmsLockType.EXCLUSIVE);
-      }
+      lockResource(dbc,currentResourceById,CmsLockType.EXCLUSIVE);
       if (currentResourceById.getState().isDeleted()) {
         if (!currentResourceById.isFolder()) {
           currentResourceById=null;
@@ -69,15 +66,7 @@
         }
       }
       if (!overwrite) {
-        if (!currentResourceByName.equals(currentResourceById)) {
-          CmsLock currentLock=getLock(dbc,currentResourceByName);
-          if (currentLock.isUnlocked()) {
-            lockResource(dbc,currentResourceByName,CmsLockType.EXCLUSIVE);
-          }
- else           if (!currentLock.isOwnedInProjectBy(dbc.currentUser(),dbc.currentProject())) {
-            changeLock(dbc,currentResourceByName,CmsLockType.EXCLUSIVE);
-          }
-        }
+        lockResource(dbc,currentResourceByName,CmsLockType.EXCLUSIVE);
         currentResourceByName=null;
       }
     }
@@ -146,6 +135,7 @@
         newResource.setState(CmsResource.STATE_KEEP);
       }
     }
+    m_vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),newResource,CmsRelationFilter.TARGETS);
     if (overwrittenResource == null) {
       CmsLock lock=getLock(dbc,newResource);
       if (lock.getEditionLock().isExclusive()) {
@@ -154,13 +144,7 @@
       newResource=m_vfsDriver.createResource(dbc,dbc.currentProject().getUuid(),newResource,content);
     }
  else {
-      CmsLock currentLock=getLock(dbc,overwrittenResource);
-      if (currentLock.isUnlocked()) {
-        lockResource(dbc,overwrittenResource,CmsLockType.EXCLUSIVE);
-      }
- else       if (!currentLock.isOwnedInProjectBy(dbc.currentUser(),dbc.currentProject())) {
-        changeLock(dbc,overwrittenResource,CmsLockType.EXCLUSIVE);
-      }
+      lockResource(dbc,overwrittenResource,CmsLockType.EXCLUSIVE);
       int updateStates=(overwrittenResource.getState().isNew() ? CmsDriverManager.NOTHING_CHANGED : CmsDriverManager.UPDATE_ALL);
       m_vfsDriver.writeResource(dbc,dbc.currentProject().getUuid(),newResource,updateStates);
       if ((content != null) && resource.isFile()) {
@@ -176,7 +160,6 @@
         LOG.debug(Messages.get().getBundle().key(Messages.ERR_CREATE_RESOURCE_LOCK_1,new Object[]{dbc.removeSiteRoot(newResource.getRootPath())}));
       }
     }
-    m_vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),newResource,CmsRelationFilter.TARGETS);
   }
   finally {
     clearAccessControlListCache();

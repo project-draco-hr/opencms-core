@@ -1,10 +1,7 @@
 {
   CmsLock currentLock=getLock(dbc,resource);
-  if (currentLock.isUnlocked()) {
+  if (currentLock.getEditionLock().isDirectlyInherited()) {
     lockResource(dbc,resource,CmsLockType.EXCLUSIVE);
-  }
- else   if (!currentLock.isOwnedInProjectBy(dbc.currentUser(),dbc.currentProject())) {
-    changeLock(dbc,resource,CmsLockType.EXCLUSIVE);
   }
   if (resource.isFolder()) {
     siblingMode=CmsResource.DELETE_PRESERVE_SIBLINGS;
@@ -90,6 +87,7 @@
           m_vfsDriver.removeFile(dbc,dbc.currentProject().getUuid(),currentResource);
         }
         m_lockManager.removeDeletedResource(dbc,currentResource.getRootPath());
+        m_vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),currentResource,CmsRelationFilter.TARGETS);
       }
  else {
         removeAce=false;
@@ -98,8 +96,6 @@
         m_vfsDriver.writeLastModifiedProjectId(dbc,dbc.currentProject(),dbc.currentProject().getUuid(),currentResource);
       }
     }
-    m_vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),currentResource,CmsRelationFilter.TARGETS);
-    m_vfsDriver.updateBrokenRelations(dbc,resource,true);
   }
   if ((resource.getSiblingCount() <= 1) || allSiblingsRemoved) {
     if (removeAce) {
