@@ -4,8 +4,11 @@
   List deletedResources=cms.readDeletedResources("/",true);
   assertTrue(deletedResources.isEmpty());
   CmsResource folder=cms.createResource("testFolder",CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  cms.lockResource("index.html");
+  cms.addRelationToResource("index.html","testFolder",CmsRelationType.CATEGORY.getName());
   cms.writePropertyObject("testFolder",new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"strFolder","resFolder"));
   CmsResource res=cms.createResource("testFolder/test.txt",CmsResourceTypePlain.getStaticTypeId(),"test".getBytes(),null);
+  cms.addRelationToResource("index.html","testFolder/test.txt",CmsRelationType.CATEGORY.getName());
   cms.writePropertyObject("testFolder/test.txt",new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,"strFile","resFile"));
   storeResources(cms,"testFolder",true);
   OpenCms.getPublishManager().publishResource(cms,"testFolder");
@@ -36,6 +39,12 @@
   filter.enableDateCreatedSecTest();
   assertFilter(cms,"testFolder/",filter);
   assertFilter(cms,cms.getSitePath(res),filter);
+  List relations=cms.getRelationsForResource("/testFolder",CmsRelationFilter.SOURCES);
+  assertEquals(1,relations.size());
+  assertRelation(new CmsRelation(cms.readResource("index.html"),folder,CmsRelationType.CATEGORY),(CmsRelation)relations.get(0));
+  relations=cms.getRelationsForResource("/testFolder/test.txt",CmsRelationFilter.SOURCES);
+  assertEquals(1,relations.size());
+  assertRelation(new CmsRelation(cms.readResource("index.html"),res,CmsRelationType.CATEGORY),(CmsRelation)relations.get(0));
   cms.lockResource("testFolder");
   cms.deleteResource("testFolder/test.txt",CmsResource.DELETE_PRESERVE_SIBLINGS);
   cms.deleteResource("testFolder",CmsResource.DELETE_PRESERVE_SIBLINGS);
