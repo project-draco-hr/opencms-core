@@ -3,18 +3,21 @@
   if (dbName.indexOf("mysql") > -1) {
     String engine="MYISAM";
     CmsSetupDb setupDb=new CmsSetupDb(null);
+    CmsSetupDBWrapper db=null;
     try {
       setupDb.setConnection((String)m_poolData.get("driver"),(String)m_poolData.get("url"),(String)m_poolData.get("params"),(String)m_poolData.get("user"),(String)m_poolData.get("pwd"));
-      ResultSet res=setupDb.executeSqlStatement("SHOW TABLE STATUS LIKE 'CMS_GROUPS';",null);
-      if (res.next()) {
-        engine=res.getString("Engine").toUpperCase();
+      db=setupDb.executeSqlStatement("SHOW TABLE STATUS LIKE 'CMS_GROUPS';",null);
+      if (db.getResultSet().next()) {
+        engine=db.getResultSet().getString("Engine").toUpperCase();
       }
-      res.close();
     }
  catch (    SQLException e) {
       e.printStackTrace();
     }
  finally {
+      if (db != null) {
+        db.close();
+      }
       setupDb.closeConnection();
     }
     m_poolData.put("engine",engine);
@@ -27,16 +30,29 @@
     CmsSetupDb setupDb=new CmsSetupDb(null);
     try {
       setupDb.setConnection((String)m_poolData.get("driver"),(String)m_poolData.get("url"),(String)m_poolData.get("params"),(String)m_poolData.get("user"),(String)m_poolData.get("pwd"));
-      ResultSet res=setupDb.executeSqlStatement("SELECT DISTINCT tablespace_name FROM user_tables",null);
-      if (res.next()) {
-        dataTablespace=res.getString(1).toLowerCase();
+      CmsSetupDBWrapper db=null;
+      try {
+        db=setupDb.executeSqlStatement("SELECT DISTINCT tablespace_name FROM user_tables",null);
+        if (db.getResultSet().next()) {
+          dataTablespace=db.getResultSet().getString(1).toLowerCase();
+        }
       }
-      res.close();
-      res=setupDb.executeSqlStatement("SELECT DISTINCT tablespace_name FROM user_indexes",null);
-      if (res.next()) {
-        indexTablespace=res.getString(1).toLowerCase();
+  finally {
+        if (db != null) {
+          db.close();
+        }
       }
-      res.close();
+      try {
+        db=setupDb.executeSqlStatement("SELECT DISTINCT tablespace_name FROM user_indexes",null);
+        if (db.getResultSet().next()) {
+          indexTablespace=db.getResultSet().getString(1).toLowerCase();
+        }
+      }
+  finally {
+        if (db != null) {
+          db.close();
+        }
+      }
     }
  catch (    SQLException e) {
       e.printStackTrace();

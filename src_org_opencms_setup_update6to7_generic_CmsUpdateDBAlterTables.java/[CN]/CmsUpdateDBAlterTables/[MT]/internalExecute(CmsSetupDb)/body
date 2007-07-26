@@ -30,15 +30,23 @@
       replacer.put(REPLACEMENT_TABLENAME,table);
       dbCon.updateSqlStatement(addColumn,replacer,null);
       String structureVersion=readQuery(QUERY_SELECT_CMS_STRUCTURE_VERSION);
-      ResultSet set=dbCon.executeSqlStatement(structureVersion,replacer);
-      while (set.next()) {
-        String updateQuery=readQuery(QUERY_UPDATE_STRUCTURE_VERSION);
-        String structureId=set.getString("STRUCTURE_ID");
-        int version=set.getInt("STRUCTURE_VERSION");
-        List params=new ArrayList();
-        params.add(new Integer(version));
-        params.add(structureId);
-        dbCon.updateSqlStatement(updateQuery,replacer,params);
+      CmsSetupDBWrapper db=null;
+      try {
+        db=dbCon.executeSqlStatement(structureVersion,replacer);
+        while (db.getResultSet().next()) {
+          String updateQuery=readQuery(QUERY_UPDATE_STRUCTURE_VERSION);
+          String structureId=db.getResultSet().getString("STRUCTURE_ID");
+          int version=db.getResultSet().getInt("STRUCTURE_VERSION");
+          List params=new ArrayList();
+          params.add(new Integer(version));
+          params.add(structureId);
+          dbCon.updateSqlStatement(updateQuery,replacer,params);
+        }
+      }
+  finally {
+        if (db != null) {
+          db.close();
+        }
       }
     }
  else {

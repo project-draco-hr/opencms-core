@@ -16,30 +16,38 @@
     if (!checkUserDataTable(dbCon)) {
       createUserDataTable(dbCon);
       String query=readQuery(QUERY_SELECT_USER_DATA);
-      ResultSet set=dbCon.executeSqlStatement(query,null);
-      while (set.next()) {
-        String userID=(String)set.getObject(RESULTSET_USER_ID);
-        System.out.println("UserId: " + userID);
-        try {
-          Blob blob=set.getBlob(RESULTSET_USER_INFO);
-          ByteArrayInputStream bin=new ByteArrayInputStream(blob.getBytes(1,(int)blob.length()));
-          ObjectInputStream oin=new ObjectInputStream(bin);
-          Map infos=(Map)oin.readObject();
-          if (infos == null) {
-            infos=new HashMap();
+      CmsSetupDBWrapper db=null;
+      try {
+        db=dbCon.executeSqlStatement(query,null);
+        while (db.getResultSet().next()) {
+          String userID=(String)db.getResultSet().getObject(RESULTSET_USER_ID);
+          System.out.println("UserId: " + userID);
+          try {
+            Blob blob=db.getResultSet().getBlob(RESULTSET_USER_INFO);
+            ByteArrayInputStream bin=new ByteArrayInputStream(blob.getBytes(1,(int)blob.length()));
+            ObjectInputStream oin=new ObjectInputStream(bin);
+            Map infos=(Map)oin.readObject();
+            if (infos == null) {
+              infos=new HashMap();
+            }
+            String userAddress=(String)db.getResultSet().getObject(USER_ADDRESS);
+            if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(userAddress)) {
+              infos.put(USER_ADDRESS,userAddress);
+            }
+            String userDescription=(String)db.getResultSet().getObject(USER_DESCRIPTION);
+            if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(userDescription)) {
+              infos.put(USER_DESCRIPTION,userDescription);
+            }
+            writeAdditionalUserInfo(dbCon,userID,infos);
           }
-          String userAddress=(String)set.getObject(USER_ADDRESS);
-          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(userAddress)) {
-            infos.put(USER_ADDRESS,userAddress);
+ catch (          Throwable e) {
+            e.printStackTrace();
           }
-          String userDescription=(String)set.getObject(USER_DESCRIPTION);
-          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(userDescription)) {
-            infos.put(USER_DESCRIPTION,userDescription);
-          }
-          writeAdditionalUserInfo(dbCon,userID,infos);
         }
- catch (        Throwable e) {
-          e.printStackTrace();
+      }
+  finally {
+        if (db != null) {
+          db.close();
         }
       }
       addUserDateCreated(dbCon);
