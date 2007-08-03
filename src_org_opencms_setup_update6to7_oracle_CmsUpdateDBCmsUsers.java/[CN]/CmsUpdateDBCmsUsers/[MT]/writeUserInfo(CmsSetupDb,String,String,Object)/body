@@ -10,8 +10,8 @@
  catch (  SQLException e) {
     e.printStackTrace();
   }
-  ResultSet res=null;
   boolean wasInTransaction=false;
+  CmsSetupDBWrapper db=null;
   try {
     wasInTransaction=!dbCon.getConnection().getAutoCommit();
     if (!wasInTransaction) {
@@ -21,9 +21,9 @@
     List params=new ArrayList();
     params.add(id);
     params.add(key);
-    res=dbCon.executeSqlStatement(stmt,null,params);
-    if (res.next()) {
-      OutputStream output=CmsUserDriver.getOutputStreamFromBlob(res,"DATA_VALUE");
+    db=dbCon.executeSqlStatement(stmt,null,params);
+    if (db.getResultSet().next()) {
+      OutputStream output=CmsUserDriver.getOutputStreamFromBlob(db.getResultSet(),"DATA_VALUE");
       output.write(CmsDataTypeUtil.dataSerialize(value));
       output.close();
     }
@@ -31,30 +31,39 @@
       System.out.println("Could not insert blob");
     }
     if (!wasInTransaction) {
-      String commit=readQuery("Q_COMMIT");
-      dbCon.executeSqlStatement(commit,null);
+      CmsSetupDBWrapper db2=null;
+      try {
+        String commit=readQuery("Q_COMMIT");
+        db2=dbCon.executeSqlStatement(commit,null);
+      }
+  finally {
+        if (db2 != null) {
+          db2.close();
+        }
+      }
     }
   }
  catch (  Exception e) {
     e.printStackTrace();
   }
  finally {
-    try {
-      if (res != null) {
-        res.close();
-      }
+    if (db != null) {
+      db.close();
     }
- catch (    Exception e) {
-      e.printStackTrace();
-    }
+    CmsSetupDBWrapper db2=null;
     try {
       if (!wasInTransaction) {
         String rollback=readQuery("Q_ROLLBACK");
-        dbCon.executeSqlStatement(rollback,null);
+        db2=dbCon.executeSqlStatement(rollback,null);
       }
     }
  catch (    Exception e) {
       e.printStackTrace();
+    }
+ finally {
+      if (db2 != null) {
+        db2.close();
+      }
     }
     try {
       if (!wasInTransaction) {
