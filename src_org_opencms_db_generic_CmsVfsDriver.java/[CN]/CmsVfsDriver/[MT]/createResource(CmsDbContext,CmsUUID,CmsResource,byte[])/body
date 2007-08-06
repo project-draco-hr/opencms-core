@@ -55,17 +55,14 @@
   }
   try {
     String parentId=internalReadParentId(dbc,projectId,resourcePath);
-    boolean existsResource=validateResourceIdExists(dbc,projectId,resource.getResourceId());
     int lastVersion=m_driverManager.getHistoryDriver().readLastVersion(dbc,newStructureId);
-    int histStrVersion=0;
-    int histResVersion=0;
+    int newStrVersion=0;
+    int newResVersion=0;
     if (lastVersion > 0) {
       I_CmsHistoryResource histRes=m_driverManager.getHistoryDriver().readResource(dbc,newStructureId,lastVersion);
-      histResVersion=histRes.getResourceVersion();
-      histStrVersion=histRes.getStructureVersion();
+      newStrVersion=histRes.getStructureVersion();
+      newResVersion=histRes.getResourceVersion();
     }
-    int newStrVersion=1 + histStrVersion;
-    int newResVersion=histResVersion;
     conn=m_sqlManager.getConnection(dbc);
     stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_STRUCTURE_WRITE");
     stmt.setString(1,newStructureId.toString());
@@ -78,7 +75,7 @@
     stmt.setInt(8,newStrVersion);
     stmt.executeUpdate();
     m_sqlManager.closeAll(dbc,null,stmt,null);
-    if (!existsResource) {
+    if (!validateResourceIdExists(dbc,projectId,resource.getResourceId())) {
       try {
         stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_RESOURCES_WRITE");
         stmt.setString(1,resource.getResourceId().toString());
@@ -105,15 +102,21 @@
     }
  else {
       if ((content != null) || !resource.getState().isKeep()) {
+        CmsUUID projLastMod=projectId;
+        CmsResourceState state=CmsResource.STATE_CHANGED;
+        if (projectId.equals(CmsProject.ONLINE_PROJECT_ID)) {
+          projLastMod=resource.getProjectLastModified();
+          state=CmsResource.STATE_UNCHANGED;
+        }
         stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_RESOURCES_UPDATE_RESOURCES");
         stmt.setInt(1,resource.getTypeId());
         stmt.setInt(2,resource.getFlags());
         stmt.setLong(3,dateModified);
         stmt.setString(4,resource.getUserLastModified().toString());
-        stmt.setInt(5,CmsResource.STATE_CHANGED.getState());
+        stmt.setInt(5,state.getState());
         stmt.setInt(6,resource.getLength());
         stmt.setLong(7,resource.getDateContent());
-        stmt.setString(8,projectId.toString());
+        stmt.setString(8,projLastMod.toString());
         stmt.setInt(9,countSiblings(dbc,projectId,resource.getResourceId()));
         stmt.setString(10,resource.getResourceId().toString());
         stmt.executeUpdate();

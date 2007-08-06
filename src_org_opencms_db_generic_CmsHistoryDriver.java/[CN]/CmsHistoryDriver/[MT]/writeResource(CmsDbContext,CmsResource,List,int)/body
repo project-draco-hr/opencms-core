@@ -1,13 +1,27 @@
 {
-  Map versions=m_driverManager.getVfsDriver().readVersions(dbc,resource.getState().isDeleted() ? dbc.currentProject().getUuid() : CmsProject.ONLINE_PROJECT_ID,resource.getStructureId());
-  int structureVersion=((Integer)versions.get("structure")).intValue();
-  int resourceVersion=((Integer)versions.get("resource")).intValue();
   Connection conn=null;
   PreparedStatement stmt=null;
   try {
     conn=m_sqlManager.getConnection(dbc);
-    int sibCount=m_driverManager.getVfsDriver().countSiblings(dbc,dbc.currentProject().getUuid(),resource.getResourceId());
-    if (!internalValidateResource(dbc,resource,publishTag)) {
+    int sibCount=resource.getSiblingCount();
+    boolean valResource=internalValidateResource(dbc,resource,publishTag);
+    if (resource.getState().isDeleted()) {
+      if (resource instanceof CmsFile) {
+        if (!valResource) {
+          if (sibCount < 2) {
+            m_driverManager.getVfsDriver().createOnlineContent(dbc,resource.getResourceId(),((CmsFile)resource).getContents(),publishTag,false,true);
+          }
+ else {
+            m_driverManager.getVfsDriver().createOnlineContent(dbc,resource.getResourceId(),((CmsFile)resource).getContents(),publishTag,true,false);
+          }
+        }
+      }
+      m_driverManager.getVfsDriver().publishVersions(dbc,resource,!valResource);
+    }
+    Map versions=m_driverManager.getVfsDriver().readVersions(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getResourceId(),resource.getStructureId());
+    int structureVersion=((Integer)versions.get("structure")).intValue();
+    int resourceVersion=((Integer)versions.get("resource")).intValue();
+    if (!valResource) {
       stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_HISTORY_WRITE");
       stmt.setString(1,resource.getResourceId().toString());
       stmt.setInt(2,resource.getTypeId());
@@ -25,30 +39,6 @@
       stmt.setInt(14,publishTag);
       stmt.executeUpdate();
       m_sqlManager.closeAll(dbc,null,stmt,null);
-      if (resource instanceof CmsFile) {
-        if (resource.getState().isDeleted()) {
-          CmsResource onlineResource;
-          try {
-            onlineResource=m_driverManager.getVfsDriver().readResource(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getStructureId(),true);
-          }
- catch (          CmsDataAccessException e) {
-            if (LOG.isErrorEnabled()) {
-              LOG.error(e.getLocalizedMessage(),e);
-            }
-            throw e;
-          }
-          m_driverManager.getVfsDriver().createOnlineContent(dbc,resource.getResourceId(),((CmsFile)resource).getContents(),publishTag,(sibCount > 1),(onlineResource.getDateContent() < resource.getDateContent()));
-        }
-      }
-    }
- else {
-      if (resource instanceof CmsFile) {
-        if (resource.getState().isDeleted()) {
-          if (sibCount < 2) {
-            m_driverManager.getVfsDriver().createOnlineContent(dbc,resource.getResourceId(),((CmsFile)resource).getContents(),publishTag,false,false);
-          }
-        }
-      }
     }
     CmsUUID parentId=CmsUUID.getNullUUID();
     CmsFolder parent=m_driverManager.getVfsDriver().readParentFolder(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getStructureId());

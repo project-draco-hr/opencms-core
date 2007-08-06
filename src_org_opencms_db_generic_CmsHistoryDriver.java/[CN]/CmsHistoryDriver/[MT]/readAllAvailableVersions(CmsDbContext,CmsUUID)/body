@@ -21,14 +21,13 @@
       res=stmt.executeQuery();
       I_CmsHistoryResource lastHistRes=histRes;
       while (res.next()) {
-        int pubTag=res.getInt(1);
-        I_CmsHistoryResource newHistRes=internalReadMergedResource(dbc,histRes,pubTag);
-        if (newHistRes.getVersion() == lastHistRes.getVersion()) {
-          lastHistRes=newHistRes;
+        int resVersion=res.getInt(m_sqlManager.readQuery("C_RESOURCES_VERSION"));
+        if (resVersion == lastHistRes.getResourceVersion()) {
           continue;
         }
+        I_CmsHistoryResource newHistRes=internalMergeResource(dbc,histRes,res,0);
+        result.add(0,newHistRes);
         lastHistRes=newHistRes;
-        result.add(0,lastHistRes);
       }
       m_sqlManager.closeAll(dbc,null,stmt,res);
     }
@@ -39,19 +38,19 @@
         I_CmsHistoryResource histRes2=(I_CmsHistoryResource)historyResources.get(i + 1);
         stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_HISTORY_READ_BTW_VERSIONS");
         stmt.setString(1,histRes.getResourceId().toString());
-        stmt.setInt(2,histRes.getPublishTag());
-        stmt.setInt(3,histRes2.getPublishTag());
+        stmt.setInt(2,histRes2.getPublishTag());
+        stmt.setInt(3,histRes.getPublishTag());
         res=stmt.executeQuery();
-        I_CmsHistoryResource lastHistRes=histRes;
+        int pos=result.size();
+        I_CmsHistoryResource lastHistRes=histRes2;
         while (res.next()) {
-          int pubTag=res.getInt(1);
-          I_CmsHistoryResource newHistRes=internalReadMergedResource(dbc,histRes,pubTag);
-          if (newHistRes.getVersion() == lastHistRes.getVersion()) {
-            lastHistRes=newHistRes;
+          int resVersion=res.getInt(m_sqlManager.readQuery("C_RESOURCES_VERSION"));
+          if (resVersion == lastHistRes.getResourceVersion()) {
             continue;
           }
+          I_CmsHistoryResource newHistRes=internalMergeResource(dbc,histRes2,res,0);
+          result.add(pos,newHistRes);
           lastHistRes=newHistRes;
-          result.add(lastHistRes);
         }
         m_sqlManager.closeAll(dbc,null,stmt,res);
       }
@@ -63,19 +62,27 @@
         stmt.setString(1,histRes.getResourceId().toString());
         stmt.setInt(2,histRes.getPublishTag());
         res=stmt.executeQuery();
+        int offset=(histRes.getStructureVersion() > 0 ? 1 : 0);
         I_CmsHistoryResource lastHistRes=histRes;
         while (res.next()) {
-          int pubTag=res.getInt(1);
-          I_CmsHistoryResource newHistRes=internalReadMergedResource(dbc,histRes,pubTag);
-          if (newHistRes.getVersion() == lastHistRes.getVersion()) {
-            lastHistRes=newHistRes;
-            continue;
+          I_CmsHistoryResource newHistRes=internalMergeResource(dbc,histRes,res,offset);
+          if (newHistRes.getResourceVersion() != lastHistRes.getResourceVersion()) {
+            if (offset == 1) {
+              result.add(lastHistRes);
+            }
+ else {
+              result.add(newHistRes);
+            }
           }
           lastHistRes=newHistRes;
+        }
+        if ((offset == 1) && (lastHistRes != histRes)) {
           result.add(lastHistRes);
         }
         m_sqlManager.closeAll(dbc,null,stmt,res);
       }
+    }
+ else {
     }
   }
  catch (  SQLException e) {

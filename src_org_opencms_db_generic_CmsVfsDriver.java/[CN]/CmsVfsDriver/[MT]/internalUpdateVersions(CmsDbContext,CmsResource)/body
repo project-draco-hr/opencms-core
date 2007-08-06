@@ -1,0 +1,33 @@
+{
+  if (dbc.getRequestContext() == null) {
+    return;
+  }
+  if (dbc.currentProject().isOnlineProject()) {
+    return;
+  }
+  Map onlineVersions=readVersions(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getResourceId(),resource.getStructureId());
+  int onlineStructureVersion=((Integer)onlineVersions.get("structure")).intValue();
+  int onlineResourceVersion=((Integer)onlineVersions.get("resource")).intValue();
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  ResultSet res=null;
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    stmt=m_sqlManager.getPreparedStatement(conn,dbc.currentProject(),"C_RESOURCES_UPDATE_RESOURCE_VERSION");
+    stmt.setInt(1,onlineResourceVersion);
+    stmt.setString(2,resource.getResourceId().toString());
+    stmt.executeUpdate();
+    m_sqlManager.closeAll(dbc,null,stmt,null);
+    stmt=m_sqlManager.getPreparedStatement(conn,dbc.currentProject(),"C_RESOURCES_UPDATE_STRUCTURE_VERSION");
+    stmt.setInt(1,onlineStructureVersion);
+    stmt.setString(2,resource.getStructureId().toString());
+    stmt.executeUpdate();
+    m_sqlManager.closeAll(dbc,null,stmt,null);
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+}

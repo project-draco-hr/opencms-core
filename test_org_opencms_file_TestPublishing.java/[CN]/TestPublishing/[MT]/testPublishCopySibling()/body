@@ -1,0 +1,19 @@
+{
+  CmsObject cms=getCmsObject();
+  String source="/folder1/page1.html";
+  echo("testing the publishing of a fresh created sibling");
+  long time=System.currentTimeMillis();
+  cms.lockResource(source);
+  cms.setDateLastModified(source,time,false);
+synchronized (this) {
+    wait(100);
+  }
+  String destination="/folder1/sibling2.html";
+  cms.copyResource(source,destination,CmsResource.COPY_AS_SIBLING);
+  OpenCms.getPublishManager().publishResource(cms,destination);
+  OpenCms.getPublishManager().waitWhileRunning();
+  long newTime=cms.readResource(destination).getDateLastModified();
+  cms.getRequestContext().setCurrentProject(cms.readProject(CmsProject.ONLINE_PROJECT_ID));
+  assertEquals("File is unchanged and online date last modified is not the same as offline",newTime,cms.readResource(destination).getDateLastModified());
+  assertState(cms,destination,CmsResource.STATE_UNCHANGED);
+}

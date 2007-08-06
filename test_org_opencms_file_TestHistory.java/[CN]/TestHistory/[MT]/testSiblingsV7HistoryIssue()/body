@@ -1,0 +1,34 @@
+{
+  echo("Tests OpenCms v7 history issue with siblings");
+  CmsObject cms=getCmsObject();
+  String folderA="/history_v7issue_a/";
+  cms.createResource(folderA,CmsResourceTypeFolder.getStaticTypeId());
+  String firstContent="This is the first content";
+  byte[] firstContentBytes=firstContent.getBytes();
+  String source=folderA + "1.txt";
+  cms.createResource(source,CmsResourceTypePlain.getStaticTypeId(),firstContentBytes,null);
+  assertState(cms,folderA,CmsResourceState.STATE_NEW);
+  assertState(cms,source,CmsResourceState.STATE_NEW);
+  OpenCms.getPublishManager().publishResource(cms,folderA);
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertHistory(cms,source,1);
+  String secondContent="This is the second content";
+  byte[] secondContentBytes=secondContent.getBytes();
+  CmsFile sourceFile=cms.readFile(source);
+  cms.lockResource(source);
+  sourceFile.setContents(secondContentBytes);
+  cms.writeFile(sourceFile);
+  OpenCms.getPublishManager().publishResource(cms,folderA);
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertHistory(cms,source,2);
+  String folderB="/history_v7issue_b/";
+  cms.createResource(folderB,CmsResourceTypeFolder.getStaticTypeId());
+  OpenCms.getPublishManager().publishResource(cms,folderB);
+  OpenCms.getPublishManager().waitWhileRunning();
+  String destination=folderB + "2.txt";
+  cms.copyResource(source,destination,CmsResource.COPY_AS_SIBLING);
+  OpenCms.getPublishManager().publishResource(cms,destination,false,null);
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertHistory(cms,source,2);
+  assertHistory(cms,destination,3);
+}
