@@ -2,7 +2,6 @@
   List parentResources=new ArrayList();
   Map responsibles=new HashMap();
   CmsObject cms=getCms();
-  String resourceSitePath=cms.getRequestContext().removeSiteRoot(getParamResource());
   try {
     parentResources=cms.readPath(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION);
   }
@@ -11,102 +10,110 @@
       LOG.info(e.getLocalizedMessage());
     }
   }
-  Iterator i=parentResources.iterator();
-  while (i.hasNext()) {
-    CmsResource resource=(CmsResource)i.next();
-    try {
-      String sitePath=resource.getRootPath();
-      Iterator entries=cms.getAccessControlEntries(cms.getRequestContext().removeSiteRoot(sitePath),false).iterator();
-      while (entries.hasNext()) {
-        CmsAccessControlEntry ace=(CmsAccessControlEntry)entries.next();
-        if (ace.isResponsible()) {
-          I_CmsPrincipal principal=cms.lookupPrincipal(ace.getPrincipal());
-          if (principal != null) {
-            responsibles.put(principal,sitePath);
+  String resourceRootPath=cms.getRequestContext().addSiteRoot(getParamResource());
+  String site=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.getRequestContext().setSiteRoot("");
+    Iterator i=parentResources.iterator();
+    while (i.hasNext()) {
+      CmsResource resource=(CmsResource)i.next();
+      try {
+        String rootPath=resource.getRootPath();
+        Iterator entries=cms.getAccessControlEntries(rootPath,false).iterator();
+        while (entries.hasNext()) {
+          CmsAccessControlEntry ace=(CmsAccessControlEntry)entries.next();
+          if (ace.isResponsible()) {
+            I_CmsPrincipal principal=cms.lookupPrincipal(ace.getPrincipal());
+            if (principal != null) {
+              responsibles.put(principal,rootPath);
+            }
+ else {
+              responsibles.put(ace.getPrincipal(),rootPath);
+            }
           }
+        }
+      }
+ catch (      CmsException e) {
+        if (LOG.isInfoEnabled()) {
+          LOG.info(e.getLocalizedMessage());
+        }
+      }
+    }
+    if (responsibles.size() == 0) {
+      return key(Messages.GUI_AVAILABILITY_NO_RESPONSIBLES_0);
+    }
+    StringBuffer result=new StringBuffer(512);
+    result.append(dialogToggleStart(key(Messages.GUI_AVAILABILITY_RESPONSIBLES_0),"responsibles",show));
+    result.append(dialogWhiteBoxStart());
+    i=responsibles.entrySet().iterator();
+    while (i.hasNext()) {
+      Map.Entry entry=(Map.Entry)i.next();
+      String name;
+      String ou=null;
+      String image;
+      if (entry.getKey() instanceof I_CmsPrincipal) {
+        I_CmsPrincipal principal=(I_CmsPrincipal)entry.getKey();
+        if (principal instanceof CmsGroup) {
+          name=((CmsGroup)principal).getDescription(getLocale()) + " (" + principal.getSimpleName()+ ")";
+          image="commons/group.png";
+        }
  else {
-            responsibles.put(ace.getPrincipal(),sitePath);
+          name=((CmsUser)principal).getFullName();
+          image="commons/user.png";
+        }
+        ou=principal.getOuFqn();
+      }
+ else {
+        CmsRole role=CmsRole.valueOfId((CmsUUID)entry.getKey());
+        if (role != null) {
+          name=role.getName(getLocale());
+          image="commons/role.png";
+        }
+ else {
+          name=entry.getKey().toString();
+          image="explorer/project_none.gif";
+        }
+      }
+      result.append("<div class=\"dialogrow\"><img src=\"");
+      result.append(getSkinUri());
+      result.append(image);
+      result.append("\" class='noborder' width='16' height='16' alt='Principal' title='Principal'>&nbsp;<span class=\"textbold\">");
+      result.append(name);
+      result.append("</span>");
+      if ("long".equals(getSettings().getPermissionDetailView())) {
+        String resourceName=(String)entry.getValue();
+        if (!resourceRootPath.equals(resourceName)) {
+          result.append("<div class=\"dialogpermissioninherit\">");
+          result.append(key(Messages.GUI_PERMISSION_INHERITED_FROM_1,new Object[]{resourceName}));
+          result.append("</div>");
+        }
+      }
+      try {
+        if ((ou != null) && (OpenCms.getOrgUnitManager().getOrganizationalUnits(getCms(),"",true).size() > 1)) {
+          result.append("<br>");
+          result.append("<img src='").append(getSkinUri()).append("explorer/project_none.gif' class='noborder' width='16' height='16' >");
+          result.append("<img src='").append(getSkinUri()).append("explorer/project_none.gif' class='noborder' width='16' height='16' >");
+          result.append("&nbsp;");
+          try {
+            result.append(OpenCms.getOrgUnitManager().readOrganizationalUnit(getCms(),ou).getDisplayName(getLocale()));
+          }
+ catch (          CmsException e) {
+            result.append(ou);
           }
         }
       }
-    }
- catch (    CmsException e) {
-      if (LOG.isInfoEnabled()) {
-        LOG.info(e.getLocalizedMessage());
-      }
-    }
-  }
-  if (responsibles.size() == 0) {
-    return key(Messages.GUI_AVAILABILITY_NO_RESPONSIBLES_0);
-  }
-  StringBuffer result=new StringBuffer(512);
-  result.append(dialogToggleStart(key(Messages.GUI_AVAILABILITY_RESPONSIBLES_0),"responsibles",show));
-  result.append(dialogWhiteBoxStart());
-  i=responsibles.entrySet().iterator();
-  while (i.hasNext()) {
-    Map.Entry entry=(Map.Entry)i.next();
-    String name;
-    String ou=null;
-    String image;
-    if (entry.getKey() instanceof I_CmsPrincipal) {
-      I_CmsPrincipal principal=(I_CmsPrincipal)entry.getKey();
-      if (principal instanceof CmsGroup) {
-        name=((CmsGroup)principal).getDescription(getLocale()) + " (" + principal.getSimpleName()+ ")";
-        image="commons/group.png";
-      }
- else {
-        name=((CmsUser)principal).getFullName();
-        image="commons/user.png";
-      }
-      ou=principal.getOuFqn();
-    }
- else {
-      CmsRole role=CmsRole.valueOfId((CmsUUID)entry.getKey());
-      if (role != null) {
-        name=role.getName(getLocale());
-        image="commons/role.png";
-      }
- else {
-        name=entry.getKey().toString();
-        image="explorer/project_none.gif";
-      }
-    }
-    result.append("<div class=\"dialogrow\"><img src=\"");
-    result.append(getSkinUri());
-    result.append(image);
-    result.append("\" class='noborder' width='16' height='16' alt='Principal' title='Principal'>&nbsp;<span class=\"textbold\">");
-    result.append(name);
-    result.append("</span>");
-    if ("long".equals(getSettings().getPermissionDetailView())) {
-      String resourceName=(String)entry.getValue();
-      if (!resourceSitePath.equals(resourceName)) {
-        result.append("<div class=\"dialogpermissioninherit\">");
-        result.append(key(Messages.GUI_PERMISSION_INHERITED_FROM_1,new Object[]{resourceName}));
-        result.append("</div>");
-      }
-    }
-    try {
-      if ((ou != null) && (OpenCms.getOrgUnitManager().getOrganizationalUnits(getCms(),"",true).size() > 1)) {
-        result.append("<br>");
-        result.append("<img src='").append(getSkinUri()).append("explorer/project_none.gif' class='noborder' width='16' height='16' >");
-        result.append("<img src='").append(getSkinUri()).append("explorer/project_none.gif' class='noborder' width='16' height='16' >");
-        result.append("&nbsp;");
-        try {
-          result.append(OpenCms.getOrgUnitManager().readOrganizationalUnit(getCms(),ou).getDisplayName(getLocale()));
-        }
- catch (        CmsException e) {
-          result.append(ou);
+ catch (      CmsException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
         }
       }
+      result.append("</div>\n");
     }
- catch (    CmsException e) {
-      if (LOG.isErrorEnabled()) {
-        LOG.error(e.getLocalizedMessage(),e);
-      }
-    }
+    result.append(dialogWhiteBoxEnd());
     result.append("</div>\n");
+    return result.toString();
   }
-  result.append(dialogWhiteBoxEnd());
-  result.append("</div>\n");
-  return result.toString();
+  finally {
+    cms.getRequestContext().setSiteRoot(site);
+  }
 }

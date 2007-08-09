@@ -4,29 +4,47 @@
   String id=(principal != null) ? principal.getName() : entry.getPrincipal().toString();
   String name;
   String ou=null;
+  int flags=0;
   if (principal instanceof CmsGroup) {
     name=key(org.opencms.security.Messages.GUI_ORGUNIT_DISPLAY_NAME_2,new Object[]{((CmsGroup)principal).getDescription(getLocale()),principal.getSimpleName()});
     ou=CmsOrganizationalUnit.getParentFqn(id);
+    flags=CmsAccessControlEntry.ACCESS_FLAGS_GROUP;
   }
  else   if (principal instanceof CmsUser) {
     name=((CmsUser)principal).getFullName();
     ou=CmsOrganizationalUnit.getParentFqn(id);
+    flags=CmsAccessControlEntry.ACCESS_FLAGS_USER;
   }
  else   if ((id != null) && id.equals(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID.toString())) {
     name=key(Messages.GUI_LABEL_ALLOTHERS_0);
+    flags=CmsAccessControlEntry.ACCESS_FLAGS_ALLOTHERS;
   }
  else   if ((id != null) && id.equals(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_ID.toString())) {
     name=key(Messages.GUI_LABEL_OVERWRITEALL_0);
+    flags=CmsAccessControlEntry.ACCESS_FLAGS_OVERWRITE_ALL;
   }
  else {
     CmsRole role=CmsRole.valueOfId(entry.getPrincipal());
     if (role != null) {
       name=role.getName(getLocale());
       id=role.getRoleName();
+      flags=CmsAccessControlEntry.ACCESS_FLAGS_ROLE;
     }
  else {
       name=entry.getPrincipal().toString();
     }
+  }
+  if ((flags > 0) && ((entry.getFlags() & flags) == 0)) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle(getLocale()).key(Messages.ERR_INVALID_ACE_1,entry.toString()));
+    }
+    entry=new CmsAccessControlEntry(entry.getResource(),entry.getPrincipal(),entry.getAllowedPermissions(),entry.getDeniedPermissions(),(entry.getFlags() | flags));
+  }
+ else   if (entry.getFlags() < CmsAccessControlEntry.ACCESS_FLAGS_USER) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle(getLocale()).key(Messages.ERR_INVALID_ACE_1,entry.toString()));
+    }
+    entry=new CmsAccessControlEntry(entry.getResource(),entry.getPrincipal(),entry.getAllowedPermissions(),entry.getDeniedPermissions(),(entry.getFlags() | CmsAccessControlEntry.ACCESS_FLAGS_GROUP));
   }
   String type=getEntryType(entry.getFlags(),false);
   if (id == null) {
@@ -35,11 +53,18 @@
   setParamType(type);
   setParamName(id);
   String idValue=type + id + entry.getResource();
-  String typeLocalized=getTypesLocalized()[getEntryTypeInt(entry.getFlags())];
-  String typeImg=getEntryType(entry.getFlags(),true).toLowerCase();
+  int typeInt=getEntryTypeInt(entry.getFlags());
+  String typeLocalized=UNKNOWN_TYPE;
+  if (typeInt >= 0) {
+    typeLocalized=getTypesLocalized()[typeInt];
+  }
+  String typeImg=getTypes(true)[0];
+  if (typeInt >= 0) {
+    typeImg=getEntryType(entry.getFlags(),true).toLowerCase();
+  }
   CmsPermissionSet permissions=entry.getPermissions();
   String disabled="";
-  if (!editable) {
+  if (!editable || (typeInt < 0)) {
     disabled=" disabled=\"disabled\"";
   }
   if (!id.equals(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_ID.toString())) {
