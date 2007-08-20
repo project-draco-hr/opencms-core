@@ -46,7 +46,7 @@
     for (int i=0; i < projectFiles.size(); i++) {
       try {
         String resourceName=(String)projectFiles.get(i);
-        if (cms.existsResource(resourceName)) {
+        if (cms.existsResource(resourceName,CmsResourceFilter.ALL)) {
           cms.copyResourceToProject(resourceName);
         }
       }
@@ -64,18 +64,26 @@
         if (LOG.isDebugEnabled()) {
           LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_RESOURCE_1,currentResource));
         }
-        if (cms.existsResource(currentResource)) {
+        CmsResource resource=null;
+        try {
+          cms.readResource(currentResource,CmsResourceFilter.ALL);
+        }
+ catch (        CmsVfsResourceNotFoundException e) {
+        }
+        if (resource != null) {
           CmsLock lock=cms.getLock(currentResource);
           if (lock.isUnlocked()) {
             cms.lockResource(currentResource);
           }
-          if (lock.isLockableBy(cms.getRequestContext().currentUser())) {
+ else           if (lock.isLockableBy(cms.getRequestContext().currentUser())) {
             cms.changeLock(currentResource);
           }
-          cms.deleteResource(currentResource,CmsResource.DELETE_PRESERVE_SIBLINGS);
+          if (!resource.getState().isDeleted()) {
+            cms.deleteResource(currentResource,CmsResource.DELETE_PRESERVE_SIBLINGS);
+          }
           report.print(Messages.get().container(Messages.RPT_DELETE_0),I_CmsReport.FORMAT_NOTE);
           report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,currentResource));
-          if (cms.existsResource(currentResource)) {
+          if (!resource.getState().isNew()) {
             cms.unlockResource(currentResource);
           }
         }
