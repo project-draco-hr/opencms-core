@@ -1,24 +1,25 @@
 {
-  String rootPath=null;
   List siblings=null;
+  CmsObject rootCms=null;
   Iterator mappings=m_elementMappings.entrySet().iterator();
   while (mappings.hasNext()) {
     Map.Entry e=(Map.Entry)mappings.next();
-    String path=e.getKey().toString();
-    String mapping=e.getValue().toString();
-    if (mapping.startsWith(MAPTO_PROPERTY_LIST) || mapping.startsWith(MAPTO_PROPERTY)) {
-      if (rootPath == null) {
-        rootPath=content.getFile().getRootPath();
-      }
-      String storedSiteRoot=cms.getRequestContext().getSiteRoot();
-      try {
-        cms.getRequestContext().setSiteRoot("/");
-        if (siblings == null) {
-          siblings=cms.readSiblings(rootPath,CmsResourceFilter.IGNORE_EXPIRATION);
-        }
+    String path=String.valueOf(e.getKey());
+    String[] values=(String[])e.getValue();
+    if (values == null) {
+      continue;
+    }
+    if ((siblings == null) || (rootCms == null)) {
+      rootCms=OpenCms.initCmsObject(cms);
+      rootCms.getRequestContext().setSiteRoot("/");
+      siblings=rootCms.readSiblings(content.getFile().getRootPath(),CmsResourceFilter.IGNORE_EXPIRATION);
+    }
+    for (int v=values.length - 1; v >= 0; v--) {
+      String mapping=values[v];
+      if (mapping.startsWith(MAPTO_PROPERTY_LIST) || mapping.startsWith(MAPTO_PROPERTY)) {
         for (int i=0; i < siblings.size(); i++) {
           String filename=((CmsResource)siblings.get(i)).getRootPath();
-          Locale locale=OpenCms.getLocaleManager().getDefaultLocale(cms,filename);
+          Locale locale=OpenCms.getLocaleManager().getDefaultLocale(rootCms,filename);
           if (!content.hasLocale(locale)) {
             continue;
           }
@@ -32,11 +33,8 @@
  else {
             property=mapping.substring(MAPTO_PROPERTY.length());
           }
-          cms.writePropertyObject(filename,new CmsProperty(property,CmsProperty.DELETE_VALUE,null));
+          rootCms.writePropertyObject(filename,new CmsProperty(property,CmsProperty.DELETE_VALUE,null));
         }
-      }
-  finally {
-        cms.getRequestContext().setSiteRoot(storedSiteRoot);
       }
     }
   }

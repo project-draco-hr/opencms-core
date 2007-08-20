@@ -6,20 +6,23 @@
   if (file == null) {
     throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_RESOLVE_FILE_NOT_FOUND_0));
   }
-  String mapping=getMapping(value.getPath());
-  if (CmsStringUtil.isNotEmpty(mapping)) {
-    String rootPath=content.getFile().getRootPath();
-    String storedSiteRoot=cms.getRequestContext().getSiteRoot();
-    try {
-      cms.getRequestContext().setSiteRoot("/");
-      List siblings=cms.readSiblings(rootPath,CmsResourceFilter.IGNORE_EXPIRATION);
+  String[] mappings=getMappings(value.getPath());
+  if (mappings == null) {
+    return;
+  }
+  CmsObject rootCms=OpenCms.initCmsObject(cms);
+  rootCms.getRequestContext().setSiteRoot("/");
+  List siblings=rootCms.readSiblings(content.getFile().getRootPath(),CmsResourceFilter.IGNORE_EXPIRATION);
+  for (int m=mappings.length - 1; m >= 0; m--) {
+    String mapping=mappings[m];
+    if (CmsStringUtil.isNotEmpty(mapping)) {
       for (int i=(siblings.size() - 1); i >= 0; i--) {
         String filename=((CmsResource)siblings.get(i)).getRootPath();
-        Locale locale=OpenCms.getLocaleManager().getDefaultLocale(cms,filename);
+        Locale locale=OpenCms.getLocaleManager().getDefaultLocale(rootCms,filename);
         if (!locale.equals(value.getLocale())) {
           continue;
         }
-        String stringValue=value.getStringValue(cms);
+        String stringValue=value.getStringValue(rootCms);
         if (mapping.startsWith(MAPTO_PROPERTY_LIST) && (value.getIndex() == 0)) {
           boolean mapToShared;
           int prefixLength;
@@ -42,7 +45,7 @@
           StringBuffer result=new StringBuffer(values.size() * 64);
           while (j.hasNext()) {
             I_CmsXmlContentValue val=(I_CmsXmlContentValue)j.next();
-            result.append(val.getStringValue(cms));
+            result.append(val.getStringValue(rootCms));
             if (j.hasNext()) {
               result.append(CmsProperty.VALUE_LIST_DELIMITER);
             }
@@ -54,7 +57,7 @@
  else {
             p=new CmsProperty(property,result.toString(),null);
           }
-          cms.writePropertyObject(filename,p);
+          rootCms.writePropertyObject(filename,p);
           if (mapToShared) {
             i=0;
           }
@@ -82,7 +85,7 @@
  else {
             p=new CmsProperty(property,stringValue,null);
           }
-          cms.writePropertyObject(filename,p);
+          rootCms.writePropertyObject(filename,p);
           if (mapToShared) {
             i=0;
           }
@@ -118,9 +121,6 @@ default :
 }
 }
 }
-}
-  finally {
-cms.getRequestContext().setSiteRoot(storedSiteRoot);
 }
 }
 }
