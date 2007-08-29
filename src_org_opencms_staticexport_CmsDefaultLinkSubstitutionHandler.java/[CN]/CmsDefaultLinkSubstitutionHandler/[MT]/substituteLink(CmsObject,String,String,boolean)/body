@@ -1,0 +1,110 @@
+{
+  if (CmsStringUtil.isEmpty(link)) {
+    return "";
+  }
+  String absoluteLink=CmsLinkManager.getAbsoluteUri(link,cms.getRequestContext().getUri());
+  String vfsName;
+  String parameters;
+  int pos=absoluteLink.indexOf('?');
+  if (pos >= 0) {
+    vfsName=absoluteLink.substring(0,pos);
+    parameters=absoluteLink.substring(pos);
+  }
+ else {
+    vfsName=absoluteLink;
+    parameters=null;
+  }
+  String resultLink=null;
+  String uriBaseName=null;
+  boolean useRelativeLinks=false;
+  CmsSite targetSite;
+  if (CmsStringUtil.isNotEmpty(siteRoot)) {
+    targetSite=OpenCms.getSiteManager().getSiteForSiteRoot(siteRoot);
+  }
+ else {
+    targetSite=OpenCms.getSiteManager().getCurrentSite(cms);
+  }
+  String serverPrefix="";
+  CmsSite currentSite=OpenCms.getSiteManager().getCurrentSite(cms);
+  if (targetSite != currentSite) {
+    serverPrefix=targetSite.getUrl();
+  }
+  if (cms.getRequestContext().currentProject().isOnlineProject()) {
+    CmsStaticExportManager exportManager=OpenCms.getStaticExportManager();
+    if (exportManager.relativeLinksInExport(cms.getRequestContext().getSiteRoot() + cms.getRequestContext().getUri())) {
+      uriBaseName=exportManager.getCachedOnlineLink(exportManager.getCacheKey(cms.getRequestContext().getSiteRoot(),cms.getRequestContext().getUri()));
+      if (uriBaseName == null) {
+        if (exportManager.isExportLink(cms,cms.getRequestContext().getUri())) {
+          uriBaseName=exportManager.getRfsName(cms,cms.getRequestContext().getUri());
+        }
+ else {
+          uriBaseName=exportManager.getVfsPrefix() + cms.getRequestContext().getUri();
+        }
+        exportManager.cacheOnlineLink(exportManager.getCacheKey(cms.getRequestContext().getSiteRoot(),cms.getRequestContext().getUri()),uriBaseName);
+      }
+      useRelativeLinks=uriBaseName.startsWith(OpenCms.getStaticExportManager().getRfsPrefix(cms.getRequestContext().getSiteRoot() + cms.getRequestContext().getUri()));
+    }
+    resultLink=exportManager.getCachedOnlineLink(cms.getRequestContext().getSiteRoot() + ":" + absoluteLink);
+    if (resultLink == null) {
+      String storedSiteRoot=cms.getRequestContext().getSiteRoot();
+      try {
+        cms.getRequestContext().setSiteRoot(targetSite.getSiteRoot());
+        if (exportManager.isExportLink(cms,vfsName)) {
+          resultLink=exportManager.getRfsName(cms,vfsName,parameters);
+          parameters=null;
+        }
+ else {
+          resultLink=exportManager.getVfsPrefix().concat(vfsName);
+          if (parameters != null) {
+            resultLink=resultLink.concat(parameters);
+          }
+        }
+      }
+  finally {
+        cms.getRequestContext().setSiteRoot(storedSiteRoot);
+      }
+      exportManager.cacheOnlineLink(cms.getRequestContext().getSiteRoot() + ":" + absoluteLink,resultLink);
+    }
+    if (targetSite.hasSecureServer() || currentSite.hasSecureServer()) {
+      if (!vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
+        int linkType=-1;
+        try {
+          linkType=cms.readResource(vfsName).getTypeId();
+        }
+ catch (        CmsException e) {
+          if (LOG.isInfoEnabled()) {
+            String message=Messages.get().getBundle().key(Messages.LOG_RESOURCE_ACESS_ERROR_3,vfsName,cms.getRequestContext().currentUser().getName(),cms.getRequestContext().getSiteRoot());
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(message,e);
+            }
+ else {
+              LOG.info(message);
+            }
+          }
+        }
+        if (linkType != CmsResourceTypeImage.getStaticTypeId()) {
+          boolean secureLink=exportManager.isSecureLink(cms,vfsName,targetSite.getSiteRoot());
+          boolean secureRequest=exportManager.isSecureLink(cms,cms.getRequestContext().getUri());
+          if (secureLink && (forceSecure || !secureRequest)) {
+            serverPrefix=targetSite.getSecureUrl();
+          }
+ else           if (!secureLink && secureRequest) {
+            serverPrefix=targetSite.getUrl();
+          }
+        }
+      }
+    }
+    if (useRelativeLinks && CmsStringUtil.isEmpty(serverPrefix)) {
+      resultLink=CmsLinkManager.getRelativeUri(uriBaseName,resultLink);
+    }
+  }
+ else {
+    if (OpenCms.getRunLevel() >= OpenCms.RUNLEVEL_3_SHELL_ACCESS) {
+      resultLink=OpenCms.getStaticExportManager().getVfsPrefix().concat(vfsName);
+    }
+    if ((parameters != null) && (resultLink != null)) {
+      resultLink=resultLink.concat(parameters);
+    }
+  }
+  return serverPrefix.concat(resultLink);
+}
