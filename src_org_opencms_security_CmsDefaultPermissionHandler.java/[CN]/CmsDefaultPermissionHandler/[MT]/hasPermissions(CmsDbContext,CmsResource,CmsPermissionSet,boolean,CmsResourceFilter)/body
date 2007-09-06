@@ -1,0 +1,65 @@
+{
+  int denied=0;
+  if (dbc.currentProject().isOnlineProject()) {
+    denied|=CmsPermissionSet.PERMISSION_WRITE;
+  }
+  boolean canIgnorePermissions=m_securityManager.hasRoleForResource(dbc,dbc.currentUser(),CmsRole.VFS_MANAGER,resource);
+  boolean writeRequired=requiredPermissions.requiresWritePermission() || requiredPermissions.requiresControlPermission();
+  if (writeRequired && !canIgnorePermissions && (resource.getTypeId() == CmsResourceTypeJsp.getStaticTypeId())) {
+    if (!m_securityManager.hasRoleForResource(dbc,dbc.currentUser(),CmsRole.DEVELOPER,resource)) {
+      denied|=CmsPermissionSet.PERMISSION_WRITE;
+      denied|=CmsPermissionSet.PERMISSION_CONTROL;
+    }
+  }
+  if (writeRequired && checkLock) {
+    CmsLock lock=m_driverManager.getLock(dbc,resource);
+    if (lock.isUnlocked() || !lock.isLockableBy(dbc.currentUser())) {
+      return I_CmsPermissionHandler.PERM_NOTLOCKED;
+    }
+  }
+  CmsPermissionSetCustom permissions;
+  if (canIgnorePermissions) {
+    permissions=new CmsPermissionSetCustom(~0);
+  }
+ else {
+    permissions=m_driverManager.getPermissions(dbc,resource,dbc.currentUser());
+  }
+  permissions.denyPermissions(denied);
+  if ((permissions.getPermissions() & CmsPermissionSet.PERMISSION_VIEW) == 0) {
+    if (filter.requireVisible()) {
+      requiredPermissions=new CmsPermissionSet(requiredPermissions.getAllowedPermissions() | CmsPermissionSet.PERMISSION_VIEW,requiredPermissions.getDeniedPermissions());
+    }
+ else {
+      permissions.setPermissions(permissions.getAllowedPermissions() | CmsPermissionSet.PERMISSION_VIEW,permissions.getDeniedPermissions() & ~CmsPermissionSet.PERMISSION_VIEW);
+    }
+  }
+  if (requiredPermissions.requiresDirectPublishPermission()) {
+    if ((permissions.getPermissions() & CmsPermissionSet.PERMISSION_DIRECT_PUBLISH) == 0) {
+      boolean canIgnorePublishPermission=m_securityManager.hasRoleForResource(dbc,dbc.currentUser(),CmsRole.PROJECT_MANAGER,resource);
+      if (!canIgnorePublishPermission) {
+        Iterator itProjects=m_driverManager.getAllManageableProjects(dbc).iterator();
+        while (itProjects.hasNext()) {
+          CmsProject project=(CmsProject)itProjects.next();
+          if (CmsProject.isInsideProject(m_driverManager.readProjectResources(dbc,project),resource)) {
+            canIgnorePublishPermission=true;
+            break;
+          }
+        }
+      }
+      if (canIgnorePublishPermission) {
+        permissions.setPermissions(permissions.getAllowedPermissions() | CmsPermissionSet.PERMISSION_DIRECT_PUBLISH,permissions.getDeniedPermissions() & ~CmsPermissionSet.PERMISSION_DIRECT_PUBLISH);
+      }
+    }
+  }
+  CmsPermissionCheckResult result;
+  if ((requiredPermissions.getPermissions() & (permissions.getPermissions())) == requiredPermissions.getPermissions()) {
+    result=I_CmsPermissionHandler.PERM_ALLOWED;
+  }
+ else {
+    result=I_CmsPermissionHandler.PERM_DENIED;
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_NO_PERMISSION_RESOURCE_USER_4,new Object[]{dbc.getRequestContext().removeSiteRoot(resource.getRootPath()),dbc.currentUser().getName(),requiredPermissions.getPermissionString(),permissions.getPermissionString()}));
+    }
+  }
+  return result;
+}

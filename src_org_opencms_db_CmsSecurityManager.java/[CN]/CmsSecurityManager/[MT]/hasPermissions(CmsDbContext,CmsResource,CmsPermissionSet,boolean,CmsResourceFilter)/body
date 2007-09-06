@@ -1,74 +1,13 @@
 {
   if (!filter.isValid(dbc.getRequestContext(),resource)) {
-    return PERM_FILTERED;
+    return I_CmsPermissionHandler.PERM_FILTERED;
   }
   String cacheKey=m_keyGenerator.getCacheKeyForUserPermissions(filter.requireVisible() && checkLock ? "11" : (!filter.requireVisible() && checkLock ? "01" : (filter.requireVisible() && !checkLock ? "10" : "00")),dbc,resource,requiredPermissions);
-  Integer cacheResult=OpenCms.getMemoryMonitor().getCachedPermission(cacheKey);
+  I_CmsPermissionHandler.CmsPermissionCheckResult cacheResult=OpenCms.getMemoryMonitor().getCachedPermission(cacheKey);
   if (cacheResult != null) {
-    return cacheResult.intValue();
+    return cacheResult;
   }
-  int denied=0;
-  if (dbc.currentProject().isOnlineProject()) {
-    denied|=CmsPermissionSet.PERMISSION_WRITE;
-  }
-  boolean canIgnorePermissions=hasRoleForResource(dbc,dbc.currentUser(),CmsRole.VFS_MANAGER,resource);
-  boolean writeRequired=requiredPermissions.requiresWritePermission() || requiredPermissions.requiresControlPermission();
-  if (writeRequired && !canIgnorePermissions && (resource.getTypeId() == CmsResourceTypeJsp.getStaticTypeId())) {
-    if (!hasRoleForResource(dbc,dbc.currentUser(),CmsRole.DEVELOPER,resource)) {
-      denied|=CmsPermissionSet.PERMISSION_WRITE;
-      denied|=CmsPermissionSet.PERMISSION_CONTROL;
-    }
-  }
-  if (writeRequired && checkLock) {
-    CmsLock lock=m_lockManager.getLock(dbc,resource,true);
-    if (lock.isUnlocked() || !lock.isLockableBy(dbc.currentUser())) {
-      return PERM_NOTLOCKED;
-    }
-  }
-  CmsPermissionSetCustom permissions;
-  if (canIgnorePermissions) {
-    permissions=new CmsPermissionSetCustom(~0);
-  }
- else {
-    permissions=m_driverManager.getPermissions(dbc,resource,dbc.currentUser());
-  }
-  permissions.denyPermissions(denied);
-  if ((permissions.getPermissions() & CmsPermissionSet.PERMISSION_VIEW) == 0) {
-    if (filter.requireVisible()) {
-      requiredPermissions=new CmsPermissionSet(requiredPermissions.getAllowedPermissions() | CmsPermissionSet.PERMISSION_VIEW,requiredPermissions.getDeniedPermissions());
-    }
- else {
-      permissions.setPermissions(permissions.getAllowedPermissions() | CmsPermissionSet.PERMISSION_VIEW,permissions.getDeniedPermissions() & ~CmsPermissionSet.PERMISSION_VIEW);
-    }
-  }
-  if (requiredPermissions.requiresDirectPublishPermission()) {
-    if ((permissions.getPermissions() & CmsPermissionSet.PERMISSION_DIRECT_PUBLISH) == 0) {
-      boolean canIgnorePublishPermission=hasRoleForResource(dbc,dbc.currentUser(),CmsRole.PROJECT_MANAGER,resource);
-      if (!canIgnorePublishPermission) {
-        Iterator itProjects=m_driverManager.getAllManageableProjects(dbc).iterator();
-        while (itProjects.hasNext()) {
-          CmsProject project=(CmsProject)itProjects.next();
-          if (CmsProject.isInsideProject(m_driverManager.readProjectResources(dbc,project),resource)) {
-            canIgnorePublishPermission=true;
-            break;
-          }
-        }
-      }
-      if (canIgnorePublishPermission) {
-        permissions.setPermissions(permissions.getAllowedPermissions() | CmsPermissionSet.PERMISSION_DIRECT_PUBLISH,permissions.getDeniedPermissions() & ~CmsPermissionSet.PERMISSION_DIRECT_PUBLISH);
-      }
-    }
-  }
-  int result;
-  if ((requiredPermissions.getPermissions() & (permissions.getPermissions())) == requiredPermissions.getPermissions()) {
-    result=PERM_ALLOWED;
-  }
- else {
-    result=PERM_DENIED;
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(Messages.get().getBundle().key(Messages.LOG_NO_PERMISSION_RESOURCE_USER_4,new Object[]{dbc.getRequestContext().removeSiteRoot(resource.getRootPath()),dbc.currentUser().getName(),requiredPermissions.getPermissionString(),permissions.getPermissionString()}));
-    }
-  }
+  I_CmsPermissionHandler.CmsPermissionCheckResult result=m_permissionHandler.hasPermissions(dbc,resource,requiredPermissions,checkLock,filter);
   OpenCms.getMemoryMonitor().cachePermission(cacheKey,result);
   return result;
 }
