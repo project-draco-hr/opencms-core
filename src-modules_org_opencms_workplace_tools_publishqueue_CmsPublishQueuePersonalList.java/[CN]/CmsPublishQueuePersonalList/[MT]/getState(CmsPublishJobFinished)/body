@@ -1,5 +1,6 @@
 {
-  byte[] reportBytes;
+  Map result=new HashMap();
+  byte[] reportBytes=null;
   try {
     reportBytes=OpenCms.getPublishManager().getReportContents(publishJob);
   }
@@ -7,14 +8,28 @@
     if (LOG.isErrorEnabled()) {
       LOG.error(e.getLocalizedMessage());
     }
-    return STATE_OK;
+    result.put(LIST_COLUMN_STATE,STATE_OK);
   }
-  String report=new String(reportBytes);
-  if (report.indexOf("<span class='warn'>") > -1) {
-    return STATE_WARNING;
+  if (result.get(LIST_COLUMN_STATE) == null) {
+    String report=new String(reportBytes);
+    if (report.indexOf("<span class='err'>") > -1) {
+      result.put(LIST_COLUMN_STATE,STATE_ERROR);
+      result.put(LIST_COLUMN_ERRORS,new Integer(CmsStringUtil.splitAsList(report,"<span class='err'>").size() - 1));
+      result.put(LIST_COLUMN_WARNINGS,new Integer(CmsStringUtil.splitAsList(report,"<span class='warn'>").size() - 1));
+    }
+ else     if (report.indexOf("<span class='warn'>") > -1) {
+      result.put(LIST_COLUMN_STATE,STATE_WARNING);
+      result.put(LIST_COLUMN_WARNINGS,new Integer(CmsStringUtil.splitAsList(report,"<span class='warn'>").size() - 1));
+    }
+ else {
+      result.put(LIST_COLUMN_STATE,STATE_OK);
+    }
   }
-  if (report.indexOf("<span class='err'>") > -1) {
-    return STATE_ERROR;
+  if (result.get(LIST_COLUMN_WARNINGS) == null) {
+    result.put(LIST_COLUMN_WARNINGS,new Integer(0));
   }
-  return STATE_OK;
+  if (result.get(LIST_COLUMN_ERRORS) == null) {
+    result.put(LIST_COLUMN_ERRORS,new Integer(0));
+  }
+  return result;
 }
