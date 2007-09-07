@@ -1,0 +1,26 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing moving a sibling");
+  String resName="index.html";
+  String sibName="folder1/sib.html";
+  String sib2Name="folder1/sib2.html";
+  cms.copyResource(resName,sibName,CmsResource.COPY_AS_SIBLING);
+  OpenCms.getPublishManager().publishResource(cms,sibName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  storeResources(cms,resName);
+  storeResources(cms,sibName);
+  assertLock(cms,resName,CmsLockType.UNLOCKED);
+  assertLock(cms,sibName,CmsLockType.UNLOCKED);
+  cms.lockResource(sibName);
+  assertLock(cms,resName,CmsLockType.SHARED_EXCLUSIVE);
+  assertLock(cms,sibName,CmsLockType.EXCLUSIVE);
+  cms.moveResource(sibName,sib2Name);
+  assertLock(cms,resName,CmsLockType.SHARED_EXCLUSIVE);
+  assertLock(cms,sib2Name,CmsLockType.EXCLUSIVE);
+  cms.unlockResource(sib2Name);
+  assertFilter(cms,resName,OpenCmsTestResourceFilter.FILTER_EQUAL);
+  setMapping(sib2Name,sibName);
+  assertFilter(cms,sib2Name,OpenCmsTestResourceFilter.FILTER_MOVE_DESTINATION);
+  assertState(cms,sib2Name,CmsResourceState.STATE_CHANGED);
+  assertProject(cms,sib2Name,cms.getRequestContext().currentProject());
+}
