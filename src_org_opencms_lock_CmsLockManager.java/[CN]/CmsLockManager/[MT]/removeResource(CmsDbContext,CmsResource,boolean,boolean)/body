@@ -15,11 +15,18 @@
       while (itLocks.hasNext()) {
         String lockedPath=((CmsLock)itLocks.next()).getResourceName();
         if (lockedPath.startsWith(resourcename) && !lockedPath.equals(resourcename)) {
+          if (removeSystemLock) {
+            unlockResource(lockedPath,true);
+          }
           unlockResource(lockedPath,false);
         }
       }
     }
-    return unlockResource(resourcename,false);
+    if (removeSystemLock) {
+      unlockResource(resourcename,true);
+    }
+    unlockResource(resourcename,false);
+    return lock;
   }
   if (lock.getType().isSharedExclusive()) {
     List locks=OpenCms.getMemoryMonitor().getAllCachedLockPaths();
@@ -27,13 +34,16 @@
     for (int i=0; i < siblings.size(); i++) {
       CmsResource sibling=(CmsResource)siblings.get(i);
       if (locks.contains(sibling.getRootPath())) {
+        if (removeSystemLock) {
+          unlockResource(sibling.getRootPath(),true);
+        }
         unlockResource(sibling.getRootPath(),false);
         break;
       }
     }
     return lock;
   }
-  if (unlockSystemLock && !getLock(dbc,resource).getSystemLock().isUnlocked()) {
+  if (removeSystemLock && !getLock(dbc,resource).getSystemLock().isUnlocked()) {
     return unlockResource(resourcename,true);
   }
   return lock;
