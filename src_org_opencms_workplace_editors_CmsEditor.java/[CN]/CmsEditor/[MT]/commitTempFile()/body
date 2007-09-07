@@ -1,30 +1,28 @@
 {
-  switchToTempProject();
+  CmsObject cms=getCms();
   CmsFile tempFile;
   List properties;
   try {
-    tempFile=getCms().readFile(getParamTempfile(),CmsResourceFilter.ALL);
-    properties=getCms().readPropertyObjects(getParamTempfile(),false);
+    switchToTempProject();
+    tempFile=cms.readFile(getParamTempfile(),CmsResourceFilter.ALL);
+    properties=cms.readPropertyObjects(getParamTempfile(),false);
   }
   finally {
     switchToCurrentProject();
   }
-  if (getCms().existsResource(getParamResource(),CmsResourceFilter.ALL)) {
-    getCms().writePropertyObjects(getParamResource(),properties);
-    CmsFile orgFile=getCms().readFile(getParamResource(),CmsResourceFilter.ALL);
+  if (cms.existsResource(getParamResource(),CmsResourceFilter.ALL)) {
+    cms.writePropertyObjects(getParamResource(),properties);
+    CmsFile orgFile=cms.readFile(getParamResource(),CmsResourceFilter.ALL);
     orgFile.setContents(tempFile.getContents());
     getCloneCms().writeFile(orgFile);
   }
  else {
-    if (getCms().hasPermissions(tempFile,CmsPermissionSet.ACCESS_CONTROL)) {
-      getCms().rmacc(getParamTempfile(),I_CmsPrincipal.PRINCIPAL_GROUP,OpenCms.getDefaultUsers().getGroupUsers());
-      getCms().rmacc(getParamTempfile(),I_CmsPrincipal.PRINCIPAL_GROUP,OpenCms.getDefaultUsers().getGroupUsers());
-    }
-    getCms().copyResource(getParamTempfile(),getParamResource(),CmsResource.COPY_AS_NEW);
+    OpenCms.getWorkplaceManager().removeTempFilePermissions(cms,getParamTempfile(),getSettings().getProject());
+    cms.copyResource(getParamTempfile(),getParamResource(),CmsResource.COPY_AS_NEW);
   }
-  int flags=getCms().readResource(getParamResource(),CmsResourceFilter.ALL).getFlags();
+  int flags=cms.readResource(getParamResource(),CmsResourceFilter.ALL).getFlags();
   if ((flags & CmsResource.FLAG_TEMPFILE) == CmsResource.FLAG_TEMPFILE) {
     flags^=CmsResource.FLAG_TEMPFILE;
-    getCms().chflags(getParamResource(),flags);
+    cms.chflags(getParamResource(),flags);
   }
 }
