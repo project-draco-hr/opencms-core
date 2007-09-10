@@ -290,7 +290,7 @@ setContent(cms,filename4,content4);
 break;
 }
 restore(cms,file2,report);
-CmsResource res8=cms.createResource(filename8,CmsResourceTypeXmlPage.getStaticTypeId());
+CmsResource res8=cms.createResource(filename8,type);
 switch (mode) {
 case 1:
 setXmlContent(cms,filename7,"<a href='" + filename8 + "'>file8</a>",filename8);
@@ -318,6 +318,43 @@ assertTrue(brokenLinks.contains(new CmsRelation(res7,res8,CmsRelationType.XML_WE
 List res78=new ArrayList();
 res78.add(res7);
 res78.add(res8);
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,res78,false),report);
+assertTrue(validation.isEmpty());
+switch (mode) {
+case 1:
+setXmlContent(cms,filename8,"<a href='" + filename7 + "'>file7</a>",filename7);
+break;
+case 2:
+setXmlContentHtml(cms,filename8,"<a href='" + filename7 + "'>file7</a>");
+break;
+case 3:
+setXmlContentFileRef(cms,filename8,filename7,null);
+break;
+default :
+setContent(cms,filename8,"<a href='" + filename7 + "'>file7</a>");
+break;
+}
+OpenCms.getPublishManager().publishResource(cms,filename7);
+OpenCms.getPublishManager().publishResource(cms,filename8);
+OpenCms.getPublishManager().waitWhileRunning();
+cms.lockResource(filename7);
+cms.deleteResource(filename7,CmsResource.DELETE_PRESERVE_SIBLINGS);
+cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,Collections.singletonList(cms.readResource(filename7,CmsResourceFilter.ALL)),false),report);
+assertEquals(validation.size(),1);
+assertTrue(validation.keySet().contains(cms.getRequestContext().addSiteRoot(filename7)));
+brokenLinks=(List)validation.get(cms.getRequestContext().addSiteRoot(filename7));
+assertEquals(brokenLinks.size(),(mode == MODE_XMLCONTENT_BOTH ? 2 : 1));
+assertTrue(brokenLinks.contains(new CmsRelation(res8,res7,relType1)));
+if (mode == MODE_XMLCONTENT_BOTH) {
+assertTrue(brokenLinks.contains(new CmsRelation(res8,res7,CmsRelationType.XML_WEAK)));
+}
+cms.lockResource(filename8);
+cms.deleteResource(filename8,CmsResource.DELETE_PRESERVE_SIBLINGS);
+cms.unlockProject(cms.getRequestContext().currentProject().getUuid());
+res78=new ArrayList();
+res78.add(cms.readResource(filename7,CmsResourceFilter.ALL));
+res78.add(cms.readResource(filename8,CmsResourceFilter.ALL));
 validation=OpenCms.getPublishManager().validateRelations(cms,OpenCms.getPublishManager().getPublishList(cms,res78,false),report);
 assertTrue(validation.isEmpty());
 }
