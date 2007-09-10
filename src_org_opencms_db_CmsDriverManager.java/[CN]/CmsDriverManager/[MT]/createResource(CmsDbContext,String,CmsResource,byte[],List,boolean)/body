@@ -4,6 +4,12 @@
     resourcePath=CmsFileUtil.addTrailingSeparator(resourcePath);
   }
   try {
+    String parentFolderName=CmsResource.getParentFolder(resourcePath);
+    CmsResource parentFolder=readFolder(dbc,parentFolderName,CmsResourceFilter.IGNORE_EXPIRATION);
+    CmsLock parentLock=getLock(dbc,parentFolder);
+    if (!parentLock.isUnlocked() && !parentLock.isOwnedBy(dbc.currentUser())) {
+      throw new CmsLockException(Messages.get().container(Messages.ERR_CREATE_RESOURCE_PARENT_LOCK_1,dbc.removeSiteRoot(resourcePath)));
+    }
     boolean useLostAndFound=importCase && !OpenCms.getImportExportManager().overwriteCollidingResources();
     CmsResource currentResourceByName=null;
     try {
@@ -20,15 +26,13 @@
     }
  catch (    CmsVfsResourceNotFoundException e) {
     }
-    String parentFolderName=CmsResource.getParentFolder(resourcePath);
-    CmsResource parentFolder=readFolder(dbc,parentFolderName,CmsResourceFilter.IGNORE_EXPIRATION);
     if (currentResourceByName == null) {
       m_securityManager.checkPermissions(dbc,parentFolder,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.IGNORE_EXPIRATION);
     }
  else {
       m_securityManager.checkPermissions(dbc,currentResourceByName,CmsPermissionSet.ACCESS_WRITE,!importCase,CmsResourceFilter.ALL);
     }
-    if (currentResourceById != null) {
+    if ((currentResourceById != null) && !currentResourceById.equals(currentResourceByName)) {
       m_securityManager.checkPermissions(dbc,currentResourceById,CmsPermissionSet.ACCESS_WRITE,!importCase,CmsResourceFilter.ALL);
     }
     if (currentResourceById != null) {
@@ -144,7 +148,6 @@
       newResource=m_vfsDriver.createResource(dbc,dbc.currentProject().getUuid(),newResource,content);
     }
  else {
-      lockResource(dbc,overwrittenResource,CmsLockType.EXCLUSIVE);
       int updateStates=(overwrittenResource.getState().isNew() ? CmsDriverManager.NOTHING_CHANGED : CmsDriverManager.UPDATE_ALL);
       m_vfsDriver.writeResource(dbc,dbc.currentProject().getUuid(),newResource,updateStates);
       if ((content != null) && resource.isFile()) {
