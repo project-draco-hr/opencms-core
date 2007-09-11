@@ -1,3 +1,25 @@
 {
-  return OpenCms.getWorkplaceManager().createTempFile(getCms(),getParamResource(),getSettings().getProject());
+  String temporaryFilename=OpenCms.getWorkplaceManager().createTempFile(getCms(),getParamResource(),getSettings().getProject());
+  CmsObject cms=getCms();
+  try {
+    cms.getRequestContext().setCurrentProject(cms.readProject(OpenCms.getWorkplaceManager().getTempFileProjectId()));
+    cms.changeLock(temporaryFilename);
+    cms.setDateLastModified(temporaryFilename,System.currentTimeMillis(),false);
+    CmsResource tempFile=cms.readResource(temporaryFilename,CmsResourceFilter.ALL);
+    int flags=tempFile.getFlags();
+    if ((flags & CmsResource.FLAG_TEMPFILE) == 0) {
+      flags+=CmsResource.FLAG_TEMPFILE;
+    }
+    cms.chflags(temporaryFilename,flags);
+    cms.setDateReleased(temporaryFilename,CmsResource.DATE_RELEASED_DEFAULT,false);
+    cms.setDateExpired(temporaryFilename,CmsResource.DATE_EXPIRED_DEFAULT,false);
+    if (cms.hasPermissions(tempFile,CmsPermissionSet.ACCESS_CONTROL)) {
+      cms.chacc(temporaryFilename,I_CmsPrincipal.PRINCIPAL_GROUP,OpenCms.getDefaultUsers().getGroupUsers(),"-v");
+      cms.chacc(temporaryFilename,I_CmsPrincipal.PRINCIPAL_GROUP,OpenCms.getDefaultUsers().getGroupProjectmanagers(),"-v");
+    }
+  }
+  finally {
+    cms.getRequestContext().setCurrentProject(cms.readProject(getSettings().getProject()));
+  }
+  return temporaryFilename;
 }
