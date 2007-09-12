@@ -1,0 +1,66 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing module deletion with locked resources");
+  String folderName="/testModuleDeletion/";
+  String fileOneName=folderName + "fileOne.txt";
+  String fileTwoName=folderName + "fileTwo.txt";
+  cms.createResource(folderName,CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  cms.createResource(fileOneName,CmsResourceTypePlain.getStaticTypeId(),"first test file".getBytes(),null);
+  cms.createResource(fileTwoName,CmsResourceTypePlain.getStaticTypeId(),"second test file".getBytes(),null);
+  cms.unlockResource(folderName);
+  String moduleName="org.opencms.test.modules.testModuleDeletion";
+  List resources=new ArrayList();
+  resources.add(folderName);
+  CmsModule module=new CmsModule(moduleName,"test","test",null,"test",new CmsModuleVersion("0.0.1"),"test","test@test.com",System.currentTimeMillis(),cms.getRequestContext().currentUser().getName(),System.currentTimeMillis(),null,null,resources,null);
+  OpenCms.getModuleManager().addModule(cms,module);
+  cms.loginUser("test1","test1");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.lockResource(fileOneName);
+  cms=getCmsObject();
+  I_CmsReport report=new CmsShellReport(Locale.ENGLISH);
+  try {
+    OpenCms.getModuleManager().deleteModule(cms,moduleName,false,report);
+    fail("it should not be possible to delete a module containing a file locked by other user");
+  }
+ catch (  CmsLockException e) {
+  }
+  if (!report.hasError() || !cms.existsResource(fileOneName) || !OpenCms.getModuleManager().hasModule(moduleName)) {
+    fail("it should not be possible to delete a module containing a file locked by other user");
+  }
+  cms.loginUser("test1","test1");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.lockResource("/");
+  cms=getCmsObject();
+  report=new CmsShellReport(Locale.ENGLISH);
+  try {
+    OpenCms.getModuleManager().deleteModule(cms,moduleName,false,report);
+    fail("it should not be possible to delete a module when a super folder is locked by other user");
+  }
+ catch (  CmsLockException e) {
+  }
+  if (!report.hasError() || !cms.existsResource(fileOneName) || !OpenCms.getModuleManager().hasModule(moduleName)) {
+    fail("it should not be possible to delete a module when a super folder is locked by other user");
+  }
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.changeLock("/");
+  cms=getCmsObject();
+  report=new CmsShellReport(Locale.ENGLISH);
+  try {
+    OpenCms.getModuleManager().deleteModule(cms,moduleName,false,report);
+    fail("it should not be possible to delete a module when a super folder is locked by the same user");
+  }
+ catch (  CmsLockException e) {
+  }
+  if (!report.hasError() || !cms.existsResource(fileOneName) || !OpenCms.getModuleManager().hasModule(moduleName)) {
+    fail("it should not be possible to delete a module when a super folder is locked by the same user");
+  }
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.unlockResource("/");
+  cms.lockResource(fileTwoName);
+  cms=getCmsObject();
+  report=new CmsShellReport(Locale.ENGLISH);
+  OpenCms.getModuleManager().deleteModule(cms,moduleName,false,report);
+  if (report.hasError() || cms.existsResource(fileOneName) || OpenCms.getModuleManager().hasModule(moduleName)) {
+    fail("it should be possible to delete a module containing a file locked by the same user");
+  }
+}

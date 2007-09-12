@@ -7,10 +7,6 @@
     LOG.info(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_1,moduleName));
   }
   CmsModule module=(CmsModule)m_modules.get(moduleName);
-  boolean removeResourceTypes=!module.getResourceTypes().isEmpty();
-  if (removeResourceTypes) {
-    OpenCms.getWorkplaceManager().removeExplorerTypeSettings(module);
-  }
   if (!replace) {
     List dependencies=checkDependencies(module,DEPENDENCY_MODE_DELETE);
     if (!dependencies.isEmpty()) {
@@ -29,7 +25,33 @@
     }
  catch (    Throwable t) {
       LOG.error(Messages.get().getBundle().key(Messages.LOG_MOD_UNINSTALL_ERR_1,moduleName),t);
+      report.println(Messages.get().container(Messages.LOG_MOD_UNINSTALL_ERR_1,moduleName),I_CmsReport.FORMAT_WARNING);
     }
+  }
+  boolean removeResourceTypes=!module.getResourceTypes().isEmpty();
+  if (removeResourceTypes) {
+    OpenCms.getWorkplaceManager().removeExplorerTypeSettings(module);
+  }
+  List lockedResources=new ArrayList();
+  CmsLockFilter filter1=CmsLockFilter.FILTER_ALL.filterNotLockableByUser(cms.getRequestContext().currentUser());
+  CmsLockFilter filter2=CmsLockFilter.FILTER_INHERITED;
+  List moduleResources=module.getResources();
+  for (int iLock=0; iLock < moduleResources.size(); iLock++) {
+    String resourceName=(String)moduleResources.get(iLock);
+    try {
+      lockedResources.addAll(cms.getLockedResources(resourceName,filter1));
+      lockedResources.addAll(cms.getLockedResources(resourceName,filter2));
+    }
+ catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+      report.println(e.getMessageContainer(),I_CmsReport.FORMAT_WARNING);
+    }
+  }
+  if (!lockedResources.isEmpty()) {
+    CmsMessageContainer msg=Messages.get().container(Messages.ERR_DELETE_MODULE_CHECK_LOCKS_2,moduleName,CmsStringUtil.collectionAsString(lockedResources,","));
+    report.addError(msg.key(cms.getRequestContext().getLocale()));
+    report.println(msg);
+    throw new CmsLockException(msg);
   }
   module=(CmsModule)m_modules.remove(moduleName);
   CmsProject previousProject=cms.getRequestContext().currentProject();
@@ -52,7 +74,7 @@
       }
  catch (      CmsException e) {
         LOG.error(Messages.get().getBundle().key(Messages.LOG_MOVE_RESOURCE_FAILED_1,projectFiles.get(i)),e);
-        report.println(e);
+        report.println(e.getMessageContainer(),I_CmsReport.FORMAT_WARNING);
       }
     }
     report.print(Messages.get().container(Messages.RPT_DELETE_MODULE_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
@@ -90,7 +112,7 @@
       }
  catch (      CmsException e) {
         LOG.error(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_EXC_1,currentResource),e);
-        report.println(e);
+        report.println(e.getMessageContainer(),I_CmsReport.FORMAT_WARNING);
       }
     }
     report.println(Messages.get().container(Messages.RPT_PUBLISH_PROJECT_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
