@@ -3,7 +3,16 @@
     Iterator itRelations=getCms().getRelationsForResource(resName,CmsRelationFilter.TARGETS.filterStrong().filterIncludeChildren()).iterator();
     while (itRelations.hasNext()) {
       CmsRelation relation=(CmsRelation)itRelations.next();
-      CmsResource target=relation.getTarget(getCms(),CmsResourceFilter.ALL);
+      CmsResource target=null;
+      try {
+        target=relation.getTarget(getCms(),CmsResourceFilter.ALL);
+      }
+ catch (      CmsException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(getLocale()),e);
+        }
+        continue;
+      }
       if (target.getState().isUnchanged()) {
         continue;
       }
@@ -16,9 +25,17 @@
           continue;
         }
       }
-      org.opencms.lock.CmsLock lock=getCms().getLock(targetName);
-      if (!lock.isUnlocked() && filter.match("/",lock)) {
-        lockedResources.add(targetName + "*");
+      try {
+        org.opencms.lock.CmsLock lock=getCms().getLock(targetName);
+        if (!lock.isUnlocked() && filter.match("/",lock)) {
+          lockedResources.add(targetName + "*");
+        }
+      }
+ catch (      CmsException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(getLocale()),e);
+        }
+        continue;
       }
     }
   }
