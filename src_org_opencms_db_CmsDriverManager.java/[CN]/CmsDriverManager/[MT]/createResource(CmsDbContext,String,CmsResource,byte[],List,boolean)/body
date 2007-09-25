@@ -19,11 +19,10 @@
     }
  catch (    CmsVfsResourceNotFoundException e) {
     }
-    CmsResource currentResourceById=null;
     try {
-      currentResourceById=readResource(dbc,resource.getStructureId(),CmsResourceFilter.ALL);
-      if ((currentResourceByName != null) && currentResourceById.getRootPath().equals(currentResourceByName.getRootPath())) {
-        currentResourceById=null;
+      CmsResource currentResourceById=readResource(dbc,resource.getStructureId(),CmsResourceFilter.ALL);
+      if (!currentResourceById.getRootPath().equals(resourcePath)) {
+        throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_RESOURCE_WITH_ID_ALREADY_EXISTS_3,dbc.removeSiteRoot(resourcePath),dbc.removeSiteRoot(currentResourceById.getRootPath()),currentResourceById.getStructureId()));
       }
     }
  catch (    CmsVfsResourceNotFoundException e) {
@@ -33,28 +32,6 @@
     }
  else {
       m_securityManager.checkPermissions(dbc,currentResourceByName,CmsPermissionSet.ACCESS_WRITE,!importCase,CmsResourceFilter.ALL);
-    }
-    if ((currentResourceById != null) && !currentResourceById.equals(currentResourceByName)) {
-      m_securityManager.checkPermissions(dbc,currentResourceById,CmsPermissionSet.ACCESS_WRITE,!importCase,CmsResourceFilter.ALL);
-    }
-    if (currentResourceById != null) {
-      if (!importCase) {
-        throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_RESOURCE_WITH_ID_ALREADY_EXISTS_3,dbc.removeSiteRoot(resource.getRootPath()),currentResourceById.getRootPath(),currentResourceById.getStructureId()));
-      }
-      lockResource(dbc,currentResourceById,CmsLockType.EXCLUSIVE);
-      if (currentResourceById.getState().isDeleted()) {
-        if (!currentResourceById.isFolder()) {
-          currentResourceById=null;
-        }
-      }
- else {
-        if (!resource.isFolder() && useLostAndFound && (!currentResourceById.getResourceId().equals(resource.getResourceId()))) {
-          moveToLostAndFound(dbc,currentResourceById,false);
-        }
-      }
-      if (currentResourceByName == null) {
-        moveResource(dbc,currentResourceById,resourcePath,true);
-      }
     }
     if (currentResourceByName != null) {
       boolean overwrite=true;
@@ -76,7 +53,7 @@
         currentResourceByName=null;
       }
     }
-    CmsResource overwrittenResource=(currentResourceById != null ? currentResourceById : currentResourceByName);
+    CmsResource overwrittenResource=currentResourceByName;
     String targetName=CmsResource.getName(resourcePath);
     int contentLength;
     if (resource.isFolder()) {

@@ -1,0 +1,47 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the import of a resource in the wrong site.");
+  String site="/sites/default";
+  String filename="/newfileWrongSite.html";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportWrongSite.zip");
+  try {
+    cms.getRequestContext().setSiteRoot("");
+    CmsResource res=cms.createResource(site + filename,CmsResourceTypePlain.getStaticTypeId());
+    cms.unlockResource(site + filename);
+    OpenCms.getPublishManager().publishResource(cms,site + filename);
+    OpenCms.getPublishManager().waitWhileRunning();
+    CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+    vfsExportHandler.setFileName(zipExportFilename);
+    List exportPaths=new ArrayList(1);
+    exportPaths.add(site + filename);
+    vfsExportHandler.setExportPaths(exportPaths);
+    vfsExportHandler.setIncludeSystem(false);
+    vfsExportHandler.setIncludeUnchanged(true);
+    vfsExportHandler.setExportUserdata(false);
+    OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.getRequestContext().setSiteRoot(site);
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.getRequestContext().setSiteRoot("");
+    cms.readResource(res.getStructureId());
+    String path="/";
+    Iterator itPath=CmsStringUtil.splitAsList(site + filename,"/").iterator();
+    while (itPath.hasNext()) {
+      String pathPart=(String)itPath.next();
+      path+=pathPart + "/";
+      assertTrue(cms.existsResource(path));
+      assertFalse(cms.existsResource(site + path));
+    }
+  }
+  finally {
+    try {
+      if (zipExportFilename != null) {
+        File file=new File(zipExportFilename);
+        if (file.exists()) {
+          file.delete();
+        }
+      }
+    }
+ catch (    Throwable t) {
+    }
+  }
+}
