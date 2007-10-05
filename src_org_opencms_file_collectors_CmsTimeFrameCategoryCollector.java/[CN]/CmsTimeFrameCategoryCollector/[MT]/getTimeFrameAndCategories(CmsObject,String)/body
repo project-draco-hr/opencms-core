@@ -1,0 +1,58 @@
+{
+  List result=null;
+  CollectorDataPropertyBased data=new CollectorDataPropertyBased(param);
+  String foldername=CmsResource.getFolderPath(data.getFileName());
+  CmsResourceFilter filter=CmsResourceFilter.ALL.addRequireType(data.getType()).addExcludeFlags(CmsResource.FLAG_TEMPFILE).addExcludeState(CmsResourceState.STATE_DELETED);
+  result=cms.readResources(foldername,filter,true);
+  String timeProperty=data.getPropertyTime().getName();
+  long start=data.getTimeFrameStart();
+  long end=data.getTimeFrameEnd();
+  long resTime;
+  Iterator itResults=result.iterator();
+  CmsProperty prop;
+  CmsResource res;
+  while (itResults.hasNext()) {
+    res=(CmsResource)itResults.next();
+    prop=cms.readPropertyObject(res,timeProperty,true);
+    if (!prop.isNullProperty()) {
+      resTime=Long.parseLong(prop.getValue());
+      if (resTime < start || resTime > end) {
+        itResults.remove();
+      }
+    }
+  }
+  List categories=data.getCategories();
+  itResults=result.iterator();
+  String categoriesProperty=data.getPropertyCategories().getName();
+  List categoriesFound;
+  while (itResults.hasNext()) {
+    res=(CmsResource)itResults.next();
+    prop=cms.readPropertyObject(res,categoriesProperty,true);
+    if (prop.isNullProperty()) {
+      itResults.remove();
+    }
+ else {
+      categoriesFound=CmsStringUtil.splitAsList(prop.getValue(),'|');
+      Iterator itCategories=categories.iterator();
+      String category;
+      boolean contained=false;
+      while (itCategories.hasNext()) {
+        category=(String)itCategories.next();
+        if (categoriesFound.contains(category)) {
+          contained=true;
+          break;
+        }
+      }
+      if (!contained) {
+        itResults.remove();
+      }
+    }
+  }
+  if (data.isSortDescending()) {
+    Collections.sort(result,CmsResource.COMPARE_DATE_RELEASED);
+  }
+ else {
+    Collections.sort(result,new ComparatorInverter(CmsResource.COMPARE_DATE_RELEASED));
+  }
+  return shrinkToFit(result,data.getCount());
+}
