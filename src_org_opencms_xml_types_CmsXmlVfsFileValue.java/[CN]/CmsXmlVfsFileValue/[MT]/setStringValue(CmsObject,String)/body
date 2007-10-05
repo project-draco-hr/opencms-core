@@ -1,6 +1,7 @@
 {
   m_element.clearContent();
-  if (value == null) {
+  m_stringValue=null;
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(value)) {
     return;
   }
   String path=value;
@@ -10,24 +11,37 @@
     try {
       if (siteRoot != null) {
         cms.getRequestContext().setSiteRoot(siteRoot);
+        path=cms.getRequestContext().removeSiteRoot(value);
       }
-      path=cms.getRequestContext().removeSiteRoot(value);
+      String query="";
+      int pos=path.indexOf(CmsRequestUtil.URL_DELIMITER);
+      int anchorPos=path.indexOf('#');
+      if ((pos == -1) || ((anchorPos > -1) && (pos > anchorPos))) {
+        pos=anchorPos;
+      }
+      if (pos > -1) {
+        query=path.substring(pos);
+        path=path.substring(0,pos);
+      }
       path=OpenCms.getLinkManager().getRootPath(cms,path);
       if (path == null) {
         path=value;
       }
+ else {
+        path+=query;
+      }
     }
   finally {
-      cms.getRequestContext().setSiteRoot(oldSite);
+      if (siteRoot != null) {
+        cms.getRequestContext().setSiteRoot(oldSite);
+      }
     }
   }
   if (CmsStringUtil.isEmptyOrWhitespaceOnly(path)) {
-    m_stringValue=null;
     return;
   }
   CmsRelationType type=getContentDefinition().getContentHandler().getRelationType(this);
   CmsLink link=new CmsLink("vfsLink",type,path,true);
   link.checkConsistency(cms);
   CmsLinkUpdateUtil.updateXmlForVfsFile(link,m_element.addElement(CmsXmlPage.NODE_LINK));
-  m_stringValue=null;
 }
