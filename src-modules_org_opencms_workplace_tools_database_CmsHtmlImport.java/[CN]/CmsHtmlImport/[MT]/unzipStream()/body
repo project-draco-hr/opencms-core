@@ -1,0 +1,62 @@
+{
+  ZipInputStream importZip=null;
+  File folder=null;
+  try {
+    importZip=new ZipInputStream(new FileInputStream(m_httpDir));
+    folder=createTempFolder("import_html");
+    ZipEntry entry=null;
+    byte[] buffer=null;
+    while (true) {
+      try {
+        entry=importZip.getNextEntry();
+        if (entry == null) {
+          break;
+        }
+        String name=entry.getName();
+        m_report.print(Messages.get().container(Messages.RPT_HTML_UNZIP_0),I_CmsReport.FORMAT_NOTE);
+        m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,name));
+        m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+        name=name.replace('/',File.separatorChar);
+        String path=folder + File.separator + name;
+        if (entry.isDirectory()) {
+          File importFile=new File(path);
+          importFile.mkdirs();
+        }
+ else {
+          int size=new Long(entry.getSize()).intValue();
+          if (size == -1) {
+            buffer=CmsFileUtil.readFully(importZip,false);
+          }
+ else {
+            buffer=CmsFileUtil.readFully(importZip,size,false);
+          }
+          File importFile=new File(path);
+          importFile.createNewFile();
+          FileOutputStream fileOutput=new FileOutputStream(importFile.getAbsoluteFile());
+          fileOutput.write(buffer);
+          fileOutput.close();
+        }
+        importZip.closeEntry();
+        m_report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+      }
+ catch (      Exception ex) {
+        String name=(entry != null ? entry.getName() : "");
+        if (LOG.isErrorEnabled()) {
+          LOG.error(Messages.get().getBundle().key(Messages.ERR_ZIPFILE_UNZIP_1,name),ex);
+        }
+        m_report.println(Messages.get().container(Messages.ERR_ZIPFILE_UNZIP_1,name),I_CmsReport.FORMAT_ERROR);
+      }
+      entry=null;
+    }
+  }
+ catch (  Exception ex) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.ERR_ZIPFILE_READ_1,m_httpDir),ex);
+    }
+    m_report.println(Messages.get().container(Messages.ERR_ZIPFILE_READ_1,m_httpDir),I_CmsReport.FORMAT_ERROR);
+  }
+ finally {
+    closeStream(importZip);
+  }
+  return folder;
+}
