@@ -1,0 +1,89 @@
+{
+  if (getCms().getRequestContext().currentUser().isGuestUser()) {
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(userName) || CmsStringUtil.isEmptyOrWhitespaceOnly(password)) {
+      return false;
+    }
+    try {
+      getCms().loginUser(userName,password,getCms().getRequestContext().getRemoteAddress());
+    }
+ catch (    CmsException e) {
+      m_loginException=e;
+      return false;
+    }
+  }
+  CmsUserSettings userSettings=new CmsUserSettings(getCms());
+  try {
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(projectName)) {
+      projectName=userSettings.getStartProject();
+    }
+    CmsProject project=getCms().readProject(projectName);
+    if (getCms().getAllAccessibleProjects().contains(project)) {
+      getCms().getRequestContext().setCurrentProject(project);
+    }
+ else {
+      throw new CmsSecurityException(Messages.get().container(Messages.ERR_PROJECT_NOT_ACCESSIBLE_2,userName,projectName));
+    }
+  }
+ catch (  CmsException e) {
+    m_loginException=e;
+  }
+  if (m_loginException == null) {
+    try {
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(siteRoot)) {
+        siteRoot=userSettings.getStartSite();
+      }
+      String oldSite=getCms().getRequestContext().getSiteRoot();
+      try {
+        getCms().getRequestContext().setSiteRoot("");
+        getCms().readResource(siteRoot);
+      }
+  finally {
+        getCms().getRequestContext().setSiteRoot(oldSite);
+      }
+      boolean hasAccess=false;
+      CmsSite site=OpenCms.getSiteManager().getSiteForSiteRoot(siteRoot);
+      Iterator accessibles=OpenCms.getSiteManager().getAvailableSites(getCms(),false).iterator();
+      while (accessibles.hasNext() && !hasAccess && (site != null)) {
+        CmsSite accessible=(CmsSite)accessibles.next();
+        if (accessible.getSiteRoot().equals(site.getSiteRoot())) {
+          hasAccess=true;
+        }
+      }
+      if (hasAccess) {
+        getCms().getRequestContext().setSiteRoot(siteRoot);
+      }
+ else {
+        throw new CmsSecurityException(Messages.get().container(Messages.ERR_SITE_NOT_ACCESSIBLE_2,userName,siteRoot));
+      }
+    }
+ catch (    CmsException e) {
+      m_loginException=e;
+    }
+  }
+  try {
+    getCms().readResource(resourceName);
+  }
+ catch (  CmsException e) {
+    m_loginException=e;
+  }
+  if (m_loginException != null) {
+    HttpSession session=getJsp().getRequest().getSession(false);
+    if (session != null) {
+      session.invalidate();
+    }
+    return false;
+  }
+  if (OpenCms.getRoleManager().hasRole(getCms(),CmsRole.WORKPLACE_USER)) {
+    CmsWorkplaceSettings wpSettings=getSettings();
+    if (wpSettings == null) {
+      wpSettings=new CmsWorkplaceSettings();
+      wpSettings=initWorkplaceSettings(getCms(),wpSettings,false);
+    }
+    wpSettings.setSite(getCms().getRequestContext().getSiteRoot());
+    wpSettings.setProject(getCms().getRequestContext().currentProject().getUuid());
+    wpSettings.setUser(getCms().getRequestContext().currentUser());
+    HttpSession session=getJsp().getRequest().getSession(true);
+    storeSettings(session,wpSettings);
+  }
+  return true;
+}
