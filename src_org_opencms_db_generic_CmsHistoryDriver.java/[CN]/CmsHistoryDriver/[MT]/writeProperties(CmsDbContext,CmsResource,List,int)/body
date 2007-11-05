@@ -2,10 +2,14 @@
   Connection conn=null;
   PreparedStatement stmt=null;
   try {
+    conn=m_sqlManager.getConnection(dbc);
     Iterator dummy=properties.iterator();
     while (dummy.hasNext()) {
       CmsProperty property=(CmsProperty)dummy.next();
-      CmsPropertyDefinition propDef=m_driverManager.getVfsDriver().readPropertyDefinition(dbc,property.getName(),dbc.currentProject().getUuid());
+      CmsPropertyDefinition propDef=readPropertyDefinition(dbc,property.getName());
+      if (propDef == null) {
+        propDef=createPropertyDefinition(dbc,property.getName(),CmsPropertyDefinition.TYPE_NORMAL);
+      }
       for (int i=0; i < 2; i++) {
         int mappingType;
         String value;
@@ -26,7 +30,6 @@
             break;
           }
         }
-        conn=m_sqlManager.getConnection(dbc);
         stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_HISTORY_CREATE");
         stmt.setString(1,resource.getStructureId().toString());
         stmt.setString(2,propDef.getId().toString());
@@ -35,7 +38,7 @@
         stmt.setString(5,m_sqlManager.validateEmpty(value));
         stmt.setInt(6,publishTag);
         stmt.executeUpdate();
-        m_sqlManager.closeAll(dbc,conn,stmt,null);
+        m_sqlManager.closeAll(dbc,null,stmt,null);
       }
     }
   }
