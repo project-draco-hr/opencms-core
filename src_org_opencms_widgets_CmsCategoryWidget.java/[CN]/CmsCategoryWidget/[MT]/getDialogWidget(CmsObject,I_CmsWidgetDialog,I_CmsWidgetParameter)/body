@@ -1,0 +1,77 @@
+{
+  CmsResource selected=null;
+  try {
+    String name=param.getStringValue(cms);
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(name)) {
+      selected=cms.readResource(name);
+    }
+  }
+ catch (  CmsException e1) {
+  }
+  StringBuffer result=new StringBuffer(16);
+  List levels=new ArrayList();
+  try {
+    result.append("<script language='javascript'>\n");
+    CmsFolder folder=cms.readFolder("/system/categories/" + m_category);
+    List subresources=cms.readResources(cms.getSitePath(folder),CmsResourceFilter.DEFAULT.addRequireFolder(),true);
+    int baseLevel=CmsResource.getPathLevel(folder.getRootPath());
+    int level;
+    List options=new ArrayList();
+    String jsId=CmsStringUtil.substitute(param.getId(),".","");
+    for (level=baseLevel + 1; !subresources.isEmpty(); level++) {
+      if (level != (baseLevel + 1)) {
+        result.append("var cat" + (level - baseLevel) + jsId+ " = new Array(\n");
+      }
+      Iterator itSubs=subresources.iterator();
+      while (itSubs.hasNext()) {
+        CmsResource res=(CmsResource)itSubs.next();
+        if (CmsResource.getPathLevel(res.getRootPath()) == level) {
+          if (level != (baseLevel + 1)) {
+            result.append("new Array('" + res.getStructureId() + "', '"+ cms.readResource(CmsResource.getParentFolder(res.getRootPath())).getStructureId()+ "', '"+ cms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(CmsResource.getName(res.getRootPath()))+ "'),\n");
+          }
+          if ((level == (baseLevel + 1)) || ((selected != null) && selected.getRootPath().startsWith(CmsResource.getParentFolder(res.getRootPath())))) {
+            if (levels.size() < (level - baseLevel)) {
+              options=new ArrayList();
+              levels.add(options);
+              options.add(new CmsSelectWidgetOption("",true,getSelectValue(cms,widgetDialog)));
+            }
+            options.add(new CmsSelectWidgetOption(res.getStructureId().toString(),false,cms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(CmsResource.getName(res.getRootPath()))));
+          }
+          itSubs.remove();
+        }
+      }
+      if (level != (baseLevel + 1)) {
+        result.deleteCharAt(result.length() - 1);
+        result.deleteCharAt(result.length() - 1);
+        result.append(");\n");
+      }
+    }
+    result.append("</script>\n");
+    result.append("<td class=\"xmlTd\" >");
+    result.append("<input id='" + param.getId() + "' name='"+ param.getId()+ "' type='hidden' value='"+ (selected != null ? selected.getStructureId().toString() : "")+ "'>\n");
+    result.append("<table cellspacing='0' cellpadding='0' border='0'>");
+    for (int i=1; i < level - baseLevel; i++) {
+      result.append("<tr id='" + param.getId() + "cat"+ i+ "IdDisplay'");
+      if (levels.size() >= i) {
+        options=(List)levels.get(i - 1);
+      }
+ else {
+        result.append(" style='display:none'");
+        options=new ArrayList();
+        options.add(new CmsSelectWidgetOption("",true,"Select Value"));
+      }
+      result.append(">");
+      result.append("<td width='150'>" + getCategoryName(cms,widgetDialog,i) + "</td>");
+      result.append("<td width='450'style=\"height: 25px;\">");
+      result.append(buildSelectBox(param.getId(),i,options,selected != null ? cms.readResource(CmsResource.getPathPart(selected.getRootPath(),i + baseLevel)).getStructureId().toString() : "",param.hasError(),(i == (level - baseLevel - 1))));
+      result.append("</td>");
+      result.append("</tr>");
+    }
+    result.append("</table>");
+    result.append("</td>");
+  }
+ catch (  CmsException e) {
+    result.append(e.getLocalizedMessage());
+  }
+  return result.toString();
+}
