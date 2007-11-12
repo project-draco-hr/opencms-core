@@ -40,14 +40,30 @@ catch (        CmsSecurityException se) {
     String extension=CmsFileUtil.getExtension(rfsName);
     boolean isJsp=extension.equals(".jsp");
     if (isJsp) {
-      CmsResource res=cms.readResource(vfsName);
-      isJsp=res.getTypeId() == CmsResourceTypeJsp.getStaticTypeId();
-      if (isJsp) {
-        String suffix=cms.readPropertyObject(vfsName,CmsPropertyDefinition.PROPERTY_EXPORTSUFFIX,true).getValue(".html");
-        if (!extension.equals(suffix.toLowerCase())) {
-          rfsName+=suffix;
-          extension=suffix;
+      String suffix=null;
+      try {
+        CmsResource res=cms.readResource(vfsName);
+        isJsp=(res.getTypeId() == CmsResourceTypeJsp.getStaticTypeId());
+        if (isJsp) {
+          suffix=cms.readPropertyObject(vfsName,CmsPropertyDefinition.PROPERTY_EXPORTSUFFIX,true).getValue(".html");
         }
+      }
+ catch (      CmsVfsResourceNotFoundException e) {
+        File rfsFile=new File(CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName) + rfsName));
+        File parent=rfsFile.getParentFile();
+        if (parent != null) {
+          File[] paramVariants=parent.listFiles(new CmsPrefixFileFilter(rfsFile.getName()));
+          if ((paramVariants != null) && (paramVariants.length > 0)) {
+            suffix=paramVariants[0].getAbsolutePath().substring(rfsFile.getAbsolutePath().length());
+          }
+        }
+ else {
+          suffix=".html";
+        }
+      }
+      if (!extension.equals(suffix.toLowerCase())) {
+        rfsName+=suffix;
+        extension=suffix;
       }
     }
     if (parameters != null) {
@@ -61,6 +77,9 @@ catch (        CmsSecurityException se) {
     }
   }
  catch (  CmsException e) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(e.getLocalizedMessage(),e);
+    }
     rfsName=vfsName;
   }
   if (!vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {

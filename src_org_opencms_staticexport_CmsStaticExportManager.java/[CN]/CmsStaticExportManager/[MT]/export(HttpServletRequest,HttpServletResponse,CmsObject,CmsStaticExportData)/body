@@ -53,33 +53,57 @@
     oldUri=cms.getRequestContext().getUri();
     cms.getRequestContext().setUri(vfsName);
   }
-  byte[] result=loader.export(cms,file,req,wrapRes);
-  file=null;
   int status=-1;
-  if (result != null) {
-    String exportPath=getExportPath(siteRoot + vfsName);
-    if (isExportLink(cms,vfsName)) {
-      writeResource(req,exportPath,rfsName,vfsName,resource,result);
-      if (vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
-        Iterator it=getRfsRules().iterator();
-        while (it.hasNext()) {
-          CmsStaticExportRfsRule rule=(CmsStaticExportRfsRule)it.next();
-          if (rule.match(vfsName)) {
-            writeResource(req,rule.getExportPath(),rfsName,vfsName,resource,result);
+  if (isExportLink(cms,vfsName)) {
+    CmsLocaleManager locManager=OpenCms.getLocaleManager();
+    List locales=locManager.getDefaultLocales(cms,vfsName);
+    boolean exported=false;
+    boolean matched=false;
+    Iterator it=getRfsRules().iterator();
+    while (it.hasNext()) {
+      CmsStaticExportRfsRule rule=(CmsStaticExportRfsRule)it.next();
+      boolean export=rule.getSource().matcher(siteRoot + vfsName).matches();
+      matched|=export;
+      export|=(vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM) && rule.match(vfsName));
+      if (export) {
+        CmsObject locCms=cms;
+        Locale locale=CmsLocaleManager.getLocale(rule.getName());
+        if (locales.contains(locale)) {
+          CmsContextInfo ctxInfo=new CmsContextInfo(cms.getRequestContext());
+          ctxInfo.setLocale(locale);
+          locCms=OpenCms.initCmsObject(cms,ctxInfo);
+        }
+        byte[] content=loader.export(locCms,file,req,wrapRes);
+        if (content != null) {
+          exported=true;
+          String locRfsName=rfsName;
+          if (locales.contains(locale)) {
+            locRfsName=rule.getLocalizedRfsName(rfsName,"/");
           }
+          writeResource(req,rule.getExportPath(),locRfsName,resource,content);
         }
       }
+    }
+    if (!matched) {
+      String exportPath=getExportPath(siteRoot + vfsName);
+      byte[] content=loader.export(cms,file,req,wrapRes);
+      if (content != null) {
+        exported=true;
+        writeResource(req,exportPath,rfsName,resource,content);
+      }
+    }
+    if (exported) {
       status=(wrapRes != null) ? wrapRes.getStatus() : -1;
       if (status < 0) {
         status=HttpServletResponse.SC_OK;
       }
     }
  else {
-      status=HttpServletResponse.SC_SEE_OTHER;
+      status=HttpServletResponse.SC_NOT_MODIFIED;
     }
   }
  else {
-    status=HttpServletResponse.SC_NOT_MODIFIED;
+    status=HttpServletResponse.SC_SEE_OTHER;
   }
   if (exportOnDemand) {
     cms.getRequestContext().setUri(oldUri);
