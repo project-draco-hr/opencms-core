@@ -1,0 +1,28 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing permissions on siblings");
+  String resName1="/folder1/page4.html";
+  CmsResource res1=cms.readResource(resName1);
+  CmsUser user=cms.readUser(OpenCms.getDefaultUsers().getUserGuest());
+  CmsPermissionSet permissions=new CmsPermissionSetCustom("-r");
+  TestChacc.chaccFileUser(this,cms,resName1,user,permissions,0);
+  String resName2="/folder1/page4sib.html";
+  cms.createSibling(resName1,resName2,null);
+  CmsAccessControlEntry ace=new CmsAccessControlEntry(res1.getResourceId(),user.getId(),permissions.getAllowedPermissions(),permissions.getDeniedPermissions(),CmsAccessControlEntry.ACCESS_FLAGS_USER);
+  assertAce(cms,resName1,ace);
+  assertAcl(cms,resName1,user.getId(),permissions);
+  cms.deleteResource(resName2,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  assertAce(cms,resName1,ace);
+  assertAcl(cms,resName1,user.getId(),permissions);
+  cms.createSibling(resName1,resName2,null);
+  assertAce(cms,resName1,ace);
+  assertAcl(cms,resName1,user.getId(),permissions);
+  OpenCms.getPublishManager().publishResource(cms,resName2,true,new CmsLogReport(Locale.ENGLISH,getClass()));
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.lockResource(resName2);
+  cms.deleteResource(resName2,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  OpenCms.getPublishManager().publishResource(cms,resName2);
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertAce(cms,resName1,ace);
+  assertAcl(cms,resName1,user.getId(),permissions);
+}
