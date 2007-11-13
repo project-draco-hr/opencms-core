@@ -1,0 +1,51 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing excerpt highlighting");
+  String resname="/search/highlightTest.txt";
+  cms.createResource(resname,CmsResourceTypePlain.getStaticTypeId());
+  CmsFile file=cms.readFile(resname);
+  file.setContents("<b>sites<font> <html>alkacon<body> <i>default</h1>".getBytes());
+  cms.writeFile(file);
+  OpenCms.getPublishManager().publishResource(cms,resname);
+  OpenCms.getPublishManager().waitWhileRunning();
+  OpenCms.getSearchManager().rebuildIndex(INDEX_ONLINE,new CmsLogReport(Locale.ENGLISH,getClass()));
+  CmsSearch searchBean=new CmsSearch();
+  List searchResult;
+  int expected=7;
+  searchBean.init(cms);
+  searchBean.setIndex(INDEX_ONLINE);
+  searchBean.setSearchRoot("/search/");
+  searchBean.setExcerptOnlySearchedFields(false);
+  searchBean.setQuery("alkacon");
+  searchResult=searchBean.getSearchResult();
+  System.out.println("\n\n----- Searching for '" + searchBean.getQuery() + "'");
+  TestCmsSearch.printResults(searchResult,cms,true);
+  assertEquals(expected,searchResult.size());
+  Iterator i=searchResult.iterator();
+  while (i.hasNext()) {
+    CmsSearchResult result=(CmsSearchResult)i.next();
+    if (result.getExcerpt() == null) {
+      continue;
+    }
+    String excerpt=result.getExcerpt().toLowerCase();
+    assertTrue(excerpt.toLowerCase().indexOf("<b>alkacon</b>") > -1);
+    assertFalse(excerpt.toLowerCase().indexOf("<b>sites</b>") > -1);
+    assertFalse(excerpt.toLowerCase().indexOf("<b>default</b>") > -1);
+  }
+  searchBean.setExcerptOnlySearchedFields(true);
+  searchResult=searchBean.getSearchResult();
+  System.out.println("\n\n----- Searching for '" + searchBean.getQuery() + "'");
+  TestCmsSearch.printResults(searchResult,cms,true);
+  assertEquals(expected,searchResult.size());
+  i=searchResult.iterator();
+  while (i.hasNext()) {
+    CmsSearchResult result=(CmsSearchResult)i.next();
+    if (result.getExcerpt() == null) {
+      continue;
+    }
+    String excerpt=result.getExcerpt().toLowerCase();
+    assertTrue(excerpt.toLowerCase().indexOf("<b>alkacon</b>") > -1);
+    assertFalse(excerpt.toLowerCase().indexOf("<b>sites</b>") > -1);
+    assertFalse(excerpt.toLowerCase().indexOf("<b>default</b>") > -1);
+  }
+}

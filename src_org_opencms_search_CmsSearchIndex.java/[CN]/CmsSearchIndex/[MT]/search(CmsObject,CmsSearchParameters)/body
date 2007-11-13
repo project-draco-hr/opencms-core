@@ -49,37 +49,32 @@
       }
       query.add(categoryQuery,BooleanClause.Occur.MUST);
     }
+    searcher=new IndexSearcher(m_path);
+    Query fieldsQuery;
     if ((params.getFields() != null) && (params.getFields().size() > 0)) {
-      BooleanQuery fieldsQuery=new BooleanQuery();
+      BooleanQuery booleanFieldsQuery=new BooleanQuery();
       for (int i=0; i < params.getFields().size(); i++) {
         QueryParser p=new QueryParser((String)params.getFields().get(i),languageAnalyzer);
-        fieldsQuery.add(p.parse(params.getQuery()),BooleanClause.Occur.SHOULD);
+        booleanFieldsQuery.add(p.parse(params.getQuery()),BooleanClause.Occur.SHOULD);
       }
-      query.add(fieldsQuery,BooleanClause.Occur.MUST);
+      fieldsQuery=searcher.rewrite(booleanFieldsQuery);
     }
  else {
       QueryParser p=new QueryParser(CmsSearchField.FIELD_CONTENT,languageAnalyzer);
-      query.add(p.parse(params.getQuery()),BooleanClause.Occur.MUST);
+      fieldsQuery=searcher.rewrite(p.parse(params.getQuery()));
     }
-    searcher=new IndexSearcher(m_path);
-    Query finalQuery;
-    if (m_createExcerpt || LOG.isDebugEnabled()) {
-      finalQuery=searcher.rewrite(query);
-    }
- else {
-      finalQuery=query;
-    }
+    query.add(fieldsQuery,BooleanClause.Occur.MUST);
     if (LOG.isDebugEnabled()) {
       LOG.debug(Messages.get().getBundle().key(Messages.LOG_BASE_QUERY_1,query));
-      LOG.debug(Messages.get().getBundle().key(Messages.LOG_REWRITTEN_QUERY_1,finalQuery));
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_FIELDS_QUERY_1,fieldsQuery));
     }
     CmsSearchCategoryCollector categoryCollector;
     if (params.isCalculateCategories()) {
       categoryCollector=new CmsSearchCategoryCollector(searcher);
-      searcher.search(finalQuery,categoryCollector);
+      searcher.search(query,categoryCollector);
       searchResults.setCategories(categoryCollector.getCategoryCountResult());
     }
-    hits=searcher.search(finalQuery,params.getSort());
+    hits=searcher.search(query,params.getSort());
     timeLucene+=System.currentTimeMillis();
     timeResultProcessing=-System.currentTimeMillis();
     Document doc;
@@ -107,7 +102,7 @@
               String excerpt=null;
               if (m_createExcerpt) {
                 I_CmsTermHighlighter highlighter=OpenCms.getSearchManager().getHighlighter();
-                excerpt=highlighter.getExcerpt(doc,this,params,finalQuery,languageAnalyzer);
+                excerpt=highlighter.getExcerpt(doc,this,params,fieldsQuery,languageAnalyzer);
               }
               searchResult=new CmsSearchResult(Math.round(hits.score(i) * 100f),doc,excerpt);
               searchResults.add(searchResult);
