@@ -2,19 +2,26 @@
   OpenCms.getRoleManager().checkRole(cms,CmsRole.ACCOUNT_MANAGER.forOrgUnit(user.getOuFqn()));
   CmsSessionInfo info=getSessionInfo(req);
   HttpSession session=req.getSession(false);
-  if (info == null || session == null) {
+  if ((info == null) || (session == null)) {
     throw new CmsException(Messages.get().container(Messages.ERR_NO_SESSIONINFO_SESSION_0));
   }
   if (!OpenCms.getRoleManager().hasRole(cms,user.getName(),CmsRole.WORKPLACE_USER)) {
     throw new CmsSecurityException(Messages.get().container(Messages.ERR_NO_WORKPLACE_PERMISSIONS_0));
   }
   CmsUserSettings settings=new CmsUserSettings(user);
-  CmsProject userProject=cms.readProject(settings.getStartProject());
+  String ouFqn=user.getOuFqn();
+  CmsProject userProject=cms.readProject(ouFqn + OpenCms.getWorkplaceManager().getDefaultUserSettings().getStartProject());
+  try {
+    userProject=cms.readProject(settings.getStartProject());
+  }
+ catch (  Exception e) {
+  }
   String userSiteRoot=settings.getStartSite();
-  CmsRequestContext context=new CmsRequestContext(user,userProject,null,userSiteRoot,null,null,null,0,null,null,null);
+  CmsRequestContext context=new CmsRequestContext(user,userProject,null,userSiteRoot,null,null,null,0,null,null,ouFqn);
+  session.removeAttribute(CmsWorkplaceManager.SESSION_WORKPLACE_SETTINGS);
   CmsSessionInfo newInfo=new CmsSessionInfo(context,info.getSessionId(),info.getMaxInactiveInterval());
   addSessionInfo(newInfo);
   cms.getRequestContext().setSiteRoot(userSiteRoot);
   cms.getRequestContext().setCurrentProject(userProject);
-  session.removeAttribute(CmsWorkplaceManager.SESSION_WORKPLACE_SETTINGS);
+  cms.getRequestContext().setOuFqn(user.getOuFqn());
 }
