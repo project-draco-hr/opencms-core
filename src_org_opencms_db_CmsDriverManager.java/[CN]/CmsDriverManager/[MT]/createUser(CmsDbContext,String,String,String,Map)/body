@@ -1,8 +1,11 @@
 {
+  name=name.trim();
   String userName=CmsOrganizationalUnit.getSimpleName(name);
   OpenCms.getValidationHandler().checkUserName(userName);
-  name=name.trim();
-  readOrganizationalUnit(dbc,CmsOrganizationalUnit.getParentFqn(name));
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(userName)) {
+    throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_BAD_USER_1,userName));
+  }
+  CmsOrganizationalUnit ou=readOrganizationalUnit(dbc,CmsOrganizationalUnit.getParentFqn(name));
   validatePassword(password);
   Map info=new HashMap();
   if (additionalInfos != null) {
@@ -11,10 +14,9 @@
   if (description != null) {
     info.put(CmsUserSettings.ADDITIONAL_INFO_DESCRIPTION,description);
   }
-  if ((name.length() > 0)) {
-    return m_userDriver.createUser(dbc,new CmsUUID(),name,OpenCms.getPasswordHandler().digest(password)," "," "," ",0,I_CmsPrincipal.FLAG_ENABLED,0,info);
+  int flags=0;
+  if (ou.hasFlagWebuser()) {
+    flags+=I_CmsPrincipal.FLAG_USER_WEBUSER;
   }
- else {
-    throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_BAD_USER_1,name));
-  }
+  return m_userDriver.createUser(dbc,new CmsUUID(),name,OpenCms.getPasswordHandler().digest(password)," "," "," ",0,I_CmsPrincipal.FLAG_ENABLED + flags,0,info);
 }

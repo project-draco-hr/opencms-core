@@ -1,20 +1,23 @@
 {
   List errors=new ArrayList();
   try {
-    if (m_orgunit == null) {
+    if (isNewOrgUnit()) {
       List resourceNames=CmsFileUtil.removeRedundancies(m_orgUnitBean.getResources());
-      CmsOrganizationalUnit newOrgUnit=OpenCms.getOrgUnitManager().createOrganizationalUnit(getCms(),m_orgUnitBean.getFqn(),m_orgUnitBean.getDescription(),0,(String)resourceNames.get(0));
-      m_orgunit=newOrgUnit;
-      resourceNames.remove(0);
-      Iterator itResourceNames=CmsFileUtil.removeRedundancies(resourceNames).iterator();
-      while (itResourceNames.hasNext()) {
-        OpenCms.getOrgUnitManager().addResourceToOrgUnit(getCms(),m_orgunit.getName(),(String)itResourceNames.next());
+      CmsOrganizationalUnit newOrgUnit=OpenCms.getOrgUnitManager().createOrganizationalUnit(getCms(),m_orgUnitBean.getFqn(),m_orgUnitBean.getDescription(),m_orgUnitBean.getFlags(),resourceNames.isEmpty() ? null : (String)resourceNames.get(0));
+      if (!resourceNames.isEmpty()) {
+        resourceNames.remove(0);
+        Iterator itResourceNames=CmsFileUtil.removeRedundancies(resourceNames).iterator();
+        while (itResourceNames.hasNext()) {
+          OpenCms.getOrgUnitManager().addResourceToOrgUnit(getCms(),newOrgUnit.getName(),(String)itResourceNames.next());
+        }
       }
     }
  else {
-      m_orgunit.setDescription(m_orgUnitBean.getDescription());
+      CmsOrganizationalUnit orgunit=OpenCms.getOrgUnitManager().readOrganizationalUnit(getCms(),m_orgUnitBean.getFqn());
+      orgunit.setDescription(m_orgUnitBean.getDescription());
+      orgunit.setFlags(m_orgUnitBean.getFlags());
       List resourceNamesNew=CmsFileUtil.removeRedundancies(m_orgUnitBean.getResources());
-      List resourcesOld=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(getCms(),m_orgunit.getName());
+      List resourcesOld=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(getCms(),orgunit.getName());
       List resourceNamesOld=new ArrayList();
       Iterator itResourcesOld=resourcesOld.iterator();
       while (itResourcesOld.hasNext()) {
@@ -25,18 +28,18 @@
       while (itResourceNamesNew.hasNext()) {
         String resourceNameNew=(String)itResourceNamesNew.next();
         if (!resourceNamesOld.contains(resourceNameNew)) {
-          OpenCms.getOrgUnitManager().addResourceToOrgUnit(getCms(),m_orgunit.getName(),resourceNameNew);
+          OpenCms.getOrgUnitManager().addResourceToOrgUnit(getCms(),orgunit.getName(),resourceNameNew);
         }
       }
       Iterator itResourceNamesOld=resourceNamesOld.iterator();
       while (itResourceNamesOld.hasNext()) {
         String resourceNameOld=(String)itResourceNamesOld.next();
         if (!resourceNamesNew.contains(resourceNameOld)) {
-          OpenCms.getOrgUnitManager().removeResourceFromOrgUnit(getCms(),m_orgunit.getName(),resourceNameOld);
+          OpenCms.getOrgUnitManager().removeResourceFromOrgUnit(getCms(),orgunit.getName(),resourceNameOld);
         }
       }
+      OpenCms.getOrgUnitManager().writeOrganizationalUnit(getCms(),orgunit);
     }
-    OpenCms.getOrgUnitManager().writeOrganizationalUnit(getCms(),m_orgunit);
   }
  catch (  Throwable t) {
     errors.add(t);

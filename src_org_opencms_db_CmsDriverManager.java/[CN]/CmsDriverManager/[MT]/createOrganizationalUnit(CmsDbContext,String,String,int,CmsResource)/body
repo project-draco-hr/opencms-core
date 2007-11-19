@@ -9,7 +9,19 @@
   if (CmsStringUtil.isEmptyOrWhitespaceOnly(description)) {
     throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_BAD_OU_DESCRIPTION_EMPTY_0));
   }
-  CmsOrganizationalUnit orgUnit=m_userDriver.createOrganizationalUnit(dbc,name,description,flags,parent,resource.getRootPath());
+  CmsOrganizationalUnit orgUnit=m_userDriver.createOrganizationalUnit(dbc,name,description,flags,parent,resource != null ? resource.getRootPath() : null);
   OpenCms.getMemoryMonitor().cacheOrgUnit(orgUnit);
+  clearcache(true);
+  OpenCms.getMemoryMonitor().flushProperties();
+  OpenCms.getMemoryMonitor().flushPropertyLists();
+  CmsResource ouRes=readResource(dbc,orgUnit.getId(),CmsResourceFilter.DEFAULT);
+  CmsPublishList pl=new CmsPublishList(ouRes,false);
+  pl.add(ouRes,false);
+  Map eventData=new HashMap();
+  eventData.put(I_CmsEventListener.KEY_PUBLISHID,pl.getPublishHistoryId().toString());
+  eventData.put(I_CmsEventListener.KEY_PROJECTID,dbc.currentProject().getUuid());
+  eventData.put(I_CmsEventListener.KEY_DBCONTEXT,dbc);
+  CmsEvent afterPublishEvent=new CmsEvent(I_CmsEventListener.EVENT_PUBLISH_PROJECT,eventData);
+  OpenCms.fireCmsEvent(afterPublishEvent);
   return orgUnit;
 }

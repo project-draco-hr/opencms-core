@@ -1,0 +1,34 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Test webuser ou behavior");
+  try {
+    OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,"/webuser","webuser test",0,null);
+    fail("it should not be possible to create a normal ou without associated resource");
+  }
+ catch (  CmsVfsException e) {
+  }
+  CmsOrganizationalUnit ou=OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,"/webuser","webuser test",CmsOrganizationalUnit.FLAG_WEBUSERS,null);
+  try {
+    cms.readGroup(ou.getName() + OpenCms.getDefaultUsers().getGroupUsers());
+    fail("webuser ou should not have a default group");
+  }
+ catch (  CmsDbEntryNotFoundException e) {
+  }
+  assertTrue(OpenCms.getOrgUnitManager().getGroups(cms,ou.getName(),true).isEmpty());
+  try {
+    cms.readProject(ou.getName() + "Offline");
+    fail("webuser ou should not have a default project");
+  }
+ catch (  CmsDbEntryNotFoundException e) {
+  }
+  List roles=OpenCms.getRoleManager().getRoles(cms,ou.getName(),true);
+  assertEquals(1,roles.size());
+  assertEquals(CmsRole.ACCOUNT_MANAGER.forOrgUnit(ou.getName()),roles.get(0));
+  assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou.getName()).isEmpty());
+  OpenCms.getOrgUnitManager().addResourceToOrgUnit(cms,ou.getName(),"/");
+  List res=OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou.getName());
+  assertEquals(1,res.size());
+  assertEquals(cms.readResource("/"),res.get(0));
+  OpenCms.getOrgUnitManager().removeResourceFromOrgUnit(cms,ou.getName(),"/");
+  assertTrue(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(cms,ou.getName()).isEmpty());
+}

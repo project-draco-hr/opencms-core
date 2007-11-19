@@ -4,9 +4,12 @@
   }
   try {
     CmsResource parentFolder=internalOrgUnitFolder(dbc,parent);
-    CmsResource resource=m_driverManager.readFolder(dbc,associatedResource,CmsResourceFilter.ALL);
+    CmsResource resource=null;
+    if (((flags & CmsOrganizationalUnit.FLAG_WEBUSERS) == 0) || (associatedResource != null)) {
+      resource=m_driverManager.readFolder(dbc,associatedResource,CmsResourceFilter.ALL);
+    }
     String ouPath=ORGUNIT_BASE_FOLDER;
-    if (parentFolder != null) {
+    if ((parentFolder != null) && (resource != null)) {
       internalValidateResourceForOrgUnit(dbc,internalCreateOrgUnitFromResource(dbc,parentFolder),resource.getRootPath());
       ouPath=parentFolder.getRootPath();
       if (!ouPath.endsWith("/")) {
@@ -16,20 +19,27 @@
     CmsResource ouFolder=internalCreateResourceForOrgUnit(dbc,ouPath + name,flags);
     internalWriteOrgUnitProperty(dbc,ouFolder,new CmsProperty(ORGUNIT_PROPERTY_DESCRIPTION,description,null));
     CmsOrganizationalUnit ou=internalCreateOrgUnitFromResource(dbc,ouFolder);
-    if ((ou.getParentFqn() != null) && !ou.hasFlagNoDefaults()) {
+    if ((ou.getParentFqn() != null)) {
       Locale locale=dbc.getRequestContext().getLocale();
       if (locale == null) {
         locale=CmsLocaleManager.getDefaultLocale();
       }
-      internalCreateDefaultGroups(dbc,ou.getName(),ou.getDisplayName(locale));
-      CmsProject project=m_driverManager.createProject(dbc,ou.getName() + OFFLINE_PROJECT_NAME,"",ou.getName() + OpenCms.getDefaultUsers().getGroupUsers(),ou.getName() + OpenCms.getDefaultUsers().getGroupUsers(),CmsProject.PROJECT_TYPE_NORMAL);
-      internalWriteOrgUnitProperty(dbc,ouFolder,new CmsProperty(ORGUNIT_PROPERTY_PROJECTID,project.getUuid().toString(),null));
+      internalCreateDefaultGroups(dbc,ou.getName(),ou.getDisplayName(locale),ou.hasFlagWebuser());
+      if (!ou.hasFlagWebuser()) {
+        CmsProject project=m_driverManager.createProject(dbc,ou.getName() + OFFLINE_PROJECT_NAME,"",ou.getName() + OpenCms.getDefaultUsers().getGroupUsers(),ou.getName() + OpenCms.getDefaultUsers().getGroupUsers(),CmsProject.PROJECT_TYPE_NORMAL);
+        internalWriteOrgUnitProperty(dbc,ouFolder,new CmsProperty(ORGUNIT_PROPERTY_PROJECTID,project.getUuid().toString(),null));
+      }
+ else {
+        internalWriteOrgUnitProperty(dbc,ouFolder,new CmsProperty(ORGUNIT_PROPERTY_PROJECTID,CmsUUID.getNullUUID().toString(),null));
+      }
     }
  else {
       internalWriteOrgUnitProperty(dbc,ouFolder,new CmsProperty(ORGUNIT_PROPERTY_PROJECTID,CmsUUID.getNullUUID().toString(),null));
     }
     ou=internalCreateOrgUnitFromResource(dbc,ouFolder);
-    m_driverManager.addResourceToOrgUnit(dbc,ou,resource);
+    if (resource != null) {
+      m_driverManager.addResourceToOrgUnit(dbc,ou,resource);
+    }
     OpenCms.fireCmsEvent(I_CmsEventListener.EVENT_CLEAR_ONLINE_CACHES,null);
     return ou;
   }

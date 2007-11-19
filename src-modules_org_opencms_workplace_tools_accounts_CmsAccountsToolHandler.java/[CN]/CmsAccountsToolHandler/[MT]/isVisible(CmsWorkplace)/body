@@ -9,49 +9,79 @@
     }
   }
   CmsObject cms=wp.getCms();
+  if (!OpenCms.getRoleManager().hasRole(cms,CmsRole.ACCOUNT_MANAGER)) {
+    return false;
+  }
   String ouFqn=wp.getJsp().getRequest().getParameter(A_CmsOrgUnitDialog.PARAM_OUFQN);
   if (ouFqn == null) {
     ouFqn=cms.getRequestContext().getOuFqn();
   }
   String parentOu=CmsOrganizationalUnit.getParentFqn(ouFqn);
+  try {
+    m_webuserOu=OpenCms.getOrgUnitManager().readOrganizationalUnit(wp.getCms(),ouFqn).hasFlagWebuser();
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
   if (getLink().equals(OVERVIEW_FILE)) {
     if (parentOu != null) {
-      return (OpenCms.getRoleManager().hasRole(cms,CmsRole.ACCOUNT_MANAGER) && !OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(parentOu)));
+      return !OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(parentOu));
     }
-    return OpenCms.getRoleManager().hasRole(cms,CmsRole.ACCOUNT_MANAGER);
+    return true;
   }
  else   if (getLink().equals(EDIT_FILE)) {
     if (parentOu != null) {
       return (OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR) && OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(parentOu)));
     }
-    return false;
   }
  else   if (getLink().equals(NEW_FILE)) {
+    if (m_webuserOu) {
+      return false;
+    }
     return OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR);
   }
  else   if (getLink().equals(PARENT_FILE)) {
     if (parentOu != null) {
       return OpenCms.getRoleManager().hasRole(cms,CmsRole.ACCOUNT_MANAGER.forOrgUnit(parentOu));
     }
-    return false;
   }
  else   if (getLink().equals(DELETE_FILE)) {
     if (parentOu != null) {
       return (OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR) && OpenCms.getRoleManager().hasRole(cms,CmsRole.ADMINISTRATOR.forOrgUnit(parentOu)));
     }
-    return false;
   }
  else   if (getLink().equals(ASSIGN_FILE)) {
     try {
       List orgUnits=OpenCms.getRoleManager().getOrgUnitsForRole(cms,CmsRole.ACCOUNT_MANAGER.forOrgUnit(""),true);
-      if (orgUnits.size() > 1) {
-        return true;
+      if (orgUnits.size() == 1) {
+        return false;
       }
-      return false;
+      return !m_webuserOu;
     }
  catch (    CmsException e) {
-      return super.isVisible(cms);
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
     }
   }
-  return OpenCms.getRoleManager().hasRole(cms,CmsRole.ACCOUNT_MANAGER);
+ else   if (getLink().equals(OUROLES_FILE)) {
+    return !m_webuserOu;
+  }
+ else   if (getLink().equals(SWITCHUSER_FILE) || getLink().equals(USERROLE_FILE) || getLink().equals(GROUP_USERS_FILE)) {
+    String userId=wp.getJsp().getRequest().getParameter(A_CmsEditUserDialog.PARAM_USERID);
+    try {
+      return !wp.getCms().readUser(new CmsUUID(userId)).isWebuser();
+    }
+ catch (    Exception e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+    }
+  }
+ else   if (getLink().equals(ACCMAN_FILE)) {
+    return m_webuserOu;
+  }
+  return true;
 }
