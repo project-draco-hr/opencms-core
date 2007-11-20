@@ -1,0 +1,39 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing publishing a folder with a subresource in the publish queue, second try");
+  OpenCms.getPublishManager().stopPublishing();
+  String folder="/folder1/subfolder11/subsubfolder111/";
+  String file=folder + "image.gif";
+  cms.lockResource(file);
+  cms.setDateLastModified(file,System.currentTimeMillis(),false);
+  OpenCms.getPublishManager().publishResource(cms,file);
+  assertEquals(1,OpenCms.getPublishManager().getPublishQueue().size());
+  String file2=folder + "text.txt";
+  cms.lockResource(folder);
+  cms.setDateLastModified(file2,System.currentTimeMillis(),false);
+  OpenCms.getPublishManager().publishResource(cms,folder);
+  assertEquals(2,OpenCms.getPublishManager().getPublishQueue().size());
+  OpenCms.getPublishManager().startPublishing();
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertEquals(0,OpenCms.getPublishManager().getPublishQueue().size());
+  List history=OpenCms.getPublishManager().getPublishHistory();
+  CmsPublishJobFinished publishJob=(CmsPublishJobFinished)history.get(history.size() - 2);
+  String reportContents=new String(OpenCms.getPublishManager().getReportContents(publishJob));
+  if (!reportContents.matches("(?s)" + "(.*)" + file + "(.*)"+ "o.k."+ "(.*)")) {
+    System.err.println(reportContents);
+    fail("publish report contains errors");
+  }
+  publishJob=(CmsPublishJobFinished)history.get(history.size() - 1);
+  reportContents=new String(OpenCms.getPublishManager().getReportContents(publishJob));
+  if (!reportContents.matches("(?s)" + "(.*)" + file2 + "(.*)"+ "o.k."+ "(.*)")) {
+    System.err.println(reportContents);
+    fail("publish report contains errors");
+  }
+  cms.unlockResource(folder);
+  assertState(cms,file,CmsResourceState.STATE_UNCHANGED);
+  assertLock(cms,file,CmsLockType.UNLOCKED);
+  assertState(cms,file2,CmsResourceState.STATE_UNCHANGED);
+  assertLock(cms,file2,CmsLockType.UNLOCKED);
+  assertState(cms,folder,CmsResourceState.STATE_UNCHANGED);
+  assertLock(cms,folder,CmsLockType.UNLOCKED);
+}
