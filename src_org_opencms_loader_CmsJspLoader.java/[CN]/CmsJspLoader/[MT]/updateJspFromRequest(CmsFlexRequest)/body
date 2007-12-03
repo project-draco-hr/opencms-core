@@ -1,0 +1,41 @@
+{
+  String jspUri=request.getServletPath();
+  String pathInfo=request.getPathInfo();
+  if (pathInfo != null) {
+    jspUri+=pathInfo;
+  }
+  if ((jspUri == null) || !jspUri.startsWith(m_jspWebAppRepository)) {
+    return;
+  }
+  jspUri=jspUri.substring(m_jspWebAppRepository.length());
+  if (jspUri.startsWith(CmsFlexCache.REPOSITORY_ONLINE)) {
+    jspUri=jspUri.substring(CmsFlexCache.REPOSITORY_ONLINE.length());
+  }
+ else   if (jspUri.startsWith(CmsFlexCache.REPOSITORY_OFFLINE)) {
+    jspUri=jspUri.substring(CmsFlexCache.REPOSITORY_OFFLINE.length());
+  }
+ else {
+    return;
+  }
+  CmsFlexController controller=CmsFlexController.getController(request);
+  try {
+    CmsObject cms=OpenCms.initCmsObject(controller.getCmsObject());
+    cms.getRequestContext().setSiteRoot("");
+    CmsResource includeResource;
+    try {
+      includeResource=cms.readResource(jspUri);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      if (jspUri.endsWith(JSP_EXTENSION)) {
+        jspUri=jspUri.substring(0,jspUri.length() - JSP_EXTENSION.length());
+      }
+      includeResource=cms.readResource(jspUri);
+    }
+    updateJsp(includeResource,controller,new HashSet(8));
+  }
+ catch (  Exception e) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(e.getLocalizedMessage(),e);
+    }
+  }
+}
