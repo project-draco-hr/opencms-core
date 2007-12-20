@@ -1,5 +1,22 @@
 {
   List ret=new ArrayList();
+  boolean limitedRestypes=false;
+  String availableResTypesProp="";
+  List availableResTypes=new ArrayList();
+  try {
+    availableResTypesProp=getCms().readPropertyObject(getParamResource(),CmsPropertyDefinition.PROPERTY_RESTYPES_AVAILABLE,true).getValue();
+  }
+ catch (  CmsException e) {
+  }
+  if (CmsStringUtil.isNotEmpty(availableResTypesProp) && !availableResTypesProp.equals(CmsNewResource.VALUE_DEFAULT) && !OpenCms.getRoleManager().hasRole(getCms(),CmsRole.VFS_MANAGER)) {
+    limitedRestypes=true;
+    if (availableResTypesProp.indexOf(CmsNewResource.DELIM_PROPERTYVALUES) > -1) {
+      availableResTypes=CmsStringUtil.splitAsList(availableResTypesProp,CmsNewResource.DELIM_PROPERTYVALUES);
+    }
+ else {
+      availableResTypes=CmsStringUtil.splitAsList(availableResTypesProp,CmsProperty.VALUE_LIST_DELIMITER);
+    }
+  }
   CmsObject cms=getCms();
   CmsResource res=cms.readResource(getParamResource(),CmsResourceFilter.ALL);
   List resTypes=OpenCms.getWorkplaceManager().getExplorerTypeSettings();
@@ -8,14 +25,18 @@
     boolean changeable=false;
     CmsExplorerTypeSettings settings=(CmsExplorerTypeSettings)resTypes.get(i);
     boolean isResourceType;
+    I_CmsResourceType type=new CmsResourceTypePlain();
     try {
-      OpenCms.getResourceManager().getResourceType(settings.getName());
+      type=OpenCms.getResourceManager().getResourceType(settings.getName());
       isResourceType=true;
     }
  catch (    CmsLoaderException e) {
       isResourceType=false;
     }
     if (isResourceType) {
+      if (limitedRestypes && availableResTypes.indexOf(type.getTypeName()) == -1) {
+        continue;
+      }
       int resTypeId=OpenCms.getResourceManager().getResourceType(settings.getName()).getTypeId();
       if (isFolder && OpenCms.getResourceManager().getResourceType(resTypeId).isFolder()) {
         changeable=true;
