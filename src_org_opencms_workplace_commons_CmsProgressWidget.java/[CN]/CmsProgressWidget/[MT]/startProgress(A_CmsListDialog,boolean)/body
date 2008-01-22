@@ -15,17 +15,26 @@
     }
   }
   Thread thread=new CmsProgressThread(list,getKey(),list.getLocale());
-  m_threads.put(getKey(),thread);
-  thread.start();
-  Iterator iter=m_threads.entrySet().iterator();
-  while (iter.hasNext()) {
-    Map.Entry entry=(Map.Entry)iter.next();
-    CmsProgressThread value=(CmsProgressThread)entry.getValue();
-    if ((!thread.isAlive()) && (System.currentTimeMillis() - value.getFinishTime() > CLEANUP_PERIOD)) {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug(Messages.get().getBundle().key(Messages.LOG_PROGRESS_CLEAN_UP_THREAD_1,getKey()));
+  Map threadsAbandoned=new HashMap();
+  Map threadsAlive=new HashMap();
+synchronized (m_threads) {
+    for (Iterator iter=m_threads.entrySet().iterator(); iter.hasNext(); ) {
+      Map.Entry entry=(Map.Entry)iter.next();
+      CmsProgressThread value=(CmsProgressThread)entry.getValue();
+      if ((!thread.isAlive()) && (System.currentTimeMillis() - value.getFinishTime() > CLEANUP_PERIOD)) {
+        threadsAbandoned.put(entry.getKey(),entry.getValue());
       }
-      m_threads.remove(entry.getKey());
+ else {
+        threadsAlive.put(entry.getKey(),entry.getValue());
+      }
+    }
+    threadsAlive.put(getKey(),thread);
+    thread.start();
+    m_threads=threadsAlive;
+  }
+  if (LOG.isDebugEnabled()) {
+    for (Iterator iter=threadsAbandoned.entrySet().iterator(); iter.hasNext(); ) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_PROGRESS_CLEAN_UP_THREAD_1,getKey()));
     }
   }
 }
