@@ -1,0 +1,64 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the import of a resource overwriting a sibling with different type.");
+  String filename="/newfileContentIssue.html";
+  String sibname="/system/sib.jsp";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportContentIssue.zip");
+  String site=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.createResource(filename,CmsResourceTypeJsp.getStaticTypeId(),"hello jsp".getBytes(),null);
+    cms.unlockResource(filename);
+    cms.getRequestContext().setSiteRoot("/");
+    cms.createSibling(site + filename,sibname,null);
+    cms.unlockResource(sibname);
+    OpenCms.getPublishManager().publishResource(cms,sibname,true,new CmsShellReport(cms.getRequestContext().getLocale()));
+    OpenCms.getPublishManager().waitWhileRunning();
+    storeResources(cms,site + filename);
+    storeResources(cms,sibname);
+    cms.getRequestContext().setSiteRoot(site);
+    CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+    vfsExportHandler.setFileName(zipExportFilename);
+    List exportPaths=new ArrayList(1);
+    exportPaths.add(filename);
+    vfsExportHandler.setExportPaths(exportPaths);
+    vfsExportHandler.setIncludeSystem(false);
+    vfsExportHandler.setIncludeUnchanged(true);
+    vfsExportHandler.setExportUserdata(false);
+    OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.lockResource(filename);
+    cms.deleteResource(filename,CmsResource.DELETE_PRESERVE_SIBLINGS);
+    OpenCms.getPublishManager().publishResource(cms,filename);
+    OpenCms.getPublishManager().waitWhileRunning();
+    cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId(),"hello txt".getBytes(),null);
+    cms.unlockResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename);
+    OpenCms.getPublishManager().waitWhileRunning();
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.unlockResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename,true,new CmsShellReport(cms.getRequestContext().getLocale()));
+    OpenCms.getPublishManager().waitWhileRunning();
+    cms.getRequestContext().setSiteRoot("/");
+    OpenCmsTestResourceConfigurableFilter filter=new OpenCmsTestResourceConfigurableFilter(OpenCmsTestResourceFilter.FILTER_EQUAL);
+    filter.disableSiblingCountTest();
+    assertFilter(cms,cms.readResource(sibname),filter);
+    filter=new OpenCmsTestResourceConfigurableFilter(OpenCmsTestResourceFilter.FILTER_IMPORTEXPORT);
+    filter.disableSiblingCountTest();
+    filter.disableDateCreatedTest();
+    filter.disableDateCreatedSecTest();
+    filter.disableResourceIdTest();
+    filter.disableStructureIdTest();
+    assertFilter(cms,cms.readResource(site + filename),filter);
+  }
+  finally {
+    try {
+      if (zipExportFilename != null) {
+        File file=new File(zipExportFilename);
+        if (file.exists()) {
+          file.delete();
+        }
+      }
+    }
+ catch (    Throwable t) {
+    }
+  }
+}

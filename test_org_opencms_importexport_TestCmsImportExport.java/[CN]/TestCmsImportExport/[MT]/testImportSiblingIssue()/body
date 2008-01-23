@@ -1,0 +1,54 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the import of a (non-existing) sibling of a file in a different site.");
+  String filename="/newfileSiblingIssue.html";
+  String sibname="/system/sibIssue.jsp";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportSiblingIssue.zip");
+  String site=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.createResource(filename,CmsResourceTypeJsp.getStaticTypeId(),"hello jsp".getBytes(),null);
+    cms.unlockResource(filename);
+    cms.getRequestContext().setSiteRoot("/");
+    cms.createSibling(site + filename,sibname,null);
+    cms.unlockResource(sibname);
+    OpenCms.getPublishManager().publishResource(cms,sibname,true,new CmsShellReport(cms.getRequestContext().getLocale()));
+    OpenCms.getPublishManager().waitWhileRunning();
+    storeResources(cms,site + filename);
+    storeResources(cms,sibname);
+    CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+    vfsExportHandler.setFileName(zipExportFilename);
+    List exportPaths=new ArrayList(1);
+    exportPaths.add(sibname);
+    vfsExportHandler.setExportPaths(exportPaths);
+    vfsExportHandler.setIncludeSystem(true);
+    vfsExportHandler.setIncludeUnchanged(true);
+    vfsExportHandler.setExportUserdata(false);
+    OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.lockResource(sibname);
+    cms.deleteResource(sibname,CmsResource.DELETE_PRESERVE_SIBLINGS);
+    OpenCms.getPublishManager().publishResource(cms,sibname);
+    OpenCms.getPublishManager().waitWhileRunning();
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.unlockResource(sibname);
+    OpenCms.getPublishManager().publishResource(cms,sibname,true,new CmsShellReport(cms.getRequestContext().getLocale()));
+    OpenCms.getPublishManager().waitWhileRunning();
+    OpenCmsTestResourceConfigurableFilter filter=new OpenCmsTestResourceConfigurableFilter(OpenCmsTestResourceFilter.FILTER_EQUAL);
+    filter.disableDateContentTest();
+    filter.disableDateLastModifiedSecTest();
+    filter.disableDateLastModifiedTest();
+    assertFilter(cms,cms.readResource(site + filename),filter);
+    assertFilter(cms,cms.readResource(sibname),OpenCmsTestResourceFilter.FILTER_IMPORTEXPORT);
+  }
+  finally {
+    try {
+      if (zipExportFilename != null) {
+        File file=new File(zipExportFilename);
+        if (file.exists()) {
+          file.delete();
+        }
+      }
+    }
+ catch (    Throwable t) {
+    }
+  }
+}

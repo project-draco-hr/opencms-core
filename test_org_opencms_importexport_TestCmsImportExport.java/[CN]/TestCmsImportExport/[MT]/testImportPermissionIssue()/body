@@ -1,0 +1,42 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the import of a resource with permissions.");
+  String filename="/index.html";
+  String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportPermissionIssue.zip");
+  try {
+    cms.lockResource(filename);
+    cms.chacc(filename,I_CmsPrincipal.PRINCIPAL_USER,"test1","+r-v");
+    cms.unlockResource(filename);
+    CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
+    vfsExportHandler.setFileName(zipExportFilename);
+    List exportPaths=new ArrayList(1);
+    exportPaths.add(filename);
+    vfsExportHandler.setExportPaths(exportPaths);
+    vfsExportHandler.setIncludeSystem(false);
+    vfsExportHandler.setIncludeUnchanged(true);
+    vfsExportHandler.setExportUserdata(false);
+    OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.lockResource(filename);
+    cms.chacc(filename,I_CmsPrincipal.PRINCIPAL_USER,"test1","-r+v");
+    cms.chacc(filename,I_CmsPrincipal.PRINCIPAL_USER,"test2","+r+w");
+    cms.unlockResource(filename);
+    OpenCms.getImportExportManager().importData(cms,zipExportFilename,"/",new CmsShellReport(cms.getRequestContext().getLocale()));
+    cms.unlockResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename,true,new CmsShellReport(cms.getRequestContext().getLocale()));
+    OpenCms.getPublishManager().waitWhileRunning();
+    assertPermissionString(cms,filename,cms.readUser("test1"),"+r-v-i-l");
+    assertPermissionString(cms,filename,cms.readUser("test2"),null);
+  }
+  finally {
+    try {
+      if (zipExportFilename != null) {
+        File file=new File(zipExportFilename);
+        if (file.exists()) {
+          file.delete();
+        }
+      }
+    }
+ catch (    Throwable t) {
+    }
+  }
+}
