@@ -1,0 +1,27 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing to move a folder with no write permission on a source subresource");
+  String source="/folder1/";
+  String folder="/mytestfolder6/";
+  String test="subfolder11/";
+  String destinationFolder="/mytestfolder7/";
+  cms.copyResource(source,folder);
+  cms.copyResource(source,folder + test);
+  List list=cms.readResources(folder,CmsResourceFilter.ALL,true);
+  int files=list.size();
+  cms.chacc(folder,I_CmsPrincipal.PRINCIPAL_USER,"test2","+r+w+v+i");
+  cms.chacc(folder + test,I_CmsPrincipal.PRINCIPAL_USER,"test2","+r-w+v+i");
+  cms.unlockResource(folder);
+  cms.loginUser("test2","test2");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.lockResource(folder);
+  try {
+    cms.moveResource(folder,destinationFolder);
+    fail("to move a resource with no write permission on a source subresource should fail");
+  }
+ catch (  CmsPermissionViolationException e) {
+  }
+  cms.loginUser("Admin","admin");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  assertEquals("there missing files after moving",files,cms.readResources(folder,CmsResourceFilter.ALL,true).size());
+}

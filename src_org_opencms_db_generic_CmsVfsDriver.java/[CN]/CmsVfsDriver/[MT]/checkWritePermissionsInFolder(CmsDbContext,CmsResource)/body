@@ -1,0 +1,43 @@
+{
+  ResultSet res=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  CmsUUID projectId=dbc.getRequestContext().currentProject().getUuid();
+  List resources=new ArrayList();
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_RESOURCES_READ_WITH_ACE_1");
+    stmt.setString(1,folder.getRootPath() + "%");
+    res=stmt.executeQuery();
+    while (res.next()) {
+      resources.add(createResource(res,projectId));
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  Iterator itResources=resources.iterator();
+  while (itResources.hasNext()) {
+    CmsResource resource=(CmsResource)itResources.next();
+    try {
+      m_driverManager.getSecurityManager().checkPermissions(dbc.getRequestContext(),resource,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.ALL);
+    }
+ catch (    CmsException e) {
+      throw new CmsDataAccessException(e.getMessageContainer(),e);
+    }
+  }
+  CmsResourceFilter filter=CmsResourceFilter.ALL.addRequireType(CmsResourceTypeJsp.getStaticTypeId());
+  itResources=readResourceTree(dbc,projectId,folder.getRootPath(),filter.getType(),filter.getState(),filter.getModifiedAfter(),filter.getModifiedBefore(),filter.getReleaseAfter(),filter.getReleaseBefore(),filter.getExpireAfter(),filter.getExpireBefore(),CmsDriverManager.READMODE_INCLUDE_TREE).iterator();
+  while (itResources.hasNext()) {
+    CmsResource resource=(CmsResource)itResources.next();
+    try {
+      m_driverManager.getSecurityManager().checkPermissions(dbc.getRequestContext(),resource,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.ALL);
+    }
+ catch (    CmsException e) {
+      throw new CmsDataAccessException(e.getMessageContainer(),e);
+    }
+  }
+}

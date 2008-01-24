@@ -1,0 +1,24 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing to delete a folder with no write permission on a subresource");
+  String folder="/folder1/";
+  String test="subfolder11/";
+  List list=cms.readResources(folder,CmsResourceFilter.ALL,true);
+  int files=list.size();
+  cms.lockResource(folder);
+  cms.chacc(folder,I_CmsPrincipal.PRINCIPAL_USER,"test2","+r+w+v+i");
+  cms.chacc(folder + test,I_CmsPrincipal.PRINCIPAL_USER,"test2","+r-w+v+i");
+  cms.unlockResource(folder);
+  cms.loginUser("test2","test2");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  cms.lockResource(folder);
+  try {
+    cms.deleteResource(folder,CmsResource.DELETE_PRESERVE_SIBLINGS);
+    fail("to delete a resource with no write permission on a subresource should fail");
+  }
+ catch (  CmsPermissionViolationException e) {
+  }
+  cms.loginUser("Admin","admin");
+  cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  assertEquals("there missing files after deletion try",files,cms.readResources(folder,CmsResourceFilter.ALL,true).size());
+}
