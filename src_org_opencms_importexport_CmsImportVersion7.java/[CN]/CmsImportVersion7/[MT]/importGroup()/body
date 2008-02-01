@@ -1,0 +1,70 @@
+{
+  if (m_orgUnit == null) {
+    return;
+  }
+  if (m_groupDescription == null) {
+    m_groupDescription="";
+  }
+  if (m_groupParents == null) {
+    m_groupParents=new HashMap();
+  }
+  String groupName=m_orgUnit.getName() + m_groupName;
+  try {
+    if (m_throwable != null) {
+      getReport().println(m_throwable);
+      CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_GROUP_1,groupName);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(message.key(),m_throwable);
+      }
+      m_throwable=null;
+      return;
+    }
+    getReport().print(Messages.get().container(Messages.RPT_IMPORT_GROUP_0),I_CmsReport.FORMAT_NOTE);
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,groupName));
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    try {
+      getCms().readGroup(groupName);
+      getReport().println(Messages.get().container(Messages.RPT_NOT_CREATED_0),I_CmsReport.FORMAT_OK);
+    }
+ catch (    CmsDbEntryNotFoundException e) {
+      CmsUUID parentGroupId=null;
+      if (CmsStringUtil.isNotEmpty(m_groupParent)) {
+        try {
+          parentGroupId=getCms().readGroup(m_groupParent).getId();
+        }
+ catch (        CmsDbEntryNotFoundException exc) {
+          List childs=(List)m_groupParents.get(m_groupParent);
+          if (childs == null) {
+            childs=new ArrayList();
+            m_groupParents.put(m_groupParent,childs);
+          }
+          childs.add(groupName);
+        }
+      }
+      getCms().createGroup(groupName,m_groupDescription,m_groupFlags,parentGroupId == null ? null : m_groupParent);
+      getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+      List childs=(List)m_groupParents.remove(groupName);
+      if (childs != null) {
+        Iterator it=childs.iterator();
+        while (it.hasNext()) {
+          String childGroup=(String)it.next();
+          getCms().setParentGroup(childGroup,groupName);
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    getReport().println(e);
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_GROUP_1,groupName);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message.key(),e);
+    }
+  }
+ finally {
+    m_groupDescription=null;
+    m_groupFlags=0;
+    m_groupName=null;
+    m_groupParent=null;
+    m_throwable=null;
+  }
+}

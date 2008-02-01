@@ -1,0 +1,40 @@
+{
+  initialize();
+  m_cms=cms;
+  m_importPath=params.getDestinationPath();
+  m_report=report;
+  m_folderStorage=new ArrayList();
+  m_pageStorage=new ArrayList();
+  m_linkStorage=new HashMap();
+  m_linkPropertyStorage=new HashMap();
+  if (OpenCms.getRunLevel() >= OpenCms.RUNLEVEL_3_SHELL_ACCESS) {
+    OpenCms.getMemoryMonitor().register(this.getClass().getName() + ".m_folderStorage",m_folderStorage);
+    OpenCms.getMemoryMonitor().register(this.getClass().getName() + ".m_pageStorage",m_pageStorage);
+    OpenCms.getMemoryMonitor().register(this.getClass().getName() + ".m_linkStorage",m_linkStorage);
+    OpenCms.getMemoryMonitor().register(this.getClass().getName() + ".m_linkPropertyStorage",m_linkPropertyStorage);
+  }
+  CmsImportHelper helper=new CmsImportHelper(params);
+  try {
+    helper.openFile();
+    m_importResource=helper.getFolder();
+    m_importZip=helper.getZipFile();
+    m_docXml=CmsXmlUtils.unmarshalHelper(helper.getFileBytes(CmsImportExportManager.EXPORT_MANIFEST),null);
+    if (OpenCms.getRoleManager().hasRole(m_cms,CmsRole.ACCOUNT_MANAGER)) {
+      importGroups();
+      importUsers();
+    }
+    importAllResources();
+    convertPointerToSiblings();
+  }
+ catch (  IOException e) {
+    CmsMessageContainer msg=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_READING_FILE_1,CmsImportExportManager.EXPORT_MANIFEST);
+    if (LOG.isErrorEnabled()) {
+      LOG.error(msg.key(),e);
+    }
+    throw new CmsImportExportException(msg,e);
+  }
+ finally {
+    helper.closeFile();
+    cleanUp();
+  }
+}

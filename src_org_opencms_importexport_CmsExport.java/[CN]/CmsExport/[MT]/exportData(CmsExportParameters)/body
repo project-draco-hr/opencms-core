@@ -1,0 +1,47 @@
+{
+  m_parameters=parameters;
+  m_exportCount=0;
+  getReport().println(Messages.get().container(Messages.RPT_CLEARCACHE_0),I_CmsReport.FORMAT_NOTE);
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_CLEAR_CACHES,Collections.EMPTY_MAP));
+  try {
+    Element exportNode=openExportFile();
+    if (m_parameters.getModuleInfo() != null) {
+      exportNode.add(m_parameters.getModuleInfo());
+      digestElement(exportNode,m_parameters.getModuleInfo());
+    }
+    if (m_parameters.isExportAccountData()) {
+      Element accountsElement=exportNode.addElement(CmsImportVersion7.N_ACCOUNTS);
+      getSaxWriter().writeOpen(accountsElement);
+      exportOrgUnits(accountsElement);
+      getSaxWriter().writeClose(accountsElement);
+      exportNode.remove(accountsElement);
+    }
+    if (m_parameters.isExportResourceData()) {
+      exportAllResources(exportNode,m_parameters.getResources());
+    }
+    if (m_parameters.isExportProjectData()) {
+      Element projectsElement=exportNode.addElement(CmsImportVersion7.N_PROJECTS);
+      getSaxWriter().writeOpen(projectsElement);
+      exportProjects(projectsElement);
+      getSaxWriter().writeClose(projectsElement);
+      exportNode.remove(projectsElement);
+    }
+    closeExportFile(exportNode);
+  }
+ catch (  SAXException se) {
+    getReport().println(se);
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_EXPORTING_TO_FILE_1,getExportFileName());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message.key(),se);
+    }
+    throw new CmsImportExportException(message,se);
+  }
+catch (  IOException ioe) {
+    getReport().println(ioe);
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_EXPORTING_TO_FILE_1,getExportFileName());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message.key(),ioe);
+    }
+    throw new CmsImportExportException(message,ioe);
+  }
+}

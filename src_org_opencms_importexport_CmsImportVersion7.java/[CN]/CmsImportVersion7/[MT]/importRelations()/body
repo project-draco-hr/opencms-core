@@ -1,0 +1,46 @@
+{
+  if ((m_relations == null) || m_relations.isEmpty()) {
+    return;
+  }
+  getReport().println(Messages.get().container(Messages.RPT_START_IMPORT_RELATIONS_0),I_CmsReport.FORMAT_HEADLINE);
+  int i=0;
+  Iterator it=m_relations.entrySet().iterator();
+  while (it.hasNext()) {
+    Map.Entry entry=(Entry)it.next();
+    String resourcePath=(String)entry.getKey();
+    List relations=(List)entry.getValue();
+    if (checkImmutable(resourcePath)) {
+      continue;
+    }
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,String.valueOf(i + 1),String.valueOf(m_relations.size())),I_CmsReport.FORMAT_NOTE);
+    getReport().print(Messages.get().container(Messages.RPT_IMPORTING_RELATIONS_FOR_2,resourcePath,new Integer(relations.size())),I_CmsReport.FORMAT_NOTE);
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    boolean withErrors=false;
+    Iterator itRelations=relations.iterator();
+    while (itRelations.hasNext()) {
+      CmsRelation relation=(CmsRelation)itRelations.next();
+      try {
+        getCms().importRelation(getCms().getSitePath(relation.getSource(getCms(),CmsResourceFilter.ALL)),getCms().getSitePath(relation.getTarget(getCms(),CmsResourceFilter.ALL)),relation.getType().getName());
+      }
+ catch (      CmsException e) {
+        getReport().addWarning(e);
+        withErrors=true;
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(e.getLocalizedMessage());
+        }
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+    if (!withErrors) {
+      getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+    }
+ else {
+      getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_FAILED_0),I_CmsReport.FORMAT_ERROR);
+    }
+    i++;
+  }
+  getReport().println(Messages.get().container(Messages.RPT_END_IMPORT_RELATIONS_0),I_CmsReport.FORMAT_HEADLINE);
+  m_relations=null;
+}

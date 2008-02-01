@@ -1,0 +1,52 @@
+{
+  String userName=m_orgUnit.getName() + m_userName;
+  try {
+    if (m_throwable != null) {
+      m_user=null;
+      getReport().println(m_throwable);
+      CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_USER_1,userName);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(message.key(),m_throwable);
+      }
+      m_throwable=null;
+      return;
+    }
+    getReport().print(Messages.get().container(Messages.RPT_IMPORT_USER_0),I_CmsReport.FORMAT_NOTE);
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,userName));
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    try {
+      getCms().readUser(userName);
+      getReport().println(Messages.get().container(Messages.RPT_NOT_CREATED_0),I_CmsReport.FORMAT_OK);
+      m_user=null;
+      return;
+    }
+ catch (    CmsDbEntryNotFoundException e) {
+    }
+    Map config=OpenCms.getPasswordHandler().getConfiguration();
+    if ((config != null) && config.containsKey(I_CmsPasswordHandler.CONVERT_DIGEST_ENCODING)) {
+      if (Boolean.valueOf((String)config.get(I_CmsPasswordHandler.CONVERT_DIGEST_ENCODING)).booleanValue()) {
+        m_userPassword=convertDigestEncoding(m_userPassword);
+      }
+    }
+    m_user=getCms().importUser(new CmsUUID().toString(),userName,m_userPassword,m_userFirstname,m_userLastname,m_userEmail,m_userFlags,m_userDateCreated,m_userInfos);
+    getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+  }
+ catch (  Throwable e) {
+    m_user=null;
+    getReport().println(e);
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_USER_1,userName);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message.key(),e);
+    }
+  }
+ finally {
+    m_userName=null;
+    m_userPassword=null;
+    m_userFirstname=null;
+    m_userLastname=null;
+    m_userEmail=null;
+    m_userFlags=0;
+    m_userDateCreated=0;
+    m_userInfos=null;
+  }
+}

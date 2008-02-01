@@ -1,0 +1,63 @@
+{
+  try {
+    if (m_throwable != null) {
+      getReport().println(m_throwable);
+      getReport().addError(m_throwable);
+      CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_PROJECTS_0);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(message.key(),m_throwable);
+      }
+      m_throwable=null;
+      return;
+    }
+    getReport().print(Messages.get().container(Messages.RPT_IMPORT_PROJECT_0),I_CmsReport.FORMAT_NOTE);
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,m_projectName));
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    try {
+      getCms().readProject(m_projectName);
+      getReport().println(Messages.get().container(Messages.RPT_NOT_CREATED_0),I_CmsReport.FORMAT_OK);
+      return;
+    }
+ catch (    CmsDataAccessException e) {
+    }
+    CmsProject project=getCms().createProject(m_projectName,m_projectDescription,m_projectUsers,m_projectManagers,CmsProject.PROJECT_TYPE_NORMAL);
+    if (m_projectResources != null) {
+      String site=getCms().getRequestContext().getSiteRoot();
+      CmsProject currentProject=getCms().getRequestContext().currentProject();
+      try {
+        getCms().getRequestContext().setSiteRoot("");
+        getCms().getRequestContext().setCurrentProject(project);
+        Iterator itResNames=m_projectResources.iterator();
+        while (itResNames.hasNext()) {
+          String resName=(String)itResNames.next();
+          try {
+            getCms().copyResourceToProject(resName);
+          }
+ catch (          CmsVfsResourceNotFoundException e) {
+          }
+        }
+      }
+  finally {
+        getCms().getRequestContext().setSiteRoot(site);
+        getCms().getRequestContext().setCurrentProject(currentProject);
+      }
+    }
+    getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+  }
+ catch (  CmsException e) {
+    getReport().println(e);
+    getReport().addError(e);
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_PROJECTS_0);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message.key(),e);
+    }
+    m_throwable=null;
+  }
+ finally {
+    m_projectName=null;
+    m_projectDescription=null;
+    m_projectManagers=null;
+    m_projectUsers=null;
+    m_projectResources=null;
+  }
+}

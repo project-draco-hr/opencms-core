@@ -2,7 +2,7 @@
   String resourceNodeName=getResourceNodeName();
   m_resourceNode=parent.addElement(resourceNodeName);
   getSaxWriter().writeOpen(m_resourceNode);
-  if (m_recursive) {
+  if (m_parameters.isRecursive()) {
     resourcesToExport=CmsFileUtil.removeRedundancies(resourcesToExport);
   }
   List folderNames=new ArrayList();
@@ -18,10 +18,9 @@
     }
   }
   m_exportedResources=new HashSet();
-  m_exportedPageFiles=new HashSet();
   for (int i=0; i < folderNames.size(); i++) {
     String path=(String)folderNames.get(i);
-    if (m_recursive) {
+    if (m_parameters.isRecursive()) {
       addParentFolders(path);
       addChildResources(path);
     }
@@ -39,8 +38,8 @@
       }
       CmsResourceState state=folder.getState();
       long age=folder.getDateLastModified() < folder.getDateCreated() ? folder.getDateCreated() : folder.getDateLastModified();
-      if (getCms().getRequestContext().currentProject().isOnlineProject() || (m_includeUnchanged) || state.isNew()|| state.isChanged()) {
-        if (!state.isDeleted() && (age >= m_contentAge)) {
+      if (getCms().getRequestContext().currentProject().isOnlineProject() || (m_parameters.isIncludeUnchangedResources()) || state.isNew()|| state.isChanged()) {
+        if (!state.isDeleted() && (age >= m_parameters.getContentAge())) {
           String export=getCms().getSitePath(folder);
           if (checkExportResource(export)) {
             appendResourceToManifest(folder,false);
@@ -48,10 +47,8 @@
         }
       }
     }
-    m_exportedResources.add(path);
   }
   addFiles(fileNames);
-  addPageBodyFiles();
   getSaxWriter().writeClose(m_resourceNode);
   parent.remove(m_resourceNode);
   m_resourceNode=null;

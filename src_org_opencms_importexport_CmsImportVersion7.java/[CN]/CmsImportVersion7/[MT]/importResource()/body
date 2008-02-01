@@ -1,0 +1,97 @@
+{
+  try {
+    if (m_throwable != null) {
+      getReport().println(m_throwable);
+      getReport().addError(m_throwable);
+      CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_RESOURCES_0);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(message.key(),m_throwable);
+      }
+      m_throwable=null;
+      m_importACEs=false;
+      m_resource=null;
+      return;
+    }
+    String translatedName=getCms().getRequestContext().addSiteRoot(m_parameters.getDestinationPath() + m_destination);
+    boolean resourceImmutable=checkImmutable(translatedName);
+    translatedName=getCms().getRequestContext().removeSiteRoot(translatedName);
+    if (!resourceImmutable) {
+      getReport().print(Messages.get().container(Messages.RPT_IMPORTING_0),I_CmsReport.FORMAT_NOTE);
+      getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,translatedName));
+      getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+      boolean exists=getCms().existsResource(translatedName,CmsResourceFilter.ALL);
+      byte[] content=null;
+      if (m_source != null) {
+        content=m_helper.getFileBytes(m_source);
+      }
+      int size=0;
+      if (content != null) {
+        size=content.length;
+      }
+      if (m_structureId == null) {
+        m_structureId=new CmsUUID();
+      }
+      if ((m_resourceId == null) || (m_type.isFolder())) {
+        m_resourceId=new CmsUUID();
+      }
+      CmsResource resource=new CmsResource(m_structureId,m_resourceId,translatedName,m_type.getTypeId(),m_type.isFolder(),m_flags,getCms().getRequestContext().currentProject().getUuid(),CmsResource.STATE_NEW,m_dateCreated,m_userCreated,m_dateLastModified,m_userLastModified,m_dateReleased,m_dateExpired,1,size,System.currentTimeMillis(),0);
+      if (m_properties == null) {
+        m_properties=new HashMap();
+      }
+      m_resource=getCms().importResource(translatedName,resource,content,new ArrayList(m_properties.values()));
+      m_importACEs=(m_resource != null) && (!exists || !m_parameters.isKeepPermissions());
+      if (m_resource != null) {
+        getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+        if (OpenCms.getResourceManager().getResourceType(m_resource.getTypeId()) instanceof I_CmsLinkParseable) {
+          m_parseables.add(getCms().getSitePath(m_resource));
+        }
+        if (LOG.isInfoEnabled()) {
+          LOG.info(Messages.get().getBundle().key(Messages.LOG_IMPORTING_4,new Object[]{String.valueOf(m_fileCounter + 1),String.valueOf(m_totalFiles),translatedName,m_destination}));
+        }
+      }
+ else {
+        getReport().print(Messages.get().container(Messages.RPT_SKIPPING_0),I_CmsReport.FORMAT_NOTE);
+        getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,translatedName));
+        if (LOG.isInfoEnabled()) {
+          LOG.info(Messages.get().getBundle().key(Messages.LOG_SKIPPING_3,String.valueOf(m_fileCounter + 1),String.valueOf(m_totalFiles),translatedName));
+        }
+      }
+    }
+ else {
+      m_resource=null;
+      getReport().print(Messages.get().container(Messages.RPT_SKIPPING_0),I_CmsReport.FORMAT_NOTE);
+      getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,translatedName));
+      if (LOG.isInfoEnabled()) {
+        LOG.info(Messages.get().getBundle().key(Messages.LOG_SKIPPING_3,String.valueOf(m_fileCounter + 1),String.valueOf(m_totalFiles),translatedName));
+      }
+      m_importACEs=false;
+    }
+  }
+ catch (  Exception e) {
+    m_resource=null;
+    m_importACEs=false;
+    getReport().println(e);
+    getReport().addError(e);
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_RESOURCES_0);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message.key(),e);
+    }
+    return;
+  }
+ finally {
+    m_structureId=null;
+    m_resourceId=null;
+    m_destination=null;
+    m_source=null;
+    m_type=null;
+    m_flags=0;
+    m_dateCreated=0;
+    m_dateLastModified=0;
+    m_dateReleased=CmsResource.DATE_RELEASED_DEFAULT;
+    m_dateExpired=CmsResource.DATE_EXPIRED_DEFAULT;
+    m_properties=null;
+    m_throwable=null;
+    m_aces=null;
+    m_properties=null;
+  }
+}

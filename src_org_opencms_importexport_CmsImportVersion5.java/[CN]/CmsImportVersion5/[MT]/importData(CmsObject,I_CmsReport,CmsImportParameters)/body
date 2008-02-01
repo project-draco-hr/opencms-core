@@ -1,0 +1,37 @@
+{
+  initialize();
+  m_cms=cms;
+  m_importPath=params.getDestinationPath();
+  m_report=report;
+  m_keepPermissions=params.isKeepPermissions();
+  m_linkStorage=new HashMap();
+  m_linkPropertyStorage=new HashMap();
+  m_parseables=new ArrayList();
+  m_importedRelations=new HashMap();
+  CmsImportHelper helper=new CmsImportHelper(params);
+  try {
+    helper.openFile();
+    m_importResource=helper.getFolder();
+    m_importZip=helper.getZipFile();
+    m_docXml=CmsXmlUtils.unmarshalHelper(helper.getFileBytes(CmsImportExportManager.EXPORT_MANIFEST),null);
+    if (OpenCms.getRoleManager().hasRole(m_cms,CmsRole.ACCOUNT_MANAGER)) {
+      importGroups();
+      importUsers();
+    }
+    readResourcesFromManifest();
+    convertPointerToSiblings();
+    rewriteParseables();
+    importRelations();
+  }
+ catch (  IOException ioe) {
+    CmsMessageContainer msg=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_READING_FILE_1,CmsImportExportManager.EXPORT_MANIFEST);
+    if (LOG.isErrorEnabled()) {
+      LOG.error(msg.key(),ioe);
+    }
+    throw new CmsImportExportException(msg,ioe);
+  }
+ finally {
+    helper.closeFile();
+    cleanUp();
+  }
+}

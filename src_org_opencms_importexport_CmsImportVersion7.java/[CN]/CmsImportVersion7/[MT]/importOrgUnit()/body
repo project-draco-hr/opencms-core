@@ -1,0 +1,72 @@
+{
+  try {
+    if (m_throwable != null) {
+      getReport().println(m_throwable);
+      getReport().addError(m_throwable);
+      CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_ORGUNITS_0);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(message.key(),m_throwable);
+      }
+      m_throwable=null;
+      m_orgUnit=null;
+      return;
+    }
+    getReport().print(Messages.get().container(Messages.RPT_IMPORT_ORGUNIT_0),I_CmsReport.FORMAT_NOTE);
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,m_orgUnitName));
+    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    try {
+      m_orgUnit=OpenCms.getOrgUnitManager().readOrganizationalUnit(getCms(),m_orgUnitName);
+      getReport().println(Messages.get().container(Messages.RPT_NOT_CREATED_0),I_CmsReport.FORMAT_OK);
+      m_orgUnitResources.remove(m_orgUnitName);
+      return;
+    }
+ catch (    CmsDataAccessException e) {
+    }
+    List resources=new ArrayList();
+    String site=getCms().getRequestContext().getSiteRoot();
+    try {
+      getCms().getRequestContext().setSiteRoot("");
+      boolean remove=true;
+      Iterator itResNames=((List)m_orgUnitResources.get(m_orgUnitName)).iterator();
+      while (itResNames.hasNext()) {
+        String resName=(String)itResNames.next();
+        try {
+          resources.add(getCms().readResource(resName,CmsResourceFilter.ALL));
+          itResNames.remove();
+        }
+ catch (        CmsVfsResourceNotFoundException e) {
+          remove=false;
+        }
+      }
+      if (remove) {
+        m_orgUnitResources.remove(m_orgUnitName);
+      }
+    }
+  finally {
+      getCms().getRequestContext().setSiteRoot(site);
+    }
+    if (resources.isEmpty()) {
+      resources.add(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(getCms(),CmsOrganizationalUnit.getParentFqn(m_orgUnitName)).get(0));
+    }
+    m_orgUnit=OpenCms.getOrgUnitManager().createOrganizationalUnit(getCms(),m_orgUnitName,m_orgUnitDescription,m_orgUnitFlags,((CmsResource)resources.get(0)).getRootPath());
+    for (int i=1; i < resources.size(); i++) {
+      OpenCms.getOrgUnitManager().addResourceToOrgUnit(getCms(),m_orgUnitName,((CmsResource)resources.get(i)).getRootPath());
+    }
+    getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+  }
+ catch (  CmsException e) {
+    getReport().println(e);
+    getReport().addError(e);
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_IMPORTING_ORGUNITS_0);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message.key(),e);
+    }
+    m_throwable=null;
+    m_orgUnit=null;
+  }
+ finally {
+    m_orgUnitName=null;
+    m_orgUnitDescription=null;
+    m_orgUnitFlags=0;
+  }
+}

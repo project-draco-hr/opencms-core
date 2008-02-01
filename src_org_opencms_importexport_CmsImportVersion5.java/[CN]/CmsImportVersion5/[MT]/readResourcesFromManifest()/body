@@ -17,14 +17,14 @@
   }
   m_convertToXmlPage=OpenCms.getImportExportManager().convertToXmlPage();
   try {
-    fileNodes=m_docXml.selectNodes("//" + CmsImportExportManager.N_FILE);
+    fileNodes=m_docXml.selectNodes("//" + A_CmsImport.N_FILE);
     int importSize=fileNodes.size();
     for (int i=0; i < fileNodes.size(); i++) {
       m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,String.valueOf(i + 1),String.valueOf(importSize)),I_CmsReport.FORMAT_NOTE);
       currentElement=(Element)fileNodes.get(i);
-      source=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_SOURCE);
-      destination=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_DESTINATION);
-      String typeName=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_TYPE);
+      source=getChildElementTextValue(currentElement,A_CmsImport.N_SOURCE);
+      destination=getChildElementTextValue(currentElement,A_CmsImport.N_DESTINATION);
+      String typeName=getChildElementTextValue(currentElement,A_CmsImport.N_TYPE);
       I_CmsResourceType type;
       try {
         type=OpenCms.getResourceManager().getResourceType(typeName);
@@ -32,46 +32,46 @@
  catch (      CmsLoaderException e) {
         type=OpenCms.getResourceManager().getResourceType(CmsResourceTypePlain.getStaticTypeId());
       }
-      uuidstructure=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_UUIDSTRUCTURE);
+      uuidstructure=getChildElementTextValue(currentElement,A_CmsImport.N_UUIDSTRUCTURE);
       if (!type.isFolder()) {
-        uuidresource=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_UUIDRESOURCE);
+        uuidresource=getChildElementTextValue(currentElement,A_CmsImport.N_UUIDRESOURCE);
       }
  else {
         uuidresource=null;
       }
-      timestamp=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_DATELASTMODIFIED);
+      timestamp=getChildElementTextValue(currentElement,A_CmsImport.N_DATELASTMODIFIED);
       if (timestamp != null) {
         datelastmodified=convertTimestamp(timestamp);
       }
  else {
         datelastmodified=System.currentTimeMillis();
       }
-      userlastmodified=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_USERLASTMODIFIED);
+      userlastmodified=getChildElementTextValue(currentElement,A_CmsImport.N_USERLASTMODIFIED);
       userlastmodified=OpenCms.getImportExportManager().translateUser(userlastmodified);
-      timestamp=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_DATECREATED);
+      timestamp=getChildElementTextValue(currentElement,A_CmsImport.N_DATECREATED);
       if (timestamp != null) {
         datecreated=convertTimestamp(timestamp);
       }
  else {
         datecreated=System.currentTimeMillis();
       }
-      usercreated=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_USERCREATED);
+      usercreated=getChildElementTextValue(currentElement,A_CmsImport.N_USERCREATED);
       usercreated=OpenCms.getImportExportManager().translateUser(usercreated);
-      timestamp=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_DATERELEASED);
+      timestamp=getChildElementTextValue(currentElement,A_CmsImport.N_DATERELEASED);
       if (timestamp != null) {
         datereleased=convertTimestamp(timestamp);
       }
  else {
         datereleased=CmsResource.DATE_RELEASED_DEFAULT;
       }
-      timestamp=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_DATEEXPIRED);
+      timestamp=getChildElementTextValue(currentElement,A_CmsImport.N_DATEEXPIRED);
       if (timestamp != null) {
         dateexpired=convertTimestamp(timestamp);
       }
  else {
         dateexpired=CmsResource.DATE_EXPIRED_DEFAULT;
       }
-      flags=CmsImport.getChildElementTextValue(currentElement,CmsImportExportManager.N_FLAGS);
+      flags=getChildElementTextValue(currentElement,A_CmsImport.N_FLAGS);
       String translatedName=m_cms.getRequestContext().addSiteRoot(m_importPath + destination);
       if (type.isFolder()) {
         if (!CmsResource.isFolder(translatedName)) {
@@ -85,52 +85,55 @@
         m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,translatedName));
         m_report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
         properties=readPropertiesFromManifest(currentElement,ignoredProperties);
+        boolean exists=m_cms.existsResource(translatedName,CmsResourceFilter.ALL);
         CmsResource res=importResource(source,translatedName,type,uuidstructure,uuidresource,datelastmodified,userlastmodified,datecreated,usercreated,datereleased,dateexpired,flags,properties);
         if (res != null) {
-          List aceList=new ArrayList();
-          acentryNodes=currentElement.selectNodes("*/" + CmsImportExportManager.N_ACCESSCONTROL_ENTRY);
-          for (int j=0; j < acentryNodes.size(); j++) {
-            currentEntry=(Element)acentryNodes.get(j);
-            String id=CmsImport.getChildElementTextValue(currentEntry,CmsImportExportManager.N_ACCESSCONTROL_PRINCIPAL);
-            String principalId=new CmsUUID().toString();
-            String principal=id.substring(id.indexOf('.') + 1,id.length());
-            try {
-              if (id.startsWith(I_CmsPrincipal.PRINCIPAL_GROUP)) {
-                principal=OpenCms.getImportExportManager().translateGroup(principal);
-                principalId=m_cms.readGroup(principal).getId().toString();
-              }
- else               if (id.startsWith(I_CmsPrincipal.PRINCIPAL_USER)) {
-                principal=OpenCms.getImportExportManager().translateUser(principal);
-                principalId=m_cms.readUser(principal).getId().toString();
-              }
- else               if (id.startsWith(CmsRole.PRINCIPAL_ROLE)) {
-                principalId=CmsRole.valueOfRoleName(principal).getId().toString();
-              }
- else               if (id.equalsIgnoreCase(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_NAME)) {
-                principalId=CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID.toString();
-              }
- else               if (id.equalsIgnoreCase(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_NAME)) {
-                principalId=CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_ID.toString();
-              }
- else {
-                if (LOG.isWarnEnabled()) {
-                  LOG.warn(Messages.get().getBundle().key(Messages.LOG_IMPORTEXPORT_ERROR_IMPORTING_ACE_1,id));
+          if (!exists || !m_keepPermissions) {
+            List aceList=new ArrayList();
+            acentryNodes=currentElement.selectNodes("*/" + A_CmsImport.N_ACCESSCONTROL_ENTRY);
+            for (int j=0; j < acentryNodes.size(); j++) {
+              currentEntry=(Element)acentryNodes.get(j);
+              String id=getChildElementTextValue(currentEntry,A_CmsImport.N_ACCESSCONTROL_PRINCIPAL);
+              String principalId=new CmsUUID().toString();
+              String principal=id.substring(id.indexOf('.') + 1,id.length());
+              try {
+                if (id.startsWith(I_CmsPrincipal.PRINCIPAL_GROUP)) {
+                  principal=OpenCms.getImportExportManager().translateGroup(principal);
+                  principalId=m_cms.readGroup(principal).getId().toString();
                 }
+ else                 if (id.startsWith(I_CmsPrincipal.PRINCIPAL_USER)) {
+                  principal=OpenCms.getImportExportManager().translateUser(principal);
+                  principalId=m_cms.readUser(principal).getId().toString();
+                }
+ else                 if (id.startsWith(CmsRole.PRINCIPAL_ROLE)) {
+                  principalId=CmsRole.valueOfRoleName(principal).getId().toString();
+                }
+ else                 if (id.equalsIgnoreCase(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_NAME)) {
+                  principalId=CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID.toString();
+                }
+ else                 if (id.equalsIgnoreCase(CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_NAME)) {
+                  principalId=CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_ID.toString();
+                }
+ else {
+                  if (LOG.isWarnEnabled()) {
+                    LOG.warn(Messages.get().getBundle().key(Messages.LOG_IMPORTEXPORT_ERROR_IMPORTING_ACE_1,id));
+                  }
+                }
+                String acflags=getChildElementTextValue(currentEntry,A_CmsImport.N_FLAGS);
+                String allowed=((Element)currentEntry.selectNodes("./" + A_CmsImport.N_ACCESSCONTROL_PERMISSIONSET + "/"+ A_CmsImport.N_ACCESSCONTROL_ALLOWEDPERMISSIONS).get(0)).getTextTrim();
+                String denied=((Element)currentEntry.selectNodes("./" + A_CmsImport.N_ACCESSCONTROL_PERMISSIONSET + "/"+ A_CmsImport.N_ACCESSCONTROL_DENIEDPERMISSIONS).get(0)).getTextTrim();
+                aceList.add(getImportAccessControlEntry(res,principalId,allowed,denied,acflags));
               }
-              String acflags=CmsImport.getChildElementTextValue(currentEntry,CmsImportExportManager.N_FLAGS);
-              String allowed=((Element)currentEntry.selectNodes("./" + CmsImportExportManager.N_ACCESSCONTROL_PERMISSIONSET + "/"+ CmsImportExportManager.N_ACCESSCONTROL_ALLOWEDPERMISSIONS).get(0)).getTextTrim();
-              String denied=((Element)currentEntry.selectNodes("./" + CmsImportExportManager.N_ACCESSCONTROL_PERMISSIONSET + "/"+ CmsImportExportManager.N_ACCESSCONTROL_DENIEDPERMISSIONS).get(0)).getTextTrim();
-              aceList.add(getImportAccessControlEntry(res,principalId,allowed,denied,acflags));
-            }
- catch (            CmsException e) {
-              if (LOG.isWarnEnabled()) {
-                LOG.warn(Messages.get().getBundle().key(Messages.LOG_IMPORTEXPORT_ERROR_IMPORTING_ACE_1,translatedName),e);
+ catch (              CmsException e) {
+                if (LOG.isWarnEnabled()) {
+                  LOG.warn(Messages.get().getBundle().key(Messages.LOG_IMPORTEXPORT_ERROR_IMPORTING_ACE_1,translatedName),e);
+                }
+                m_report.println(e);
+                m_report.addError(e);
               }
-              m_report.println(e);
-              m_report.addError(e);
             }
+            importAccessControlEntries(res,aceList);
           }
-          importAccessControlEntries(res,aceList);
           importRelations(res,currentElement);
           if (OpenCms.getResourceManager().getResourceType(res.getTypeId()) instanceof I_CmsLinkParseable) {
             m_parseables.add(res);
