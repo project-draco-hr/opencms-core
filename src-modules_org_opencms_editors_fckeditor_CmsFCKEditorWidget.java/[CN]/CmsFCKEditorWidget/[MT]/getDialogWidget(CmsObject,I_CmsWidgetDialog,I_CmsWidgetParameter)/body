@@ -22,11 +22,36 @@
   result.append("<script type=\"text/javascript\">\n");
   result.append("var editor = new FCKeditor(\"ta_").append(id).append("\");\n");
   result.append("editor.BasePath = \"").append(CmsWorkplace.getSkinUri()).append("editors/fckeditor/\";\n");
+  boolean cssConfigured=false;
+  String cssPath="";
   if (getHtmlWidgetOption().useCss()) {
-    result.append("editor.Config[\"EditorAreaCSS\"] = \"");
-    result.append(OpenCms.getLinkManager().substituteLink(cms,getHtmlWidgetOption().getCssPath()));
-    result.append("\";\n");
+    cssPath=getHtmlWidgetOption().getCssPath();
     getHtmlWidgetOption().setCssPath(null);
+    cssConfigured=true;
+  }
+ else   if (OpenCms.getWorkplaceManager().getEditorCssHandlers().size() > 0) {
+    Iterator i=OpenCms.getWorkplaceManager().getEditorCssHandlers().iterator();
+    try {
+      I_CmsXmlContentValue contentValue=(I_CmsXmlContentValue)param;
+      String editedResource=cms.getSitePath(contentValue.getDocument().getFile());
+      while (i.hasNext()) {
+        I_CmsEditorCssHandler handler=(I_CmsEditorCssHandler)i.next();
+        if (handler.matches(cms,editedResource)) {
+          cssPath=handler.getUriStyleSheet(cms,editedResource);
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(cssPath)) {
+            cssConfigured=true;
+          }
+          break;
+        }
+      }
+    }
+ catch (    Exception e) {
+    }
+  }
+  if (cssConfigured) {
+    result.append("editor.Config[\"EditorAreaCSS\"] = \"");
+    result.append(OpenCms.getLinkManager().substituteLink(cms,cssPath));
+    result.append("\";\n");
   }
   if (getHtmlWidgetOption().showStylesXml()) {
     result.append("editor.Config[\"StylesXmlPath\"] = \"");
