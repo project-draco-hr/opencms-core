@@ -1,0 +1,53 @@
+{
+  InputStream stream=null;
+  ZipFile zipFile=null;
+  try {
+    File folder=new File(location);
+    if (folder.isFile()) {
+      zipFile=new ZipFile(location);
+      ZipEntry entry=zipFile.getEntry(COMPONENTS_PROPERTIES);
+      if ((entry == null) && location.startsWith("/")) {
+        entry=zipFile.getEntry(location.substring(1));
+      }
+      if (entry == null) {
+        throw new FileNotFoundException(org.opencms.importexport.Messages.get().getBundle().key(org.opencms.importexport.Messages.LOG_IMPORTEXPORT_FILE_NOT_FOUND_IN_ZIP_1,location + "/" + COMPONENTS_PROPERTIES));
+      }
+      stream=zipFile.getInputStream(entry);
+    }
+ else {
+      File file=new File(folder,COMPONENTS_PROPERTIES);
+      stream=new FileInputStream(file);
+    }
+    return CmsPropertyUtils.loadProperties(stream);
+  }
+ catch (  Throwable ioe) {
+    if (stream != null) {
+      try {
+        stream.close();
+      }
+ catch (      IOException e) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+    if (zipFile != null) {
+      try {
+        zipFile.close();
+      }
+ catch (      IOException e) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+    if (ioe instanceof FileNotFoundException) {
+      throw (FileNotFoundException)ioe;
+    }
+    CmsMessageContainer msg=org.opencms.importexport.Messages.get().container(org.opencms.importexport.Messages.ERR_IMPORTEXPORT_ERROR_READING_FILE_1,location + "/" + COMPONENTS_PROPERTIES);
+    if (LOG.isErrorEnabled()) {
+      LOG.error(msg.key(),ioe);
+    }
+    throw new CmsConfigurationException(msg,ioe);
+  }
+}
