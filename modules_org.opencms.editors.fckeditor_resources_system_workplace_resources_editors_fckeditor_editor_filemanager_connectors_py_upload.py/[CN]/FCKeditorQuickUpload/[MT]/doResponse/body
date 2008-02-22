@@ -1,0 +1,23 @@
+def doResponse(self):
+    'Main function. Process the request, set headers and return a string as response.'
+    if (not Config.Enabled):
+        return self.sendUploadResults(1, 'This file uploader is disabled. Please check the "editor/filemanager/connectors/py/config.py"')
+    command = 'QuickUpload'
+    resourceType = self.request.get('Type', 'File')
+    currentFolder = getCurrentFolder(self.request.get('CurrentFolder', ''))
+    if (currentFolder is None):
+        return self.sendUploadResults(102, '', '', '')
+    if (not (command in Config.ConfigAllowedCommands)):
+        return self.sendUploadResults(1, '', '', ("The %s command isn't allowed" % command))
+    if (not (resourceType in Config.ConfigAllowedTypes)):
+        return self.sendUploadResults(1, '', '', 'Invalid type specified')
+    self.userFilesFolder = Config.QuickUploadAbsolutePath[resourceType]
+    self.webUserFilesFolder = Config.QuickUploadPath[resourceType]
+    if (not self.userFilesFolder):
+        self.userFilesFolder = mapServerPath(self.environ, self.webUserFilesFolder)
+    if (not os.path.exists(self.userFilesFolder)):
+        try:
+            self.createServerFoldercreateServerFolder(self.userFilesFolder)
+        except:
+            return self.sendError(1, 'This connector couldn\'t access to local user\'s files directories.  Please check the UserFilesAbsolutePath in "editor/filemanager/connectors/py/config.py" and try again. ')
+    return self.uploadFile(resourceType, currentFolder)
