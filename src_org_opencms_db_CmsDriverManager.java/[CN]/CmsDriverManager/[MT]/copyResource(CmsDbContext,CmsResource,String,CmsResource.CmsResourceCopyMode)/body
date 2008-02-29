@@ -12,7 +12,27 @@
   }
   List properties=readPropertyObjects(dbc,source,false);
   if (copyAsSibling) {
-    createSibling(dbc,source,destination,properties);
+    CmsResource resource=createSibling(dbc,source,destination,properties);
+    Iterator itRelations=getRelationsForResource(dbc,source,CmsRelationFilter.TARGETS.filterNotDefinedInContent()).iterator();
+    while (itRelations.hasNext()) {
+      CmsRelation relation=(CmsRelation)itRelations.next();
+      CmsResource target=null;
+      try {
+        target=readResource(dbc,relation.getTargetId(),CmsResourceFilter.ALL);
+      }
+ catch (      CmsVfsResourceNotFoundException e) {
+        try {
+          target=readResource(dbc,relation.getTargetPath(),CmsResourceFilter.ALL);
+        }
+ catch (        CmsVfsResourceNotFoundException e1) {
+          if (LOG.isWarnEnabled()) {
+            LOG.warn(e1.getLocalizedMessage(),e1);
+          }
+          continue;
+        }
+      }
+      addRelationToResource(dbc,resource,target,relation.getType(),true);
+    }
     return;
   }
   byte[] content=null;
@@ -44,6 +64,26 @@
   CmsResource newResource=new CmsResource(new CmsUUID(),new CmsUUID(),destination,source.getTypeId(),source.isFolder(),flags,dbc.currentProject().getUuid(),CmsResource.STATE_NEW,currentTime,dbc.currentUser().getId(),dateLastModified,userLastModified,source.getDateReleased(),source.getDateExpired(),1,source.getLength(),source.getDateContent(),source.getVersion());
   newResource.setDateLastModified(dateLastModified);
   newResource=createResource(dbc,destination,newResource,content,properties,false);
+  Iterator itRelations=getRelationsForResource(dbc,source,CmsRelationFilter.TARGETS.filterNotDefinedInContent()).iterator();
+  while (itRelations.hasNext()) {
+    CmsRelation relation=(CmsRelation)itRelations.next();
+    CmsResource target=null;
+    try {
+      target=readResource(dbc,relation.getTargetId(),CmsResourceFilter.ALL);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      try {
+        target=readResource(dbc,relation.getTargetPath(),CmsResourceFilter.ALL);
+      }
+ catch (      CmsVfsResourceNotFoundException e1) {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(e1.getLocalizedMessage(),e1);
+        }
+        continue;
+      }
+    }
+    addRelationToResource(dbc,newResource,target,relation.getType(),true);
+  }
   copyAccessControlEntries(dbc,source,newResource,false);
   OpenCms.getMemoryMonitor().clearAccessControlListCache();
   List modifiedResources=new ArrayList();
