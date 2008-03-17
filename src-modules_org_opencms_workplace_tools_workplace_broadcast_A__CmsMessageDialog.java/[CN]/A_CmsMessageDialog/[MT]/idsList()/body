@@ -2,10 +2,33 @@
   if (!isForAll()) {
     return CmsStringUtil.splitAsList(getParamSessionids(),CmsHtmlList.ITEM_SEPARATOR);
   }
+  List manageableUsers=new ArrayList();
+  try {
+    manageableUsers=OpenCms.getRoleManager().getManageableUsers(getCms(),"",true);
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
   List ids=new ArrayList();
   Iterator itSessions=OpenCms.getSessionManager().getSessionInfos().iterator();
   while (itSessions.hasNext()) {
-    ids.add(((CmsSessionInfo)itSessions.next()).getSessionId());
+    CmsSessionInfo sessionInfo=(CmsSessionInfo)itSessions.next();
+    CmsUser user;
+    try {
+      user=getCms().readUser(sessionInfo.getUserId());
+    }
+ catch (    CmsException e) {
+      if (LOG.isWarnEnabled()) {
+        LOG.warn(e.getLocalizedMessage(),e);
+      }
+      continue;
+    }
+    if (!manageableUsers.contains(user)) {
+      continue;
+    }
+    ids.add(sessionInfo.getSessionId());
   }
   return ids;
 }
