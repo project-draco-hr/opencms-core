@@ -1,3 +1,39 @@
 {
-  return m_historyDriver.readProjects(dbc);
+  Set manOus=new HashSet(getOrgUnitsForRole(dbc,CmsRole.PROJECT_MANAGER,true));
+  List projects=m_historyDriver.readProjects(dbc);
+  Iterator itProjects=projects.iterator();
+  while (itProjects.hasNext()) {
+    CmsHistoryProject project=(CmsHistoryProject)itProjects.next();
+    if (project.isHidden()) {
+      itProjects.remove();
+      continue;
+    }
+    if (!project.getOuFqn().startsWith(dbc.currentUser().getOuFqn())) {
+      itProjects.remove();
+      continue;
+    }
+    CmsOrganizationalUnit ou=readOrganizationalUnit(dbc,project.getOuFqn());
+    if (manOus.contains(ou)) {
+      continue;
+    }
+ else     if (project.getOwnerId().equals(dbc.currentUser().getId())) {
+      continue;
+    }
+ else {
+      boolean found=false;
+      Iterator itGroups=getGroupsOfUser(dbc,dbc.currentUser().getName(),false).iterator();
+      while (itGroups.hasNext()) {
+        CmsGroup group=(CmsGroup)itGroups.next();
+        if (project.getManagerGroupId().equals(group.getId())) {
+          found=true;
+          break;
+        }
+      }
+      if (found) {
+        continue;
+      }
+    }
+    itProjects.remove();
+  }
+  return projects;
 }

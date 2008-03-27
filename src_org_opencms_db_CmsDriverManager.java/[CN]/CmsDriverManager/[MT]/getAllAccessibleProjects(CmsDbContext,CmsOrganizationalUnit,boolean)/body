@@ -1,21 +1,29 @@
 {
   Set projects=new HashSet();
-  List ous=getOrgUnitsForRole(dbc,CmsRole.PROJECT_MANAGER.forOrgUnit(""),true);
+  List ous=getOrgUnitsForRole(dbc,CmsRole.PROJECT_MANAGER.forOrgUnit(orgUnit.getName()),includeSubOus);
   Set userGroupIds=new HashSet();
   Iterator itGroups=getGroupsOfUser(dbc,dbc.currentUser().getName(),false).iterator();
   while (itGroups.hasNext()) {
     CmsGroup group=(CmsGroup)itGroups.next();
     userGroupIds.add(group.getId());
   }
-  projects.addAll(m_projectDriver.readProjects(dbc,""));
+  projects.addAll(m_projectDriver.readProjects(dbc,orgUnit.getName()));
   Iterator itProjects=projects.iterator();
   while (itProjects.hasNext()) {
     CmsProject project=(CmsProject)itProjects.next();
-    if (project.isHidden()) {
+    boolean accessible=true;
+    accessible=accessible && !project.isHidden();
+    if (!includeSubOus) {
+      accessible=accessible && project.getOuFqn().equals(orgUnit.getName());
+    }
+ else {
+      accessible=accessible && project.getOuFqn().startsWith(orgUnit.getName());
+    }
+    if (!accessible) {
       itProjects.remove();
       continue;
     }
-    boolean accessible=false;
+    accessible=false;
     accessible=accessible || project.isOnlineProject();
     accessible=accessible || project.getOwnerId().equals(dbc.currentUser().getId());
     Iterator itOus=ous.iterator();

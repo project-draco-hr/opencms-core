@@ -1,0 +1,51 @@
+{
+  Set projects=new HashSet();
+  List ous=getOrgUnitsForRole(dbc,CmsRole.PROJECT_MANAGER.forOrgUnit(orgUnit.getName()),includeSubOus);
+  Set userGroupIds=new HashSet();
+  Iterator itGroups=getGroupsOfUser(dbc,dbc.currentUser().getName(),false).iterator();
+  while (itGroups.hasNext()) {
+    CmsGroup group=(CmsGroup)itGroups.next();
+    userGroupIds.add(group.getId());
+  }
+  projects.addAll(m_projectDriver.readProjects(dbc,orgUnit.getName()));
+  Iterator itProjects=projects.iterator();
+  while (itProjects.hasNext()) {
+    CmsProject project=(CmsProject)itProjects.next();
+    boolean manageable=true;
+    manageable=manageable && !project.isOnlineProject();
+    manageable=manageable && !project.isHidden();
+    if (!includeSubOus) {
+      manageable=manageable && project.getOuFqn().equals(orgUnit.getName());
+    }
+ else {
+      manageable=manageable && project.getOuFqn().startsWith(orgUnit.getName());
+    }
+    if (!manageable) {
+      itProjects.remove();
+      continue;
+    }
+    manageable=false;
+    manageable=manageable || project.getOwnerId().equals(dbc.currentUser().getId());
+    Iterator itOus=ous.iterator();
+    while (!manageable && itOus.hasNext()) {
+      CmsOrganizationalUnit ou=(CmsOrganizationalUnit)itOus.next();
+      manageable=manageable || project.getOuFqn().startsWith(ou.getName());
+    }
+    if (!manageable) {
+      if (userGroupIds.contains(project.getManagerGroupId())) {
+        String oufqn=readGroup(dbc,project.getManagerGroupId()).getOuFqn();
+        manageable=manageable || (oufqn.startsWith(dbc.getRequestContext().getOuFqn()));
+      }
+    }
+    if (!manageable) {
+      itProjects.remove();
+    }
+  }
+  ArrayList manageableProjects=new ArrayList(projects);
+  Collections.sort(manageableProjects);
+  CmsProject onlineProject=readProject(dbc,CmsProject.ONLINE_PROJECT_ID);
+  if (manageableProjects.contains(onlineProject)) {
+    manageableProjects.remove(onlineProject);
+  }
+  return manageableProjects;
+}

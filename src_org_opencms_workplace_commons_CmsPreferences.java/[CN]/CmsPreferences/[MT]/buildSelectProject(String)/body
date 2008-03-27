@@ -1,48 +1,56 @@
 {
+  List allProjects;
   try {
-    List allProjects=getCms().getAllAccessibleProjects();
-    boolean singleOu=true;
-    String ouFqn=null;
-    Iterator itProjects=allProjects.iterator();
-    while (itProjects.hasNext()) {
-      CmsProject prj=(CmsProject)itProjects.next();
-      if (prj.isOnlineProject()) {
-        continue;
-      }
-      if (ouFqn == null) {
-        ouFqn=prj.getOuFqn();
-      }
-      if (!ouFqn.equals(prj.getOuFqn())) {
-        singleOu=false;
-        break;
-      }
+    String ouFqn="";
+    CmsUserSettings settings=new CmsUserSettings(getCms());
+    if (!settings.getListAllProjects()) {
+      ouFqn=getCms().getRequestContext().currentUser().getOuFqn();
     }
-    List options=new ArrayList(allProjects.size());
-    List values=new ArrayList(allProjects.size());
-    int checkedIndex=0;
-    String startProject="";
-    startProject=getParamTabWpProject();
-    for (int i=0, n=allProjects.size(); i < n; i++) {
-      CmsProject project=(CmsProject)allProjects.get(i);
-      String projectName=project.getSimpleName();
-      if (!singleOu && !project.isOnlineProject()) {
-        try {
-          projectName=projectName + " - " + OpenCms.getOrgUnitManager().readOrganizationalUnit(getCms(),project.getOuFqn()).getDisplayName(getLocale());
-        }
- catch (        CmsException e) {
-          projectName=projectName + " - " + project.getOuFqn();
-        }
-      }
-      options.add(projectName);
-      values.add(project.getName());
-      if (startProject.equals(project.getName())) {
-        checkedIndex=i;
-      }
-    }
-    return buildSelect(htmlAttributes,options,values,checkedIndex);
+    allProjects=OpenCms.getOrgUnitManager().getAllAccessibleProjects(getCms(),ouFqn,settings.getListAllProjects());
   }
  catch (  CmsException e) {
-    LOG.error(e.getLocalizedMessage());
-    return getSettings().getProject() + "";
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+    allProjects=Collections.EMPTY_LIST;
   }
+  boolean singleOu=true;
+  String ouFqn=null;
+  Iterator itProjects=allProjects.iterator();
+  while (itProjects.hasNext()) {
+    CmsProject prj=(CmsProject)itProjects.next();
+    if (prj.isOnlineProject()) {
+      continue;
+    }
+    if (ouFqn == null) {
+      ouFqn=prj.getOuFqn();
+    }
+    if (!ouFqn.equals(prj.getOuFqn())) {
+      singleOu=false;
+      break;
+    }
+  }
+  List options=new ArrayList(allProjects.size());
+  List values=new ArrayList(allProjects.size());
+  int checkedIndex=0;
+  String startProject="";
+  startProject=getParamTabWpProject();
+  for (int i=0, n=allProjects.size(); i < n; i++) {
+    CmsProject project=(CmsProject)allProjects.get(i);
+    String projectName=project.getSimpleName();
+    if (!singleOu && !project.isOnlineProject()) {
+      try {
+        projectName=projectName + " - " + OpenCms.getOrgUnitManager().readOrganizationalUnit(getCms(),project.getOuFqn()).getDisplayName(getLocale());
+      }
+ catch (      CmsException e) {
+        projectName=projectName + " - " + project.getOuFqn();
+      }
+    }
+    options.add(projectName);
+    values.add(project.getName());
+    if (startProject.equals(project.getName())) {
+      checkedIndex=i;
+    }
+  }
+  return buildSelect(htmlAttributes,options,values,checkedIndex);
 }
