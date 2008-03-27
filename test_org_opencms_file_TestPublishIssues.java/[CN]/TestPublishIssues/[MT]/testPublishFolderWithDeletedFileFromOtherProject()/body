@@ -1,0 +1,26 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing publishing a deleted folder containing a file that was deleted in other project");
+  String folder="testFolderABC/";
+  cms.createResource(folder,CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  String file=folder + "file.txt";
+  cms.createResource(file,CmsResourceTypePlain.getStaticTypeId());
+  OpenCms.getPublishManager().publishResource(cms,folder);
+  OpenCms.getPublishManager().waitWhileRunning();
+  CmsProject offline=cms.getRequestContext().currentProject();
+  CmsProject prj=cms.createProject("testABC","tets project",OpenCms.getDefaultUsers().getGroupAdministrators(),OpenCms.getDefaultUsers().getGroupAdministrators());
+  cms.getRequestContext().setCurrentProject(prj);
+  cms.copyResourceToProject(folder);
+  cms.lockResource(file);
+  cms.deleteResource(file,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  cms.getRequestContext().setCurrentProject(offline);
+  cms.lockResource(folder);
+  cms.deleteResource(folder,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  I_CmsReport report=new CmsLogReport(Locale.ENGLISH,getClass());
+  OpenCms.getPublishManager().publishResource(cms,folder,true,report);
+  OpenCms.getPublishManager().waitWhileRunning();
+  assertTrue(report.getErrors().isEmpty());
+  assertTrue(report.getWarnings().isEmpty());
+  assertFalse(cms.existsResource(folder,CmsResourceFilter.ALL));
+  assertFalse(cms.existsResource(file,CmsResourceFilter.ALL));
+}
