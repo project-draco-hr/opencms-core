@@ -8,26 +8,17 @@
     return result;
   }
   result=new ArrayList();
-  List roles=new ArrayList(getGroupsOfUser(dbc,user.getName(),"",true,true,false,dbc.getRequestContext().getRemoteAddress()));
-  Iterator it=roles.iterator();
-  while (it.hasNext()) {
-    CmsGroup group=(CmsGroup)it.next();
-    CmsRole givenRole=CmsRole.valueOf(group);
-    if (result.contains(givenRole.forOrgUnit(null))) {
-      continue;
-    }
-    if (givenRole.getOuFqn() != null) {
-      CmsOrganizationalUnit orgUnit=readOrganizationalUnit(dbc,givenRole.getOuFqn());
-      Iterator itResources=getResourcesForOrganizationalUnit(dbc,orgUnit).iterator();
-      while (itResources.hasNext()) {
-        CmsResource givenResource=(CmsResource)itResources.next();
-        if (resource.getRootPath().startsWith(givenResource.getRootPath())) {
-          result.add(givenRole.forOrgUnit(null));
-          break;
-        }
+  Iterator itOus=getResourceOrgUnits(dbc,resource).iterator();
+  while (itOus.hasNext()) {
+    CmsOrganizationalUnit ou=(CmsOrganizationalUnit)itOus.next();
+    List roles=new ArrayList(getGroupsOfUser(dbc,user.getName(),ou.getName(),false,true,false,dbc.getRequestContext().getRemoteAddress()));
+    Iterator it=roles.iterator();
+    while (it.hasNext()) {
+      CmsGroup group=(CmsGroup)it.next();
+      CmsRole givenRole=CmsRole.valueOf(group).forOrgUnit(null);
+      if (givenRole.isOrganizationalUnitIndependent() || result.contains(givenRole)) {
+        continue;
       }
-    }
- else {
       result.add(givenRole);
     }
   }
