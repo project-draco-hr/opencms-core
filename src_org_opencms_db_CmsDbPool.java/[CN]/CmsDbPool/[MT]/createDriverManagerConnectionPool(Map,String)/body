@@ -56,6 +56,8 @@
     whenStmtsExhaustedActionValue=whenStmtsExhaustedActionValue.trim();
     whenStmtsExhaustedAction=("block".equalsIgnoreCase(whenStmtsExhaustedActionValue)) ? GenericKeyedObjectPool.WHEN_EXHAUSTED_BLOCK : ("fail".equalsIgnoreCase(whenStmtsExhaustedActionValue)) ? GenericKeyedObjectPool.WHEN_EXHAUSTED_FAIL : GenericKeyedObjectPool.WHEN_EXHAUSTED_GROW;
   }
+  int connectionAttempts=config.getInteger(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_CONNECT_ATTEMTS,10);
+  int connetionsWait=config.getInteger(KEY_DATABASE_POOL + '.' + key+ '.'+ KEY_CONNECT_WAITS,5000);
   Class.forName(jdbcDriver).newInstance();
   GenericObjectPool connectionPool=new GenericObjectPool(null);
   connectionPool.setMaxActive(maxActive);
@@ -81,8 +83,28 @@
   new PoolableConnectionFactory(connectionFactory,connectionPool,statementFactory,testQuery,false,true);
   PoolingDriver driver=new PoolingDriver();
   driver.registerPool(poolUrl,connectionPool);
-  Connection con=connectionFactory.createConnection();
-  con.close();
+  Connection con=null;
+  boolean connect=false;
+  int connectionTests=0;
+  do {
+    try {
+      con=connectionFactory.createConnection();
+      connect=true;
+    }
+ catch (    Exception e) {
+      connectionTests++;
+      if (CmsLog.INIT.isInfoEnabled()) {
+        CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_WAIT_FOR_DB_4,new Object[]{poolUrl,jdbcUrl,new Integer(connectionTests),new Integer(connetionsWait)}));
+      }
+      Thread.sleep(connetionsWait);
+    }
+ finally {
+      if (con != null) {
+        con.close();
+      }
+    }
+  }
+ while (!connect && connectionTests < connectionAttempts);
   if (CmsLog.INIT.isInfoEnabled()) {
     CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_JDBC_POOL_2,poolUrl,jdbcUrl));
   }
