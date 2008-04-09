@@ -15,16 +15,26 @@
   Class jobClass;
   try {
     jobClass=Class.forName(jobInfo.getClassName());
+    if (!I_CmsScheduledJob.class.isAssignableFrom(jobClass)) {
+      CmsMessageContainer message=Messages.get().container(Messages.ERR_JOB_CLASS_BAD_INTERFACE_2,jobInfo.getClassName(),I_CmsScheduledJob.class.getName());
+      LOG.error(message.key());
+      if (OpenCms.getRunLevel() > OpenCms.RUNLEVEL_2_INITIALIZING) {
+        throw new CmsIllegalArgumentException(message);
+      }
+ else {
+        jobInfo.setActive(false);
+      }
+    }
   }
  catch (  ClassNotFoundException e) {
     CmsMessageContainer message=Messages.get().container(Messages.ERR_JOB_CLASS_NOT_FOUND_1,jobInfo.getClassName());
     LOG.error(message.key());
-    throw new CmsSchedulerException(message);
-  }
-  if (!I_CmsScheduledJob.class.isAssignableFrom(jobClass)) {
-    CmsMessageContainer message=Messages.get().container(Messages.ERR_JOB_CLASS_BAD_INTERFACE_2,jobInfo.getClassName(),I_CmsScheduledJob.class.getName());
-    LOG.error(message.key());
-    throw new CmsSchedulerException(message);
+    if (OpenCms.getRunLevel() > OpenCms.RUNLEVEL_2_INITIALIZING) {
+      throw new CmsIllegalArgumentException(message);
+    }
+ else {
+      jobInfo.setActive(false);
+    }
   }
   String jobId=jobInfo.getId();
   boolean idCreated=false;
@@ -64,6 +74,13 @@
     jobDetail.setJobDataMap(jobData);
     try {
       m_scheduler.scheduleJob(jobDetail,trigger);
+      if (LOG.isInfoEnabled()) {
+        LOG.info(Messages.get().getBundle().key(Messages.LOG_JOB_SCHEDULED_4,new Object[]{new Integer(m_jobs.size()),jobInfo.getJobName(),jobInfo.getClassName(),jobInfo.getContextInfo().getUserName()}));
+        Date nextExecution=jobInfo.getExecutionTimeNext();
+        if (nextExecution != null) {
+          LOG.info(Messages.get().getBundle().key(Messages.LOG_JOB_NEXT_EXECUTION_2,jobInfo.getJobName(),nextExecution));
+        }
+      }
     }
  catch (    Exception e) {
       if (LOG.isDebugEnabled()) {
@@ -95,11 +112,4 @@
   }
   jobInfo.initConfiguration();
   m_jobs.add(jobInfo);
-  if (LOG.isInfoEnabled()) {
-    LOG.info(Messages.get().getBundle().key(Messages.LOG_JOB_SCHEDULED_4,new Object[]{new Integer(m_jobs.size()),jobInfo.getJobName(),jobInfo.getClassName(),jobInfo.getContextInfo().getUserName()}));
-    Date nextExecution=jobInfo.getExecutionTimeNext();
-    if (nextExecution != null) {
-      LOG.info(Messages.get().getBundle().key(Messages.LOG_JOB_NEXT_EXECUTION_2,jobInfo.getJobName(),nextExecution));
-    }
-  }
 }
