@@ -1,0 +1,93 @@
+{
+  if (!directory.canRead() || !directory.isDirectory()) {
+    return;
+  }
+  File[] files=directory.listFiles();
+  for (int i=0; i < files.length; i++) {
+    File f=files[i];
+    if (f.isDirectory()) {
+      visitImages(cms,f,withVariations,showSize,statsOnly);
+      continue;
+    }
+    m_variationsCount++;
+    m_variationsSize+=f.length();
+    String oName=f.getAbsolutePath().substring(CmsImageLoader.getImageRepositoryPath().length());
+    oName=CmsStringUtil.substitute(oName,"\\","/");
+    if (!oName.startsWith("/")) {
+      oName="/" + oName;
+    }
+    String imgName=oName;
+    CmsResource res=null;
+    boolean found=false;
+    while (!found) {
+      String path=CmsResource.getParentFolder(imgName);
+      String name=imgName.substring(path.length());
+      String ext=CmsFileUtil.getExtension(imgName);
+      String nameWoExt=name.substring(0,name.length() - ext.length());
+      int pos=nameWoExt.lastIndexOf("_");
+      String newName=path;
+      found=(pos < 0);
+      if (!found) {
+        newName+=nameWoExt.substring(0,pos);
+      }
+ else {
+        newName+=nameWoExt;
+      }
+      newName+=ext;
+      try {
+        res=cms.readResource(newName,CmsResourceFilter.ALL);
+        found=true;
+      }
+ catch (      Exception e) {
+      }
+      imgName=newName;
+    }
+    if (res != null) {
+      oName=res.getRootPath();
+    }
+    List variations=(List)m_variations.get(oName);
+    if (variations == null) {
+      variations=new ArrayList();
+      m_variations.put(oName,variations);
+      if (statsOnly) {
+        continue;
+      }
+      if (res != null) {
+        m_lengths.put(oName,"" + res.getLength() + " Bytes");
+        if (showSize) {
+          try {
+            BufferedImage img=Simapi.read(cms.readFile(res).getContents());
+            m_sizes.put(oName,"" + img.getWidth() + " x "+ img.getHeight()+ "px");
+          }
+ catch (          Throwable e) {
+          }
+        }
+      }
+ else {
+        m_lengths.put(oName,"" + f.length() + " Bytes");
+        if (showSize) {
+          try {
+            BufferedImage img=Simapi.read(f);
+            m_sizes.put(oName,"" + img.getWidth() + " x "+ img.getHeight()+ "px");
+          }
+ catch (          Throwable e) {
+          }
+        }
+      }
+    }
+    if (!withVariations) {
+      continue;
+    }
+    oName+=" (";
+    if (showSize) {
+      try {
+        BufferedImage img=Simapi.read(f);
+        oName+="" + img.getWidth() + " x "+ img.getHeight()+ "px - ";
+      }
+ catch (      Throwable e) {
+      }
+    }
+    oName+=f.length() + " Bytes)";
+    variations.add(oName);
+  }
+}
