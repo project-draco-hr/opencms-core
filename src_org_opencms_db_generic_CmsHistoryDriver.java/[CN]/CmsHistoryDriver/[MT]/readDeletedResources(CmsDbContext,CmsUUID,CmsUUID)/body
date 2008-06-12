@@ -30,5 +30,37 @@
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
   }
+  if (!result.isEmpty() || (dbc.getRequestContext().getAttribute("ATTR_RESOURCE_NAME") == null)) {
+    return result;
+  }
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    if (userId == null) {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_HISTORY_READ_DELETED_NAME");
+    }
+ else {
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_HISTORY_READ_DELETED_NAME_RESTRICTED");
+    }
+    String path=dbc.getRequestContext().getAttribute("ATTR_RESOURCE_NAME").toString();
+    stmt.setString(1,path + '%');
+    stmt.setString(2,path);
+    if (userId != null) {
+      stmt.setString(3,userId.toString());
+    }
+    res=stmt.executeQuery();
+    while (res.next()) {
+      I_CmsHistoryResource histRes=internalCreateResource(res);
+      if (m_driverManager.getVfsDriver().validateStructureIdExists(dbc,dbc.currentProject().getUuid(),histRes.getStructureId())) {
+        continue;
+      }
+      result.add(histRes);
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
   return result;
 }
