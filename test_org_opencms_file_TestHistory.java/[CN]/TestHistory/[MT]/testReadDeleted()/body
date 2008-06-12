@@ -1,0 +1,20 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the retrieval of deleted resources by name in a folder");
+  String folderName="/folderReadDeleted";
+  String fileName="/test.txt";
+  cms.createResource(folderName,CmsResourceTypeFolder.getStaticTypeId());
+  cms.createResource(folderName + fileName,CmsResourceTypePlain.getStaticTypeId(),"test content".getBytes(),null);
+  OpenCms.getPublishManager().publishResource(cms,folderName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.lockResource(folderName);
+  cms.deleteResource(folderName,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  OpenCms.getPublishManager().publishResource(cms,folderName);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.createResource(folderName,CmsResourceTypeFolder.getStaticTypeId());
+  List deleted=cms.readDeletedResources(folderName,false);
+  assertEquals(1,deleted.size());
+  cms.restoreDeletedResource(((I_CmsHistoryResource)deleted.get(0)).getStructureId());
+  cms.readResource(((I_CmsHistoryResource)deleted.get(0)).getStructureId());
+  cms.readResource(cms.getRequestContext().removeSiteRoot(((I_CmsHistoryResource)deleted.get(0)).getRootPath()));
+}
