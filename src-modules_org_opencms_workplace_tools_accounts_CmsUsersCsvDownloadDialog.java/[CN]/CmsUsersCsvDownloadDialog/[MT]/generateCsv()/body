@@ -1,0 +1,73 @@
+{
+  Map objects=getData();
+  List groups=(List)objects.get("groups");
+  List roles=(List)objects.get("roles");
+  Map exportUsers=new HashMap();
+  try {
+    if (((groups == null) || (groups.size() < 1)) && ((roles == null) || (roles.size() < 1))) {
+      exportUsers=getExportAllUsers(exportUsers);
+    }
+ else {
+      exportUsers=getExportUsersFromGroups(groups,exportUsers);
+      exportUsers=getExportUsersFromRoles(roles,exportUsers);
+    }
+  }
+ catch (  CmsException e) {
+    throw new CmsRuntimeException(Messages.get().container(Messages.ERR_GET_EXPORT_USERS_0),e);
+  }
+  StringBuffer buffer=new StringBuffer();
+  CmsUserExportSettings settings=OpenCms.getImportExportManager().getUserExportSettings();
+  String separator=CmsStringUtil.substitute(settings.getSeparator(),"\\t","\t");
+  List values=settings.getColumns();
+  buffer.append("name");
+  Iterator itValues=values.iterator();
+  while (itValues.hasNext()) {
+    buffer.append(separator);
+    buffer.append(itValues.next());
+  }
+  buffer.append("\n");
+  Object[] users=exportUsers.values().toArray();
+  for (int i=0; i < users.length; i++) {
+    CmsUser exportUser=(CmsUser)users[i];
+    if (!exportUser.getOuFqn().equals(getParamOufqn())) {
+      continue;
+    }
+    if (!isExportable(exportUser)) {
+      continue;
+    }
+    buffer.append(exportUser.getSimpleName());
+    itValues=values.iterator();
+    while (itValues.hasNext()) {
+      buffer.append(separator);
+      String curValue=(String)itValues.next();
+      try {
+        Method method=CmsUser.class.getMethod("get" + curValue.substring(0,1).toUpperCase() + curValue.substring(1),null);
+        String curOutput=(String)method.invoke(exportUser,null);
+        if (CmsStringUtil.isEmptyOrWhitespaceOnly(curOutput) || curOutput.equals("null")) {
+          curOutput=(String)exportUser.getAdditionalInfo(curValue);
+        }
+        if (curValue.equals("password")) {
+          curOutput=OpenCms.getPasswordHandler().getDigestType() + "_" + curOutput;
+        }
+        if (!CmsStringUtil.isEmptyOrWhitespaceOnly(curOutput) && !curOutput.equals("null")) {
+          buffer.append(curOutput);
+        }
+      }
+ catch (      NoSuchMethodException e) {
+        String curOutput=(String)exportUser.getAdditionalInfo(curValue);
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(curOutput)) {
+          buffer.append(curOutput);
+        }
+      }
+catch (      IllegalAccessException e) {
+        throw new CmsRuntimeException(Messages.get().container(Messages.ERR_ILLEGAL_ACCESS_0),e);
+      }
+catch (      InvocationTargetException e) {
+        throw new CmsRuntimeException(Messages.get().container(Messages.ERR_INVOCATION_TARGET_0),e);
+      }
+    }
+    buffer.append("\n");
+  }
+  CmsFlexController.getController(getJsp().getRequest()).getTopResponse().setContentType("text/comma-separated-values");
+  return buffer.toString();
+}
