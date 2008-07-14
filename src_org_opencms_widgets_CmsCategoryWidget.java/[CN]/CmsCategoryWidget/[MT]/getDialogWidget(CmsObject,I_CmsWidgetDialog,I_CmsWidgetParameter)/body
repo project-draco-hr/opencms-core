@@ -1,43 +1,56 @@
 {
-  CmsResource selected=null;
+  CmsCategory selected=null;
   try {
     String name=param.getStringValue(cms);
-    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(name)) {
-      selected=cms.readResource(name);
-    }
+    selected=CmsCategoryService.getInstance().getCategory(cms,name);
   }
- catch (  CmsException e1) {
+ catch (  CmsException e) {
   }
   StringBuffer result=new StringBuffer(16);
   List levels=new ArrayList();
   try {
     result.append("<script language='javascript'>\n");
-    CmsFolder folder=cms.readFolder("/system/categories/" + getStartingCategory(cms,param));
-    List subresources=cms.readResources(cms.getSitePath(folder),CmsResourceFilter.DEFAULT.addRequireFolder(),true);
-    int baseLevel=CmsResource.getPathLevel(folder.getRootPath());
+    String referencePath=cms.getSitePath(getResource(cms,param));
+    String startingCat=getStartingCategory(cms,referencePath);
+    List cats=CmsCategoryService.getInstance().readCategories(cms,startingCat,true,referencePath);
+    int baseLevel;
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(startingCat)) {
+      baseLevel=0;
+    }
+ else {
+      baseLevel=CmsResource.getPathLevel(startingCat);
+      if (!(startingCat.startsWith("/") && startingCat.endsWith("/"))) {
+        baseLevel++;
+      }
+    }
     int level;
+    Set done=new HashSet();
     List options=new ArrayList();
     String jsId=CmsStringUtil.substitute(param.getId(),".","");
-    for (level=baseLevel + 1; !subresources.isEmpty(); level++) {
+    for (level=baseLevel + 1; !cats.isEmpty(); level++) {
       if (level != (baseLevel + 1)) {
         result.append("var cat" + (level - baseLevel) + jsId+ " = new Array(\n");
       }
-      Iterator itSubs=subresources.iterator();
+      Iterator itSubs=cats.iterator();
       while (itSubs.hasNext()) {
-        CmsResource res=(CmsResource)itSubs.next();
-        if (CmsResource.getPathLevel(res.getRootPath()) == level) {
-          if (level != (baseLevel + 1)) {
-            result.append("new Array('" + res.getStructureId() + "', '"+ cms.readResource(CmsResource.getParentFolder(res.getRootPath())).getStructureId()+ "', '"+ cms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(CmsResource.getName(res.getRootPath()))+ "'),\n");
+        CmsCategory cat=(CmsCategory)itSubs.next();
+        if (CmsResource.getPathLevel(cat.getPath()) + 1 == level) {
+          itSubs.remove();
+          if (done.contains(cat.getPath())) {
+            continue;
           }
-          if ((level == (baseLevel + 1)) || ((selected != null) && selected.getRootPath().startsWith(CmsResource.getParentFolder(res.getRootPath())))) {
+          if (level != (baseLevel + 1)) {
+            result.append("new Array('" + cat.getId() + "', '"+ CmsCategoryService.getInstance().readCategory(cms,CmsResource.getParentFolder(cat.getPath()),referencePath).getId()+ "', '"+ cat.getTitle()+ "'),\n");
+          }
+          if ((level == (baseLevel + 1)) || ((selected != null) && selected.getPath().startsWith(CmsResource.getParentFolder(cat.getPath())))) {
             if (levels.size() < (level - baseLevel)) {
               options=new ArrayList();
               levels.add(options);
               options.add(new CmsSelectWidgetOption("",true,Messages.get().getBundle(widgetDialog.getLocale()).key(Messages.GUI_CATEGORY_SELECT_0)));
             }
-            options.add(new CmsSelectWidgetOption(res.getStructureId().toString(),false,cms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(CmsResource.getName(res.getRootPath()))));
+            options.add(new CmsSelectWidgetOption(cat.getId().toString(),false,cat.getTitle()));
           }
-          itSubs.remove();
+          done.add(cat.getPath());
         }
       }
       if (level != (baseLevel + 1)) {
@@ -48,7 +61,7 @@
     }
     result.append("</script>\n");
     result.append("<td class=\"xmlTd\" >");
-    result.append("<input id='" + param.getId() + "' name='"+ param.getId()+ "' type='hidden' value='"+ (selected != null ? selected.getStructureId().toString() : "")+ "'>\n");
+    result.append("<input id='" + param.getId() + "' name='"+ param.getId()+ "' type='hidden' value='"+ (selected != null ? selected.getId().toString() : "")+ "'>\n");
     for (int i=1; i < level - baseLevel; i++) {
       result.append("<span id='" + param.getId() + "cat"+ i+ "IdDisplay'");
       if (levels.size() >= i) {
@@ -60,7 +73,7 @@
         options.add(new CmsSelectWidgetOption("",true,Messages.get().getBundle(widgetDialog.getLocale()).key(Messages.GUI_CATEGORY_SELECT_0)));
       }
       result.append(">");
-      result.append(buildSelectBox(param.getId(),i,options,selected != null ? cms.readResource(CmsResource.getPathPart(selected.getRootPath(),i + baseLevel)).getStructureId().toString() : "",param.hasError(),(i == (level - baseLevel - 1))));
+      result.append(buildSelectBox(param.getId(),i,options,(selected != null ? CmsCategoryService.getInstance().readCategory(cms,CmsResource.getPathPart(selected.getPath(),i + baseLevel),referencePath).getId().toString() : ""),param.hasError(),(i == (level - baseLevel - 1))));
       result.append("</span>&nbsp;");
     }
     result.append("</td>");

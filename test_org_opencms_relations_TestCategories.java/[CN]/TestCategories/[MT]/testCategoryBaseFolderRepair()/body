@@ -1,0 +1,49 @@
+{
+  System.out.println("Testing resource categories reparation after changing the base folder name of the category repositories.");
+  CmsObject cms=getCmsObject();
+  List cats=CmsCategoryService.getInstance().readCategories(cms,null,true,"index.html");
+  assertEquals(3,cats.size());
+  CmsCategory catA=(CmsCategory)cats.get(0);
+  CmsCategory catAA=(CmsCategory)cats.get(1);
+  CmsCategory catC=(CmsCategory)cats.get(2);
+  assertEquals(CmsCategoryService.CENTRALIZED_REPOSITORY + "a/",catA.getRootPath());
+  assertEquals(CmsCategoryService.CENTRALIZED_REPOSITORY + "a/aa/",catAA.getRootPath());
+  assertEquals(cms.getRequestContext().getSiteRoot() + CmsCategoryService.getInstance().getRepositoryBaseFolderName(cms) + "c/",catC.getRootPath());
+  CmsResource resB=cms.readResource("/_categories/b");
+  try {
+    CmsCategoryService.getInstance().getCategory(cms,resB);
+    fail("Category B should be invalid");
+  }
+ catch (  Exception e) {
+  }
+  OpenCmsTestLogAppender.setBreakOnError(false);
+  echo("next error stack trace is expected.");
+  cats=CmsCategoryService.getInstance().readResourceCategories(cms,"index.html");
+  OpenCmsTestLogAppender.setBreakOnError(true);
+  assertEquals(1,cats.size());
+  assertEquals(catA,cats.get(0));
+  List resources=CmsCategoryService.getInstance().readCategoryResources(cms,catA.getPath(),true,"index.html");
+  assertEquals(1,resources.size());
+  assertEquals(cms.readResource("index.html"),resources.get(0));
+  assertTrue(CmsCategoryService.getInstance().readCategoryResources(cms,catAA.getPath(),true,"index.html").isEmpty());
+  assertTrue(CmsCategoryService.getInstance().readCategoryResources(cms,catC.getPath(),true,"index.html").isEmpty());
+  List relations=cms.getRelationsForResource("index.html",CmsRelationFilter.TARGETS.filterType(CmsRelationType.CATEGORY));
+  assertEquals(2,relations.size());
+  CmsResource resource=cms.readResource("index.html");
+  CmsResource resCatB=cms.readResource("_categories/b/");
+  assertTrue(relations.contains(new CmsRelation(resource.getStructureId(),resource.getRootPath(),catA.getId(),catA.getRootPath(),CmsRelationType.CATEGORY)));
+  assertTrue(relations.contains(new CmsRelation(resource.getStructureId(),resource.getRootPath(),resCatB.getStructureId(),resCatB.getRootPath(),CmsRelationType.CATEGORY)));
+  CmsCategoryService.getInstance().repairRelations(cms,"index.html");
+  cats=CmsCategoryService.getInstance().readResourceCategories(cms,"index.html");
+  assertEquals(1,cats.size());
+  assertEquals(catA,cats.get(0));
+  resources=CmsCategoryService.getInstance().readCategoryResources(cms,catA.getPath(),true,"index.html");
+  assertEquals(1,resources.size());
+  assertEquals(cms.readResource("index.html"),resources.get(0));
+  assertTrue(CmsCategoryService.getInstance().readCategoryResources(cms,catAA.getPath(),true,"index.html").isEmpty());
+  assertTrue(CmsCategoryService.getInstance().readCategoryResources(cms,catC.getPath(),true,"index.html").isEmpty());
+  relations=cms.getRelationsForResource("index.html",CmsRelationFilter.TARGETS.filterType(CmsRelationType.CATEGORY));
+  assertEquals(1,relations.size());
+  resource=cms.readResource("index.html");
+  assertTrue(relations.contains(new CmsRelation(resource.getStructureId(),resource.getRootPath(),catA.getId(),catA.getRootPath(),CmsRelationType.CATEGORY)));
+}

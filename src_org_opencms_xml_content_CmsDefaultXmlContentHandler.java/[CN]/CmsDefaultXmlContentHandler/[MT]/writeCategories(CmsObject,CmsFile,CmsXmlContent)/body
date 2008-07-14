@@ -1,0 +1,69 @@
+{
+  if (CmsWorkplace.isTemporaryFile(file)) {
+    return file;
+  }
+  boolean hasCategoryWidget=false;
+  Iterator it=m_elementWidgets.values().iterator();
+  while (it.hasNext()) {
+    Object widget=it.next();
+    if (widget instanceof CmsCategoryWidget) {
+      hasCategoryWidget=true;
+      break;
+    }
+  }
+  if (!hasCategoryWidget) {
+    return file;
+  }
+  boolean modified=false;
+  CmsObject tmpCms=OpenCms.initCmsObject(cms);
+  tmpCms.getRequestContext().setSiteRoot("");
+  try {
+    List listsib=tmpCms.readSiblings(file.getRootPath(),CmsResourceFilter.ALL);
+    for (int i=0; i < listsib.size(); i++) {
+      CmsResource resource=(CmsResource)listsib.get(i);
+      Locale locale=getLocaleForResource(tmpCms,resource.getRootPath());
+      CmsCategoryService.getInstance().clearCategoriesForResource(tmpCms,resource.getRootPath());
+      CmsXmlContentWidgetVisitor widgetCollector=new CmsXmlContentWidgetVisitor(locale);
+      content.visitAllValuesWith(widgetCollector);
+      Iterator itWidgets=widgetCollector.getValues().entrySet().iterator();
+      while (itWidgets.hasNext()) {
+        Map.Entry entry=(Map.Entry)itWidgets.next();
+        String xpath=(String)entry.getKey();
+        I_CmsWidget widget=(I_CmsWidget)widgetCollector.getWidgets().get(xpath);
+        if (!(widget instanceof CmsCategoryWidget)) {
+          continue;
+        }
+        I_CmsXmlContentValue value=(I_CmsXmlContentValue)entry.getValue();
+        String catRootPath=value.getStringValue(tmpCms);
+        if (CmsStringUtil.isEmptyOrWhitespaceOnly(catRootPath)) {
+          continue;
+        }
+        try {
+          CmsCategory cat=CmsCategoryService.getInstance().getCategory(tmpCms,catRootPath);
+          CmsCategoryService.getInstance().addResourceToCategory(tmpCms,resource.getRootPath(),cat.getPath());
+        }
+ catch (        CmsVfsResourceNotFoundException e) {
+          try {
+            content.removeValue(value.getName(),value.getLocale(),value.getIndex());
+            modified=true;
+          }
+ catch (          CmsRuntimeException ex) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(ex.getLocalizedMessage(),ex);
+            }
+          }
+        }
+      }
+    }
+  }
+ catch (  CmsException ex) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(ex.getLocalizedMessage(),ex);
+    }
+  }
+  if (modified) {
+    file=content.correctXmlStructure(cms);
+    content.setFile(file);
+  }
+  return file;
+}

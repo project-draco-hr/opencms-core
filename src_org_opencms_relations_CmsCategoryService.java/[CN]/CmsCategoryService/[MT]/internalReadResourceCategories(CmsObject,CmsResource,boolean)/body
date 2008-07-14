@@ -1,0 +1,70 @@
+{
+  List result=new ArrayList();
+  String baseFolder=null;
+  Iterator itRelations=cms.getRelationsForResource(resource,CmsRelationFilter.TARGETS.filterType(CmsRelationType.CATEGORY)).iterator();
+  if (repair && itRelations.hasNext()) {
+    baseFolder=getRepositoryBaseFolderName(cms);
+  }
+  String resourceName=cms.getSitePath(resource);
+  boolean repaired=false;
+  while (itRelations.hasNext()) {
+    CmsRelation relation=(CmsRelation)itRelations.next();
+    try {
+      CmsResource res=relation.getTarget(cms,CmsResourceFilter.DEFAULT_FOLDERS);
+      CmsCategory category=getCategory(cms,res);
+      if (!repair) {
+        result.add(category);
+      }
+ else {
+        CmsCategory actualCat=readCategory(cms,category.getPath(),resourceName);
+        if (!category.getId().equals(actualCat.getId())) {
+          CmsRelationFilter filter=CmsRelationFilter.TARGETS.filterType(CmsRelationType.CATEGORY).filterResource(res);
+          cms.deleteRelationsFromResource(resourceName,filter);
+          repaired=true;
+          String catPath=cms.getRequestContext().removeSiteRoot(actualCat.getRootPath());
+          cms.addRelationToResource(resourceName,catPath,CmsRelationType.CATEGORY.getName());
+        }
+        result.add(actualCat);
+      }
+    }
+ catch (    CmsException e) {
+      if (!repair) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+      }
+ else {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(e.getLocalizedMessage(),e);
+        }
+        CmsRelationFilter filter=CmsRelationFilter.TARGETS.filterType(CmsRelationType.CATEGORY).filterPath(relation.getTargetPath());
+        if (!relation.getTargetId().isNullUUID()) {
+          filter=filter.filterStructureId(relation.getTargetId());
+        }
+        cms.deleteRelationsFromResource(resourceName,filter);
+        repaired=true;
+        try {
+          CmsCategory actualCat=readCategory(cms,CmsCategory.getCategoryPath(relation.getTargetPath(),baseFolder),resourceName);
+          addResourceToCategory(cms,resourceName,actualCat);
+          result.add(actualCat);
+        }
+ catch (        CmsException ex) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(e.getLocalizedMessage(),ex);
+          }
+        }
+      }
+    }
+  }
+  if (!repair) {
+    Collections.sort(result);
+  }
+ else   if (repaired) {
+    Iterator it=result.iterator();
+    while (it.hasNext()) {
+      CmsCategory category=(CmsCategory)it.next();
+      addResourceToCategory(cms,resourceName,category.getPath());
+    }
+  }
+  return result;
+}

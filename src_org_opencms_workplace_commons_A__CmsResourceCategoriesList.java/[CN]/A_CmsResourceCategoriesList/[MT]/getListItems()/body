@@ -1,9 +1,30 @@
 {
-  List ret=new ArrayList();
-  Iterator itCategories=getCategories().iterator();
+  Map ret=new HashMap();
+  Map isLeaf=new HashMap();
+  List cats=getCategories();
+  Iterator itCategories=cats.iterator();
+  while (itCategories.hasNext()) {
+    CmsCategory category=(CmsCategory)itCategories.next();
+    isLeaf.put(category.getPath(),Boolean.TRUE);
+  }
+  itCategories=cats.iterator();
+  while (itCategories.hasNext()) {
+    CmsCategory category=(CmsCategory)itCategories.next();
+    String parentPath=CmsResource.getParentFolder(category.getPath());
+    if (parentPath == null) {
+      continue;
+    }
+    if (isLeaf.get(parentPath) != null) {
+      isLeaf.put(parentPath,Boolean.FALSE);
+    }
+  }
+  itCategories=cats.iterator();
   while (itCategories.hasNext()) {
     CmsCategory category=(CmsCategory)itCategories.next();
     String categoryPath=category.getPath();
+    if (ret.get(categoryPath) != null) {
+      continue;
+    }
     CmsListItem item=getList().newItem(categoryPath);
     StringBuffer itemHtml=new StringBuffer(192);
     int pathLevel=CmsStringUtil.splitAsList(categoryPath,'/').size();
@@ -21,7 +42,8 @@
     itemHtml.append(name);
     item.set(LIST_COLUMN_NAME,itemHtml.toString());
     item.set(LIST_COLUMN_PATH,categoryPath);
-    ret.add(item);
+    item.set(LIST_COLUMN_LEAFS,isLeaf.get(categoryPath));
+    ret.put(item.getId(),item);
   }
-  return ret;
+  return new ArrayList(ret.values());
 }
