@@ -55,7 +55,15 @@ synchronized (m_processingFiles) {
       mustUpdate=true;
     }
  else {
-      updatedFiles.add(jspTargetName);
+      if (controller.getCurrentRequest().isOnline()) {
+        mustUpdate=!m_onlineJsps.containsKey(jspVfsName);
+      }
+ else {
+        mustUpdate=!m_offlineJsps.containsKey(jspVfsName);
+      }
+      if (mustUpdate) {
+        mustUpdate=updateStrongLinks(resource,controller,updatedFiles);
+      }
     }
     if (mustUpdate) {
       if (LOG.isDebugEnabled()) {
@@ -88,6 +96,12 @@ synchronized (CmsJspLoader.class) {
           FileOutputStream fs=new FileOutputStream(f);
           fs.write(contents);
           fs.close();
+        }
+        if (controller.getCurrentRequest().isOnline()) {
+          m_onlineJsps.put(jspVfsName,Boolean.TRUE);
+        }
+ else {
+          m_offlineJsps.put(jspVfsName,Boolean.TRUE);
         }
         if (LOG.isInfoEnabled()) {
           LOG.info(Messages.get().getBundle().key(Messages.LOG_UPDATED_JSP_2,jspTargetName,jspVfsName));
