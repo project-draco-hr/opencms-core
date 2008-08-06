@@ -3,31 +3,28 @@
   long timeLucene;
   long timeResultProcessing;
   if (LOG.isDebugEnabled()) {
-    LOG.debug(Messages.get().getBundle().key(Messages.LOG_SEARCH_PARAMS_2,params,m_name));
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_SEARCH_PARAMS_2,params,getName()));
   }
-  CmsRequestContext context=cms.getRequestContext();
-  CmsProject currentProject=context.currentProject();
-  IndexSearcher searcher=null;
   Hits hits;
   CmsSearchResultList searchResults=new CmsSearchResultList();
   int previousPriority=Thread.currentThread().getPriority();
   try {
-    if (m_priority > 0) {
-      Thread.currentThread().setPriority(m_priority);
+    CmsObject searchCms=OpenCms.initCmsObject(cms);
+    if (getPriority() > 0) {
+      Thread.currentThread().setPriority(getPriority());
     }
-    context.setCurrentProject(cms.readProject(m_project));
+    searchCms.getRequestContext().setCurrentProject(searchCms.readProject(getProject()));
     String[] roots;
     if ((params.getRoots() != null) && (params.getRoots().size() > 0)) {
       roots=new String[params.getRoots().size()];
       for (int i=0; i < params.getRoots().size(); i++) {
-        roots[i]=cms.getRequestContext().addSiteRoot((String)params.getRoots().get(i));
+        roots[i]=searchCms.getRequestContext().addSiteRoot((String)params.getRoots().get(i));
       }
     }
  else {
-      roots=new String[]{cms.getRequestContext().getSiteRoot()};
+      roots=new String[]{searchCms.getRequestContext().getSiteRoot()};
     }
     timeLucene=-System.currentTimeMillis();
-    Analyzer languageAnalyzer=OpenCms.getSearchManager().getAnalyzer(m_locale);
     BooleanQuery query=new BooleanQuery();
     BooleanQuery pathQuery=new BooleanQuery();
     for (int i=0; i < roots.length; i++) {
@@ -49,19 +46,18 @@
       }
       query.add(categoryQuery,BooleanClause.Occur.MUST);
     }
-    searcher=new IndexSearcher(m_path);
     Query fieldsQuery;
     if ((params.getFields() != null) && (params.getFields().size() > 0)) {
       BooleanQuery booleanFieldsQuery=new BooleanQuery();
       for (int i=0; i < params.getFields().size(); i++) {
-        QueryParser p=new QueryParser((String)params.getFields().get(i),languageAnalyzer);
+        QueryParser p=new QueryParser((String)params.getFields().get(i),getAnalyzer());
         booleanFieldsQuery.add(p.parse(params.getQuery()),BooleanClause.Occur.SHOULD);
       }
-      fieldsQuery=searcher.rewrite(booleanFieldsQuery);
+      fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
     }
  else {
-      QueryParser p=new QueryParser(CmsSearchField.FIELD_CONTENT,languageAnalyzer);
-      fieldsQuery=searcher.rewrite(p.parse(params.getQuery()));
+      QueryParser p=new QueryParser(CmsSearchField.FIELD_CONTENT,getAnalyzer());
+      fieldsQuery=getSearcher().rewrite(p.parse(params.getQuery()));
     }
     query.add(fieldsQuery,BooleanClause.Occur.MUST);
     if (LOG.isDebugEnabled()) {
@@ -70,11 +66,11 @@
     }
     CmsSearchCategoryCollector categoryCollector;
     if (params.isCalculateCategories()) {
-      categoryCollector=new CmsSearchCategoryCollector(searcher);
-      searcher.search(query,categoryCollector);
+      categoryCollector=new CmsSearchCategoryCollector(getSearcher());
+      getSearcher().search(query,categoryCollector);
       searchResults.setCategories(categoryCollector.getCategoryCountResult());
     }
-    hits=searcher.search(query,params.getSort());
+    hits=getSearcher().search(query,params.getSort());
     timeLucene+=System.currentTimeMillis();
     timeResultProcessing=-System.currentTimeMillis();
     Document doc;
@@ -97,12 +93,12 @@
       for (int i=0, cnt=0; (i < hitCount) && (cnt < end); i++) {
         try {
           doc=hits.doc(i);
-          if ((isInTimeRange(doc,params)) && (hasReadPermission(cms,doc))) {
+          if ((isInTimeRange(doc,params)) && (hasReadPermission(searchCms,doc))) {
             if (cnt >= start) {
               String excerpt=null;
-              if (m_createExcerpt) {
+              if (isCreatingExcerpt()) {
                 I_CmsTermHighlighter highlighter=OpenCms.getSearchManager().getHighlighter();
-                excerpt=highlighter.getExcerpt(doc,this,params,fieldsQuery,languageAnalyzer);
+                excerpt=highlighter.getExcerpt(doc,this,params,fieldsQuery,getAnalyzer());
               }
               searchResult=new CmsSearchResult(Math.round(hits.score(i) * 100f),doc,excerpt);
               searchResults.add(searchResult);
@@ -134,18 +130,10 @@ catch (  Exception e) {
   }
  finally {
     Thread.currentThread().setPriority(previousPriority);
-    if (searcher != null) {
-      try {
-        searcher.close();
-      }
- catch (      IOException exc) {
-      }
-    }
-    context.setCurrentProject(currentProject);
   }
-  timeTotal+=System.currentTimeMillis();
-  Object[] logParams=new Object[]{new Integer(hits == null ? 0 : hits.length()),new Long(timeTotal),new Long(timeLucene),new Long(timeResultProcessing)};
   if (LOG.isDebugEnabled()) {
+    timeTotal+=System.currentTimeMillis();
+    Object[] logParams=new Object[]{new Integer(hits == null ? 0 : hits.length()),new Long(timeTotal),new Long(timeLucene),new Long(timeResultProcessing)};
     LOG.debug(Messages.get().getBundle().key(Messages.LOG_STAT_RESULTS_TIME_4,logParams));
   }
   return searchResults;

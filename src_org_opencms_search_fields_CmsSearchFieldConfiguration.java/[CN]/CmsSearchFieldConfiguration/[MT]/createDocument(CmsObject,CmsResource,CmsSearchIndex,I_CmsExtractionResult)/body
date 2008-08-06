@@ -1,0 +1,74 @@
+{
+  String path=cms.getRequestContext().removeSiteRoot(resource.getRootPath());
+  Document document=new Document();
+  Iterator fieldConfigs=getFields().iterator();
+  while (fieldConfigs.hasNext()) {
+    CmsSearchField fieldConfig=(CmsSearchField)fieldConfigs.next();
+    StringBuffer text=new StringBuffer();
+    Iterator mappings=fieldConfig.getMappings().iterator();
+    while (mappings.hasNext()) {
+      CmsSearchFieldMapping mapping=(CmsSearchFieldMapping)mappings.next();
+      String mapResult=mapping.getStringValue(cms,resource,content);
+      if (mapResult != null) {
+        if (text.length() > 0) {
+          text.append('\n');
+        }
+        text.append(mapResult);
+      }
+    }
+    if (text.length() > 0) {
+      Field field=fieldConfig.createField(text.toString());
+      document.add(field);
+    }
+  }
+  String value;
+  Field field;
+  value=cms.readPropertyObject(path,CmsPropertyDefinition.PROPERTY_SEARCH_CATEGORY,true).getValue();
+  if (CmsStringUtil.isNotEmpty(value)) {
+    value=value.trim().toLowerCase();
+    if (value.length() > 0) {
+      field=new Field(CmsSearchField.FIELD_CATEGORY,value,Field.Store.YES,Field.Index.UN_TOKENIZED);
+      field.setBoost(0);
+      document.add(field);
+    }
+  }
+ else {
+    field=new Field(CmsSearchField.FIELD_CATEGORY,CmsSearchCategoryCollector.UNKNOWN_CATEGORY,Field.Store.YES,Field.Index.UN_TOKENIZED);
+    document.add(field);
+  }
+  String rootPath=CmsSearchIndex.rootPathRewrite(resource.getRootPath());
+  field=new Field(CmsSearchField.FIELD_ROOT,rootPath,Field.Store.YES,Field.Index.TOKENIZED);
+  field.setBoost(0);
+  document.add(field);
+  document.add(new Field(CmsSearchField.FIELD_PATH,resource.getRootPath(),Field.Store.YES,Field.Index.UN_TOKENIZED));
+  field=new Field(CmsSearchField.FIELD_DATE_CREATED,DateTools.dateToString(new Date(resource.getDateCreated()),DateTools.Resolution.MILLISECOND),Field.Store.YES,Field.Index.UN_TOKENIZED);
+  field.setBoost(0);
+  document.add(field);
+  field=new Field(CmsSearchField.FIELD_DATE_LASTMODIFIED,DateTools.dateToString(new Date(resource.getDateLastModified()),DateTools.Resolution.MILLISECOND),Field.Store.YES,Field.Index.UN_TOKENIZED);
+  field.setBoost(0);
+  document.add(field);
+  I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(resource.getTypeId());
+  String typeName=VFS_DOCUMENT_KEY_PREFIX;
+  if (type != null) {
+    typeName=type.getTypeName();
+  }
+  document.add(new Field(CmsSearchField.FIELD_TYPE,typeName,Field.Store.YES,Field.Index.UN_TOKENIZED));
+  float boost=CmsSearchField.BOOST_DEFAULT;
+  value=cms.readPropertyObject(path,CmsPropertyDefinition.PROPERTY_SEARCH_PRIORITY,true).getValue();
+  if (value != null) {
+    value=value.trim().toLowerCase();
+    if (value.equals(SEARCH_PRIORITY_MAX_VALUE)) {
+      boost=2.0f;
+    }
+ else     if (value.equals(SEARCH_PRIORITY_HIGH_VALUE)) {
+      boost=1.5f;
+    }
+ else     if (value.equals(SEARCH_PRIORITY_LOW_VALUE)) {
+      boost=0.5f;
+    }
+  }
+  if (boost != CmsSearchField.BOOST_DEFAULT) {
+    document.setBoost(boost);
+  }
+  return document;
+}

@@ -49,6 +49,7 @@
           }
         }
       }
+      index.indexSearcherOpen();
     }
     threadManager.reportStatistics(report);
   }
@@ -69,53 +70,34 @@
     }
     if (hasResourcesToDelete || hasResourcesToUpdate) {
       report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_UPDATE_BEGIN_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
-    }
-    forceIndexUnlock(index,report,true);
-    if (hasResourcesToDelete) {
-      IndexReader reader=null;
+      forceIndexUnlock(index,report,true);
+      IndexWriter writer=null;
       try {
-        reader=IndexReader.open(index.getPath());
-      }
- catch (      IOException e) {
-        LOG.error(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_READER_OPEN_2,index.getPath(),index.getName()),e);
-      }
-      if (reader != null) {
-        try {
+        writer=index.getIndexWriter(false);
+        if (hasResourcesToDelete) {
           Iterator i=updateCollections.iterator();
           while (i.hasNext()) {
             CmsSearchIndexUpdateData updateCollection=(CmsSearchIndexUpdateData)i.next();
             if (updateCollection.hasResourcesToDelete()) {
-              updateCollection.getIndexer().deleteResources(reader,updateCollection.getResourcesToDelete());
+              updateCollection.getIndexer().deleteResources(writer,updateCollection.getResourcesToDelete());
             }
           }
         }
-  finally {
-          try {
-            reader.close();
+        if (hasResourcesToUpdate) {
+          CmsIndexingThreadManager threadManager=new CmsIndexingThreadManager(m_timeout);
+          Iterator i=updateCollections.iterator();
+          while (i.hasNext()) {
+            CmsSearchIndexUpdateData updateCollection=(CmsSearchIndexUpdateData)i.next();
+            if (updateCollection.hasResourceToUpdate()) {
+              updateCollection.getIndexer().updateResources(writer,threadManager,updateCollection.getResourcesToUpdate());
+            }
           }
- catch (          IOException e) {
-            LOG.error(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_READER_CLOSE_2,index.getPath(),index.getName()),e);
-          }
-        }
-      }
-    }
-    if (hasResourcesToUpdate) {
-      CmsIndexingThreadManager threadManager=new CmsIndexingThreadManager(m_timeout);
-      IndexWriter writer=null;
-      try {
-        writer=index.getIndexWriter(false);
-        Iterator i=updateCollections.iterator();
-        while (i.hasNext()) {
-          CmsSearchIndexUpdateData updateCollection=(CmsSearchIndexUpdateData)i.next();
-          if (updateCollection.hasResourceToUpdate()) {
-            updateCollection.getIndexer().updateResources(writer,threadManager,updateCollection.getResourcesToUpdate());
-          }
-        }
-        while (threadManager.isRunning()) {
-          try {
-            wait(1000);
-          }
- catch (          InterruptedException e) {
+          while (threadManager.isRunning()) {
+            try {
+              wait(1000);
+            }
+ catch (            InterruptedException e) {
+            }
           }
         }
       }
@@ -128,9 +110,8 @@
             LOG.error(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_WRITER_CLOSE_2,index.getPath(),index.getName()),e);
           }
         }
+        index.indexSearcherOpen();
       }
-    }
-    if (hasResourcesToDelete || hasResourcesToUpdate) {
       report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_UPDATE_END_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
     }
   }
