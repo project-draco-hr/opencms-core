@@ -4,7 +4,29 @@
   CmsExtractionResultCache cache=getCache();
   if (cache != null) {
     cacheName=cache.getCacheName(resource,isLocaleDependend() ? index.getLocale() : null);
-    content=(I_CmsExtractionResult)cache.getCacheObject(cacheName);
+    content=cache.getCacheObject(cacheName);
+  }
+  if (content == null) {
+    Document oldDoc=index.getDocument(resource.getRootPath());
+    if (oldDoc != null) {
+      Fieldable fieldContentDate=oldDoc.getFieldable(CmsSearchField.FIELD_DATE_CONTENT);
+      long contentDateIndex=0;
+      if (fieldContentDate != null) {
+        String contentDate=fieldContentDate.stringValue();
+        try {
+          contentDateIndex=DateTools.stringToTime(contentDate);
+        }
+ catch (        ParseException e) {
+        }
+        if (contentDateIndex == resource.getDateContent()) {
+          Fieldable fieldContentBlob=oldDoc.getFieldable(CmsSearchField.FIELD_CONTENT_BLOB);
+          if (fieldContentBlob != null) {
+            byte[] oldContent=fieldContentBlob.binaryValue();
+            content=CmsExtractionResult.fromBytes(oldContent);
+          }
+        }
+      }
+    }
   }
   if (content == null) {
     try {
