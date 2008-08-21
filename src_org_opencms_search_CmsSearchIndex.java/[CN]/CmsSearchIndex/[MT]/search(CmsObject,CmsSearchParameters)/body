@@ -14,27 +14,17 @@
       Thread.currentThread().setPriority(getPriority());
     }
     searchCms.getRequestContext().setCurrentProject(searchCms.readProject(getProject()));
-    String[] roots;
-    if ((params.getRoots() != null) && (params.getRoots().size() > 0)) {
-      roots=new String[params.getRoots().size()];
-      for (int i=0; i < params.getRoots().size(); i++) {
-        roots[i]=searchCms.getRequestContext().addSiteRoot((String)params.getRoots().get(i));
-      }
-    }
- else {
-      roots=new String[]{searchCms.getRequestContext().getSiteRoot()};
-    }
     timeLucene=-System.currentTimeMillis();
     BooleanQuery query=new BooleanQuery();
     BooleanQuery pathQuery=new BooleanQuery();
-    for (int i=0; i < roots.length; i++) {
-      String[] paths=rootPathSplit(roots[i]);
-      PhraseQuery phrase=new PhraseQuery();
-      for (int j=0; j < paths.length; j++) {
-        Term term=new Term(CmsSearchField.FIELD_ROOT,paths[j]);
-        phrase.add(term);
+    if ((params.getRoots() != null) && (params.getRoots().size() > 0)) {
+      for (int i=0; i < params.getRoots().size(); i++) {
+        String searchRoot=searchCms.getRequestContext().addSiteRoot((String)params.getRoots().get(i));
+        extendPathQuery(pathQuery,searchRoot);
       }
-      pathQuery.add(phrase,BooleanClause.Occur.SHOULD);
+    }
+ else {
+      extendPathQuery(pathQuery,searchCms.getRequestContext().getSiteRoot());
     }
     query.add(pathQuery,BooleanClause.Occur.MUST);
     if ((params.getCategories() != null) && (params.getCategories().size() > 0)) {
