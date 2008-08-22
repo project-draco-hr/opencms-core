@@ -27,36 +27,26 @@
     try {
       parseConfigurationInternal(configuration,cms,param);
       SortedSet sortOptions=new TreeSet(new CmsResourceSelectWidgetOptionComparator(m_macroCmsObject,m_sortMacro));
-      CmsResourceSelectWidgetOption option;
+      CmsSelectWidgetOption option;
       List resources;
-      List allResources=new LinkedList();
-      int resType;
-      Iterator itResTypes=this.m_resourceTypeIDs.iterator();
-      while (itResTypes.hasNext()) {
-        resType=((Integer)itResTypes.next()).intValue();
-        CmsResourceFilter filter=CmsResourceFilter.ALL.addRequireType(resType);
-        CmsRequestContext context=cms.getRequestContext();
-        String oldSiteroot=context.getSiteRoot();
-        context.setSiteRoot("/");
-        resources=cms.readResources(m_resourceFolder.getRootPath(),filter,true);
-        context.setSiteRoot(oldSiteroot);
-        if (resources.size() == 0) {
-          if (LOG.isErrorEnabled()) {
-            LOG.error(Messages.get().getBundle().key(Messages.LOG_ERR_SELECTWIDGET_NO_RESOURCES_FOUND_3,configuration,m_resourceFolder.getRootPath(),OpenCms.getResourceManager().getResourceType(resType).getTypeName()));
-          }
-        }
- else {
-          allResources.addAll(resources);
+      CmsResourceFilter filter=CmsResourceFilter.DEFAULT.addRequireType(getResourceTypeID());
+      CmsRequestContext context=cms.getRequestContext();
+      String oldSiteroot=context.getSiteRoot();
+      context.setSiteRoot("/");
+      resources=cms.readResources(m_resourceFolder.getRootPath(),filter,true);
+      context.setSiteRoot(oldSiteroot);
+      if (resources.size() == 0) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(Messages.get().getBundle().key(Messages.LOG_ERR_SELECTWIDGET_NO_RESOURCES_FOUND_3,configuration,m_resourceFolder.getRootPath(),OpenCms.getResourceManager().getResourceType(getResourceTypeID()).getTypeName()));
         }
       }
-      Iterator itResources=allResources.iterator();
+      Iterator itResources=resources.iterator();
       CmsResource resource;
       String displayName;
       while (itResources.hasNext()) {
         resource=(CmsResource)itResources.next();
-        CmsProperty resourceLocaleProperty=cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_LOCALE,true);
-        resourceLocale=CmsLocaleManager.getLocale(resourceLocaleProperty.getValue());
-        if (isIgnoreLocaleMatching() || ((resourceLocaleProperty.isNullProperty() && containsLocale(cms,resource,dialogContentLocale)) || dialogContentLocale.equals(resourceLocale))) {
+        resourceLocale=CmsLocaleManager.getLocale(cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_LOCALE,true).getValue());
+        if (dialogContentLocale.equals(resourceLocale)) {
           if (hasFilterProperty(resource,cms)) {
             m_macroCmsObject.getRequestContext().setUri(resource.getRootPath());
             m_macroResolver.setResourceName(resource.getName());
@@ -73,7 +63,7 @@
             }
             displayName=resolveXpathMacros(cms,resource,displayName);
             if (!CmsStringUtil.isEmpty(displayName)) {
-              option=new CmsResourceSelectWidgetOption(cms,resource,false,displayName);
+              option=new CmsResourceSelectWidgetOption(resource,false,displayName);
               sortOptions.add(option);
             }
           }
@@ -86,7 +76,7 @@
         LOG.error(Messages.get().getBundle().key(Messages.ERR_SELECTWIDGET_CONFIGURATION_2,getClass(),configuration),e);
       }
     }
-    if (selectOptions == null || selectOptions == Collections.EMPTY_LIST) {
+    if ((selectOptions == Collections.EMPTY_LIST) || (selectOptions == null)) {
       selectOptions=new ArrayList();
     }
     List pOptions=getSelectOptions();
