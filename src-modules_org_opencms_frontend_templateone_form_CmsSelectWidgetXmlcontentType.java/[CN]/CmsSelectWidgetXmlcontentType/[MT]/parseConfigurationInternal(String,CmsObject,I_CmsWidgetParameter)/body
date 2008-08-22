@@ -8,6 +8,8 @@
   String key;
   String value;
   boolean displayMacroFound=false, sortMacroFound=false, folderFound=false, typeFound=false;
+  LOG.info("Setting macro %(currentsite) to: " + cms.getRequestContext().getSiteRoot());
+  m_macroResolver.addMacro(MACROKEY_CURRENT_SITE,cms.getRequestContext().getSiteRoot());
   while (itMappings.hasNext()) {
     mapping=(String)itMappings.next();
     keyValue=CmsStringUtil.splitAsArray(mapping,'=');
@@ -35,11 +37,18 @@
       if (typeFound) {
         throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_SELECTWIDGET_CONFIGURATION_KEY_DUPLICATE_2,key,configuration));
       }
+      String resType="n/a";
       try {
-        m_resourceTypeID=OpenCms.getResourceManager().getResourceType(value).getTypeId();
+        this.m_resourceTypeIDs=new LinkedList();
+        List types=CmsStringUtil.splitAsList(value,',');
+        Iterator itTypes=types.iterator();
+        while (itTypes.hasNext()) {
+          resType=(String)itTypes.next();
+          this.m_resourceTypeIDs.add(new Integer(OpenCms.getResourceManager().getResourceType(resType).getTypeId()));
+        }
       }
  catch (      CmsLoaderException e) {
-        throw new CmsIllegalArgumentException(org.opencms.file.Messages.get().container(org.opencms.file.Messages.ERR_UNKNOWN_RESOURCE_TYPE_1,value),e);
+        throw new CmsIllegalArgumentException(org.opencms.file.Messages.get().container(org.opencms.file.Messages.ERR_UNKNOWN_RESOURCE_TYPE_1,resType),e);
       }
       typeFound=true;
     }
@@ -63,6 +72,9 @@
         throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_SELECTWIDGET_CONFIGURATION_RESOURCE_INVALID_2,value,configuration),e);
       }
       folderFound=true;
+    }
+ else     if (CONFIGURATION_IGNORE_LOCALE_MATCH.equals(key)) {
+      m_ignoreLocaleMatching=Boolean.valueOf(value).booleanValue();
     }
  else {
       CmsPropertyDefinition propDef;
