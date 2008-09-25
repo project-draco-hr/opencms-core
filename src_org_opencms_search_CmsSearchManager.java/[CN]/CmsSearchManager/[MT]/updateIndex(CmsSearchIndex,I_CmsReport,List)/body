@@ -11,6 +11,12 @@
   if ((resourcesToIndex == null) || resourcesToIndex.isEmpty()) {
     forceIndexUnlock(index,report,false);
     CmsIndexingThreadManager threadManager=new CmsIndexingThreadManager(m_timeout);
+    boolean isOfflineIndex=false;
+    if (CmsSearchIndex.REBUILD_MODE_OFFLINE.equals(index.getRebuildMode())) {
+      isOfflineIndex=true;
+      index.setRebuildMode(CmsSearchIndex.REBUILD_MODE_MANUAL);
+      initOfflineIndexes();
+    }
     IndexWriter writer=null;
     try {
       writer=index.getIndexWriter(true);
@@ -49,70 +55,15 @@
           }
         }
       }
+      if (isOfflineIndex) {
+        index.setRebuildMode(CmsSearchIndex.REBUILD_MODE_OFFLINE);
+        initOfflineIndexes();
+      }
       index.indexSearcherOpen();
     }
     threadManager.reportStatistics(report);
   }
  else {
-    List updateCollections=new ArrayList();
-    boolean hasResourcesToDelete=false;
-    boolean hasResourcesToUpdate=false;
-    Iterator sources=index.getSources().iterator();
-    while (sources.hasNext()) {
-      CmsSearchIndexSource source=(CmsSearchIndexSource)sources.next();
-      I_CmsIndexer indexer=source.getIndexer().newInstance(cms,report,index);
-      CmsSearchIndexUpdateData updateData=indexer.getUpdateData(source,resourcesToIndex);
-      if (!updateData.isEmpty()) {
-        updateCollections.add(updateData);
-        hasResourcesToDelete=hasResourcesToDelete | updateData.hasResourcesToDelete();
-        hasResourcesToUpdate=hasResourcesToUpdate | updateData.hasResourceToUpdate();
-      }
-    }
-    if (hasResourcesToDelete || hasResourcesToUpdate) {
-      report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_UPDATE_BEGIN_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
-      forceIndexUnlock(index,report,true);
-      IndexWriter writer=null;
-      try {
-        writer=index.getIndexWriter(false);
-        if (hasResourcesToDelete) {
-          Iterator i=updateCollections.iterator();
-          while (i.hasNext()) {
-            CmsSearchIndexUpdateData updateCollection=(CmsSearchIndexUpdateData)i.next();
-            if (updateCollection.hasResourcesToDelete()) {
-              updateCollection.getIndexer().deleteResources(writer,updateCollection.getResourcesToDelete());
-            }
-          }
-        }
-        if (hasResourcesToUpdate) {
-          CmsIndexingThreadManager threadManager=new CmsIndexingThreadManager(m_timeout);
-          Iterator i=updateCollections.iterator();
-          while (i.hasNext()) {
-            CmsSearchIndexUpdateData updateCollection=(CmsSearchIndexUpdateData)i.next();
-            if (updateCollection.hasResourceToUpdate()) {
-              updateCollection.getIndexer().updateResources(writer,threadManager,updateCollection.getResourcesToUpdate());
-            }
-          }
-          while (threadManager.isRunning()) {
-            try {
-              wait(1000);
-            }
- catch (            InterruptedException e) {
-            }
-          }
-        }
-      }
-  finally {
-        if (writer != null) {
-          try {
-            writer.close();
-          }
- catch (          IOException e) {
-            LOG.error(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_WRITER_CLOSE_2,index.getPath(),index.getName()),e);
-          }
-        }
-        index.indexSearcherOpen();
-      }
-      report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_UPDATE_END_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
-    }
+    updateIndexIncremental(cms,index,report,resourcesToIndex);
   }
 }
