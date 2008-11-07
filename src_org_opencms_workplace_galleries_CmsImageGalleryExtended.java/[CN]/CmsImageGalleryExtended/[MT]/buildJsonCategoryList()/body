@@ -1,0 +1,50 @@
+{
+  List categories=new ArrayList();
+  CmsCategoryService catService=CmsCategoryService.getInstance();
+  List foundCategories=Collections.EMPTY_LIST;
+  String editedResource=null;
+  if (CmsStringUtil.isNotEmpty(getParamResource())) {
+    editedResource=getParamResource();
+  }
+  try {
+    foundCategories=catService.readCategories(getCms(),"",true,editedResource);
+  }
+ catch (  CmsException e) {
+  }
+  Map sorted=new TreeMap();
+  Iterator i=foundCategories.iterator();
+  while (i.hasNext()) {
+    CmsCategory category=(CmsCategory)i.next();
+    String categoryPath=category.getPath();
+    if (sorted.get(categoryPath) != null) {
+      continue;
+    }
+    sorted.put(categoryPath,category);
+  }
+  foundCategories=new ArrayList(sorted.values());
+  i=foundCategories.iterator();
+  while (i.hasNext()) {
+    CmsCategory cat=(CmsCategory)i.next();
+    JSONObject jsonObj=new JSONObject();
+    try {
+      jsonObj.put("title",cat.getTitle());
+      jsonObj.put("path",cat.getPath());
+      jsonObj.put("rootpath",cat.getRootPath());
+      jsonObj.put("level",CmsResource.getPathLevel(cat.getPath()));
+      jsonObj.put("active",false);
+      categories.add(jsonObj);
+    }
+ catch (    JSONException e) {
+    }
+  }
+  JSONArray jsonArr=new JSONArray(categories);
+  JspWriter out=getJsp().getJspContext().getOut();
+  try {
+    out.print(jsonArr.toString());
+  }
+ catch (  IOException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+}

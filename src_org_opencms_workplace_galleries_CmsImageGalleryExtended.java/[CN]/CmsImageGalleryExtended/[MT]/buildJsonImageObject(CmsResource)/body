@@ -1,0 +1,73 @@
+{
+  JSONObject jsonObj=new JSONObject();
+  String sitePath=getCms().getRequestContext().getSitePath(res);
+  OpenCms.getSystemInfo().getOpenCmsContext();
+  CmsImageScaler scaler=new CmsImageScaler(getCms(),res);
+  try {
+    jsonObj.put("sitepath",sitePath);
+    jsonObj.put("linkpath",getJsp().link(sitePath));
+    String scaleParams="";
+    if (getImageGallery().getDefaultScaleParams() != null) {
+      scaleParams=getImageGallery().getDefaultScaleParams().toRequestParam();
+    }
+    jsonObj.put("scalepath",getJsp().link(sitePath + scaleParams));
+    jsonObj.put("title",CmsStringUtil.escapeJavaScript(getJsp().property(CmsPropertyDefinition.PROPERTY_TITLE,sitePath,res.getName())));
+    if (scaler.isValid()) {
+      jsonObj.put("width",scaler.getWidth());
+    }
+ else {
+      jsonObj.put("width",-1);
+    }
+    if (scaler.isValid()) {
+      jsonObj.put("height",scaler.getHeight());
+    }
+ else {
+      jsonObj.put("height",-1);
+    }
+    jsonObj.put("size",(res.getLength() / 1024) + " " + key(org.opencms.workplace.galleries.Messages.GUI_LABEL_KILOBYTES_0));
+    jsonObj.put("datecreated",getMessages().getDateTime(res.getDateCreated()));
+    jsonObj.put("datelastmodified",getMessages().getDateTime(res.getDateLastModified()));
+    jsonObj.put("id",res.getStructureId());
+    String type="";
+    int dotIndex=res.getName().lastIndexOf('.');
+    if (dotIndex != -1) {
+      type=res.getName().substring(dotIndex + 1).toLowerCase();
+    }
+    jsonObj.put("type",type);
+    CmsResourceState state=res.getState();
+    CmsLock lock=CmsLock.getNullLock();
+    try {
+      lock=getCms().getLock(res);
+    }
+ catch (    CmsException e) {
+    }
+    if (!lock.isNullLock() && lock.getType().isPublish()) {
+      state=CmsResourceState.STATE_UNCHANGED;
+    }
+    jsonObj.put("state",state);
+    String locked="";
+    if (!lock.isNullLock() && !lock.getType().isPublish() && !lock.getUserId().equals(getCms().getRequestContext().currentUser().getId())) {
+      try {
+        locked=getCms().readUser(lock.getUserId()).getName();
+      }
+ catch (      CmsException e) {
+        locked=lock.getUserId().toString();
+      }
+    }
+    jsonObj.put("lockedby",locked);
+    boolean editable=false;
+    if (!getCms().getRequestContext().currentProject().isOnlineProject() && lock.isLockableBy(getCms().getRequestContext().currentUser())) {
+      editable=true;
+    }
+    jsonObj.put("editable",editable);
+    jsonObj.put("hash",res.getStructureId().hashCode());
+    String copyright=getJsp().property(PROPERTY_COPYRIGHT,sitePath,"");
+    jsonObj.put("copyright",CmsStringUtil.escapeJavaScript(copyright));
+  }
+ catch (  JSONException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+  return jsonObj;
+}
