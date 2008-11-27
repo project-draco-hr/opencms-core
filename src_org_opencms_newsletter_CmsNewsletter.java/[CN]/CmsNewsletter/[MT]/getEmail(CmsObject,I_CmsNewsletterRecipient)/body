@@ -13,33 +13,38 @@
       }
     }
   }
-  Email email;
-  if ((htmlMsg.length() > 0) || !m_attachments.isEmpty()) {
-    CmsHtmlMail htmlMail=new CmsHtmlMail();
-    htmlMail.setHtmlMsg(replaceMacros(htmlMsg.toString(),recipient));
-    Iterator attachments=m_attachments.iterator();
-    while (attachments.hasNext()) {
-      CmsResource resource=(CmsResource)attachments.next();
-      String description="";
-      String propertyDescription=cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_DESCRIPTION,true).getValue();
-      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(propertyDescription)) {
-        description=propertyDescription;
-      }
+  Email email=null;
+  try {
+    if ((htmlMsg.length() > 0) || !m_attachments.isEmpty()) {
+      CmsHtmlMail htmlMail=new CmsHtmlMail();
+      htmlMail.setHtmlMsg(replaceMacros(htmlMsg.toString(),recipient));
+      Iterator attachments=m_attachments.iterator();
+      while (attachments.hasNext()) {
+        CmsResource resource=(CmsResource)attachments.next();
+        String description="";
+        String propertyDescription=cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_DESCRIPTION,true).getValue();
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(propertyDescription)) {
+          description=propertyDescription;
+        }
  else {
-        String propertyTitle=cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_TITLE,true).getValue();
-        description=propertyTitle;
+          String propertyTitle=cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_TITLE,true).getValue();
+          description=propertyTitle;
+        }
+        htmlMail.attach(new CmsVfsDataSource(cms,resource),resource.getName(),description);
       }
-      htmlMail.attach(new CmsVfsDataSource(cms,resource),resource.getName(),description);
+      htmlMail.setTextMsg(replaceMacros(txtMsg.toString(),recipient));
+      email=htmlMail;
     }
-    htmlMail.setTextMsg(replaceMacros(txtMsg.toString(),recipient));
-    email=htmlMail;
-  }
  else {
-    CmsSimpleMail textMail=new CmsSimpleMail();
-    textMail.setMsg(replaceMacros(txtMsg.toString(),recipient));
-    email=textMail;
+      CmsSimpleMail textMail=new CmsSimpleMail();
+      textMail.setMsg(replaceMacros(txtMsg.toString(),recipient));
+      email=textMail;
+    }
+    email.addTo(recipient.getEmail());
+    email.setSubject(m_subject);
   }
-  email.addTo(recipient.getEmail());
-  email.setSubject(m_subject);
+ catch (  EmailException e) {
+    LOG.error(Messages.get().getBundle().key(Messages.LOG_COMPOSE_MAIL_ERR_0),e);
+  }
   return email;
 }
