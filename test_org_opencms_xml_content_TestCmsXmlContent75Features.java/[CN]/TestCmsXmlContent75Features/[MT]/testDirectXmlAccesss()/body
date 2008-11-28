@@ -1,0 +1,29 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing the direct access of the XML through a value wrapper");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  cacheSchema(resolver,"http://www.opencms.org/test3.xsd","org/opencms/xml/content/xmlcontent-definition-3.mod1.xsd");
+  cacheSchema(resolver,"http://www.opencms.org/test4.xsd","org/opencms/xml/content/xmlcontent-definition-4.xsd");
+  String content;
+  CmsXmlContent xmlcontent;
+  content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-4.mod1.xml",CmsEncoder.ENCODING_UTF_8);
+  xmlcontent=CmsXmlContentFactory.unmarshal(content,CmsEncoder.ENCODING_UTF_8,resolver);
+  xmlcontent.validateXmlStructure(resolver);
+  CmsJspContentAccessBean bean=new CmsJspContentAccessBean(cms,Locale.ENGLISH,xmlcontent);
+  CmsJspContentAccessValueWrapper cascade=(CmsJspContentAccessValueWrapper)bean.getValue().get("Cascade");
+  CmsJspContentAccessValueWrapper link=(CmsJspContentAccessValueWrapper)cascade.getValue().get("VfsLink");
+  assertEquals("/index.html",link.toString());
+  System.out.println("\n\n-----------------------------");
+  System.out.println("<target> : " + link.getXmlText().get("link/target"));
+  System.out.println("<uuid>   : " + link.getXmlText().get("link/uuid"));
+  System.out.println("-----------------------------\n");
+  assertEquals("/sites/default/index.html",link.getXmlText().get("link/target"));
+  assertEquals("7d6c22cd-4e3a-11db-9016-5bf59c6009b3",link.getXmlText().get("link/uuid"));
+  assertEquals("/sites/default/index.html",link.getXmlText().get("link[1]/target"));
+  assertEquals("7d6c22cd-4e3a-11db-9016-5bf59c6009b3",link.getXmlText().get("link[1]/uuid"));
+  CmsJspContentAccessValueWrapper html=(CmsJspContentAccessValueWrapper)cascade.getValue().get("Html");
+  assertEquals("a=b&c=d",html.getXmlText().get("links/link/query"));
+  assertEquals("/sites/default/noexist/index.html",html.getXmlText().get("links/link[3]/target"));
+  assertEquals("/sites/default/index.html",cascade.getXmlText().get("VfsLink[1]/link/target"));
+  assertEquals("a=b&c=d",cascade.getXmlText().get("Html/links/link/query"));
+}
