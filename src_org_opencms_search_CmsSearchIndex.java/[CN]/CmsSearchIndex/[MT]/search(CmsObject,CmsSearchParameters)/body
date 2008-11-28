@@ -15,27 +15,22 @@
     }
     searchCms.getRequestContext().setCurrentProject(searchCms.readProject(getProject()));
     timeLucene=-System.currentTimeMillis();
-    BooleanQuery query=new BooleanQuery();
-    BooleanQuery pathQuery=new BooleanQuery();
+    BooleanFilter filter=new BooleanFilter();
+    TermsFilter pathFilter=new TermsFilter();
     if ((params.getRoots() != null) && (params.getRoots().size() > 0)) {
       for (int i=0; i < params.getRoots().size(); i++) {
         String searchRoot=searchCms.getRequestContext().addSiteRoot((String)params.getRoots().get(i));
-        extendPathQuery(pathQuery,searchRoot);
+        extendPathFilter(pathFilter,searchRoot);
       }
     }
  else {
-      extendPathQuery(pathQuery,searchCms.getRequestContext().getSiteRoot());
+      extendPathFilter(pathFilter,searchCms.getRequestContext().getSiteRoot());
     }
-    query.add(pathQuery,BooleanClause.Occur.MUST);
+    filter.add(new FilterClause(pathFilter,BooleanClause.Occur.MUST));
     if ((params.getCategories() != null) && (params.getCategories().size() > 0)) {
-      BooleanQuery categoryQuery=new BooleanQuery();
-      for (int i=0; i < params.getCategories().size(); i++) {
-        Term term=new Term(CmsSearchField.FIELD_CATEGORY,(String)params.getCategories().get(i));
-        TermQuery termQuery=new TermQuery(term);
-        categoryQuery.add(termQuery,BooleanClause.Occur.SHOULD);
-      }
-      query.add(categoryQuery,BooleanClause.Occur.MUST);
+      filter.add(new FilterClause(getMultiTermQueryFilter(CmsSearchField.FIELD_CATEGORY,params.getCategories()),BooleanClause.Occur.MUST));
     }
+    BooleanQuery query=new BooleanQuery();
     Query fieldsQuery;
     if ((params.getFields() != null) && (params.getFields().size() > 0)) {
       BooleanQuery booleanFieldsQuery=new BooleanQuery();
@@ -57,10 +52,10 @@
     CmsSearchCategoryCollector categoryCollector;
     if (params.isCalculateCategories()) {
       categoryCollector=new CmsSearchCategoryCollector(getSearcher());
-      getSearcher().search(query,categoryCollector);
+      getSearcher().search(query,filter,categoryCollector);
       searchResults.setCategories(categoryCollector.getCategoryCountResult());
     }
-    hits=getSearcher().search(query,params.getSort());
+    hits=getSearcher().search(query,filter,params.getSort());
     timeLucene+=System.currentTimeMillis();
     timeResultProcessing=-System.currentTimeMillis();
     Document doc;
