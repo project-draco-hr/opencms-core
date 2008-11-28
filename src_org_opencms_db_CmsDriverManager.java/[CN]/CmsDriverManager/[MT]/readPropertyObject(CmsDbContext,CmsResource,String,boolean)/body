@@ -1,49 +1,12 @@
 {
-  CmsUUID projectId=getProjectIdForContext(dbc);
-  String cacheKey=getCacheKey(key,search,projectId,resource.getRootPath());
-  CmsProperty value=m_monitor.getCachedProperty(cacheKey);
-  if ((value == null) || !dbc.getProjectId().isNullUUID()) {
-    String cacheKey2=getCacheKey(CACHE_ALL_PROPERTIES,search,projectId,resource.getRootPath());
-    List allProperties=m_monitor.getCachedPropertyList(cacheKey2);
-    if ((allProperties != null) && dbc.getProjectId().isNullUUID()) {
-      for (int i=0; i < allProperties.size(); i++) {
-        CmsProperty property=(CmsProperty)allProperties.get(i);
-        if (property.getName().equals(key)) {
-          value=property;
-          break;
-        }
-      }
-    }
- else     if (search) {
-      String cacheKey3=getCacheKey(key,search,projectId,resource.getRootPath());
-      value=m_monitor.getCachedProperty(cacheKey3);
-      if ((value == null) || value.isNullProperty() || !dbc.getProjectId().isNullUUID()) {
-        boolean cont;
-        do {
-          try {
-            value=readPropertyObject(dbc,resource,key,false);
-            cont=value.isNullProperty() && (resource.getRootPath().length() > 1);
-          }
- catch (          CmsSecurityException se) {
-            cont=false;
-          }
-          if (cont) {
-            resource=readResource(dbc,CmsResource.getParentFolder(resource.getRootPath()),CmsResourceFilter.ALL);
-          }
-        }
- while (cont);
-      }
-    }
- else {
-      value=m_vfsDriver.readPropertyObject(dbc,key,dbc.currentProject(),resource);
-    }
-    if (value == null) {
-      value=CmsProperty.getNullProperty();
-    }
-    value.setFrozen(true);
-    if ((search || m_monitor.isCacheProperty()) && dbc.getProjectId().isNullUUID()) {
-      m_monitor.cacheProperty(cacheKey,value);
-    }
+  List properties=readPropertyObjects(dbc,resource,search);
+  int i=properties.indexOf(new CmsProperty(key,null,null));
+  CmsProperty result;
+  if (i >= 0) {
+    result=(CmsProperty)properties.get(i);
   }
-  return value.cloneAsProperty();
+ else {
+    result=CmsProperty.getNullProperty();
+  }
+  return result.cloneAsProperty();
 }
