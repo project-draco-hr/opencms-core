@@ -1,64 +1,71 @@
 {
-  List publishedResources;
+  int oldPrio=Thread.currentThread().getPriority();
   try {
-    publishedResources=adminCms.readPublishedResources(publishHistoryId);
-  }
- catch (  CmsException e) {
-    LOG.error(Messages.get().getBundle().key(Messages.LOG_READING_CHANGED_RESOURCES_FAILED_1,publishHistoryId),e);
-    return;
-  }
-  List updateResources=new ArrayList();
-  Iterator itPubRes=publishedResources.iterator();
-  while (itPubRes.hasNext()) {
-    CmsPublishedResource res=(CmsPublishedResource)itPubRes.next();
-    if (res.isFolder() || res.getState().isUnchanged()) {
-      continue;
+    Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
+    List publishedResources;
+    try {
+      publishedResources=adminCms.readPublishedResources(publishHistoryId);
     }
-    if (res.getState().isDeleted() || res.getState().isNew() || res.getState().isChanged()) {
-      if (updateResources.contains(res)) {
-        boolean hasMoved=(res.getMovedState() == CmsPublishedResource.STATE_MOVED_DESTINATION) || (res.getMovedState() == CmsPublishedResource.STATE_MOVED_SOURCE);
-        if (!hasMoved) {
-          updateResources.remove(res);
-        }
-        updateResources.add(res);
+ catch (    CmsException e) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_READING_CHANGED_RESOURCES_FAILED_1,publishHistoryId),e);
+      return;
+    }
+    List updateResources=new ArrayList();
+    Iterator itPubRes=publishedResources.iterator();
+    while (itPubRes.hasNext()) {
+      CmsPublishedResource res=(CmsPublishedResource)itPubRes.next();
+      if (res.isFolder() || res.getState().isUnchanged()) {
+        continue;
       }
+      if (res.getState().isDeleted() || res.getState().isNew() || res.getState().isChanged()) {
+        if (updateResources.contains(res)) {
+          boolean hasMoved=(res.getMovedState() == CmsPublishedResource.STATE_MOVED_DESTINATION) || (res.getMovedState() == CmsPublishedResource.STATE_MOVED_SOURCE);
+          if (!hasMoved) {
+            updateResources.remove(res);
+          }
+          updateResources.add(res);
+        }
  else {
-        updateResources.add(res);
-        if (!res.getState().isDeleted() && (res.getSiblingCount() > 1)) {
-          try {
-            List siblings=adminCms.readSiblings(res.getRootPath(),CmsResourceFilter.ALL);
-            Iterator itSib=siblings.iterator();
-            while (itSib.hasNext()) {
-              CmsResource sibling=(CmsResource)itSib.next();
-              CmsPublishedResource sib=new CmsPublishedResource(sibling);
-              if (!updateResources.contains(sib)) {
-                updateResources.add(sib);
+          updateResources.add(res);
+          if (!res.getState().isDeleted() && (res.getSiblingCount() > 1)) {
+            try {
+              List siblings=adminCms.readSiblings(res.getRootPath(),CmsResourceFilter.ALL);
+              Iterator itSib=siblings.iterator();
+              while (itSib.hasNext()) {
+                CmsResource sibling=(CmsResource)itSib.next();
+                CmsPublishedResource sib=new CmsPublishedResource(sibling);
+                if (!updateResources.contains(sib)) {
+                  updateResources.add(sib);
+                }
+              }
+            }
+ catch (            CmsException e) {
+              if (LOG.isWarnEnabled()) {
+                LOG.warn(Messages.get().getBundle().key(Messages.LOG_UNABLE_TO_READ_SIBLINGS_1,res.getRootPath()),e);
               }
             }
           }
+        }
+      }
+    }
+    if (!updateResources.isEmpty()) {
+      Collections.sort(updateResources);
+      Iterator i=m_indexes.iterator();
+      while (i.hasNext()) {
+        CmsSearchIndex index=(CmsSearchIndex)i.next();
+        if (CmsSearchIndex.REBUILD_MODE_AUTO.equals(index.getRebuildMode())) {
+          try {
+            updateIndex(index,report,updateResources);
+          }
  catch (          CmsException e) {
-            if (LOG.isWarnEnabled()) {
-              LOG.warn(Messages.get().getBundle().key(Messages.LOG_UNABLE_TO_READ_SIBLINGS_1,res.getRootPath()),e);
-            }
+            LOG.error(Messages.get().getBundle().key(Messages.LOG_UPDATE_INDEX_FAILED_1,index.getName()),e);
           }
         }
       }
     }
+    cleanExtractionCache();
   }
-  if (!updateResources.isEmpty()) {
-    Collections.sort(updateResources);
-    Iterator i=m_indexes.iterator();
-    while (i.hasNext()) {
-      CmsSearchIndex index=(CmsSearchIndex)i.next();
-      if (CmsSearchIndex.REBUILD_MODE_AUTO.equals(index.getRebuildMode())) {
-        try {
-          updateIndex(index,report,updateResources);
-        }
- catch (        CmsException e) {
-          LOG.error(Messages.get().getBundle().key(Messages.LOG_UPDATE_INDEX_FAILED_1,index.getName()),e);
-        }
-      }
-    }
+  finally {
+    Thread.currentThread().setPriority(oldPrio);
   }
-  cleanExtractionCache();
 }

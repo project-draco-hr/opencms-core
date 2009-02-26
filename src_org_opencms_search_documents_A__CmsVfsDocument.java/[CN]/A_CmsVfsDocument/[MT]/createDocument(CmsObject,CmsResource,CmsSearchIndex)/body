@@ -1,42 +1,44 @@
 {
   I_CmsExtractionResult content=null;
-  CmsExtractionResultCache cache=getCache();
-  String cacheName=null;
-  if ((cache != null) && (resource.getSiblingCount() > 1)) {
-    cacheName=cache.getCacheName(resource,isLocaleDependend() ? index.getLocale() : null);
-    content=cache.getCacheObject(cacheName);
-  }
-  if (content == null) {
-    Document oldDoc=index.getDocument(resource.getRootPath());
-    if (oldDoc != null) {
-      Fieldable fieldContentDate=oldDoc.getFieldable(CmsSearchField.FIELD_DATE_CONTENT);
-      long contentDateIndex=0;
-      if (fieldContentDate != null) {
-        String contentDate=fieldContentDate.stringValue();
-        try {
-          contentDateIndex=DateTools.stringToTime(contentDate);
-        }
- catch (        ParseException e) {
-        }
-        if (contentDateIndex == resource.getDateContent()) {
-          Fieldable fieldContentBlob=oldDoc.getFieldable(CmsSearchField.FIELD_CONTENT_BLOB);
-          if (fieldContentBlob != null) {
-            byte[] oldContent=fieldContentBlob.binaryValue();
-            content=CmsExtractionResult.fromBytes(oldContent);
+  if (index.isExtractingContent()) {
+    CmsExtractionResultCache cache=getCache();
+    String cacheName=null;
+    if ((cache != null) && (resource.getSiblingCount() > 1)) {
+      cacheName=cache.getCacheName(resource,isLocaleDependend() ? index.getLocale() : null);
+      content=cache.getCacheObject(cacheName);
+    }
+    if (content == null) {
+      Document oldDoc=index.getDocument(resource.getRootPath());
+      if (oldDoc != null) {
+        Fieldable fieldContentDate=oldDoc.getFieldable(CmsSearchField.FIELD_DATE_CONTENT);
+        long contentDateIndex=0;
+        if (fieldContentDate != null) {
+          String contentDate=fieldContentDate.stringValue();
+          try {
+            contentDateIndex=DateTools.stringToTime(contentDate);
+          }
+ catch (          ParseException e) {
+          }
+          if (contentDateIndex == resource.getDateContent()) {
+            Fieldable fieldContentBlob=oldDoc.getFieldable(CmsSearchField.FIELD_CONTENT_BLOB);
+            if (fieldContentBlob != null) {
+              byte[] oldContent=fieldContentBlob.binaryValue();
+              content=CmsExtractionResult.fromBytes(oldContent);
+            }
           }
         }
       }
     }
-  }
-  if (content == null) {
-    try {
-      content=extractContent(cms,resource,index);
-      if ((cache != null) && (resource.getSiblingCount() > 1)) {
-        cache.saveCacheObject(cacheName,content);
+    if (content == null) {
+      try {
+        content=extractContent(cms,resource,index);
+        if ((cache != null) && (resource.getSiblingCount() > 1)) {
+          cache.saveCacheObject(cacheName,content);
+        }
       }
-    }
- catch (    Exception e) {
-      LOG.error(Messages.get().getBundle().key(Messages.ERR_TEXT_EXTRACTION_1,resource.getRootPath()),e);
+ catch (      Exception e) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_TEXT_EXTRACTION_1,resource.getRootPath()),e);
+      }
     }
   }
   return index.getFieldConfiguration().createDocument(cms,resource,index,content);
