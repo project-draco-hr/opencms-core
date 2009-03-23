@@ -6,6 +6,24 @@
     report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
     CmsResourceState folderState=fixMovedResource(dbc,onlineProject,currentFolder,publishHistoryId,publishTag);
     CmsFolder onlineFolder=m_driverManager.readFolder(dbc,currentFolder.getRootPath(),CmsResourceFilter.ALL);
+    List movedFiles=null;
+    movedFiles=m_driverManager.getVfsDriver().readResourceTree(dbc,onlineProject.getUuid(),currentFolder.getRootPath(),CmsDriverManager.READ_IGNORE_TYPE,null,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READMODE_ONLY_FILES);
+    for (Iterator it=movedFiles.iterator(); it.hasNext(); ) {
+      CmsResource delFile=(CmsResource)it.next();
+      try {
+        CmsResource offlineResource=m_driverManager.getVfsDriver().readResource(dbc,dbc.currentProject().getUuid(),delFile.getStructureId(),true);
+        CmsFile offlineFile=new CmsFile(offlineResource);
+        offlineFile.setContents(m_driverManager.getVfsDriver().readContent(dbc,dbc.currentProject().getUuid(),offlineFile.getResourceId()));
+        internalWriteHistory(dbc,offlineFile,CmsResource.STATE_DELETED,null,publishHistoryId,publishTag);
+        m_driverManager.getVfsDriver().deletePropertyObjects(dbc,onlineProject.getUuid(),delFile,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+        m_driverManager.getVfsDriver().removeFile(dbc,onlineProject.getUuid(),delFile);
+      }
+ catch (      CmsDataAccessException e) {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().getBundle().key(Messages.LOG_REMOVING_RESOURCE_1,delFile.getName()),e);
+        }
+      }
+    }
     internalWriteHistory(dbc,currentFolder,folderState,null,publishHistoryId,publishTag);
     try {
       m_driverManager.getVfsDriver().deletePropertyObjects(dbc,onlineProject.getUuid(),onlineFolder,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);

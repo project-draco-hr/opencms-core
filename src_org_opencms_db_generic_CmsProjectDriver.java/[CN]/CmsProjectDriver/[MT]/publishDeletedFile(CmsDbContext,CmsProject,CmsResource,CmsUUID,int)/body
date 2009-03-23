@@ -1,14 +1,17 @@
 {
   CmsResourceState resourceState=fixMovedResource(dbc,onlineProject,offlineResource,publishHistoryId,publishTag);
-  CmsResource onlineResource;
-  try {
-    onlineResource=m_driverManager.getVfsDriver().readResource(dbc,onlineProject.getUuid(),offlineResource.getStructureId(),true);
-  }
- catch (  CmsDataAccessException e) {
-    if (LOG.isErrorEnabled()) {
-      LOG.error(Messages.get().getBundle().key(Messages.LOG_READING_RESOURCE_1,offlineResource.getRootPath()),e);
+  boolean existsOnline=m_driverManager.getVfsDriver().validateStructureIdExists(dbc,CmsProject.ONLINE_PROJECT_ID,offlineResource.getStructureId());
+  CmsResource onlineResource=null;
+  if (existsOnline) {
+    try {
+      onlineResource=m_driverManager.getVfsDriver().readResource(dbc,onlineProject.getUuid(),offlineResource.getStructureId(),true);
     }
-    throw e;
+ catch (    CmsDataAccessException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_READING_RESOURCE_1,offlineResource.getRootPath()),e);
+      }
+      throw e;
+    }
   }
   if (offlineResource.isLabeled() && !m_driverManager.labelResource(dbc,offlineResource,null,2)) {
     int flags=offlineResource.getFlags();
@@ -26,9 +29,11 @@
  else {
       propertyDeleteOption=CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES;
     }
-    m_driverManager.getVfsDriver().deletePropertyObjects(dbc,onlineProject.getUuid(),onlineResource,propertyDeleteOption);
+    if (existsOnline) {
+      m_driverManager.getVfsDriver().deletePropertyObjects(dbc,onlineProject.getUuid(),onlineResource,propertyDeleteOption);
+    }
     m_driverManager.getVfsDriver().deletePropertyObjects(dbc,dbc.currentProject().getUuid(),offlineResource,propertyDeleteOption);
-    if (!onlineResource.getResourceId().equals(offlineResource.getResourceId())) {
+    if (existsOnline && (onlineResource != null) && !onlineResource.getResourceId().equals(offlineResource.getResourceId())) {
       m_driverManager.getVfsDriver().deletePropertyObjects(dbc,dbc.currentProject().getUuid(),onlineResource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
     }
   }
@@ -40,7 +45,9 @@
   }
   try {
     m_driverManager.getVfsDriver().removeFile(dbc,dbc.currentProject().getUuid(),offlineResource);
-    m_driverManager.getVfsDriver().removeFile(dbc,onlineProject.getUuid(),onlineResource);
+    if (existsOnline && (onlineResource != null)) {
+      m_driverManager.getVfsDriver().removeFile(dbc,onlineProject.getUuid(),onlineResource);
+    }
   }
  catch (  CmsDataAccessException e) {
     if (LOG.isErrorEnabled()) {
@@ -49,7 +56,7 @@
     throw e;
   }
   try {
-    if (onlineResource.getSiblingCount() == 1) {
+    if (existsOnline && (onlineResource != null) && (onlineResource.getSiblingCount() == 1)) {
       m_driverManager.getUserDriver().removeAccessControlEntries(dbc,onlineProject,onlineResource.getResourceId());
     }
     if (offlineResource.getSiblingCount() == 1) {

@@ -1,21 +1,26 @@
 {
-  CmsResourceState resourceState=fixMovedResource(dbc,onlineProject,offlineResource,publishHistoryId,publishTag);
-  CmsResource onlineResource;
+  CmsResource onlineResource=null;
+  boolean needToUpdateContent=true;
+  boolean existsOnline=m_driverManager.getVfsDriver().validateStructureIdExists(dbc,CmsProject.ONLINE_PROJECT_ID,offlineResource.getStructureId());
+  CmsResourceState resourceState=existsOnline ? fixMovedResource(dbc,onlineProject,offlineResource,publishHistoryId,publishTag) : offlineResource.getState();
   try {
-    onlineResource=m_driverManager.getVfsDriver().readResource(dbc,onlineProject.getUuid(),offlineResource.getStructureId(),false);
     int flags=offlineResource.getFlags();
     flags&=~CmsResource.FLAG_LABELED;
     offlineResource.setFlags(flags);
-    m_driverManager.getVfsDriver().deletePropertyObjects(dbc,onlineProject.getUuid(),onlineResource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
-    if (!onlineResource.getResourceId().equals(offlineResource.getResourceId())) {
-      List offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),onlineResource);
-      if (offlineProperties.size() > 0) {
-        for (int i=0; i < offlineProperties.size(); i++) {
-          CmsProperty property=(CmsProperty)offlineProperties.get(i);
-          property.setStructureValue(null);
-          property.setResourceValue(CmsProperty.DELETE_VALUE);
+    if (existsOnline) {
+      onlineResource=m_driverManager.getVfsDriver().readResource(dbc,onlineProject.getUuid(),offlineResource.getStructureId(),false);
+      needToUpdateContent=(onlineResource.getDateContent() < offlineResource.getDateContent());
+      m_driverManager.getVfsDriver().deletePropertyObjects(dbc,onlineProject.getUuid(),onlineResource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+      if (!onlineResource.getResourceId().equals(offlineResource.getResourceId())) {
+        List offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),onlineResource);
+        if (offlineProperties.size() > 0) {
+          for (int i=0; i < offlineProperties.size(); i++) {
+            CmsProperty property=(CmsProperty)offlineProperties.get(i);
+            property.setStructureValue(null);
+            property.setResourceValue(CmsProperty.DELETE_VALUE);
+          }
+          m_driverManager.getVfsDriver().writePropertyObjects(dbc,dbc.currentProject(),onlineResource,offlineProperties);
         }
-        m_driverManager.getVfsDriver().writePropertyObjects(dbc,dbc.currentProject(),onlineResource,offlineProperties);
       }
     }
   }
@@ -27,7 +32,6 @@
   }
   CmsFile newFile;
   try {
-    boolean needToUpdateContent=(onlineResource.getDateContent() < offlineResource.getDateContent());
     newFile=m_driverManager.getProjectDriver().publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineResource,publishedResourceIds,needToUpdateContent,publishTag);
   }
  catch (  CmsDataAccessException e) {
@@ -49,7 +53,7 @@
     throw e;
   }
   try {
-    m_driverManager.getUserDriver().publishAccessControlEntries(dbc,dbc.currentProject(),onlineProject,newFile.getResourceId(),onlineResource.getResourceId());
+    m_driverManager.getUserDriver().publishAccessControlEntries(dbc,dbc.currentProject(),onlineProject,newFile.getResourceId(),offlineResource.getResourceId());
   }
  catch (  CmsDataAccessException e) {
     if (LOG.isErrorEnabled()) {
