@@ -1,5 +1,10 @@
 {
   String id=param.getId();
+  long idHash=id.hashCode();
+  if (idHash < 0) {
+    idHash=-idHash;
+    idHash+=4294967296L;
+  }
   StringBuffer result=new StringBuffer(128);
   result.append("<td class=\"xmlTd\">");
   result.append("<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr><td>");
@@ -19,7 +24,7 @@
   result.append("');\"></td>");
   result.append(widgetDialog.dialogHorizontalSpacer(10));
   result.append("<td><table class=\"editorbuttonbackground\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr>");
-  result.append(widgetDialog.button("javascript:open" + getNameUpper() + "Gallery('"+ A_CmsGallery.MODE_WIDGET+ "',  '"+ id+ "');return false;",null,getNameLower() + "gallery",Messages.getButtonName(getNameLower()),widgetDialog.getButtonStyle()));
+  result.append(widgetDialog.button("javascript:open" + getNameUpper() + "Gallery('"+ A_CmsAjaxGallery.MODE_WIDGET+ "',  '"+ id+ "',  '"+ idHash+ "');return false;",null,getNameLower() + "gallery",Messages.getButtonName(getNameLower()),widgetDialog.getButtonStyle()));
   String previewClass="hide";
   if (showPreview(value)) {
     previewClass="show";
@@ -36,5 +41,42 @@
   result.append("</td>");
   result.append("</tr></table>");
   result.append("</td>");
+  if (getNameLower().equals("download")) {
+    CmsGalleryWidgetConfiguration configuration=new CmsGalleryWidgetConfiguration(cms,widgetDialog,param,getConfiguration());
+    result.append("\n<script type=\"text/javascript\">");
+    result.append("\nvar startupFolder").append(idHash).append(" = \"").append(configuration.getStartup()).append("\";");
+    result.append("\nvar startupType").append(idHash).append(" = \"").append(configuration.getType()).append("\";");
+    result.append("\n</script>");
+  }
+ else   if (getNameLower().equals("image")) {
+    CmsVfsImageWidgetConfiguration configuration=new CmsVfsImageWidgetConfiguration(cms,widgetDialog,param,getConfiguration());
+    result.append("\n<script type=\"text/javascript\">");
+    result.append("\nvar startupFolder").append(idHash).append(" = \"").append(configuration.getStartup()).append("\";");
+    result.append("\nvar startupType").append(idHash).append(" = \"").append(configuration.getType()).append("\";");
+    result.append("\n</script>");
+    if (configuration.isShowFormat()) {
+      result.append("\n<script type=\"text/javascript\">");
+      JSONArray formatsJson=new JSONArray(configuration.getFormatValues());
+      result.append("\nvar imgFmts").append(idHash).append(" = ").append(formatsJson).append(";");
+      result.append("\nvar imgFmtNames").append(idHash).append(" = \"").append(CmsEncoder.escape(configuration.getSelectFormatString(),CmsEncoder.ENCODING_UTF_8)).append("\";");
+      result.append("\nvar useFmts").append(idHash).append(" = true;");
+      result.append("\n</script>");
+    }
+ else {
+      result.append("\n<script type=\"text/javascript\">");
+      result.append("\nvar useFmts").append(idHash).append(" = false;");
+      result.append("\n</script>");
+    }
+    String scale="";
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(configuration.getScaleParams()) && (scale.indexOf(configuration.getScaleParams()) == -1)) {
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(scale)) {
+        scale+=",";
+      }
+      scale+=configuration.getScaleParams();
+    }
+    result.append("\n<script type=\"text/javascript\">");
+    result.append("\nvar scale").append(idHash).append(" = ").append(scale).append(";");
+    result.append("\n</script>");
+  }
   return result.toString();
 }
