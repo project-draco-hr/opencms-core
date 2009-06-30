@@ -1,29 +1,33 @@
 {
-  if (m_modeEnabled) {
-    int max=m_modeWord ? 10 : 1;
-    int count=0;
-    int oldSize=htmlInput.length();
-    String workHtml=regExp(htmlInput);
-    while (count < max) {
-      count++;
-      if (m_modeWord) {
-        workHtml=adjustHtml(workHtml);
-      }
-      workHtml=parse(workHtml,m_encoding);
-      if (m_modeWord) {
-        workHtml=workHtml.substring(0,workHtml.length() - m_lineSeparatorLength);
-      }
-      if (workHtml.length() == oldSize) {
-        workHtml=regExp(workHtml);
-        break;
-      }
-      oldSize=workHtml.length();
-      workHtml=regExp(workHtml);
+  Map converters=new HashMap();
+  for (Iterator i=getModes().iterator(); i.hasNext(); ) {
+    String mode=(String)i.next();
+    String converterClass=OpenCms.getResourceManager().getHtmlConverter(mode);
+    List modes=new ArrayList();
+    if (converters.containsKey(converterClass)) {
+      modes=(List)converters.get(converterClass);
     }
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(Messages.get().getBundle().key(Messages.LOG_PARSING_RUNS_2,this.getClass().getName(),new Integer(count)));
+    modes.add(mode);
+    converters.put(converterClass,modes);
+  }
+  for (Iterator i=converters.entrySet().iterator(); i.hasNext(); ) {
+    Map.Entry entry=(Map.Entry)i.next();
+    String className=(String)entry.getKey();
+    List modes=(List)entry.getValue();
+    try {
+      I_CmsHtmlConverter converter=(I_CmsHtmlConverter)Class.forName(className).newInstance();
+      converter.init(getEncoding(),modes);
+      htmlInput=converter.convertToString(htmlInput);
     }
-    htmlInput=workHtml;
+ catch (    ClassNotFoundException e) {
+      LOG.error(org.opencms.loader.Messages.get().getBundle().key(org.opencms.loader.Messages.LOG_HTML_CONVERTER_CLASS_NOT_FOUND_1,className),e);
+    }
+catch (    IllegalAccessException e) {
+      LOG.error(org.opencms.loader.Messages.get().getBundle().key(org.opencms.loader.Messages.LOG_HTML_CONVERTER_CLASS_NOT_FOUND_1,className),e);
+    }
+catch (    InstantiationException e) {
+      LOG.error(org.opencms.loader.Messages.get().getBundle().key(org.opencms.loader.Messages.LOG_HTML_CONVERTER_CLASS_NOT_FOUND_1,className),e);
+    }
   }
   return htmlInput;
 }
