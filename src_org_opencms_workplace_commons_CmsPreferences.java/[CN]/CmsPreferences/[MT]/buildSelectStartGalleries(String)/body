@@ -1,0 +1,70 @@
+{
+  StringBuffer result=new StringBuffer(1024);
+  HttpServletRequest request=getJsp().getRequest();
+  if (htmlAttributes != null) {
+    htmlAttributes+=" name=\"" + PARAM_STARTGALLERY_PREFIX;
+  }
+  Map galleriesTypes=OpenCms.getWorkplaceManager().getGalleries();
+  if (galleriesTypes != null) {
+    Map localizedGalleries=new TreeMap();
+    for (Iterator i=galleriesTypes.keySet().iterator(); i.hasNext(); ) {
+      String currentGalleryType=(String)i.next();
+      String localizedName=CmsWorkplaceMessages.getResourceName(this,currentGalleryType);
+      localizedGalleries.put(localizedName,currentGalleryType);
+    }
+    for (Iterator i=localizedGalleries.entrySet().iterator(); i.hasNext(); ) {
+      Map.Entry entry=(Map.Entry)i.next();
+      String currentGalleryType=(String)entry.getValue();
+      int currentGalleryTypeId=0;
+      try {
+        currentGalleryTypeId=OpenCms.getResourceManager().getResourceType(currentGalleryType).getTypeId();
+      }
+ catch (      CmsLoaderException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+        continue;
+      }
+      List availableGalleries=A_CmsAjaxGallery.getGalleries(currentGalleryTypeId,getCms());
+      List options=new ArrayList(availableGalleries.size() + 2);
+      List values=new ArrayList(availableGalleries.size() + 2);
+      options.add(key(Messages.GUI_PREF_STARTGALLERY_NONE_0));
+      values.add(INPUT_DEFAULT);
+      options.add(key(Messages.GUI_PREF_STARTGALLERY_PRESELECT_0));
+      values.add(INPUT_PRESELECT);
+      String savedValue=computeStartGalleryPreselection(request,currentGalleryType);
+      int counter=2;
+      int selectedIndex=0;
+      Iterator iGalleries=availableGalleries.iterator();
+      while (iGalleries.hasNext()) {
+        CmsResource res=(CmsResource)iGalleries.next();
+        String rootPath=res.getRootPath();
+        String sitePath=getCms().getSitePath(res);
+        if ((savedValue != null) && (savedValue.equals(rootPath))) {
+          selectedIndex=counter;
+        }
+        counter++;
+        String title="";
+        try {
+          title=getCms().readPropertyObject(sitePath,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue("");
+        }
+ catch (        CmsException e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+        options.add(title.concat(" (").concat(sitePath).concat(")"));
+        values.add(rootPath);
+      }
+      if ((savedValue != null) && savedValue.equals(INPUT_PRESELECT)) {
+        selectedIndex=1;
+      }
+      result.append("<tr>\n\t<td style=\"white-space: nowrap;\">");
+      result.append(entry.getKey());
+      result.append("</td>\n\t<td>");
+      result.append(buildSelect(htmlAttributes + currentGalleryType + "\"",options,values,selectedIndex));
+      result.append("</td>\n</tr>\n");
+    }
+  }
+  return result.toString();
+}
