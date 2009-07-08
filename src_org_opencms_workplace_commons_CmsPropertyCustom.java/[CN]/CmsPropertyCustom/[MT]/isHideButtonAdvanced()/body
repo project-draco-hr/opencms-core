@@ -1,0 +1,33 @@
+{
+  I_CmsDialogHandler handler=(I_CmsDialogHandler)OpenCms.getWorkplaceManager().getDialogHandler(getDialogHandler());
+  MultiValueMap handlerParams=(MultiValueMap)handler.getConfiguration();
+  if ((handlerParams != null) && handlerParams.containsKey(PARAM_HIDEADVANCED)) {
+    boolean isHideAdvancedSet=false;
+    List hAdvanced=(List)handlerParams.get(PARAM_HIDEADVANCED);
+    if (!hAdvanced.isEmpty()) {
+      isHideAdvancedSet=Boolean.valueOf((String)hAdvanced.get(0)).booleanValue();
+    }
+    if (isHideAdvancedSet) {
+      if (OpenCms.getRoleManager().hasRole(getCms(),CmsRole.ROOT_ADMIN)) {
+        return false;
+      }
+      if (handlerParams.containsKey(PARAM_SHOWGROUP)) {
+        CmsUser currentUser=getCms().getRequestContext().currentUser();
+        List confGroups=(List)handlerParams.get(PARAM_SHOWGROUP);
+        for (Iterator i=confGroups.iterator(); i.hasNext(); ) {
+          String groupName=(String)i.next();
+          try {
+            if (getCms().userInGroup(currentUser.getName(),groupName)) {
+              return false;
+            }
+          }
+ catch (          CmsException e) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+      return true;
+    }
+  }
+  return false;
+}
