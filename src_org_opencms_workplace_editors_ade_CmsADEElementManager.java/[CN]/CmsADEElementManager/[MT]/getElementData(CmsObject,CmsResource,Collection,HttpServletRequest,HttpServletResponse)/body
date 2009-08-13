@@ -1,0 +1,35 @@
+{
+  JSONObject resElement=new JSONObject();
+  resElement.put(CmsADEServer.P_ID,CmsADEElementManager.ADE_ID_PREFIX + resource.getStructureId().toString());
+  resElement.put(CmsADEServer.P_FILE,cms.getSitePath(resource));
+  resElement.put(CmsADEServer.P_DATE,resource.getDateLastModified());
+  resElement.put(CmsADEServer.P_USER,cms.readUser(resource.getUserLastModified()).getName());
+  resElement.put(CmsADEServer.P_NAVTEXT,cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_NAVTEXT,false).getValue(""));
+  resElement.put(CmsADEServer.P_TITLE,cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(""));
+  resElement.put(CmsADEServer.P_TYPE,"news");
+  resElement.put(CmsADEServer.P_SUBITEMS,(String)null);
+  resElement.put(CmsADEServer.P_ALLOWMOVE,true);
+  resElement.put(CmsADEServer.P_ALLOWEDIT,true);
+  resElement.put(CmsADEServer.P_LOCKED,false);
+  resElement.put(CmsADEServer.P_STATUS,"u");
+  JSONObject resContents=new JSONObject();
+  resElement.put(CmsADEServer.P_CONTENTS,resContents);
+  CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,cms.readFile(resource));
+  Iterator it=content.getContentDefinition().getContentHandler().getFormatters().entrySet().iterator();
+  while (it.hasNext()) {
+    Map.Entry entry=(Map.Entry)it.next();
+    String type=(String)entry.getKey();
+    if (!types.contains(type) && !type.equals(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE)) {
+      continue;
+    }
+    String formatterUri=(String)entry.getValue();
+    try {
+      String jspResult=getElementContent(cms,resource,formatterUri,req,res);
+      resContents.put(type,jspResult);
+    }
+ catch (    Exception e) {
+      LOG.error(Messages.get().getBundle().key(Messages.ERR_GENERATE_FORMATTED_ELEMENT_3,cms.getSitePath(resource),formatterUri,type),e);
+    }
+  }
+  return resElement;
+}

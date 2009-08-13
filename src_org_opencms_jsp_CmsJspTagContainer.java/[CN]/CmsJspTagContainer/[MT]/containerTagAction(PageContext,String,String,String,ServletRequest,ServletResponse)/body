@@ -1,0 +1,42 @@
+{
+  CmsFlexController controller=CmsFlexController.getController(req);
+  CmsObject cms=controller.getCmsObject();
+  CmsResource containerPage=cms.readResource(cms.getRequestContext().getUri());
+  JSONObject localeData=LOADER.getCache(cms,containerPage,cms.getRequestContext().getLocale());
+  if (!localeData.has(containerName)) {
+    LOG.warn(Messages.get().container(Messages.LOG_CONTAINER_NOT_FOUND_3,cms.getSitePath(containerPage),localeData.optString(CmsContainerPageLoader.N_LOCALE),containerName).key());
+    return;
+  }
+  JSONObject container=localeData.optJSONObject(containerName);
+  if (!containerType.equals(container.optString(CmsContainerPageLoader.N_TYPE))) {
+    LOG.warn(Messages.get().container(Messages.LOG_WRONG_CONTAINER_TYPE_4,new Object[]{cms.getSitePath(containerPage),localeData.optString(CmsContainerPageLoader.N_LOCALE),containerName,containerType}).key());
+  }
+  int maxElements=-1;
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(containerMaxElements)) {
+    try {
+      maxElements=Integer.parseInt(containerMaxElements);
+    }
+ catch (    NumberFormatException e) {
+      LOG.warn(Messages.get().container(Messages.LOG_WRONG_CONTAINER_MAXELEMENTS_4,new Object[]{cms.getSitePath(containerPage),localeData.optString(CmsContainerPageLoader.N_LOCALE),containerName,containerMaxElements}).key());
+    }
+    try {
+      container.put(CmsContainerPageLoader.N_MAXELEMENTS,maxElements);
+    }
+ catch (    JSONException e) {
+      LOG.warn(e.getMessage(),e);
+    }
+  }
+  JSONArray elements=container.optJSONArray(CmsContainerPageLoader.N_ELEMENT);
+  int renderElems=elements.length();
+  if ((maxElements > -1) && (renderElems > maxElements)) {
+    renderElems=maxElements;
+  }
+  for (int i=0; i < renderElems; i++) {
+    JSONObject element=elements.optJSONObject(i);
+    String elementUri=element.optString(CmsContainerPageLoader.N_URI);
+    String elementFormatter=element.optString(CmsContainerPageLoader.N_FORMATTER);
+    CmsResource resUri=cms.readResource(elementUri);
+    String jspResult=CmsADEElementManager.getInstance().getElementContent(cms,resUri,elementFormatter,(HttpServletRequest)req,(HttpServletResponse)res);
+    res.getWriter().println(jspResult);
+  }
+}
