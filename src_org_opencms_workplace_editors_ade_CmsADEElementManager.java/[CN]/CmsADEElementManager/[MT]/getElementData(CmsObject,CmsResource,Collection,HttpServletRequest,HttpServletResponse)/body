@@ -6,32 +6,51 @@
   resElement.put(CmsADEServer.P_USER,cms.readUser(resource.getUserLastModified()).getName());
   resElement.put(CmsADEServer.P_NAVTEXT,cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_NAVTEXT,false).getValue(""));
   resElement.put(CmsADEServer.P_TITLE,cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(""));
-  resElement.put(CmsADEServer.P_TYPE,"news");
-  resElement.put(CmsADEServer.P_SUBITEMS,(String)null);
-  resElement.put(CmsADEServer.P_ALLOWMOVE,true);
-  resElement.put(CmsADEServer.P_ALLOWEDIT,true);
-  resElement.put(CmsADEServer.P_LOCKED,false);
-  resElement.put(CmsADEServer.P_STATUS,"u");
+  CmsResourceUtil resUtil=new CmsResourceUtil(cms,resource);
+  resElement.put(CmsADEServer.P_ALLOWEDIT,resUtil.getLock().isLockableBy(cms.getRequestContext().currentUser()) && resUtil.isEditable());
+  resElement.put(CmsADEServer.P_LOCKED,resUtil.getLockedByName());
+  resElement.put(CmsADEServer.P_STATUS,"" + resUtil.getStateAbbreviation());
   JSONObject resContents=new JSONObject();
   resElement.put(CmsADEServer.P_CONTENTS,resContents);
   JSONObject formatters=new JSONObject();
   resElement.put(CmsADEServer.P_FORMATTERS,formatters);
-  CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,cms.readFile(resource));
-  Iterator it=content.getContentDefinition().getContentHandler().getFormatters().entrySet().iterator();
-  while (it.hasNext()) {
-    Map.Entry entry=(Map.Entry)it.next();
-    String type=(String)entry.getKey();
-    if (!types.contains(type) && !type.equals(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE)) {
-      continue;
+  if (resource.getTypeId() == CmsResourceTypeContainerPage.getStaticTypeId()) {
+    Iterator itTypes=types.iterator();
+    while (itTypes.hasNext()) {
+      String type=(String)itTypes.next();
+      formatters.put(type,"");
+      resContents.put(type,"");
     }
-    String formatterUri=(String)entry.getValue();
-    formatters.put(type,formatterUri);
-    try {
-      String jspResult=getElementContent(cms,resource,formatterUri,req,res);
-      resContents.put(type,jspResult);
+    JSONObject containers=LOADER.getCache(cms,resource,cms.getRequestContext().getLocale());
+    JSONObject container=containers.getJSONObject(containers.names().getString(0));
+    JSONArray subitems=new JSONArray();
+    resElement.put(CmsADEServer.P_SUBITEMS,subitems);
+    JSONArray elements=container.optJSONArray(CmsContainerPageLoader.N_ELEMENT);
+    int renderElems=elements.length();
+    for (int i=0; i < renderElems; i++) {
+      JSONObject element=elements.optJSONObject(i);
+      String id=element.optString(CmsContainerPageLoader.N_ID);
+      subitems.put(CmsADEElementManager.ADE_ID_PREFIX + id.toString());
     }
- catch (    Exception e) {
-      LOG.error(Messages.get().getBundle().key(Messages.ERR_GENERATE_FORMATTED_ELEMENT_3,cms.getSitePath(resource),formatterUri,type),e);
+  }
+ else {
+    CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,cms.readFile(resource));
+    Iterator it=content.getContentDefinition().getContentHandler().getFormatters().entrySet().iterator();
+    while (it.hasNext()) {
+      Map.Entry entry=(Map.Entry)it.next();
+      String type=(String)entry.getKey();
+      if (!types.contains(type) && !type.equals(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE)) {
+        continue;
+      }
+      String formatterUri=(String)entry.getValue();
+      formatters.put(type,formatterUri);
+      try {
+        String jspResult=getElementContent(cms,resource,formatterUri,req,res);
+        resContents.put(type,jspResult);
+      }
+ catch (      Exception e) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_GENERATE_FORMATTED_ELEMENT_3,cms.getSitePath(resource),formatterUri,type),e);
+      }
     }
   }
   return resElement;
