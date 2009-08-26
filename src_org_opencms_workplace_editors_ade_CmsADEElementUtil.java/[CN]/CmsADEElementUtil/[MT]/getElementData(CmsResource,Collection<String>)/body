@@ -1,0 +1,58 @@
+{
+  JSONObject resElement=new JSONObject();
+  resElement.put(CmsADEServer.P_ID,CmsADEElementUtil.ADE_ID_PREFIX + resource.getStructureId().toString());
+  resElement.put(CmsADEServer.P_FILE,m_cms.getSitePath(resource));
+  resElement.put(CmsADEServer.P_DATE,resource.getDateLastModified());
+  resElement.put(CmsADEServer.P_USER,m_cms.readUser(resource.getUserLastModified()).getName());
+  resElement.put(CmsADEServer.P_NAVTEXT,m_cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_NAVTEXT,false).getValue(""));
+  resElement.put(CmsADEServer.P_TITLE,m_cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(""));
+  CmsResourceUtil resUtil=new CmsResourceUtil(m_cms,resource);
+  resElement.put(CmsADEServer.P_ALLOWEDIT,resUtil.getLock().isLockableBy(m_cms.getRequestContext().currentUser()) && resUtil.isEditable());
+  resElement.put(CmsADEServer.P_LOCKED,resUtil.getLockedByName());
+  resElement.put(CmsADEServer.P_STATUS,"" + resUtil.getStateAbbreviation());
+  JSONObject resContents=new JSONObject();
+  resElement.put(CmsADEServer.P_CONTENTS,resContents);
+  JSONObject formatters=new JSONObject();
+  resElement.put(CmsADEServer.P_FORMATTERS,formatters);
+  if (resource.getTypeId() == CmsResourceTypeContainerPage.getStaticTypeId()) {
+    Iterator itTypes=types.iterator();
+    while (itTypes.hasNext()) {
+      String type=(String)itTypes.next();
+      formatters.put(type,"");
+      resContents.put(type,"");
+    }
+    JSONObject localeData=LOADER.getCache(m_cms,resource,m_cms.getRequestContext().getLocale());
+    JSONObject containers=localeData.optJSONObject(CmsContainerPageLoader.N_CONTAINER);
+    JSONObject container=containers.getJSONObject(containers.names().getString(0));
+    JSONArray subitems=new JSONArray();
+    resElement.put(CmsADEServer.P_SUBITEMS,subitems);
+    JSONArray elements=container.optJSONArray(CmsContainerPageLoader.N_ELEMENT);
+    int renderElems=elements.length();
+    for (int i=0; i < renderElems; i++) {
+      JSONObject element=elements.optJSONObject(i);
+      String id=element.optString(CmsContainerPageLoader.N_ID);
+      subitems.put(CmsADEElementUtil.ADE_ID_PREFIX + id.toString());
+    }
+  }
+ else {
+    CmsXmlContent content=CmsXmlContentFactory.unmarshal(m_cms,m_cms.readFile(resource));
+    Iterator it=content.getContentDefinition().getContentHandler().getFormatters().entrySet().iterator();
+    while (it.hasNext()) {
+      Map.Entry entry=(Map.Entry)it.next();
+      String type=(String)entry.getKey();
+      if (!types.contains(type) && !type.equals(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE)) {
+        continue;
+      }
+      String formatterUri=(String)entry.getValue();
+      formatters.put(type,formatterUri);
+      try {
+        String jspResult=getElementContent(resource,formatterUri);
+        resContents.put(type,jspResult);
+      }
+ catch (      Exception e) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_GENERATE_FORMATTED_ELEMENT_3,m_cms.getSitePath(resource),formatterUri,type),e);
+      }
+    }
+  }
+  return resElement;
+}
