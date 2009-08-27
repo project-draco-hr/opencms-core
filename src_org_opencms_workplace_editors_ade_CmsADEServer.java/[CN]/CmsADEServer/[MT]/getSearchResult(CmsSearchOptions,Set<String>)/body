@@ -1,0 +1,33 @@
+{
+  CmsObject cms=getCmsObject();
+  JSONObject result=new JSONObject();
+  JSONObject elements=new JSONObject();
+  result.put(P_ELEMENTS,elements);
+  String indexName=new CmsUserSettings(cms.getRequestContext().currentUser()).getWorkplaceSearchIndexName();
+  CmsSearchParameters params=new CmsSearchParameters(options.getText());
+  params.setIndex(indexName);
+  params.setMatchesPerPage(10);
+  params.setSearchPage(options.getPage() + 1);
+  CmsSearch searchBean=new CmsSearch();
+  searchBean.init(cms);
+  searchBean.setParameters(params);
+  searchBean.setSearchRoot(options.getLocation());
+  List searchResults=searchBean.getSearchResult();
+  CmsElementUtil elemUtil=new CmsElementUtil(cms,getRequest(),getResponse());
+  Iterator it=searchResults.iterator();
+  while (it.hasNext()) {
+    CmsSearchResult sr=(CmsSearchResult)it.next();
+    String uri=cms.getRequestContext().removeSiteRoot(sr.getPath());
+    try {
+      JSONObject resElement=elemUtil.getElementData(uri,types);
+      elements.put(resElement.getString(P_ID),resElement);
+    }
+ catch (    Exception e) {
+      LOG.warn(e.getLocalizedMessage(),e);
+    }
+  }
+  int results=searchBean.getSearchPage() * searchBean.getMatchesPerPage();
+  boolean hasMore=(searchBean.getSearchResultCount() > results);
+  result.put(P_HASMORE,hasMore);
+  return result;
+}

@@ -1,61 +1,73 @@
 {
   JSONObject result=new JSONObject();
-  String objParam=getRequest().getParameter(PARAMETER_OBJ);
+  HttpServletRequest request=getRequest();
+  String objParam=request.getParameter(PARAMETER_OBJ);
   if (objParam == null) {
     result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_OBJ));
     return result;
   }
-  String urlParam=getRequest().getParameter(PARAMETER_URL);
+  String urlParam=request.getParameter(PARAMETER_URL);
   if (urlParam == null) {
     result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_URL));
     return result;
   }
+  CmsObject cms=getCmsObject();
+  CmsResource cntPageRes=cms.readResource(urlParam);
+  CmsContainerPageBean cntPage=CmsContainerPageCache.getInstance().getCache(cms,cntPageRes,cms.getRequestContext().getLocale());
   if (objParam.equals(OBJ_ALL)) {
-    result=getContainerPage(urlParam);
+    result=getContainerPage(cntPageRes,cntPage);
   }
  else   if (objParam.equals(OBJ_ELEM)) {
-    String elemParam=getRequest().getParameter(PARAMETER_ELEM);
+    String elemParam=request.getParameter(PARAMETER_ELEM);
     if (elemParam == null) {
       result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_ELEM));
       return result;
     }
-    CmsADEElementUtil elemUtil=new CmsADEElementUtil(getCmsObject(),getRequest(),getResponse());
-    Collection<String> types=getContainerPageTypes(urlParam);
+    CmsElementUtil elemUtil=new CmsElementUtil(cms,request,getResponse());
     JSONObject resElements=new JSONObject();
     if (elemParam.startsWith("[")) {
       JSONArray elems=new JSONArray(elemParam);
       for (int i=0; i < elems.length(); i++) {
         String elem=elems.getString(i);
-        resElements.put(elem,elemUtil.getElementData(CmsADEElementUtil.parseId(elem),types));
+        resElements.put(elem,elemUtil.getElementData(CmsElementUtil.parseId(elem),cntPage.getTypes()));
       }
     }
  else {
-      resElements.put(elemParam,elemUtil.getElementData(CmsADEElementUtil.parseId(elemParam),types));
+      resElements.put(elemParam,elemUtil.getElementData(CmsElementUtil.parseId(elemParam),cntPage.getTypes()));
     }
     result.put(P_ELEMENTS,resElements);
   }
  else   if (objParam.equals(OBJ_FAV)) {
-    result.put(P_FAVORITES,getFavoriteList(null,getContainerPageTypes(urlParam)));
+    result.put(P_FAVORITES,getFavoriteList(null,cntPage.getTypes()));
   }
  else   if (objParam.equals(OBJ_REC)) {
-    result.put(P_RECENT,CmsADERecentListManager.getInstance().getRecentList(getCmsObject(),null,getContainerPageTypes(urlParam),getRequest(),getResponse()));
+    result.put(P_RECENT,CmsRecentListManager.getInstance().getRecentList(cms,null,cntPage.getTypes(),request,getResponse()));
+  }
+ else   if (objParam.equals(OBJ_SEARCH)) {
+    String containerPageUri=request.getParameter(PARAMETER_URL);
+    if (containerPageUri == null) {
+      result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_URL));
+      return result;
+    }
+    CmsSearchOptions searchOptions=new CmsSearchOptions(request);
+    JSONObject searchResult=getSearchResult(searchOptions,cntPage.getTypes());
+    result.merge(searchResult,true,false);
   }
  else   if (objParam.equals(OBJ_NEW)) {
-    String dataParam=getRequest().getParameter(PARAMETER_DATA);
+    String dataParam=request.getParameter(PARAMETER_DATA);
     if (dataParam == null) {
       result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_DATA));
       return result;
     }
-    String containerPageUri=getRequest().getParameter(PARAMETER_URL);
+    String containerPageUri=request.getParameter(PARAMETER_URL);
     if (containerPageUri == null) {
       result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_URL));
       return result;
     }
     String type=dataParam;
-    CmsObject cms=getCmsObject();
-    CmsADEElementCreator elemCreator=new CmsADEElementCreator(cms,cms.readResource(containerPageUri));
+    CmsElementCreator elemCreator=new CmsElementCreator(cms,cms.readResource(containerPageUri));
     CmsResource newResource=elemCreator.createElement(cms,type);
-    result.put(P_ID,CmsADEElementUtil.ADE_ID_PREFIX + newResource.getStructureId().toString());
+    result.put(P_ID,CmsElementUtil.createId(newResource.getStructureId()));
     result.put(P_URI,cms.getSitePath(newResource));
   }
  else {
