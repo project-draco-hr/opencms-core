@@ -7,21 +7,11 @@
   result.put(P_CONTAINERS,resContainers);
   result.put(P_LOCALE,cms.getRequestContext().getLocale().toString());
   CmsResourceUtil resUtil=new CmsResourceUtil(cms,resource);
+  Set<String> types=cntPage.getTypes();
   result.put(CmsADEServer.P_ALLOWEDIT,resUtil.getLock().isLockableBy(cms.getRequestContext().currentUser()) && resUtil.isEditable());
   result.put(CmsADEServer.P_LOCKED,resUtil.getLockedByName());
-  Set<String> types=cntPage.getTypes();
+  resElements.merge(getNewElements(cntPage.getNewConfig(),types),false,false);
   CmsElementUtil elemUtil=new CmsElementUtil(cms,getRequest(),getResponse());
-  CmsElementCreator creator=new CmsElementCreator(cms,cntPage.getNewConfig());
-  Map<String,CmsTypeConfigurationItem> typeConfig=creator.getConfiguration();
-  for (  Map.Entry<String,CmsTypeConfigurationItem> entry : typeConfig.entrySet()) {
-    String type=entry.getKey();
-    String elementUri=entry.getValue().getSourceFile();
-    JSONObject resElement=elemUtil.getElementData(elementUri,types);
-    resElement.put(P_ID,type);
-    resElement.put(P_STATUS,"n");
-    resElement.put(P_TYPE,type);
-    resElements.put(type,resElement);
-  }
   Set<CmsUUID> ids=new HashSet<CmsUUID>();
   for (  Map.Entry<String,CmsContainerBean> entry : cntPage.getContainers().entrySet()) {
     CmsContainerBean container=entry.getValue();
@@ -41,14 +31,13 @@
       }
       renderElems--;
       String id=CmsElementUtil.createId(element.getElement().getStructureId());
+      resContainerElems.put(id);
       if (ids.contains(element.getElement().getStructureId())) {
-        resContainerElems.put(id);
         continue;
       }
       JSONObject resElement=elemUtil.getElementData(element.getElement(),types);
       ids.add(element.getElement().getStructureId());
       resElements.put(id,resElement);
-      resContainerElems.put(id);
     }
     resContainers.put(container.getName(),resContainer);
   }
