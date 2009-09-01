@@ -1,0 +1,69 @@
+{
+  CmsObject cms=OpenCms.initCmsObject(m_adminCms);
+  if (report == null) {
+    report=new CmsLogReport(cms.getRequestContext().getLocale(),CmsSearchManager.class);
+  }
+  if (!index.checkConfiguration(cms)) {
+    return;
+  }
+  cms.getRequestContext().setSiteRoot("/");
+  cms.getRequestContext().setCurrentProject(cms.readProject(index.getProject()));
+  if ((resourcesToIndex == null) || resourcesToIndex.isEmpty()) {
+    forceIndexUnlock(index,report,false);
+    CmsIndexingThreadManager threadManager=new CmsIndexingThreadManager(m_timeout);
+    boolean isOfflineIndex=false;
+    if (CmsSearchIndex.REBUILD_MODE_OFFLINE.equals(index.getRebuildMode())) {
+      isOfflineIndex=true;
+      index.setRebuildMode(CmsSearchIndex.REBUILD_MODE_MANUAL);
+      initOfflineIndexes();
+    }
+    IndexWriter writer=null;
+    try {
+      writer=index.getIndexWriter(true);
+      report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_REBUILD_BEGIN_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
+      Iterator<CmsSearchIndexSource> sources=index.getSources().iterator();
+      while (sources.hasNext()) {
+        CmsSearchIndexSource source=sources.next();
+        I_CmsIndexer indexer=source.getIndexer().newInstance(cms,report,index);
+        indexer.rebuildIndex(writer,threadManager,source);
+      }
+      while (threadManager.isRunning()) {
+        try {
+          wait(1000);
+        }
+ catch (        InterruptedException e) {
+        }
+      }
+      try {
+        writer.optimize();
+      }
+ catch (      IOException e) {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_WRITER_OPTIMIZE_1,index.getPath(),index.getName()),e);
+        }
+      }
+      report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_REBUILD_END_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
+    }
+  finally {
+      if (writer != null) {
+        try {
+          writer.close();
+        }
+ catch (        IOException e) {
+          if (LOG.isWarnEnabled()) {
+            LOG.warn(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_WRITER_CLOSE_2,index.getPath(),index.getName()),e);
+          }
+        }
+      }
+      if (isOfflineIndex) {
+        index.setRebuildMode(CmsSearchIndex.REBUILD_MODE_OFFLINE);
+        initOfflineIndexes();
+      }
+      index.indexSearcherOpen();
+    }
+    threadManager.reportStatistics(report);
+  }
+ else {
+    updateIndexIncremental(cms,index,report,resourcesToIndex);
+  }
+}

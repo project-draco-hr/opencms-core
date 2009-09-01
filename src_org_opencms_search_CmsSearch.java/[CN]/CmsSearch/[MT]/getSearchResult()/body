@@ -1,8 +1,20 @@
 {
-  if ((m_cms != null) && (m_result == null) && (m_parameters.getIndex() != null)&& CmsStringUtil.isNotEmpty(m_parameters.getQuery())) {
-    if ((getQueryLength() > 0) && (m_parameters.getQuery().trim().length() < getQueryLength())) {
-      m_lastException=new CmsSearchException(Messages.get().container(Messages.ERR_QUERY_TOO_SHORT_1,new Integer(getQueryLength())));
-      return m_result;
+  if ((m_cms != null) && (m_result == null) && (m_parameters.getIndex() != null)&& ((CmsStringUtil.isNotEmpty(m_parameters.getQuery()) || (m_parameters.getFieldQueries() != null)))) {
+    if (getQueryLength() > 0) {
+      if (m_parameters.getFieldQueries() != null) {
+        Iterator<CmsSearchParameters.CmsSearchFieldQuery> i=m_parameters.getFieldQueries().iterator();
+        while (i.hasNext()) {
+          CmsSearchParameters.CmsSearchFieldQuery fq=i.next();
+          if (CmsStringUtil.isEmpty(fq.getSearchQuery()) || (fq.getSearchQuery().trim().length() < getQueryLength())) {
+            m_lastException=new CmsSearchException(Messages.get().container(Messages.ERR_QUERY_TOO_SHORT_1,new Integer(getQueryLength())));
+            return null;
+          }
+        }
+      }
+ else       if (m_parameters.getQuery().trim().length() < getQueryLength()) {
+        m_lastException=new CmsSearchException(Messages.get().container(Messages.ERR_QUERY_TOO_SHORT_1,new Integer(getQueryLength())));
+        return null;
+      }
     }
     try {
       CmsSearchResultList result=m_parameters.getSearchIndex().search(m_cms,getParameters());
@@ -23,7 +35,7 @@
         }
       }
  else {
-        m_result=Collections.EMPTY_LIST;
+        m_result=Collections.emptyList();
         m_searchResultCount=0;
         m_categoriesFound=null;
         m_pageCount=0;

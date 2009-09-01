@@ -19,7 +19,7 @@
     TermsFilter pathFilter=new TermsFilter();
     if ((params.getRoots() != null) && (params.getRoots().size() > 0)) {
       for (int i=0; i < params.getRoots().size(); i++) {
-        String searchRoot=searchCms.getRequestContext().addSiteRoot((String)params.getRoots().get(i));
+        String searchRoot=searchCms.getRequestContext().addSiteRoot(params.getRoots().get(i));
         extendPathFilter(pathFilter,searchRoot);
       }
     }
@@ -30,12 +30,44 @@
     if ((params.getCategories() != null) && (params.getCategories().size() > 0)) {
       filter.add(new FilterClause(getMultiTermQueryFilter(CmsSearchField.FIELD_CATEGORY,params.getCategories()),BooleanClause.Occur.MUST));
     }
+    if ((params.getResourceTypes() != null) && (params.getResourceTypes().size() > 0)) {
+      filter.add(new FilterClause(getMultiTermQueryFilter(CmsSearchField.FIELD_TYPE,params.getResourceTypes()),BooleanClause.Occur.MUST));
+    }
     BooleanQuery query=new BooleanQuery();
     Query fieldsQuery;
-    if ((params.getFields() != null) && (params.getFields().size() > 0)) {
+    if (params.getFieldQueries() != null) {
+      BooleanQuery mustOccur=null;
+      BooleanQuery shouldOccur=null;
+      Iterator<CmsSearchParameters.CmsSearchFieldQuery> i=params.getFieldQueries().iterator();
+      while (i.hasNext()) {
+        CmsSearchParameters.CmsSearchFieldQuery fq=i.next();
+        QueryParser p=new QueryParser(fq.getFieldName(),getAnalyzer());
+        if (BooleanClause.Occur.SHOULD.equals(fq.getOccur())) {
+          if (shouldOccur == null) {
+            shouldOccur=new BooleanQuery();
+          }
+          shouldOccur.add(p.parse(fq.getSearchQuery()),fq.getOccur());
+        }
+ else {
+          if (mustOccur == null) {
+            mustOccur=new BooleanQuery();
+          }
+          mustOccur.add(p.parse(fq.getSearchQuery()),fq.getOccur());
+        }
+      }
+      BooleanQuery booleanFieldsQuery=new BooleanQuery();
+      if (mustOccur != null) {
+        booleanFieldsQuery.add(mustOccur,BooleanClause.Occur.MUST);
+      }
+      if (shouldOccur != null) {
+        booleanFieldsQuery.add(shouldOccur,BooleanClause.Occur.MUST);
+      }
+      fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
+    }
+ else     if ((params.getFields() != null) && (params.getFields().size() > 0)) {
       BooleanQuery booleanFieldsQuery=new BooleanQuery();
       for (int i=0; i < params.getFields().size(); i++) {
-        QueryParser p=new QueryParser((String)params.getFields().get(i),getAnalyzer());
+        QueryParser p=new QueryParser(params.getFields().get(i),getAnalyzer());
         booleanFieldsQuery.add(p.parse(params.getQuery()),BooleanClause.Occur.SHOULD);
       }
       fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
