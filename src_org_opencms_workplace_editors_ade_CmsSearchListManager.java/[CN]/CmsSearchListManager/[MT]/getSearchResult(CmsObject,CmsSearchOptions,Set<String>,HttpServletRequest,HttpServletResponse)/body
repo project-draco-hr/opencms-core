@@ -1,22 +1,27 @@
 {
-  CmsObject cms=getCmsObject();
   JSONObject result=new JSONObject();
   JSONArray elements=new JSONArray();
-  result.put(P_ELEMENTS,elements);
-  String indexName=new CmsUserSettings(cms.getRequestContext().currentUser()).getWorkplaceSearchIndexName();
+  result.put(CmsADEServer.P_ELEMENTS,elements);
+  CmsUser user=cms.getRequestContext().currentUser();
+  String indexName=new CmsUserSettings(user).getWorkplaceSearchIndexName();
+  Integer pageSize=(Integer)user.getAdditionalInfo(ADDINFO_ADE_SEARCHPAGE_SIZE);
+  if (pageSize == null) {
+    pageSize=new Integer(DEFAULT_SEARCHPAGE_SIZE);
+  }
   CmsSearchParameters params=new CmsSearchParameters(options.getText());
   params.setIndex(indexName);
-  params.setMatchesPerPage(10);
+  params.setMatchesPerPage(pageSize.intValue());
   params.setSearchPage(options.getPage() + 1);
+  params.setResourceTypes(CmsStringUtil.splitAsList(options.getType(),","));
   CmsSearch searchBean=new CmsSearch();
   searchBean.init(cms);
   searchBean.setParameters(params);
   searchBean.setSearchRoot(options.getLocation());
-  List searchResults=searchBean.getSearchResult();
-  CmsElementUtil elemUtil=new CmsElementUtil(cms,getRequest(),getResponse());
-  Iterator it=searchResults.iterator();
+  List<CmsSearchResult> searchResults=searchBean.getSearchResult();
+  CmsElementUtil elemUtil=new CmsElementUtil(cms,req,res);
+  Iterator<CmsSearchResult> it=searchResults.iterator();
   while (it.hasNext()) {
-    CmsSearchResult sr=(CmsSearchResult)it.next();
+    CmsSearchResult sr=it.next();
     String uri=cms.getRequestContext().removeSiteRoot(sr.getPath());
     try {
       JSONObject resElement=elemUtil.getElementData(uri,types);
@@ -28,6 +33,7 @@
   }
   int results=searchBean.getSearchPage() * searchBean.getMatchesPerPage();
   boolean hasMore=(searchBean.getSearchResultCount() > results);
-  result.put(P_HASMORE,hasMore);
+  result.put(CmsADEServer.P_HASMORE,hasMore);
+  m_searchOptionsCache.put(user.getId(),options);
   return result;
 }
