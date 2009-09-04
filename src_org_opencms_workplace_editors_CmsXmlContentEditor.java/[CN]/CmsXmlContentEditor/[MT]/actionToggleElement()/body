@@ -13,13 +13,31 @@
  catch (  Exception e) {
   }
   if (getAction() == ACTION_ELEMENT_REMOVE) {
+    I_CmsXmlContentValue value=m_content.getValue(getParamElementName(),getElementLocale(),index);
     m_content.removeValue(getParamElementName(),getElementLocale(),index);
+    if (value.isChoiceOption() && (m_content.getSubValues(CmsXmlUtils.removeLastXpathElement(getParamElementName()),getElementLocale()).size() == 0)) {
+      String xpath=CmsXmlUtils.removeLastXpathElement(getParamElementName());
+      m_content.removeValue(xpath,getElementLocale(),CmsXmlUtils.getXpathIndexInt(xpath) - 1);
+    }
   }
  else {
     if (m_content.hasValue(getParamElementName(),getElementLocale())) {
       index+=1;
     }
-    m_content.addValue(getCms(),getParamElementName(),getElementLocale(),index);
+    String elementPath=getParamElementName();
+    if (CmsStringUtil.isNotEmpty(getParamChoiceElement())) {
+      boolean choiceType=Boolean.valueOf(getParamChoiceType()).booleanValue();
+      if (!choiceType) {
+        elementPath=CmsXmlUtils.removeLastXpathElement(elementPath);
+      }
+ else {
+        m_content.addValue(getCms(),elementPath,getElementLocale(),index);
+        elementPath=CmsXmlUtils.createXpathElement(elementPath,index + 1);
+        index=0;
+      }
+      elementPath+="/" + getParamChoiceElement();
+    }
+    m_content.addValue(getCms(),elementPath,getElementLocale(),index);
   }
   if (getValidationHandler().hasWarnings(getElementLocale())) {
     resetErrorHandler();

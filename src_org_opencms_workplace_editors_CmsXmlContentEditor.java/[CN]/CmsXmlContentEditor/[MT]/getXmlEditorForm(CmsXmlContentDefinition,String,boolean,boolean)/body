@@ -21,11 +21,11 @@
       result.append("</div>");
       if (differentLocaleErrors) {
         result.append("<div id=\"xmlerrordialog\" style=\"display: none;\">");
-        Map locErrors=getValidationHandler().getErrors();
-        Iterator locErrorsIter=locErrors.entrySet().iterator();
+        Map<Locale,Map<String,String>> locErrors=getValidationHandler().getErrors();
+        Iterator<Map.Entry<Locale,Map<String,String>>> locErrorsIter=locErrors.entrySet().iterator();
         while (locErrorsIter.hasNext()) {
-          Map.Entry locEntry=(Map.Entry)locErrorsIter.next();
-          Locale locale=(Locale)locEntry.getKey();
+          Map.Entry<Locale,Map<String,String>> locEntry=locErrorsIter.next();
+          Locale locale=locEntry.getKey();
           if (getElementLocale().equals(locale)) {
             continue;
           }
@@ -33,12 +33,12 @@
           result.append(key(Messages.ERR_EDITOR_XMLCONTENT_VALIDATION_ERROR_LANG_1,new Object[]{locale.getLanguage()}));
           result.append("</strong></div>\n");
           result.append("<ul>");
-          Map elErrors=(Map)locEntry.getValue();
-          Iterator elErrorsIter=elErrors.entrySet().iterator();
+          Map<String,String> elErrors=locEntry.getValue();
+          Iterator<Map.Entry<String,String>> elErrorsIter=elErrors.entrySet().iterator();
           while (elErrorsIter.hasNext()) {
-            Map.Entry elEntry=(Map.Entry)elErrorsIter.next();
-            String nodeName=(String)elEntry.getKey();
-            String errorMsg=(String)elEntry.getValue();
+            Map.Entry<String,String> elEntry=elErrorsIter.next();
+            String nodeName=elEntry.getKey();
+            String errorMsg=elEntry.getValue();
             result.append("<li>");
             result.append(nodeName);
             result.append(": ");
@@ -67,8 +67,8 @@
       useTabs=contentDefinition.getContentHandler().getTabs().size() > 0;
       if (useTabs) {
         result.append("<div id=\"xmltabs\" class=\"ui-tabs\">\n<ul>\n");
-        for (Iterator i=contentDefinition.getContentHandler().getTabs().iterator(); i.hasNext(); ) {
-          CmsXmlContentTab tab=(CmsXmlContentTab)i.next();
+        for (Iterator<CmsXmlContentTab> i=contentDefinition.getContentHandler().getTabs().iterator(); i.hasNext(); ) {
+          CmsXmlContentTab tab=i.next();
           result.append("\t<li id=\"OcmsTabTab").append(tab.getStartName()).append("\"><a href=\"#OcmsTab");
           result.append(tab.getStartName());
           result.append("\"><span>");
@@ -78,8 +78,9 @@
         result.append("</ul>\n");
       }
     }
-    for (Iterator i=contentDefinition.getTypeSequence().iterator(); i.hasNext(); ) {
-      I_CmsXmlSchemaType type=(I_CmsXmlSchemaType)i.next();
+    Iterator<I_CmsXmlSchemaType> it=contentDefinition.getChoiceMaxOccurs() > 0 ? contentDefinition.getTypeSequence().subList(0,1).iterator() : contentDefinition.getTypeSequence().iterator();
+    while (it.hasNext()) {
+      I_CmsXmlSchemaType type=it.next();
       boolean tabCurrentlyOpened=false;
       if (useTabs) {
         for (int tabIndex=0; tabIndex < contentDefinition.getContentHandler().getTabs().size(); tabIndex++) {
@@ -114,24 +115,12 @@
         result.append("\">\n");
         firstElement=false;
       }
-      CmsXmlContentDefinition nestedContentDefinition=contentDefinition;
-      if (!type.isSimpleType()) {
-        CmsXmlNestedContentDefinition nestedSchema=(CmsXmlNestedContentDefinition)type;
-        nestedContentDefinition=nestedSchema.getNestedContentDefinition();
-      }
-      String name=pathPrefix + type.getName();
-      CmsXmlContentValueSequence elementSequence=m_content.getValueSequence(name,getElementLocale());
+      CmsXmlContentValueSequence elementSequence=m_content.getValueSequence(pathPrefix + type.getName(),getElementLocale());
       int elementCount=elementSequence.getElementCount();
-      boolean addValue=false;
-      if (elementCount < type.getMaxOccurs()) {
-        addValue=true;
-      }
-      boolean removeValue=false;
-      if (elementCount > type.getMinOccurs()) {
-        removeValue=true;
-      }
+      boolean addValue=elementCount < elementSequence.getMaxOccurs();
+      boolean removeValue=elementCount > elementSequence.getMinOccurs();
       boolean disabledElement=false;
-      if (elementCount < 1) {
+      if ((contentDefinition.getChoiceMaxOccurs() == 0) && (elementCount < 1)) {
         elementCount=1;
         elementSequence.addValue(getCms(),0);
         disabledElement=true;
@@ -139,17 +128,13 @@
       }
       for (int j=0; j < elementCount; j++) {
         I_CmsXmlContentValue value=elementSequence.getValue(j);
-        I_CmsWidget widget=null;
-        if (type.isSimpleType()) {
-          widget=contentDefinition.getContentHandler().getWidget(value);
-        }
         String key=value.getPath();
         if (showErrors && getValidationHandler().hasErrors(getElementLocale()) && getValidationHandler().getErrors(getElementLocale()).containsKey(key)) {
           if (collapseLabel) {
             result.append("<tr><td class=\"xmlTdError\"><img src=\"");
             result.append(getEditorResourceUri());
             result.append("error.png\" border=\"0\" alt=\"\" align=\"left\" hspace=\"5\">");
-            result.append(resolveMacros((String)getValidationHandler().getErrors(getElementLocale()).get(key)));
+            result.append(resolveMacros(getValidationHandler().getErrors(getElementLocale()).get(key)));
             result.append("</td><td></td></tr>\n");
           }
  else {
@@ -157,11 +142,11 @@
             result.append(getEditorResourceUri());
             result.append("error.png");
             result.append("\" border=\"0\" alt=\"\"></td><td class=\"xmlTdError\">");
-            result.append(resolveMacros((String)getValidationHandler().getErrors(getElementLocale()).get(key)));
+            result.append(resolveMacros(getValidationHandler().getErrors(getElementLocale()).get(key)));
             result.append("</td><td></td></tr>\n");
           }
           String elemName=CmsXmlUtils.getFirstXpathElement(value.getPath());
-          if (((m_currentTab != null) && !m_errorTabs.contains(m_currentTab)) && (elemName.equals(m_currentTab.getStartName()) || (!CmsXmlUtils.isDeepXpath(value.getPath()) && type.getName().equals(elemName)))) {
+          if (((m_currentTab != null) && !m_errorTabs.contains(m_currentTab)) && (elemName.equals(m_currentTab.getStartName()) || (!CmsXmlUtils.isDeepXpath(value.getPath()) && value.getName().equals(elemName)))) {
             m_errorTabs.add(m_currentTab);
           }
         }
@@ -170,7 +155,7 @@
             result.append("<tr><td class=\"xmlTdError\"><img src=\"");
             result.append(getEditorResourceUri());
             result.append("warning.png\" border=\"0\" alt=\"\" align=\"left\" hspace=\"5\">");
-            result.append(resolveMacros((String)getValidationHandler().getWarnings(getElementLocale()).get(key)));
+            result.append(resolveMacros(getValidationHandler().getWarnings(getElementLocale()).get(key)));
             result.append("</td><td></td></tr>\n");
           }
  else {
@@ -178,14 +163,16 @@
             result.append(getEditorResourceUri());
             result.append("warning.png");
             result.append("\" border=\"0\" alt=\"\"></td><td class=\"xmlTdWarning\">");
-            result.append(resolveMacros((String)getValidationHandler().getWarnings(getElementLocale()).get(key)));
+            result.append(resolveMacros(getValidationHandler().getWarnings(getElementLocale()).get(key)));
             result.append("</td><td></td></tr>\n");
           }
           String elemName=CmsXmlUtils.getFirstXpathElement(value.getPath());
-          if (((m_currentTab != null) && !m_warningTabs.contains(m_currentTab)) && (elemName.equals(m_currentTab.getStartName()) || (!CmsXmlUtils.isDeepXpath(value.getPath()) && type.getName().equals(elemName)))) {
+          if (((m_currentTab != null) && !m_warningTabs.contains(m_currentTab)) && (elemName.equals(m_currentTab.getStartName()) || (!CmsXmlUtils.isDeepXpath(value.getPath()) && value.getName().equals(elemName)))) {
             m_warningTabs.add(m_currentTab);
           }
         }
+        I_CmsWidget widget=value.isSimpleType() ? contentDefinition.getContentHandler().getWidget(value) : null;
+        int index=value.getIndex();
         result.append("<tr>");
         if (!collapseLabel) {
           result.append("<td class=\"xmlLabel");
@@ -195,35 +182,34 @@
           result.append("\">");
           result.append(keyDefault(A_CmsWidget.getLabelKey((I_CmsWidgetParameter)value),value.getName()));
           if (elementCount > 1) {
-            result.append(" [").append(value.getIndex() + 1).append("]");
+            result.append(" [").append(index + 1).append("]");
           }
           result.append(": </td>");
-          if (showHelpBubble && (widget != null) && (value.getIndex() == 0)) {
+          if (showHelpBubble && (widget != null) && (CmsXmlUtils.getXpathIndexInt(value.getPath()) == 1)) {
             result.append(widget.getHelpBubble(getCms(),this,(I_CmsWidgetParameter)value));
           }
  else {
             result.append(buttonBarSpacer(16));
           }
         }
-        if (!disabledElement) {
-          if (widget == null) {
-            String newPath=CmsXmlUtils.createXpathElement(value.getName(),value.getIndex() + 1);
-            result.append("<td class=\"maxwidth\">");
-            boolean showHelp=(j == 0);
-            superTabOpened=!nested && tabOpened && collapseLabel;
-            result.append(getXmlEditorForm(nestedContentDefinition,pathPrefix + newPath + "/",showHelp,superTabOpened));
-            result.append("</td>");
-          }
- else {
-            result.append(widget.getDialogWidget(getCms(),this,(I_CmsWidgetParameter)value));
-          }
-        }
- else {
+        if (disabledElement) {
           result.append("<td class=\"xmlTdDisabled maxwidth\">");
           result.append(key(Messages.GUI_EDITOR_XMLCONTENT_OPTIONALELEMENT_0));
           result.append("</td>");
         }
-        result.append(buildElementButtons(name,value.getIndex(),addValue,removeValue));
+ else {
+          if (value.isSimpleType()) {
+            result.append(widget.getDialogWidget(getCms(),this,(I_CmsWidgetParameter)value));
+          }
+ else {
+            result.append("<td class=\"maxwidth\">");
+            boolean showHelp=(j == 0);
+            superTabOpened=!nested && tabOpened && collapseLabel;
+            result.append(getXmlEditorForm(((CmsXmlNestedContentDefinition)value).getNestedContentDefinition(),value.getPath() + "/",showHelp,superTabOpened));
+            result.append("</td>");
+          }
+        }
+        result.append(buildElementButtons(pathPrefix + value.getName(),value,addValue,removeValue));
         result.append("</tr>\n");
       }
     }
@@ -234,14 +220,14 @@
     if (!nested && useTabs) {
       result.append("</div>\n");
       result.append("<script type=\"text/javascript\">\n");
-      for (Iterator i=m_warningTabs.iterator(); i.hasNext(); ) {
-        CmsXmlContentTab checkTab=(CmsXmlContentTab)i.next();
+      for (Iterator<CmsXmlContentTab> i=m_warningTabs.iterator(); i.hasNext(); ) {
+        CmsXmlContentTab checkTab=i.next();
         if (!m_errorTabs.contains(checkTab)) {
           result.append("\txmlWarningTabs[xmlWarningTabs.length] = \"").append(checkTab.getStartName()).append("\";\n");
         }
       }
-      for (Iterator i=m_errorTabs.iterator(); i.hasNext(); ) {
-        CmsXmlContentTab checkTab=(CmsXmlContentTab)i.next();
+      for (Iterator<CmsXmlContentTab> i=m_errorTabs.iterator(); i.hasNext(); ) {
+        CmsXmlContentTab checkTab=i.next();
         result.append("\txmlErrorTabs[xmlErrorTabs.length] = \"").append(checkTab.getStartName()).append("\";\n");
       }
       result.append("</script>\n");

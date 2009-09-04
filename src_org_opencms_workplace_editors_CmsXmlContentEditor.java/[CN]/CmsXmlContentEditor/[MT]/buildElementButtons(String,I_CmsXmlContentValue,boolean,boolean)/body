@@ -1,6 +1,7 @@
 {
   StringBuffer jsCall=new StringBuffer(512);
   boolean buttonPresent=false;
+  int index=value.getIndex();
   jsCall.append("showElementButtons('");
   jsCall.append(elementName);
   jsCall.append("', ");
@@ -38,6 +39,29 @@
  else {
     jsCall.append(Boolean.FALSE);
   }
+  jsCall.append(", ");
+  JSONArray newElements=new JSONArray();
+  if (m_content.hasChoiceOptions(elementName + "[" + (index + 1)+ "]",getElementLocale())) {
+    JSONObject info=new JSONObject();
+    try {
+      info.put("choicetype",value.isChoiceType());
+      newElements.put(info);
+      List<I_CmsXmlSchemaType> options=m_content.getChoiceOptions(elementName + "[" + (index + 1)+ "]",getElementLocale());
+      for (Iterator<I_CmsXmlSchemaType> i=options.iterator(); i.hasNext(); ) {
+        I_CmsXmlSchemaType type=i.next();
+        JSONObject option=new JSONObject();
+        String label=keyDefault(A_CmsWidget.LABEL_PREFIX + type.getContentDefinition().getInnerName() + "."+ type.getName(),type.getName());
+        option.put("name",type.getName());
+        option.put("label",label);
+        boolean isChoice=m_content.getContentDefinition().getSchemaType(elementName + "/" + type.getName()).isChoiceType();
+        option.put("ischoice",isChoice);
+        newElements.put(option);
+      }
+    }
+ catch (    JSONException e) {
+    }
+  }
+  jsCall.append("'").append(CmsEncoder.escape(newElements.toString(),CmsEncoder.ENCODING_UTF_8)).append("'");
   jsCall.append(");");
   String result;
   if (buttonPresent) {
@@ -53,6 +77,7 @@
       action.append(elementName);
       action.append("', ");
       action.append(index);
+      action.append(", '").append(CmsEncoder.escape(newElements.toString(),CmsEncoder.ENCODING_UTF_8)).append("'");
       action.append(");");
       btAction=action.toString();
     }
