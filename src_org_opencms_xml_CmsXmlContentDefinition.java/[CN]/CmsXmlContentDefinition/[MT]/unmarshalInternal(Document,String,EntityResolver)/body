@@ -3,19 +3,19 @@
   if (!XSD_NODE_SCHEMA.equals(root.getQName())) {
     throw new CmsXmlException(Messages.get().container(Messages.ERR_CD_NO_SCHEMA_NODE_0));
   }
-  List includes=root.elements(XSD_NODE_INCLUDE);
+  List<Element> includes=CmsXmlGenericWrapper.elements(root,XSD_NODE_INCLUDE);
   if (includes.size() < 1) {
     throw new CmsXmlException(Messages.get().container(Messages.ERR_CD_ONE_INCLUDE_REQUIRED_0));
   }
-  Element include=(Element)includes.get(0);
+  Element include=includes.get(0);
   String target=validateAttribute(include,XSD_ATTRIBUTE_SCHEMA_LOCATION,null);
   if (!XSD_INCLUDE_OPENCMS.equals(target)) {
     throw new CmsXmlException(Messages.get().container(Messages.ERR_CD_FIRST_INCLUDE_2,XSD_INCLUDE_OPENCMS,target));
   }
-  Set nestedDefinitions=new HashSet();
+  Set<CmsXmlContentDefinition> nestedDefinitions=new HashSet<CmsXmlContentDefinition>();
   if (includes.size() > 1) {
     for (int i=1; i < includes.size(); i++) {
-      Element inc=(Element)includes.get(i);
+      Element inc=includes.get(i);
       String schemaLoc=validateAttribute(inc,XSD_ATTRIBUTE_SCHEMA_LOCATION,null);
       InputSource source=null;
       try {
@@ -28,46 +28,48 @@
       nestedDefinitions.add(xmlContentDefinition);
     }
   }
-  List elements=root.elements(XSD_NODE_ELEMENT);
+  List<Element> elements=CmsXmlGenericWrapper.elements(root,XSD_NODE_ELEMENT);
   if (elements.size() != 1) {
     throw new CmsXmlException(Messages.get().container(Messages.ERR_CD_ROOT_ELEMENT_COUNT_1,XSD_INCLUDE_OPENCMS,new Integer(elements.size())));
   }
-  Element main=(Element)elements.get(0);
+  Element main=elements.get(0);
   String name=validateAttribute(main,XSD_ATTRIBUTE_NAME,null);
-  List complexTypes=root.elements(XSD_NODE_COMPLEXTYPE);
+  List<Element> complexTypes=CmsXmlGenericWrapper.elements(root,XSD_NODE_COMPLEXTYPE);
   if (complexTypes.size() != 2) {
     throw new CmsXmlException(Messages.get().container(Messages.ERR_CD_COMPLEX_TYPE_COUNT_1,new Integer(complexTypes.size())));
   }
   CmsXmlContentDefinition result=new CmsXmlContentDefinition(name,null,schemaLocation);
   result.m_includes=nestedDefinitions;
   result.m_schemaDocument=document;
-  List complexTypeData=new ArrayList();
-  Iterator ct=complexTypes.iterator();
+  List<CmsXmlComplexTypeSequence> complexTypeData=new ArrayList<CmsXmlComplexTypeSequence>();
+  Iterator<Element> ct=complexTypes.iterator();
   while (ct.hasNext()) {
-    Element e=(Element)ct.next();
+    Element e=ct.next();
     CmsXmlComplexTypeSequence sequence=validateComplexTypeSequence(e,nestedDefinitions);
     complexTypeData.add(sequence);
   }
-  CmsXmlComplexTypeSequence outerSequence=(CmsXmlComplexTypeSequence)complexTypeData.get(0);
-  CmsXmlNestedContentDefinition outer=(CmsXmlNestedContentDefinition)outerSequence.m_sequence.get(0);
+  CmsXmlComplexTypeSequence outerSequence=complexTypeData.get(0);
+  CmsXmlNestedContentDefinition outer=(CmsXmlNestedContentDefinition)outerSequence.getSequence().get(0);
   String outerTypeName=createTypeName(name);
   String innerTypeName=createTypeName(outer.getName());
-  validateAttribute((Element)complexTypes.get(0),XSD_ATTRIBUTE_NAME,outerTypeName);
-  validateAttribute((Element)complexTypes.get(1),XSD_ATTRIBUTE_NAME,innerTypeName);
+  validateAttribute(complexTypes.get(0),XSD_ATTRIBUTE_NAME,outerTypeName);
+  validateAttribute(complexTypes.get(1),XSD_ATTRIBUTE_NAME,innerTypeName);
   validateAttribute(main,XSD_ATTRIBUTE_TYPE,outerTypeName);
   result.setInnerName(outer.getName());
-  CmsXmlComplexTypeSequence innerSequence=(CmsXmlComplexTypeSequence)complexTypeData.get(1);
-  Iterator it=innerSequence.m_sequence.iterator();
+  CmsXmlComplexTypeSequence innerSequence=complexTypeData.get(1);
+  Iterator<I_CmsXmlSchemaType> it=innerSequence.getSequence().iterator();
   while (it.hasNext()) {
-    result.addType((I_CmsXmlSchemaType)it.next());
+    result.addType(it.next());
   }
-  List annotations=root.elements(XSD_NODE_ANNOTATION);
+  result.m_sequenceType=innerSequence.getSequenceType();
+  result.m_choiceMaxOccurs=innerSequence.getChoiceMaxOccurs();
+  List<Element> annotations=CmsXmlGenericWrapper.elements(root,XSD_NODE_ANNOTATION);
   I_CmsXmlContentHandler contentHandler=null;
   Element appInfoElement=null;
   if (annotations.size() > 0) {
-    List appinfos=((Element)annotations.get(0)).elements(XSD_NODE_APPINFO);
+    List<Element> appinfos=CmsXmlGenericWrapper.elements(annotations.get(0),XSD_NODE_APPINFO);
     if (appinfos.size() > 0) {
-      appInfoElement=(Element)appinfos.get(0);
+      appInfoElement=appinfos.get(0);
       Element handlerElement=appInfoElement.element("handler");
       if (handlerElement != null) {
         String className=handlerElement.attributeValue("class");

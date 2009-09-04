@@ -1,0 +1,26 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing XML content definition object generation for a schema that contains xsd:choice");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  String schema=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-choice-definition-2.xsd",CmsEncoder.ENCODING_UTF_8);
+  CmsXmlContentDefinition definition=CmsXmlContentDefinition.unmarshal(schema,"http://www.opencms.org/testChoice2.xsd",resolver);
+  System.out.println(CmsXmlUtils.marshal(definition.getSchema(),CmsEncoder.ENCODING_UTF_8));
+  CmsXmlEntityResolver.cacheSystemId("http://www.opencms.org/testChoice2.xsd",definition.getSchema().asXML().getBytes(CmsEncoder.ENCODING_UTF_8));
+  CmsXmlContent content=CmsXmlContentFactory.createDocument(cms,Locale.ENGLISH,CmsEncoder.ENCODING_UTF_8,definition);
+  System.out.println(content.toString());
+  content.validateXmlStructure(resolver);
+  int indexCount=content.getIndexCount("String",Locale.ENGLISH);
+  assertTrue("Index count " + indexCount + " not as expected",indexCount == 0);
+  content.addValue(cms,"ChoiceTestA",Locale.ENGLISH,0);
+  content.addValue(cms,"ChoiceTestA/DateTimeChoice",Locale.ENGLISH,0);
+  content.addValue(cms,"ChoiceTestA/StringChoice",Locale.ENGLISH,1);
+  System.out.println(content.toString());
+  I_CmsXmlContentValue v1=content.getValue("ChoiceTestA/StringChoice",Locale.ENGLISH);
+  I_CmsXmlContentValue v2=content.getValue("ChoiceTestA/StringChoice",Locale.ENGLISH,1);
+  assertTrue("StringChoice value must be available through xpath lookup",v1 != null);
+  assertTrue("StringChoice value must be available through index lookup 1",v2 != null);
+  assertSame("Value from index and xpath lookup must be the same",v1,v2);
+  content.removeValue("ChoiceTestA/StringChoice",Locale.ENGLISH,1);
+  content.removeValue("ChoiceTestA/DateTimeChoice",Locale.ENGLISH,0);
+  System.out.println(content.toString());
+}

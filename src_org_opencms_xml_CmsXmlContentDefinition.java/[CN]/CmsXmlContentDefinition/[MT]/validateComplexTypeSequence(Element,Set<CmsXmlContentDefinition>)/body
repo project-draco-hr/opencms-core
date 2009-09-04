@@ -1,0 +1,118 @@
+{
+  validateAttributesExists(element,new String[]{XSD_ATTRIBUTE_NAME},new String[0]);
+  String name=validateAttribute(element,XSD_ATTRIBUTE_NAME,null);
+  List<Element> mainElements=CmsXmlGenericWrapper.elements(element);
+  if ((mainElements.size() != 1) && (mainElements.size() != 2)) {
+    throw new CmsXmlException(Messages.get().container(Messages.ERR_TS_SUBELEMENT_COUNT_2,element.getUniquePath(),new Integer(mainElements.size())));
+  }
+  boolean hasLanguageAttribute=false;
+  if (mainElements.size() == 2) {
+    Element typeAttribute=mainElements.get(1);
+    if (!XSD_NODE_ATTRIBUTE.equals(typeAttribute.getQName())) {
+      throw new CmsXmlException(Messages.get().container(Messages.ERR_CD_ELEMENT_NAME_3,typeAttribute.getUniquePath(),XSD_NODE_ATTRIBUTE.getQualifiedName(),typeAttribute.getQName().getQualifiedName()));
+    }
+    validateAttribute(typeAttribute,XSD_ATTRIBUTE_NAME,XSD_ATTRIBUTE_VALUE_LANGUAGE);
+    validateAttribute(typeAttribute,XSD_ATTRIBUTE_TYPE,CmsXmlLocaleValue.TYPE_NAME);
+    try {
+      validateAttribute(typeAttribute,XSD_ATTRIBUTE_USE,XSD_ATTRIBUTE_VALUE_REQUIRED);
+    }
+ catch (    CmsXmlException e) {
+      validateAttribute(typeAttribute,XSD_ATTRIBUTE_USE,XSD_ATTRIBUTE_VALUE_OPTIONAL);
+    }
+    hasLanguageAttribute=true;
+  }
+  SequenceType sequenceType;
+  int choiceMaxOccurs=0;
+  Element typeSequenceElement=mainElements.get(0);
+  if (!XSD_NODE_SEQUENCE.equals(typeSequenceElement.getQName())) {
+    if (!XSD_NODE_CHOICE.equals(typeSequenceElement.getQName())) {
+      throw new CmsXmlException(Messages.get().container(Messages.ERR_CD_ELEMENT_NAME_4,new Object[]{typeSequenceElement.getUniquePath(),XSD_NODE_SEQUENCE.getQualifiedName(),XSD_NODE_CHOICE.getQualifiedName(),typeSequenceElement.getQName().getQualifiedName()}));
+    }
+ else {
+      String minOccursStr=typeSequenceElement.attributeValue(XSD_ATTRIBUTE_MIN_OCCURS);
+      int minOccurs=1;
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(minOccursStr)) {
+        try {
+          minOccurs=Integer.parseInt(minOccursStr.trim());
+        }
+ catch (        NumberFormatException e) {
+          throw new CmsXmlException(Messages.get().container(Messages.ERR_EL_BAD_ATTRIBUTE_3,element.getUniquePath(),XSD_ATTRIBUTE_MIN_OCCURS,minOccursStr));
+        }
+      }
+      String maxOccursStr=typeSequenceElement.attributeValue(XSD_ATTRIBUTE_MAX_OCCURS);
+      choiceMaxOccurs=1;
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(maxOccursStr)) {
+        if (CmsXmlContentDefinition.XSD_ATTRIBUTE_VALUE_UNBOUNDED.equals(maxOccursStr.trim())) {
+          choiceMaxOccurs=Integer.MAX_VALUE;
+        }
+ else {
+          try {
+            choiceMaxOccurs=Integer.parseInt(maxOccursStr.trim());
+          }
+ catch (          NumberFormatException e) {
+            throw new CmsXmlException(Messages.get().container(Messages.ERR_EL_BAD_ATTRIBUTE_3,element.getUniquePath(),XSD_ATTRIBUTE_MAX_OCCURS,maxOccursStr));
+          }
+        }
+      }
+      if ((minOccurs == 0) && (choiceMaxOccurs == 1)) {
+        sequenceType=SequenceType.SINGLE_CHOICE;
+      }
+ else {
+        if ((minOccurs < 1) || (minOccurs > choiceMaxOccurs)) {
+          throw new CmsXmlException(Messages.get().container(Messages.ERR_EL_BAD_ATTRIBUTE_3,element.getUniquePath(),XSD_ATTRIBUTE_MIN_OCCURS,minOccursStr));
+        }
+        sequenceType=SequenceType.MULTIPLE_CHOICE;
+      }
+    }
+  }
+ else {
+    sequenceType=SequenceType.SEQUENCE;
+  }
+  List<Element> typeSequenceElements=CmsXmlGenericWrapper.elements(typeSequenceElement);
+  if (typeSequenceElements.size() < 1) {
+    throw new CmsXmlException(Messages.get().container(Messages.ERR_TS_SUBELEMENT_TOOFEW_3,typeSequenceElement.getUniquePath(),new Integer(1),new Integer(typeSequenceElements.size())));
+  }
+  List<I_CmsXmlSchemaType> sequence=new ArrayList<I_CmsXmlSchemaType>();
+  if (hasLanguageAttribute) {
+    CmsXmlContentTypeManager typeManager=OpenCms.getXmlContentTypeManager();
+    Iterator<Element> i=typeSequenceElements.iterator();
+    while (i.hasNext()) {
+      Element typeElement=i.next();
+      if (sequenceType != SequenceType.SEQUENCE) {
+        String minOccursStr=typeElement.attributeValue(XSD_ATTRIBUTE_MIN_OCCURS);
+        int minOccurs=1;
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(minOccursStr)) {
+          try {
+            minOccurs=Integer.parseInt(minOccursStr.trim());
+          }
+ catch (          NumberFormatException e) {
+            minOccurs=2;
+          }
+        }
+        if ((minOccurs < 0) || (minOccurs > 1)) {
+          throw new CmsXmlException(Messages.get().container(Messages.ERR_EL_BAD_ATTRIBUTE_3,typeElement.getUniquePath(),XSD_ATTRIBUTE_MIN_OCCURS,minOccursStr));
+        }
+        if (true || (sequenceType == SequenceType.SINGLE_CHOICE)) {
+          typeElement.addAttribute(XSD_ATTRIBUTE_MIN_OCCURS,"0");
+        }
+      }
+      I_CmsXmlSchemaType type=typeManager.getContentType(typeElement,includes);
+      if (sequenceType == SequenceType.MULTIPLE_CHOICE) {
+        if ((type.getMinOccurs() < 0) || (type.getMinOccurs() > 1) || (type.getMaxOccurs() != 1)) {
+          throw new CmsXmlException(Messages.get().container(Messages.ERR_EL_BAD_ATTRIBUTE_3,typeElement.getUniquePath(),XSD_ATTRIBUTE_MAX_OCCURS,typeElement.attributeValue(XSD_ATTRIBUTE_MAX_OCCURS)));
+        }
+      }
+      sequence.add(type);
+    }
+  }
+ else {
+    Element e=typeSequenceElements.get(0);
+    String typeName=validateAttribute(e,XSD_ATTRIBUTE_NAME,null);
+    String minOccurs=validateAttribute(e,XSD_ATTRIBUTE_MIN_OCCURS,XSD_ATTRIBUTE_VALUE_ZERO);
+    String maxOccurs=validateAttribute(e,XSD_ATTRIBUTE_MAX_OCCURS,XSD_ATTRIBUTE_VALUE_UNBOUNDED);
+    validateAttribute(e,XSD_ATTRIBUTE_TYPE,createTypeName(typeName));
+    CmsXmlNestedContentDefinition cd=new CmsXmlNestedContentDefinition(null,typeName,minOccurs,maxOccurs);
+    sequence.add(cd);
+  }
+  return new CmsXmlComplexTypeSequence(name,sequence,hasLanguageAttribute,sequenceType,choiceMaxOccurs);
+}

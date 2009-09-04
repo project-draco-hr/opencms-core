@@ -1,0 +1,52 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing XML content objects that contain a xsd:choice sequence definition");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  byte[] content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-choice-1.xml");
+  CmsXmlContent xmlcontent=CmsXmlContentFactory.unmarshal(new String(content,CmsEncoder.ENCODING_UTF_8),CmsEncoder.ENCODING_UTF_8,resolver);
+  I_CmsXmlContentValue v1=xmlcontent.getValue("ChoiceTestA",Locale.ENGLISH);
+  I_CmsXmlContentValue v2=xmlcontent.getValue("ChoiceTestA/StringChoice",Locale.ENGLISH);
+  I_CmsXmlContentValue v3=xmlcontent.getValue("ChoiceTestA/DateTimeChoice",Locale.ENGLISH);
+  I_CmsXmlContentValue v4=xmlcontent.getValue("ChoiceTestA/StringChoice[2]",Locale.ENGLISH);
+  assertNotNull("ChoiceTestA element must not be null",v1);
+  assertNotNull("ChoiceTestA/StringChoice element must not be null",v2);
+  assertNotNull("ChoiceTestA/DateTimeChoice element must not be null",v3);
+  assertNotNull("ChoiceTestA/StringChoice[2] element must not be null",v4);
+  xmlcontent.addValue(cms,"ChoiceTestA/StringChoice",Locale.ENGLISH,3);
+  I_CmsXmlContentValue v5=xmlcontent.getValue("ChoiceTestA/StringChoice[3]",Locale.ENGLISH);
+  assertNotNull("Value added at ChoiceTestA/StringChoice[3] must not be null",v5);
+  CmsRuntimeException caught=null;
+  try {
+    xmlcontent.addValue(cms,"ChoiceTestA/StringChoice",Locale.ENGLISH,8);
+  }
+ catch (  CmsRuntimeException e) {
+    caught=e;
+  }
+  assertNotNull("Required exception not thrown when adding an element beyond index end",caught);
+  CmsXmlContentValueSequence sequence=xmlcontent.getValueSequence("ChoiceTestA/StringChoice",Locale.ENGLISH);
+  assertNotNull("ChoiceTestA value sequence must not be null",sequence);
+  assertTrue("Choice sequence A not recognized",xmlcontent.hasChoiceOptions("ChoiceTestA",Locale.ENGLISH));
+  assertTrue("Choice sequence B not recognized",xmlcontent.hasChoiceOptions("ChoiceTestB",Locale.ENGLISH));
+  assertTrue("Choice sequence C not recognized",xmlcontent.hasChoiceOptions("ChoiceTestC",Locale.ENGLISH));
+  assertTrue("Choice sequence A sub-options not recognized",xmlcontent.hasChoiceOptions("ChoiceTestA/DateTimeChoice",Locale.ENGLISH));
+  assertTrue("Choice sequence B sub-options not recognized",xmlcontent.hasChoiceOptions("ChoiceTestB/HtmlChoice",Locale.ENGLISH));
+  assertFalse("Choice sequence C sub-options wrongly recognized",xmlcontent.hasChoiceOptions("ChoiceTestC/NameChoiceC",Locale.ENGLISH));
+  List<I_CmsXmlSchemaType> choices=xmlcontent.getChoiceOptions("ChoiceTestA",Locale.ENGLISH);
+  assertTrue("Choice sequence A must have 2 choice options",choices.size() == 2);
+  assertTrue(choices.get(0) instanceof CmsXmlStringValue);
+  assertTrue(choices.get(1) instanceof CmsXmlDateTimeValue);
+  choices=xmlcontent.getChoiceOptions("ChoiceTestB",Locale.ENGLISH);
+  assertTrue("Choice sequence B must have 3 choice options",choices.size() == 3);
+  assertTrue(choices.get(0) instanceof CmsXmlStringValue);
+  assertTrue(choices.get(1) instanceof CmsXmlHtmlValue);
+  assertTrue(choices.get(2) instanceof CmsXmlStringValue);
+  xmlcontent.addValue(cms,"ChoiceTestC",Locale.ENGLISH,1);
+  choices=xmlcontent.getChoiceOptions("ChoiceTestC[2]",Locale.ENGLISH);
+  assertTrue("Choice sequence C [2] must have 2 choice options",choices.size() == 2);
+  assertTrue(choices.get(0) instanceof CmsXmlStringValue);
+  assertTrue(choices.get(1) instanceof CmsXmlHtmlValue);
+  choices=xmlcontent.getChoiceOptions("ChoiceTestC/NameChoiceC",Locale.ENGLISH);
+  assertNull("ChoiceTestC/NameChoiceC choice list must be null",choices);
+  xmlcontent.addValue(cms,"ChoiceTestA",Locale.ENGLISH,2);
+  xmlcontent.addValue(cms,"ChoiceTestA[3]/DateTimeChoice",Locale.ENGLISH,0);
+}

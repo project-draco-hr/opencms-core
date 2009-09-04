@@ -1,0 +1,30 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing XML content definition object generation for a schema that contains xsd:choice");
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_CLEAR_CACHES,new HashMap()));
+  cacheXmlSchema("org/opencms/xml/content/xmlcontent-choice-definition-1-subA.xsd","http://www.opencms.org/choice-definition1-subA.xsd");
+  cacheXmlSchema("org/opencms/xml/content/xmlcontent-choice-definition-1-subB.xsd","http://www.opencms.org/choice-definition1-subB.xsd");
+  cacheXmlSchema("org/opencms/xml/content/xmlcontent-choice-definition-1-subC.xsd","http://www.opencms.org/choice-definition1-subC.xsd");
+  String schema=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-choice-definition-1.xsd",CmsEncoder.ENCODING_UTF_8);
+  CmsXmlContentDefinition definition=CmsXmlContentDefinition.unmarshal(schema,"http://www.opencms.org/testChoice1.xsd",resolver);
+  System.out.println(definition.getSchema().asXML());
+  CmsXmlEntityResolver.cacheSystemId("http://www.opencms.org/testChoice1.xsd",definition.getSchema().asXML().getBytes(CmsEncoder.ENCODING_UTF_8));
+  assertSame("Content definition sequence not of required type SEQUENCE",definition.getSequenceType(),CmsXmlContentDefinition.SequenceType.SEQUENCE);
+  assertTrue("Content definition sequence choice maxOccurs is " + definition.getChoiceMaxOccurs() + " but must be 0",definition.getChoiceMaxOccurs() == 0);
+  byte[] content=CmsFileUtil.readFile("org/opencms/xml/content/xmlcontent-choice-1.xml");
+  CmsXmlUtils.validateXmlStructure(content,resolver);
+  CmsXmlContentFactory.unmarshal(new String(content,CmsEncoder.ENCODING_UTF_8),CmsEncoder.ENCODING_UTF_8,resolver);
+  CmsXmlNestedContentDefinition nestA=(CmsXmlNestedContentDefinition)definition.getSchemaType("ChoiceTestA");
+  CmsXmlNestedContentDefinition nestB=(CmsXmlNestedContentDefinition)definition.getSchemaType("ChoiceTestB");
+  CmsXmlNestedContentDefinition nestC=(CmsXmlNestedContentDefinition)definition.getSchemaType("ChoiceTestC");
+  CmsXmlContentDefinition testA=nestA.getNestedContentDefinition();
+  CmsXmlContentDefinition testB=nestB.getNestedContentDefinition();
+  CmsXmlContentDefinition testC=nestC.getNestedContentDefinition();
+  assertSame("Choice sequence A not of required type MULTIPLE_CHOICE",testA.getSequenceType(),CmsXmlContentDefinition.SequenceType.MULTIPLE_CHOICE);
+  assertTrue("Choice sequence A maxOccurs is " + testA.getChoiceMaxOccurs() + " but must be 5",testA.getChoiceMaxOccurs() == 5);
+  assertSame("Choice sequence B not of required type MULTIPLE_CHOICE",testB.getSequenceType(),CmsXmlContentDefinition.SequenceType.MULTIPLE_CHOICE);
+  assertTrue("Choice sequence B maxOccurs is " + testB.getChoiceMaxOccurs() + " but must be 5",testB.getChoiceMaxOccurs() == 5);
+  assertSame("Choice sequence C not of required type SINGLE_CHOICE",testC.getSequenceType(),CmsXmlContentDefinition.SequenceType.SINGLE_CHOICE);
+  assertTrue("Choice sequence C maxOccurs is " + testC.getChoiceMaxOccurs() + " but must be 1",testC.getChoiceMaxOccurs() == 1);
+}

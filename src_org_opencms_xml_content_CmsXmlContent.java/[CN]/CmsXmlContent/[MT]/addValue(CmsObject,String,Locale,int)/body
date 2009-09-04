@@ -7,7 +7,7 @@
   String elementName;
   CmsXmlContentDefinition contentDefinition;
   if (CmsXmlUtils.isDeepXpath(path)) {
-    String parentPath=CmsXmlUtils.removeLastXpathElement(path);
+    String parentPath=CmsXmlUtils.createXpath(CmsXmlUtils.removeLastXpathElement(path),1);
     Object o=getBookmark(parentPath,locale);
     if (o == null) {
       throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_XMLCONTENT_UNKNOWN_ELEM_PATH_1,path));
@@ -22,9 +22,12 @@
     elementName=CmsXmlUtils.removeXpathIndex(path);
     contentDefinition=m_contentDefinition;
   }
-  List siblings=parentElement.elements(elementName);
+  List<Element> siblings=CmsXmlGenericWrapper.elements(parentElement,elementName);
   int insertIndex;
-  if (siblings.size() > 0) {
+  if (contentDefinition.getChoiceMaxOccurs() > 0) {
+    insertIndex=index;
+  }
+ else   if (siblings.size() > 0) {
     if (siblings.size() >= type.getMaxOccurs()) {
       throw new CmsRuntimeException(Messages.get().container(Messages.ERR_XMLCONTENT_ELEM_MAXOCCURS_2,elementName,new Integer(type.getMaxOccurs())));
     }
@@ -32,7 +35,7 @@
       throw new CmsRuntimeException(Messages.get().container(Messages.ERR_XMLCONTENT_ADD_ELEM_INVALID_IDX_3,new Integer(index),new Integer(siblings.size())));
     }
     int offset=(index == siblings.size()) ? 1 : 0;
-    Element sibling=(Element)siblings.get(index - offset);
+    Element sibling=siblings.get(index - offset);
     insertIndex=sibling.getParent().content().indexOf(sibling) + offset;
   }
  else {
@@ -44,15 +47,15 @@
       insertIndex=0;
     }
  else {
-      List previousTypeNames=new ArrayList();
+      List<String> previousTypeNames=new ArrayList<String>();
       for (int i=0; i < typeIndex; i++) {
-        I_CmsXmlSchemaType t=(I_CmsXmlSchemaType)contentDefinition.getTypeSequence().get(i);
+        I_CmsXmlSchemaType t=contentDefinition.getTypeSequence().get(i);
         previousTypeNames.add(t.getName());
       }
-      Iterator i=parentElement.content().iterator();
+      Iterator<Node> i=CmsXmlGenericWrapper.content(parentElement).iterator();
       int pos=0;
       while (i.hasNext()) {
-        Node node=(Node)i.next();
+        Node node=i.next();
         if (node instanceof Element) {
           if (!previousTypeNames.contains(node.getName())) {
             break;
@@ -63,7 +66,19 @@
       insertIndex=pos;
     }
   }
-  I_CmsXmlContentValue newValue=addValue(cms,parentElement,type,locale,insertIndex);
+  I_CmsXmlContentValue newValue;
+  if (contentDefinition.getChoiceMaxOccurs() > 0) {
+    try {
+      newValue=addValue(cms,parentElement,type,locale,insertIndex);
+      CmsXmlUtils.validateXmlStructure(m_document,m_encoding,new CmsXmlEntityResolver(cms));
+    }
+ catch (    Exception e) {
+      throw new CmsRuntimeException(Messages.get().container(Messages.ERR_XMLCONTENT_ADD_ELEM_INVALID_IDX_CHOICE_3,new Integer(insertIndex),elementName,parentElement.getUniquePath()));
+    }
+  }
+ else {
+    newValue=addValue(cms,parentElement,type,locale,insertIndex);
+  }
   initDocument(m_document,m_encoding,m_contentDefinition);
-  return (I_CmsXmlContentValue)getBookmark(getBookmarkName(newValue.getPath(),locale));
+  return getBookmark(getBookmarkName(newValue.getPath(),locale));
 }
