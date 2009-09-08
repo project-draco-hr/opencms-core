@@ -1,0 +1,58 @@
+{
+  if (OpenCms.getRunLevel() == OpenCms.RUNLEVEL_4_SERVLET_ACCESS) {
+    long currenttime=System.currentTimeMillis();
+    int expirationdays=30;
+    String expirationdaysparam=parameters.get(PARAM_EXPIRATIONSDAYS);
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(expirationdaysparam)) {
+      try {
+        expirationdays=Integer.parseInt(expirationdaysparam);
+      }
+ catch (      NumberFormatException nfe) {
+      }
+    }
+    String resTypes=parameters.get(PARAM_RESOURCETYPES);
+    String[] resTypesArr=null;
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(resTypes)) {
+      resTypesArr=CmsStringUtil.splitAsArray(resTypes,',');
+    }
+    String[] topFoldersArr=new String[]{"/"};
+    String topfolders=parameters.get(PARAM_FOLDER);
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(topfolders)) {
+      topFoldersArr=CmsStringUtil.splitAsArray(topfolders,',');
+    }
+    CmsProject project=cms.createTempfileProject();
+    cms.getRequestContext().setCurrentProject(project);
+    I_CmsReport report=new CmsLogReport(cms.getRequestContext().getLocale(),CmsDeleteExpiredResourcesJob.class);
+    report.println(Messages.get().container(Messages.RPT_DELETE_EXPIRED_START_0),I_CmsReport.FORMAT_HEADLINE);
+    List<CmsResource> resources=Collections.emptyList();
+    CmsResourceFilter filter=CmsResourceFilter.ALL.addExcludeState(CmsResourceState.STATE_DELETED);
+    filter=filter.addRequireExpireBefore(currenttime);
+    int changedFiles=0;
+    if (resTypesArr != null) {
+      I_CmsResourceType type;
+      CmsResourceManager resManager=OpenCms.getResourceManager();
+      for (int i=resTypesArr.length - 1; i >= 0; i--) {
+        type=resManager.getResourceType(resTypesArr[i]);
+        filter=filter.addRequireType(type.getTypeId());
+        for (int j=topFoldersArr.length - 1; j >= 0; j--) {
+          resources=cms.readResources(topFoldersArr[j],filter,true);
+          changedFiles+=deleteExpiredResources(cms,report,resources,expirationdays,currenttime);
+        }
+      }
+    }
+ else {
+      filter=filter.addRequireFile();
+      for (int j=topFoldersArr.length - 1; j >= 0; j--) {
+        resources=cms.readResources(topFoldersArr[j],filter,true);
+        changedFiles+=deleteExpiredResources(cms,report,resources,expirationdays,currenttime);
+      }
+    }
+    if (changedFiles > 0) {
+      CmsPublishManager publishManager=OpenCms.getPublishManager();
+      publishManager.publishProject(cms,report);
+      publishManager.waitWhileRunning();
+    }
+    report.println(Messages.get().container(Messages.RPT_DELETE_EXPIRED_END_0),I_CmsReport.FORMAT_HEADLINE);
+  }
+  return null;
+}

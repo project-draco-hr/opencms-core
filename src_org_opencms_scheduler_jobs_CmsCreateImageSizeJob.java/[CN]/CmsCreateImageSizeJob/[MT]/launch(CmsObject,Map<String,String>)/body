@@ -1,0 +1,75 @@
+{
+  if (!CmsImageLoader.isEnabled()) {
+    return Messages.get().getBundle().key(Messages.LOG_IMAGE_SCALING_DISABLED_0);
+  }
+  boolean downscale=Boolean.valueOf(parameters.get(PARAM_DOWNSCALE)).booleanValue();
+  I_CmsReport report=new CmsLogReport(cms.getRequestContext().getLocale(),CmsCreateImageSizeJob.class);
+  report.println(Messages.get().container(Messages.RPT_IMAGE_SIZE_START_0),I_CmsReport.FORMAT_HEADLINE);
+  List<CmsResource> resources=Collections.emptyList();
+  try {
+    resources=cms.readResources("/",CmsResourceFilter.IGNORE_EXPIRATION.addRequireType(CmsResourceTypeImage.getStaticTypeId()));
+  }
+ catch (  CmsException e) {
+    report.println(e);
+  }
+  int count=0;
+  for (int i=0; i < resources.size(); i++) {
+    try {
+      CmsResource res=resources.get(i);
+      report.print(Messages.get().container(Messages.RPT_IMAGE_SIZE_PROCESS_3,String.valueOf(i + 1),String.valueOf(resources.size()),res.getRootPath()),I_CmsReport.FORMAT_HEADLINE);
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+      CmsLock lock=cms.getLock(res);
+      if (lock.isNullLock() || lock.isOwnedBy(cms.getRequestContext().currentUser())) {
+        CmsFile file=cms.readFile(res);
+        CmsImageScaler scaler=new CmsImageScaler(file.getContents(),file.getRootPath());
+        if (scaler.isValid()) {
+          boolean updated=false;
+          CmsImageScaler downScaler=null;
+          if (downscale) {
+            downScaler=CmsResourceTypeImage.getDownScaler(cms,res.getRootPath());
+          }
+          if (scaler.isDownScaleRequired(downScaler)) {
+            lockResource(cms,lock,res);
+            cms.writeFile(file);
+            scaler=scaler.getDownScaler(downScaler);
+            updated=true;
+          }
+ else {
+            CmsProperty prop=cms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_IMAGE_SIZE,false);
+            if (prop.isNullProperty() || !prop.getValue().equals(scaler.toString())) {
+              lockResource(cms,lock,res);
+              if (prop.isNullProperty()) {
+                prop=new CmsProperty(CmsPropertyDefinition.PROPERTY_IMAGE_SIZE,null,scaler.toString());
+              }
+ else {
+                prop.setStructureValue(CmsProperty.DELETE_VALUE);
+                prop.setResourceValue(scaler.toString());
+              }
+              cms.writePropertyObject(res.getRootPath(),prop);
+              updated=true;
+            }
+          }
+          if (updated) {
+            unlockResource(cms,lock,res);
+            count++;
+            report.println(Messages.get().container(Messages.RPT_IMAGE_SIZE_UPDATE_1,scaler.toString()),I_CmsReport.FORMAT_DEFAULT);
+          }
+ else {
+            report.println(Messages.get().container(Messages.RPT_IMAGE_SIZE_SKIP_1,scaler.toString()),I_CmsReport.FORMAT_DEFAULT);
+          }
+        }
+ else {
+          report.println(Messages.get().container(Messages.RPT_IMAGE_SIZE_UNABLE_TO_CALCULATE_0),I_CmsReport.FORMAT_DEFAULT);
+        }
+      }
+ else {
+        report.println(Messages.get().container(Messages.RPT_IMAGE_SIZE_LOCKED_0),I_CmsReport.FORMAT_DEFAULT);
+      }
+    }
+ catch (    CmsException e) {
+      report.println(e);
+    }
+  }
+  report.println(Messages.get().container(Messages.RPT_IMAGE_SIZE_END_0),I_CmsReport.FORMAT_HEADLINE);
+  return Messages.get().getBundle().key(Messages.LOG_IMAGE_SIZE_UPDATE_COUNT_1,new Integer(count));
+}
