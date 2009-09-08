@@ -1,26 +1,20 @@
 {
   String messageID=null;
   try {
-    super.send();
-    messageID=this.getMimeMessage().getMessageID();
+    messageID=super.send();
   }
  catch (  EmailException e) {
-    if (e.getCause() instanceof SendFailedException) {
-      SendFailedException sfe=(SendFailedException)e.getCause();
-      MessagingException me=(MessagingException)sfe.getNextException();
+    if (e.getCause() instanceof AuthenticationFailedException) {
       CmsMailHost host=OpenCms.getSystemInfo().getMailSettings().getDefaultMailHost();
-      if (me instanceof AuthenticationFailedException) {
-        CmsRuntimeException rte=new CmsRuntimeException(Messages.get().container(Messages.ERR_SEND_EMAIL_AUTHENTICATE_2,host.getUsername(),host.getHostname()));
-        sfe.initCause(rte);
-        throw new EmailException(sfe);
-      }
-      CmsRuntimeException rte=new CmsRuntimeException(Messages.get().container(Messages.ERR_SEND_EMAIL_HOSTNAME_1,host.getHostname()),me);
-      sfe.initCause(rte);
-      throw new EmailException(sfe);
+      CmsRuntimeException rte=new CmsRuntimeException(Messages.get().container(Messages.ERR_SEND_EMAIL_AUTHENTICATE_2,host.getUsername(),host.getHostname()));
+      rte.initCause(e);
+      throw rte;
     }
-  }
-catch (  MessagingException e) {
-    LOG.error(Messages.get().getBundle().key(Messages.LOG_MESSAGE_ID_ERR_0),e);
+ else {
+      CmsRuntimeException rte=new CmsRuntimeException(Messages.get().container(Messages.ERR_SEND_EMAIL_CONFIG_0));
+      rte.initCause(e);
+      throw rte;
+    }
   }
   return messageID;
 }
