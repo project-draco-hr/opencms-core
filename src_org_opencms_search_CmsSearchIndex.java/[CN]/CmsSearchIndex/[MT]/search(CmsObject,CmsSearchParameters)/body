@@ -41,53 +41,58 @@
     if (dateFilter != null) {
       filter.add(new FilterClause(dateFilter,BooleanClause.Occur.MUST));
     }
-    BooleanQuery query=new BooleanQuery();
-    Query fieldsQuery;
-    if (params.getFieldQueries() != null) {
-      BooleanQuery mustOccur=null;
-      BooleanQuery shouldOccur=null;
-      Iterator<CmsSearchParameters.CmsSearchFieldQuery> i=params.getFieldQueries().iterator();
-      while (i.hasNext()) {
-        CmsSearchParameters.CmsSearchFieldQuery fq=i.next();
-        QueryParser p=new QueryParser(fq.getFieldName(),getAnalyzer());
-        if (BooleanClause.Occur.SHOULD.equals(fq.getOccur())) {
-          if (shouldOccur == null) {
-            shouldOccur=new BooleanQuery();
+    Query query=null;
+    Query fieldsQuery=null;
+    if (!params.isIgnoreQuery()) {
+      if (params.getFieldQueries() != null) {
+        BooleanQuery mustOccur=null;
+        BooleanQuery shouldOccur=null;
+        Iterator<CmsSearchParameters.CmsSearchFieldQuery> i=params.getFieldQueries().iterator();
+        while (i.hasNext()) {
+          CmsSearchParameters.CmsSearchFieldQuery fq=i.next();
+          QueryParser p=new QueryParser(fq.getFieldName(),getAnalyzer());
+          if (BooleanClause.Occur.SHOULD.equals(fq.getOccur())) {
+            if (shouldOccur == null) {
+              shouldOccur=new BooleanQuery();
+            }
+            shouldOccur.add(p.parse(fq.getSearchQuery()),fq.getOccur());
           }
-          shouldOccur.add(p.parse(fq.getSearchQuery()),fq.getOccur());
-        }
  else {
-          if (mustOccur == null) {
-            mustOccur=new BooleanQuery();
+            if (mustOccur == null) {
+              mustOccur=new BooleanQuery();
+            }
+            mustOccur.add(p.parse(fq.getSearchQuery()),fq.getOccur());
           }
-          mustOccur.add(p.parse(fq.getSearchQuery()),fq.getOccur());
         }
+        BooleanQuery booleanFieldsQuery=new BooleanQuery();
+        if (mustOccur != null) {
+          booleanFieldsQuery.add(mustOccur,BooleanClause.Occur.MUST);
+        }
+        if (shouldOccur != null) {
+          booleanFieldsQuery.add(shouldOccur,BooleanClause.Occur.MUST);
+        }
+        fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
       }
-      BooleanQuery booleanFieldsQuery=new BooleanQuery();
-      if (mustOccur != null) {
-        booleanFieldsQuery.add(mustOccur,BooleanClause.Occur.MUST);
+ else       if ((params.getFields() != null) && (params.getFields().size() > 0)) {
+        BooleanQuery booleanFieldsQuery=new BooleanQuery();
+        for (int i=0; i < params.getFields().size(); i++) {
+          QueryParser p=new QueryParser(params.getFields().get(i),getAnalyzer());
+          booleanFieldsQuery.add(p.parse(params.getQuery()),BooleanClause.Occur.SHOULD);
+        }
+        fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
       }
-      if (shouldOccur != null) {
-        booleanFieldsQuery.add(shouldOccur,BooleanClause.Occur.MUST);
-      }
-      fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
-    }
- else     if ((params.getFields() != null) && (params.getFields().size() > 0)) {
-      BooleanQuery booleanFieldsQuery=new BooleanQuery();
-      for (int i=0; i < params.getFields().size(); i++) {
-        QueryParser p=new QueryParser(params.getFields().get(i),getAnalyzer());
-        booleanFieldsQuery.add(p.parse(params.getQuery()),BooleanClause.Occur.SHOULD);
-      }
-      fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
-    }
  else {
-      QueryParser p=new QueryParser(CmsSearchField.FIELD_CONTENT,getAnalyzer());
-      fieldsQuery=getSearcher().rewrite(p.parse(params.getQuery()));
+        QueryParser p=new QueryParser(CmsSearchField.FIELD_CONTENT,getAnalyzer());
+        fieldsQuery=getSearcher().rewrite(p.parse(params.getQuery()));
+      }
+      query=fieldsQuery;
     }
-    query.add(fieldsQuery,BooleanClause.Occur.MUST);
     if (LOG.isDebugEnabled()) {
       LOG.debug(Messages.get().getBundle().key(Messages.LOG_BASE_QUERY_1,query));
       LOG.debug(Messages.get().getBundle().key(Messages.LOG_FIELDS_QUERY_1,fieldsQuery));
+    }
+    if (query == null) {
+      query=new MatchAllDocsQuery();
     }
     CmsSearchCategoryCollector categoryCollector;
     if (params.isCalculateCategories()) {
@@ -121,7 +126,7 @@
           if ((isInTimeRange(doc,params)) && (hasReadPermission(searchCms,doc))) {
             if (cnt >= start) {
               String excerpt=null;
-              if (isCreatingExcerpt()) {
+              if (isCreatingExcerpt() && (fieldsQuery != null)) {
                 I_CmsTermHighlighter highlighter=OpenCms.getSearchManager().getHighlighter();
                 excerpt=highlighter.getExcerpt(doc,this,params,fieldsQuery,getAnalyzer());
               }
