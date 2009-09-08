@@ -13,34 +13,33 @@
   }
   Element i18nElement=systemElement.addElement(N_I18N);
   i18nElement.addElement(N_LOCALEHANDLER).addAttribute(A_CLASS,m_localeManager.getLocaleHandler().getClass().getName());
-  Iterator i;
+  Iterator<Locale> loc;
   Element localesElement;
   localesElement=i18nElement.addElement(N_LOCALESCONFIGURED);
-  i=m_localeManager.getAvailableLocales().iterator();
-  while (i.hasNext()) {
-    Locale locale=(Locale)i.next();
-    localesElement.addElement(N_LOCALE).addText(locale.toString());
+  loc=m_localeManager.getAvailableLocales().iterator();
+  while (loc.hasNext()) {
+    localesElement.addElement(N_LOCALE).addText(loc.next().toString());
   }
   localesElement=i18nElement.addElement(N_LOCALESDEFAULT);
-  i=m_localeManager.getDefaultLocales().iterator();
-  while (i.hasNext()) {
-    Locale locale=(Locale)i.next();
-    localesElement.addElement(N_LOCALE).setText(locale.toString());
+  loc=m_localeManager.getDefaultLocales().iterator();
+  while (loc.hasNext()) {
+    localesElement.addElement(N_LOCALE).setText(loc.next().toString());
   }
+  i18nElement.addElement(N_TIMEZONE).setText(m_localeManager.getTimeZone().getID());
   Element mailElement=systemElement.addElement(N_MAIL);
   mailElement.addElement(N_MAILFROM).setText(m_mailSettings.getMailFromDefault());
-  i=m_mailSettings.getMailHosts().iterator();
-  while (i.hasNext()) {
-    CmsMailHost host=(CmsMailHost)i.next();
+  Iterator<CmsMailHost> hosts=m_mailSettings.getMailHosts().iterator();
+  while (hosts.hasNext()) {
+    CmsMailHost host=hosts.next();
     Element hostElement=mailElement.addElement(N_MAILHOST).addAttribute(A_NAME,host.getHostname()).addAttribute(A_ORDER,host.getOrder().toString()).addAttribute(A_PROTOCOL,host.getProtocol());
     if (host.isAuthenticating()) {
       hostElement.addAttribute(A_USER,host.getUsername()).addAttribute(A_PASSWORD,host.getPassword());
     }
   }
   Element schedulerElement=systemElement.addElement(N_SCHEDULER);
-  i=m_configuredJobs.iterator();
-  while (i.hasNext()) {
-    CmsScheduledJobInfo jobInfo=(CmsScheduledJobInfo)i.next();
+  Iterator<CmsScheduledJobInfo> jobs=m_configuredJobs.iterator();
+  while (jobs.hasNext()) {
+    CmsScheduledJobInfo jobInfo=jobs.next();
     Element jobElement=schedulerElement.addElement(N_JOB);
     jobElement.addElement(N_NAME).addText(jobInfo.getJobName());
     jobElement.addElement(N_CLASS).addText(jobInfo.getClassName());
@@ -55,17 +54,15 @@
     contextElement.addElement(N_LOCALE).setText(jobInfo.getContextInfo().getLocaleName());
     contextElement.addElement(N_ENCODING).setText(jobInfo.getContextInfo().getEncoding());
     contextElement.addElement(N_REMOTEADDR).setText(jobInfo.getContextInfo().getRemoteAddr());
-    Map jobParameters=jobInfo.getConfiguration();
+    Map<String,String> jobParameters=jobInfo.getConfiguration();
     if ((jobParameters != null) && (jobParameters.size() > 0)) {
       Element parameterElement=jobElement.addElement(N_PARAMETERS);
-      Iterator it=jobParameters.entrySet().iterator();
+      Iterator<Map.Entry<String,String>> it=jobParameters.entrySet().iterator();
       while (it.hasNext()) {
-        Map.Entry entry=(Map.Entry)it.next();
-        String name=(String)entry.getKey();
-        String value=(String)entry.getValue();
+        Map.Entry<String,String> entry=it.next();
         Element paramNode=parameterElement.addElement(N_PARAM);
-        paramNode.addAttribute(A_NAME,name);
-        paramNode.addText(value);
+        paramNode.addAttribute(A_NAME,entry.getKey());
+        paramNode.addText(entry.getValue());
       }
     }
   }
@@ -77,32 +74,30 @@
   historyElement.addAttribute(A_COUNT,new Integer(m_historyVersions).toString());
   historyElement.addAttribute(A_DELETED,new Integer(m_historyVersionsAfterDeletion).toString());
   Element resourceinitElement=systemElement.addElement(N_RESOURCEINIT);
-  i=m_resourceInitHandlers.iterator();
-  while (i.hasNext()) {
-    I_CmsResourceInit clazz=(I_CmsResourceInit)i.next();
+  Iterator<I_CmsResourceInit> resHandlers=m_resourceInitHandlers.iterator();
+  while (resHandlers.hasNext()) {
+    I_CmsResourceInit clazz=resHandlers.next();
     Element handlerElement=resourceinitElement.addElement(N_RESOURCEINITHANDLER);
     handlerElement.addAttribute(A_CLASS,clazz.getClass().getName());
   }
   Element requesthandlersElement=systemElement.addElement(N_REQUESTHANDLERS);
-  i=m_requestHandlers.iterator();
-  while (i.hasNext()) {
-    I_CmsRequestHandler clazz=(I_CmsRequestHandler)i.next();
+  Iterator<I_CmsRequestHandler> reqHandlers=m_requestHandlers.iterator();
+  while (reqHandlers.hasNext()) {
+    I_CmsRequestHandler clazz=reqHandlers.next();
     Element handlerElement=requesthandlersElement.addElement(N_REQUESTHANDLER);
     handlerElement.addAttribute(A_CLASS,clazz.getClass().getName());
   }
   Element passwordhandlerElement=systemElement.addElement(N_PASSWORDHANDLER).addAttribute(A_CLASS,m_passwordHandler.getClass().getName());
   passwordhandlerElement.addElement(N_PASSWORDENCODING).addText(m_passwordHandler.getInputEncoding());
   passwordhandlerElement.addElement(N_DIGESTTYPE).addText(m_passwordHandler.getDigestType());
-  Map handlerParameters=m_passwordHandler.getConfiguration();
+  Map<String,String> handlerParameters=m_passwordHandler.getConfiguration();
   if (handlerParameters != null) {
-    Iterator it=handlerParameters.entrySet().iterator();
+    Iterator<Map.Entry<String,String>> it=handlerParameters.entrySet().iterator();
     while (it.hasNext()) {
-      Map.Entry entry=(Map.Entry)it.next();
-      String name=(String)entry.getKey();
-      String value=(String)entry.getValue();
+      Map.Entry<String,String> entry=it.next();
       Element paramNode=passwordhandlerElement.addElement(N_PARAM);
-      paramNode.addAttribute(A_NAME,name);
-      paramNode.addText(value);
+      paramNode.addAttribute(A_NAME,entry.getKey());
+      paramNode.addText(entry.getValue());
     }
   }
   if (m_validationHandler != null) {
@@ -129,9 +124,9 @@
   Element sitesElement=systemElement.addElement(N_SITES);
   sitesElement.addElement(N_WORKPLACE_SERVER).addText(m_siteManager.getWorkplaceServer());
   sitesElement.addElement(N_DEFAULT_URI).addText(m_siteManager.getDefaultUri());
-  Iterator siteIterator=new HashSet(m_siteManager.getSites().values()).iterator();
+  Iterator<CmsSite> siteIterator=new HashSet<CmsSite>(m_siteManager.getSites().values()).iterator();
   while (siteIterator.hasNext()) {
-    CmsSite site=(CmsSite)siteIterator.next();
+    CmsSite site=siteIterator.next();
     Element siteElement=sitesElement.addElement(N_SITE);
     siteElement.addAttribute(A_SERVER,site.getSiteMatcher().toString());
     siteElement.addAttribute(A_URI,site.getSiteRoot().concat("/"));
@@ -141,9 +136,9 @@
       secureElem.addAttribute(A_EXCLUSIVE,"" + site.isExclusiveUrl());
       secureElem.addAttribute(A_ERROR,"" + site.isExclusiveError());
     }
-    Iterator aliasIterator=site.getAliases().iterator();
+    Iterator<CmsSiteMatcher> aliasIterator=site.getAliases().iterator();
     while (aliasIterator.hasNext()) {
-      CmsSiteMatcher matcher=(CmsSiteMatcher)aliasIterator.next();
+      CmsSiteMatcher matcher=aliasIterator.next();
       Element aliasElement=siteElement.addElement(N_ALIAS);
       aliasElement.addAttribute(A_SERVER,matcher.getUrl());
       if (matcher.getTimeOffset() != 0) {
@@ -153,12 +148,12 @@
   }
   Element runtimepropertiesElement=systemElement.addElement(N_RUNTIMEPROPERTIES);
   if (m_runtimeProperties != null) {
-    List sortedRuntimeProperties=new ArrayList(m_runtimeProperties.keySet());
+    List<String> sortedRuntimeProperties=new ArrayList<String>(m_runtimeProperties.keySet());
     Collections.sort(sortedRuntimeProperties);
-    Iterator it=sortedRuntimeProperties.iterator();
+    Iterator<String> it=sortedRuntimeProperties.iterator();
     while (it.hasNext()) {
-      String key=(String)it.next();
-      runtimepropertiesElement.addElement(N_PARAM).addAttribute(A_NAME,key).addText((String)m_runtimeProperties.get(key));
+      String key=it.next();
+      runtimepropertiesElement.addElement(N_PARAM).addAttribute(A_NAME,key).addText(m_runtimeProperties.get(key));
     }
   }
   Element runtimeinfoElement=systemElement.addElement(N_RUNTIMECLASSES);
@@ -196,12 +191,12 @@
     if (m_cmsMemoryMonitorConfiguration.getEmailSender() != null) {
       memorymonitorElement.addElement(N_EMAIL_SENDER).addText(m_cmsMemoryMonitorConfiguration.getEmailSender());
     }
-    List emailReceiver=m_cmsMemoryMonitorConfiguration.getEmailReceiver();
+    List<String> emailReceiver=m_cmsMemoryMonitorConfiguration.getEmailReceiver();
     if (!emailReceiver.isEmpty()) {
       Element emailreceiverElement=memorymonitorElement.addElement(N_EMAIL_RECEIVER);
-      Iterator iter=emailReceiver.iterator();
+      Iterator<String> iter=emailReceiver.iterator();
       while (iter.hasNext()) {
-        emailreceiverElement.addElement(N_RECEIVER).addText((String)iter.next());
+        emailreceiverElement.addElement(N_RECEIVER).addText(iter.next());
       }
     }
   }
