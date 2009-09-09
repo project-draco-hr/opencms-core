@@ -2,17 +2,17 @@
   CmsUser user=readUser(dbc,username);
   String prefix=ouFqn + "_" + includeChildOus+ "_"+ directGroupsOnly+ "_"+ readRoles+ "_"+ remoteAddress;
   String cacheKey=m_keyGenerator.getCacheKeyForUserGroups(prefix,dbc,user);
-  List groups=m_monitor.getCachedUserGroups(cacheKey);
+  List<CmsGroup> groups=m_monitor.getCachedUserGroups(cacheKey);
   if (groups == null) {
-    List directGroups=m_userDriver.readGroupsOfUser(dbc,user.getId(),readRoles ? "" : ouFqn,readRoles ? true : includeChildOus,remoteAddress,readRoles);
-    Set allGroups=new HashSet();
+    List<CmsGroup> directGroups=m_userDriver.readGroupsOfUser(dbc,user.getId(),readRoles ? "" : ouFqn,readRoles ? true : includeChildOus,remoteAddress,readRoles);
+    Set<CmsGroup> allGroups=new HashSet<CmsGroup>();
     if (!readRoles) {
       allGroups.addAll(directGroups);
     }
     if (!directGroupsOnly) {
       if (!readRoles) {
         for (int i=0; i < directGroups.size(); i++) {
-          CmsGroup parent=getParent(dbc,((CmsGroup)directGroups.get(i)).getName());
+          CmsGroup parent=getParent(dbc,directGroups.get(i).getName());
           while ((parent != null) && (!allGroups.contains(parent))) {
             if (parent.getOuFqn().startsWith(ouFqn)) {
               allGroups.add(parent);
@@ -24,7 +24,7 @@
     }
     if (readRoles) {
       for (int i=0; i < directGroups.size(); i++) {
-        CmsGroup group=(CmsGroup)directGroups.get(i);
+        CmsGroup group=directGroups.get(i);
         CmsRole role=CmsRole.valueOf(group);
         if (!includeChildOus && role.getOuFqn().equals(ouFqn)) {
           allGroups.add(group);
@@ -35,17 +35,17 @@
         if (directGroupsOnly) {
           continue;
         }
-        Iterator itChildRoles=role.getChildren(true).iterator();
+        Iterator<CmsRole> itChildRoles=role.getChildren(true).iterator();
         while (itChildRoles.hasNext()) {
-          CmsRole childRole=(CmsRole)itChildRoles.next();
+          CmsRole childRole=itChildRoles.next();
           if (childRole.isSystemRole()) {
             allGroups.add(readGroup(dbc,childRole.getGroupName()));
           }
         }
         if (includeChildOus) {
-          Iterator itSubOus=getOrganizationalUnits(dbc,readOrganizationalUnit(dbc,group.getOuFqn()),true).iterator();
+          Iterator<CmsOrganizationalUnit> itSubOus=getOrganizationalUnits(dbc,readOrganizationalUnit(dbc,group.getOuFqn()),true).iterator();
           while (itSubOus.hasNext()) {
-            CmsOrganizationalUnit subOu=(CmsOrganizationalUnit)itSubOus.next();
+            CmsOrganizationalUnit subOu=itSubOus.next();
             try {
               allGroups.add(readGroup(dbc,role.forOrgUnit(subOu.getName()).getGroupName()));
             }
@@ -56,7 +56,7 @@
             }
             itChildRoles=role.getChildren(true).iterator();
             while (itChildRoles.hasNext()) {
-              CmsRole childRole=(CmsRole)itChildRoles.next();
+              CmsRole childRole=itChildRoles.next();
               try {
                 allGroups.add(readGroup(dbc,childRole.forOrgUnit(subOu.getName()).getGroupName()));
               }
@@ -70,7 +70,7 @@
         }
       }
     }
-    groups=Collections.unmodifiableList(new ArrayList(allGroups));
+    groups=Collections.unmodifiableList(new ArrayList<CmsGroup>(allGroups));
     if (dbc.getProjectId().isNullUUID()) {
       m_monitor.cacheUserGroups(cacheKey,groups);
     }

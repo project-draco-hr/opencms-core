@@ -1,0 +1,34 @@
+{
+  deleteRelationsWithSiblings(dbc,resource);
+  if ((links == null) || links.isEmpty()) {
+    return;
+  }
+  Set<CmsRelation> writtenRelations=new HashSet<CmsRelation>();
+  Iterator<CmsLink> itLinks=links.iterator();
+  while (itLinks.hasNext()) {
+    CmsLink link=itLinks.next();
+    if (link.isInternal()) {
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(link.getTarget())) {
+        continue;
+      }
+      CmsRelation originalRelation;
+      try {
+        CmsResource target=readResource(dbc,link.getTarget(),CmsResourceFilter.ALL);
+        originalRelation=new CmsRelation(resource,target,link.getType());
+      }
+ catch (      Exception e) {
+        originalRelation=new CmsRelation(resource.getStructureId(),resource.getRootPath(),CmsUUID.getNullUUID(),link.getTarget(),link.getType());
+      }
+      if (writtenRelations.contains(originalRelation)) {
+        continue;
+      }
+      writtenRelations.add(originalRelation);
+      Iterator<CmsResource> itSiblings=readSiblings(dbc,resource,CmsResourceFilter.ALL).iterator();
+      while (itSiblings.hasNext()) {
+        CmsResource sibling=itSiblings.next();
+        CmsRelation relation=new CmsRelation(sibling.getStructureId(),sibling.getRootPath(),originalRelation.getTargetId(),originalRelation.getTargetPath(),link.getType());
+        m_vfsDriver.createRelation(dbc,dbc.currentProject().getUuid(),relation);
+      }
+    }
+  }
+}
