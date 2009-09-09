@@ -1,0 +1,61 @@
+{
+  for (int i=0; i < resourceTypes.size(); i++) {
+    I_CmsResourceType resType=resourceTypes.get(i);
+    if (resType.isAdditionalModuleResourceType() == module) {
+      Element resourceType=startNode.addElement(N_TYPE).addAttribute(A_CLASS,resType.getClassName());
+      resourceType.addAttribute(A_NAME,resType.getTypeName());
+      resourceType.addAttribute(A_ID,String.valueOf(resType.getTypeId()));
+      List mappings=resType.getConfiguredMappings();
+      if ((mappings != null) && (mappings.size() > 0)) {
+        Element mappingsNode=resourceType.addElement(N_MAPPINGS);
+        for (int j=0; j < mappings.size(); j++) {
+          Element mapping=mappingsNode.addElement(N_MAPPING);
+          mapping.addAttribute(A_SUFFIX,(String)mappings.get(j));
+        }
+      }
+      List properties=resType.getConfiguredDefaultProperties();
+      if ((properties != null) && (properties.size() > 0)) {
+        Element propertiesNode=resourceType.addElement(N_PROPERTIES);
+        Iterator p=properties.iterator();
+        while (p.hasNext()) {
+          CmsProperty property=(CmsProperty)p.next();
+          Element propertyNode=propertiesNode.addElement(N_PROPERTY);
+          propertyNode.addElement(N_NAME).addText(property.getName());
+          if (property.getStructureValue() != null) {
+            propertyNode.addElement(N_VALUE).addCDATA(property.getStructureValue());
+          }
+          if (property.getResourceValue() != null) {
+            propertyNode.addElement(N_VALUE).addAttribute(A_TYPE,CmsProperty.TYPE_SHARED).addCDATA(property.getResourceValue());
+          }
+        }
+      }
+      List copyRes=resType.getConfiguredCopyResources();
+      if ((copyRes != null) && (copyRes.size() > 0)) {
+        Element copyResNode=resourceType.addElement(N_COPY_RESOURCES);
+        Iterator p=copyRes.iterator();
+        while (p.hasNext()) {
+          CmsConfigurationCopyResource cRes=(CmsConfigurationCopyResource)p.next();
+          Element cNode=copyResNode.addElement(N_COPY_RESOURCE);
+          cNode.addAttribute(A_SOURCE,cRes.getSource());
+          if (!cRes.isTargetWasNull()) {
+            cNode.addAttribute(A_TARGET,cRes.getTarget());
+          }
+          if (!cRes.isTypeWasNull()) {
+            cNode.addAttribute(A_TYPE,cRes.getTypeString());
+          }
+        }
+      }
+      Map prop=resType.getConfiguration();
+      if (prop != null) {
+        List sortedRuntimeProperties=new ArrayList(prop.keySet());
+        Collections.sort(sortedRuntimeProperties);
+        Iterator it=sortedRuntimeProperties.iterator();
+        while (it.hasNext()) {
+          String key=(String)it.next();
+          Object val=prop.get(key);
+          resourceType.addElement(N_PARAM).addAttribute(A_NAME,key).addText(String.valueOf(val));
+        }
+      }
+    }
+  }
+}

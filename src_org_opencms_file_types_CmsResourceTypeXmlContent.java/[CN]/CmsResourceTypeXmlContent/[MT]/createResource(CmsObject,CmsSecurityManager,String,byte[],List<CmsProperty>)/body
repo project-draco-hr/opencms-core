@@ -1,0 +1,26 @@
+{
+  boolean hasModelUri=false;
+  CmsXmlContent newContent=null;
+  if ((m_schema != null) && ((content == null) || (content.length == 0))) {
+    CmsXmlContentDefinition contentDefinition=CmsXmlContentDefinition.unmarshal(cms,m_schema);
+    Locale locale=OpenCms.getLocaleManager().getDefaultLocales(cms,CmsResource.getParentFolder(resourcename)).get(0);
+    String modelUri=(String)cms.getRequestContext().getAttribute(CmsRequestContext.ATTRIBUTE_MODEL);
+    CmsObject newCms=OpenCms.initCmsObject(cms);
+    newCms.getRequestContext().setUri(CmsResource.getParentFolder(resourcename));
+    if (modelUri != null) {
+      newContent=CmsXmlContentFactory.createDocument(newCms,locale,modelUri);
+      hasModelUri=true;
+    }
+ else {
+      newContent=CmsXmlContentFactory.createDocument(newCms,locale,OpenCms.getSystemInfo().getDefaultEncoding(),contentDefinition);
+    }
+    content=newContent.marshal();
+  }
+  CmsResource resource=super.createResource(cms,securityManager,resourcename,content,properties);
+  if (hasModelUri) {
+    CmsFile file=cms.readFile(resource);
+    newContent=CmsXmlContentFactory.unmarshal(cms,file);
+    resource=newContent.getContentDefinition().getContentHandler().prepareForWrite(cms,newContent,file);
+  }
+  return resource;
+}
