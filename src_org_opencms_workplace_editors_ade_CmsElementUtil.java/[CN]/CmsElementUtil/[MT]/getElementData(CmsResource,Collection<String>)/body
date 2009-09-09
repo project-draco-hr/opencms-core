@@ -31,8 +31,18 @@
     }
   }
  else {
-    CmsXmlContent content=CmsXmlContentFactory.unmarshal(m_cms,m_cms.readFile(resource));
-    Iterator<Map.Entry<String,String>> it=content.getContentDefinition().getContentHandler().getFormatters().entrySet().iterator();
+    String encoding=m_cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true).getValue(OpenCms.getSystemInfo().getDefaultEncoding());
+    String cnt=CmsEncoder.createString(m_cms.readFile(resource).getContents(),encoding);
+    int start=cnt.indexOf("xsi:noNamespaceSchemaLocation=") + "xsi:noNamespaceSchemaLocation=".length();
+    String delimiter=cnt.substring(start,start + 1);
+    start++;
+    int end=cnt.indexOf(delimiter,start);
+    String systemId=cnt.substring(start,end);
+    CmsXmlContentDefinition contentDef=m_entityResolver.getCachedContentDefinition(systemId);
+    Iterator<Map.Entry<String,String>> it=contentDef.getContentHandler().getFormatters().entrySet().iterator();
+    if (!it.hasNext()) {
+      LOG.warn(Messages.get().getBundle().key(Messages.LOG_WARN_NO_FORMATTERS_DEFINED_1,contentDef.getSchemaLocation()));
+    }
     while (it.hasNext()) {
       Map.Entry<String,String> entry=it.next();
       String type=entry.getKey();
