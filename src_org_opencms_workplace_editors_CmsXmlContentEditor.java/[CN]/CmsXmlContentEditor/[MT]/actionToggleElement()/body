@@ -27,7 +27,8 @@
     String elementPath=getParamElementName();
     if (CmsStringUtil.isNotEmpty(getParamChoiceElement())) {
       boolean choiceType=Boolean.valueOf(getParamChoiceType()).booleanValue();
-      if (!choiceType) {
+      I_CmsXmlSchemaType elemType=m_content.getContentDefinition().getSchemaType(elementPath);
+      if (!choiceType || (elemType.isChoiceOption() && elemType.isChoiceType())) {
         elementPath=CmsXmlUtils.removeLastXpathElement(elementPath);
       }
  else {
@@ -35,7 +36,22 @@
         elementPath=CmsXmlUtils.createXpathElement(elementPath,index + 1);
         index=0;
       }
-      elementPath+="/" + getParamChoiceElement();
+      if (CmsXmlUtils.isDeepXpath(getParamChoiceElement())) {
+        String pathToChoice=CmsXmlUtils.removeLastXpathElement(getParamChoiceElement());
+        String newPath=elementPath;
+        while (CmsStringUtil.isNotEmpty(pathToChoice)) {
+          String createElement=CmsXmlUtils.getFirstXpathElement(pathToChoice);
+          newPath=CmsXmlUtils.concatXpath(newPath,createElement);
+          pathToChoice=CmsXmlUtils.isDeepXpath(pathToChoice) ? CmsXmlUtils.removeFirstXpathElement(pathToChoice) : null;
+          I_CmsXmlContentValue newVal=m_content.addValue(getCms(),newPath,getElementLocale(),index);
+          newPath=newVal.getPath();
+          index=0;
+        }
+        elementPath=CmsXmlUtils.concatXpath(newPath,CmsXmlUtils.getLastXpathElement(getParamChoiceElement()));
+      }
+ else {
+        elementPath+="/" + getParamChoiceElement();
+      }
     }
     m_content.addValue(getCms(),elementPath,getElementLocale(),index);
   }
