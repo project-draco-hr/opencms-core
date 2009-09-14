@@ -1,0 +1,112 @@
+{
+  JSONObject result=new JSONObject();
+  HttpServletRequest request=getRequest();
+  String actionParam=request.getParameter(PARAMETER_ACTION);
+  if (actionParam == null) {
+    result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_ACTION));
+    return result;
+  }
+  String cntPageParam=request.getParameter(PARAMETER_CNTPAGE);
+  if (cntPageParam == null) {
+    result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_CNTPAGE));
+    return result;
+  }
+  String uriParam=request.getParameter(PARAMETER_URI);
+  if (uriParam == null) {
+    result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_URI));
+    return result;
+  }
+  CmsObject cms=getCmsObject();
+  CmsResource cntPageRes=cms.readResource(cntPageParam);
+  CmsContainerPageBean cntPage=CmsContainerPageCache.getInstance().getCache(cms,cntPageRes,cms.getRequestContext().getLocale());
+  if (actionParam.equals(ACTION_ALL)) {
+    result=getContainerPage(cntPageRes,cntPage,uriParam.equals(cntPageParam) ? null : uriParam);
+  }
+ else   if (actionParam.equals(ACTION_ELEM)) {
+    String elemParam=request.getParameter(PARAMETER_ELEM);
+    if (elemParam == null) {
+      result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_ELEM));
+      return result;
+    }
+    CmsElementUtil elemUtil=new CmsElementUtil(cms,request,getResponse(),uriParam);
+    JSONObject resElements=new JSONObject();
+    if (elemParam.startsWith("[")) {
+      JSONArray elems=new JSONArray(elemParam);
+      for (int i=0; i < elems.length(); i++) {
+        String elem=elems.getString(i);
+        try {
+          resElements.put(elem,elemUtil.getElementData(CmsElementUtil.parseId(elem),cntPage.getTypes()));
+        }
+ catch (        Exception e) {
+          if (!LOG.isDebugEnabled()) {
+            LOG.warn(e.getLocalizedMessage());
+          }
+          LOG.debug(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+ else {
+      try {
+        resElements.put(elemParam,elemUtil.getElementData(CmsElementUtil.parseId(elemParam),cntPage.getTypes()));
+      }
+ catch (      Exception e) {
+        if (!LOG.isDebugEnabled()) {
+          LOG.warn(e.getLocalizedMessage());
+        }
+        LOG.debug(e.getLocalizedMessage(),e);
+      }
+    }
+    result.put(P_ELEMENTS,resElements);
+  }
+ else   if (actionParam.equals(ACTION_FAV)) {
+    result.put(P_FAVORITES,getFavoriteList(null,cntPage.getTypes()));
+  }
+ else   if (actionParam.equals(ACTION_REC)) {
+    result.put(P_RECENT,getRecentList(null,cntPage.getTypes()));
+  }
+ else   if (actionParam.equals(ACTION_SEARCH)) {
+    String containerPageUri=request.getParameter(PARAMETER_CNTPAGE);
+    if (containerPageUri == null) {
+      result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_CNTPAGE));
+      return result;
+    }
+    CmsSearchOptions searchOptions=new CmsSearchOptions(request);
+    JSONObject searchResult=getSearchResult(searchOptions,cntPage.getTypes());
+    result.merge(searchResult,true,false);
+  }
+ else   if (actionParam.equals(ACTION_LS)) {
+    String containerPageUri=request.getParameter(PARAMETER_CNTPAGE);
+    if (containerPageUri == null) {
+      result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_CNTPAGE));
+      return result;
+    }
+    CmsSearchOptions searchOptions=new CmsSearchOptions(request);
+    JSONObject searchResult=getLastSearchResult(searchOptions,cntPage.getTypes());
+    CmsSearchOptions oldOptions=getSearchOptionsFromCache();
+    result.put(PARAMETER_TYPE,oldOptions.getTypes());
+    result.put(PARAMETER_TEXT,oldOptions.getText());
+    result.put(PARAMETER_LOCATION,oldOptions.getLocation());
+    result.merge(searchResult,true,false);
+  }
+ else   if (actionParam.equals(ACTION_NEW)) {
+    String dataParam=request.getParameter(PARAMETER_DATA);
+    if (dataParam == null) {
+      result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_DATA));
+      return result;
+    }
+    String containerPageUri=request.getParameter(PARAMETER_CNTPAGE);
+    if (containerPageUri == null) {
+      result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_MISSING_PARAMETER_1,PARAMETER_CNTPAGE));
+      return result;
+    }
+    String type=dataParam;
+    CmsElementCreator elemCreator=new CmsElementCreator(cms,cntPage.getResTypeConfig());
+    CmsResource newResource=elemCreator.createElement(cms,type);
+    result.put(P_ID,CmsElementUtil.createId(newResource.getStructureId()));
+    result.put(P_URI,cms.getSitePath(newResource));
+  }
+ else {
+    result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,PARAMETER_ACTION,actionParam));
+  }
+  return result;
+}

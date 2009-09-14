@@ -1,0 +1,57 @@
+{
+  CmsMemoryObjectCache cache=CmsMemoryObjectCache.getInstance();
+  CmsLinkManager linkMan=OpenCms.getLinkManager();
+  String headerInclude=(String)cache.getCachedObject(CmsJspTagEnableAde.class,INCLUDE_FILE_JQUERY);
+  if (headerInclude == null) {
+    try {
+      CmsFile file=cms.readFile(INCLUDE_FILE_JQUERY);
+      CmsProperty property=cms.readPropertyObject(file,CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true);
+      String encoding=property.getValue(OpenCms.getSystemInfo().getDefaultEncoding());
+      headerInclude=CmsEncoder.createString(file.getContents(),encoding);
+      CmsMacroResolver resolver=CmsMacroResolver.newInstance();
+      resolver.setKeepEmptyMacros(true);
+      String editorUri=linkMan.substituteLink(cms,"/system/workplace/editors/editor.jsp");
+      resolver.addMacro("editorUri",editorUri);
+      String serverGetUri=linkMan.substituteLink(cms,"/system/workplace/editors/ade/get.jsp");
+      resolver.addMacro("serverGetUri",serverGetUri);
+      String serverSetUri=linkMan.substituteLink(cms,"/system/workplace/editors/ade/set.jsp");
+      resolver.addMacro("serverSetUri",serverSetUri);
+      String skinUri=CmsWorkplace.getSkinUri();
+      resolver.addMacro("skinUri",skinUri);
+      headerInclude=resolver.resolveMacros(headerInclude);
+      cache.putCachedObject(CmsJspTagEnableAde.class,INCLUDE_FILE_JQUERY,headerInclude);
+    }
+ catch (    CmsException e) {
+      headerInclude="";
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_DIRECT_EDIT_NO_HEADER_1,INCLUDE_FILE_JQUERY),e);
+    }
+  }
+  CmsMacroResolver resolver=CmsMacroResolver.newInstance();
+  try {
+    CmsResource containerPage=cms.readResource(cms.getRequestContext().getUri());
+    if (containerPage.getTypeId() != CmsResourceTypeContainerPage.getStaticTypeId()) {
+      resolver.addMacro("currentUri",cms.getRequestContext().getUri());
+      String cntPagePath=cms.readPropertyObject(containerPage,CmsPropertyDefinition.PROPERTY_TEMPLATE_ELEMENTS,true).getValue("");
+      try {
+        containerPage=cms.readResource(cntPagePath);
+      }
+ catch (      CmsException e) {
+        LOG.warn(e.getLocalizedMessage(),e);
+      }
+    }
+ else     if (req.getParameter(CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER) != null) {
+      CmsUUID id=new CmsUUID(req.getParameter(CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER));
+      resolver.addMacro("currentUri",cms.getSitePath(cms.readResource(id)));
+    }
+ else {
+      resolver.addMacro("currentUri",cms.getRequestContext().getUri());
+    }
+    String containerPageUri=cms.getSitePath(containerPage);
+    resolver.addMacro("currentContainerPage",containerPageUri);
+  }
+ catch (  Exception e) {
+    LOG.warn(e.getLocalizedMessage(),e);
+  }
+  headerInclude=resolver.resolveMacros(headerInclude);
+  return headerInclude;
+}

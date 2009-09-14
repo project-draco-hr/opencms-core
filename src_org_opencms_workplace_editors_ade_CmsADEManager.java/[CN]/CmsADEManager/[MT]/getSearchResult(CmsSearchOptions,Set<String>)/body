@@ -1,0 +1,47 @@
+{
+  CmsObject cms=getCmsObject();
+  JSONObject result=new JSONObject();
+  JSONArray elements=new JSONArray();
+  result.put(CmsADEManager.P_ELEMENTS,elements);
+  CmsUser user=cms.getRequestContext().currentUser();
+  if (options.isValid()) {
+    String indexName=new CmsUserSettings(user).getWorkplaceSearchIndexName();
+    Integer pageSize=(Integer)user.getAdditionalInfo(ADDINFO_ADE_SEARCHPAGE_SIZE);
+    if (pageSize == null) {
+      pageSize=new Integer(DEFAULT_SEARCHPAGE_SIZE);
+    }
+    CmsSearchParameters params=new CmsSearchParameters(options.getText());
+    params.setIndex(indexName);
+    params.setMatchesPerPage(pageSize.intValue());
+    params.setSearchPage(options.getPage() + 1);
+    params.setResourceTypes(options.getTypesAsList());
+    CmsSearch searchBean=new CmsSearch();
+    searchBean.init(cms);
+    searchBean.setParameters(params);
+    searchBean.setSearchRoot(options.getLocation());
+    List<CmsSearchResult> searchResults=searchBean.getSearchResult();
+    CmsElementUtil elemUtil=new CmsElementUtil(cms,getRequest(),getResponse(),getRequest().getParameter(PARAMETER_URI));
+    Iterator<CmsSearchResult> it=searchResults.iterator();
+    while (it.hasNext()) {
+      CmsSearchResult sr=it.next();
+      String uri=cms.getRequestContext().removeSiteRoot(sr.getPath());
+      try {
+        JSONObject resElement=elemUtil.getElementData(uri,types);
+        elements.put(resElement);
+      }
+ catch (      Exception e) {
+        LOG.warn(e.getLocalizedMessage(),e);
+      }
+    }
+    int results=searchBean.getSearchPage() * searchBean.getMatchesPerPage();
+    boolean hasMore=(searchBean.getSearchResultCount() > results);
+    result.put(CmsADEManager.P_HASMORE,hasMore);
+    result.put(CmsADEManager.P_COUNT,searchBean.getSearchResultCount());
+  }
+ else {
+    result.put(CmsADEManager.P_HASMORE,false);
+    result.put(CmsADEManager.P_COUNT,0);
+  }
+  m_cache.cacheADESearchOptions(user.getId().toString(),options.resetPage());
+  return result;
+}
