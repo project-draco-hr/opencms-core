@@ -1,0 +1,51 @@
+{
+  if (resourcename.endsWith("/")) {
+    resourcename=resourcename.substring(0,resourcename.length() - 1);
+  }
+  if ((type == CmsResourceTypeFolder.getStaticTypeId()) && resourcename.endsWith(".html")) {
+    Iterator<String> iter=getVirtualFiles().iterator();
+    while (iter.hasNext()) {
+      TMP_FILE_TABLE.add(resourcename + "/" + iter.next());
+    }
+    return cms.createResource(resourcename,CmsResourceTypeXmlPage.getStaticTypeId());
+  }
+  CmsResource xmlPage=findXmlPage(cms,resourcename);
+  if (xmlPage != null) {
+    String path=getSubPath(cms,xmlPage,resourcename);
+    String rootPath=cms.getRequestContext().removeSiteRoot(xmlPage.getRootPath());
+    CmsFile file=cms.readFile(xmlPage);
+    CmsXmlPage xml=CmsXmlPageFactory.unmarshal(cms,file);
+    if (getVirtualFiles().contains(path)) {
+      TMP_FILE_TABLE.remove(resourcename);
+      cms.lockResource(rootPath);
+      return file;
+    }
+    String[] tokens=path.split("/");
+    if (tokens.length == 1) {
+      Locale locale=new Locale(tokens[0]);
+      if (file.getLength() == 0) {
+        Iterator<Locale> iter=xml.getLocales().iterator();
+        while (iter.hasNext()) {
+          xml.removeLocale(iter.next());
+        }
+      }
+      xml.addLocale(cms,locale);
+      file.setContents(xml.marshal());
+      cms.lockResource(rootPath);
+      cms.writeFile(file);
+    }
+ else     if (tokens.length == 2) {
+      String name=tokens[1];
+      if (name.endsWith(EXTENSION_ELEMENT)) {
+        name=name.substring(0,name.length() - EXTENSION_ELEMENT.length() - 1);
+      }
+      xml.addValue(name,new Locale(tokens[0]));
+      xml.setStringValue(cms,name,new Locale(tokens[0]),getStringValue(cms,file,content));
+      file.setContents(xml.marshal());
+      cms.lockResource(rootPath);
+      cms.writeFile(file);
+    }
+    return file;
+  }
+  return null;
+}
