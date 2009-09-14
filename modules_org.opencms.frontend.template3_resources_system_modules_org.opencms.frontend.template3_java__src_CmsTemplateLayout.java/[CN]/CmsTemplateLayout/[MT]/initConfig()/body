@@ -1,0 +1,74 @@
+{
+  try {
+    CmsFile resource=getCmsObject().readFile(getRequestContext().getUri());
+    if (CmsResourceTypeXmlContent.isXmlContent(resource)) {
+      CmsXmlContent xmlContent=CmsXmlContentFactory.unmarshal(getCmsObject(),resource);
+      if (xmlContent.hasValue(NODE_CONFIG,getRequestContext().getLocale())) {
+        m_config=xmlContent;
+        m_presetPath=getConfigPreset(xmlContent);
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_presetPath)) {
+          return;
+        }
+      }
+    }
+  }
+ catch (  CmsException ex) {
+  }
+  try {
+    String configFile=getConfigFileName(getRequestContext().getUri());
+    if (getCmsObject().existsResource(configFile)) {
+      CmsFile file=getCmsObject().readFile(getRequestContext().removeSiteRoot(configFile));
+      CmsXmlContent xmlContent=CmsXmlContentFactory.unmarshal(getCmsObject(),file);
+      if (m_config == null) {
+        m_config=xmlContent;
+      }
+      m_presetPath=getConfigPreset(xmlContent);
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_presetPath)) {
+        return;
+      }
+    }
+  }
+ catch (  CmsException ex) {
+  }
+  try {
+    String filePath=getRequestContext().getUri();
+    do {
+      String propPath=getCmsObject().readPropertyObject(filePath,PROPERTY_CONFIG,true).getValue();
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(propPath)) {
+        String candidate=null;
+        boolean isAbsolute=CmsLinkManager.isAbsoluteUri(propPath);
+        if (!isAbsolute) {
+          String base=CmsResource.getFolderPath(filePath);
+          candidate=CmsLinkManager.getAbsoluteUri(filePath,base);
+        }
+ else {
+          candidate=propPath;
+        }
+        if (candidate != null) {
+          if (getCmsObject().existsResource(candidate)) {
+            CmsFile file=getCmsObject().readFile(getRequestContext().removeSiteRoot(candidate));
+            CmsXmlContent xmlContent=CmsXmlContentFactory.unmarshal(getCmsObject(),file);
+            if (m_config == null) {
+              m_config=xmlContent;
+            }
+            m_presetPath=getConfigPreset(xmlContent);
+            if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_presetPath)) {
+              return;
+            }
+          }
+ else           if (isAbsolute) {
+            return;
+          }
+        }
+      }
+ else {
+        break;
+      }
+      filePath=CmsResource.getParentFolder(filePath);
+    }
+ while (filePath != null);
+  }
+ catch (  CmsException ex) {
+  }
+  return;
+}
