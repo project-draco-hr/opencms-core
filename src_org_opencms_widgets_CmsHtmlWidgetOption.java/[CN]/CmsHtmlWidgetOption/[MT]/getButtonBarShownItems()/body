@@ -1,0 +1,97 @@
+{
+  if (m_buttonBar == null) {
+    List<String> buttonBar=getButtonBarOption();
+    if (buttonBar.isEmpty()) {
+      if (m_globalButtonBarOption == null) {
+        String defaultConf=OpenCms.getXmlContentTypeManager().getWidgetDefaultConfiguration(CmsHtmlWidget.class.getName());
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(defaultConf) && defaultConf.contains(OPTION_BUTTONBAR)) {
+          CmsHtmlWidgetOption option=new CmsHtmlWidgetOption(defaultConf);
+          m_globalButtonBarOption=option.getButtonBarOption();
+        }
+ else {
+          m_globalButtonBarOption=Collections.emptyList();
+        }
+      }
+      if (m_globalButtonBarOption.isEmpty()) {
+        buttonBar=BUTTONBAR_DEFAULT_LIST;
+      }
+ else {
+        buttonBar=m_globalButtonBarOption;
+      }
+    }
+    List<String> result=new ArrayList<String>(buttonBar.size());
+    int lastSep=-1;
+    int lastBlock=-1;
+    boolean buttonInBlockAdded=false;
+    boolean buttonSinceSepAdded=false;
+    for (Iterator<String> i=buttonBar.iterator(); i.hasNext(); ) {
+      String barItem=i.next();
+      if (BUTTONBAR_BLOCK_START.equals(barItem)) {
+        if ((lastSep != -1) && (lastSep == (result.size() - 1))) {
+          result.remove(lastSep);
+        }
+        lastBlock=result.size();
+        lastSep=-1;
+        buttonInBlockAdded=false;
+        buttonSinceSepAdded=false;
+        result.add(BUTTONBAR_BLOCK_START);
+      }
+ else       if (BUTTONBAR_BLOCK_END.equals(barItem)) {
+        if (lastBlock != -1) {
+          if (lastSep == (result.size() - 1)) {
+            result.remove(lastSep);
+          }
+          if (buttonInBlockAdded) {
+            result.add(BUTTONBAR_BLOCK_END);
+          }
+ else {
+            result.remove(lastBlock);
+          }
+          lastBlock=-1;
+          lastSep=-1;
+          buttonInBlockAdded=false;
+          buttonSinceSepAdded=false;
+        }
+      }
+ else       if (BUTTONBAR_SEPARATOR.equals(barItem)) {
+        if (buttonSinceSepAdded) {
+          lastSep=result.size();
+          result.add(BUTTONBAR_SEPARATOR);
+          buttonSinceSepAdded=false;
+        }
+      }
+ else {
+        if (getHiddenButtons().contains(barItem)) {
+          continue;
+        }
+        if (OPTIONAL_BUTTONS_LIST.contains(barItem)) {
+          if (CmsAjaxImageGallery.GALLERYTYPE_NAME.equals(barItem)) {
+            if (!(getAdditionalButtons().contains(barItem) || getAdditionalButtons().contains(OPTION_IMAGE))) {
+              continue;
+            }
+          }
+ else           if (OPTION_UNLINK.equals(barItem)) {
+            if (!(getAdditionalButtons().contains(OPTION_LINK) || getAdditionalButtons().contains(OPTION_EDITORLINK) || getAdditionalButtons().contains(OPTION_ANCHOR))) {
+              continue;
+            }
+          }
+ else           if (OPTION_STYLE.equals(barItem)) {
+            if (!showStylesXml()) {
+              continue;
+            }
+          }
+ else           if (!getAdditionalButtons().contains(barItem)) {
+            continue;
+          }
+        }
+        result.add(barItem);
+        buttonSinceSepAdded=true;
+        if (lastBlock != -1) {
+          buttonInBlockAdded=true;
+        }
+      }
+    }
+    m_buttonBar=result;
+  }
+  return m_buttonBar;
+}
