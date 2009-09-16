@@ -1,0 +1,55 @@
+{
+  String resourceNodeName=getResourceNodeName();
+  m_resourceNode=parent.addElement(resourceNodeName);
+  getSaxWriter().writeOpen(m_resourceNode);
+  if (m_parameters.isRecursive()) {
+    resourcesToExport=CmsFileUtil.removeRedundancies(resourcesToExport);
+  }
+  List<String> folderNames=new ArrayList<String>();
+  List<String> fileNames=new ArrayList<String>();
+  Iterator<String> it=resourcesToExport.iterator();
+  while (it.hasNext()) {
+    String resource=it.next();
+    if (CmsResource.isFolder(resource)) {
+      folderNames.add(resource);
+    }
+ else {
+      fileNames.add(resource);
+    }
+  }
+  m_exportedResources=new HashSet<CmsUUID>();
+  for (int i=0; i < folderNames.size(); i++) {
+    String path=folderNames.get(i);
+    if (m_parameters.isRecursive()) {
+      addParentFolders(path);
+      addChildResources(path);
+    }
+ else {
+      CmsFolder folder;
+      try {
+        folder=getCms().readFolder(path,CmsResourceFilter.IGNORE_EXPIRATION);
+      }
+ catch (      CmsException e) {
+        CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_ADDING_PARENT_FOLDERS_1,path);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(message.key(),e);
+        }
+        throw new CmsImportExportException(message,e);
+      }
+      CmsResourceState state=folder.getState();
+      long age=folder.getDateLastModified() < folder.getDateCreated() ? folder.getDateCreated() : folder.getDateLastModified();
+      if (getCms().getRequestContext().currentProject().isOnlineProject() || (m_parameters.isIncludeUnchangedResources()) || state.isNew()|| state.isChanged()) {
+        if (!state.isDeleted() && (age >= m_parameters.getContentAge())) {
+          String export=getCms().getSitePath(folder);
+          if (checkExportResource(export)) {
+            appendResourceToManifest(folder,false);
+          }
+        }
+      }
+    }
+  }
+  addFiles(fileNames);
+  getSaxWriter().writeClose(m_resourceNode);
+  parent.remove(m_resourceNode);
+  m_resourceNode=null;
+}
