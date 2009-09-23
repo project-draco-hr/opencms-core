@@ -19,6 +19,10 @@
     }
     IndexWriter writer=null;
     try {
+      String backup=index.createIndexBackup();
+      if (backup != null) {
+        index.indexSearcherOpen(backup);
+      }
       writer=index.getIndexWriter(true);
       report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_REBUILD_BEGIN_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
       Iterator<CmsSearchIndexSource> sources=index.getSources().iterator();
@@ -26,21 +30,26 @@
         CmsSearchIndexSource source=sources.next();
         I_CmsIndexer indexer=source.getIndexer().newInstance(cms,report,index);
         indexer.rebuildIndex(writer,threadManager,source);
-      }
-      while (threadManager.isRunning()) {
+        while (threadManager.isRunning()) {
+          try {
+            wait(1000);
+          }
+ catch (          InterruptedException e) {
+          }
+        }
         try {
-          wait(1000);
+          writer.optimize();
+          writer.commit();
         }
- catch (        InterruptedException e) {
+ catch (        IOException e) {
+          if (LOG.isWarnEnabled()) {
+            LOG.warn(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_WRITER_OPTIMIZE_1,index.getPath(),index.getName()),e);
+          }
         }
       }
-      try {
-        writer.optimize();
-      }
- catch (      IOException e) {
-        if (LOG.isWarnEnabled()) {
-          LOG.warn(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_WRITER_OPTIMIZE_1,index.getPath(),index.getName()),e);
-        }
+      if (backup != null) {
+        index.indexSearcherClose();
+        index.removeIndexBackup(backup);
       }
       report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_REBUILD_END_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
     }
@@ -59,7 +68,7 @@
         index.setRebuildMode(CmsSearchIndex.REBUILD_MODE_OFFLINE);
         initOfflineIndexes();
       }
-      index.indexSearcherOpen();
+      index.indexSearcherOpen(index.getPath());
     }
     threadManager.reportStatistics(report);
   }

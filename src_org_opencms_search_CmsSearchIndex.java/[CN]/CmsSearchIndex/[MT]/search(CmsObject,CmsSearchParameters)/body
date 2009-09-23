@@ -5,7 +5,7 @@
   if (LOG.isDebugEnabled()) {
     LOG.debug(Messages.get().getBundle().key(Messages.LOG_SEARCH_PARAMS_2,params,getName()));
   }
-  Hits hits;
+  TopDocs hits;
   CmsSearchResultList searchResults=new CmsSearchResultList();
   int previousPriority=Thread.currentThread().getPriority();
   try {
@@ -100,13 +100,18 @@
       getSearcher().search(query,filter,categoryCollector);
       searchResults.setCategories(categoryCollector.getCategoryCountResult());
     }
-    hits=getSearcher().search(query,filter,params.getSort());
+    if (params.getSort() == null) {
+      hits=getSearcher().search(query,filter,m_maxHits);
+    }
+ else {
+      hits=getSearcher().search(query,filter,m_maxHits,params.getSort());
+    }
     timeLucene+=System.currentTimeMillis();
     timeResultProcessing=-System.currentTimeMillis();
     Document doc;
     CmsSearchResult searchResult;
     if (hits != null) {
-      int hitCount=hits.length();
+      int hitCount=hits.totalHits > hits.scoreDocs.length ? hits.scoreDocs.length : hits.totalHits;
       int page=params.getSearchPage();
       int start=-1, end=-1;
       if ((params.getMatchesPerPage() > 0) && (page > 0) && (hitCount > 0)) {
@@ -122,7 +127,7 @@
       int visibleHitCount=hitCount;
       for (int i=0, cnt=0; (i < hitCount) && (cnt < end); i++) {
         try {
-          doc=hits.doc(i);
+          doc=getSearcher().doc(hits.scoreDocs[i].doc);
           if ((isInTimeRange(doc,params)) && (hasReadPermission(searchCms,doc))) {
             if (cnt >= start) {
               String excerpt=null;
@@ -130,7 +135,7 @@
                 I_CmsTermHighlighter highlighter=OpenCms.getSearchManager().getHighlighter();
                 excerpt=highlighter.getExcerpt(doc,this,params,fieldsQuery,getAnalyzer());
               }
-              searchResult=new CmsSearchResult(Math.round(hits.score(i) * 100f),doc,excerpt);
+              searchResult=new CmsSearchResult(Math.round(hits.scoreDocs[i].score * 100f),doc,excerpt);
               searchResults.add(searchResult);
             }
             cnt++;
@@ -163,7 +168,7 @@ catch (  Exception e) {
   }
   if (LOG.isDebugEnabled()) {
     timeTotal+=System.currentTimeMillis();
-    Object[] logParams=new Object[]{new Integer(hits == null ? 0 : hits.length()),new Long(timeTotal),new Long(timeLucene),new Long(timeResultProcessing)};
+    Object[] logParams=new Object[]{new Integer(hits == null ? 0 : hits.totalHits),new Long(timeTotal),new Long(timeLucene),new Long(timeResultProcessing)};
     LOG.debug(Messages.get().getBundle().key(Messages.LOG_STAT_RESULTS_TIME_4,logParams));
   }
   return searchResults;
