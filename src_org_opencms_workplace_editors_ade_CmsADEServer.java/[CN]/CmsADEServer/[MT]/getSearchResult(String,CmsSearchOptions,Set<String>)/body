@@ -1,0 +1,46 @@
+{
+  CmsObject cms=getCmsObject();
+  JSONObject result=new JSONObject();
+  JSONArray elements=new JSONArray();
+  result.put(CmsADEServer.P_ELEMENTS,elements);
+  CmsUser user=cms.getRequestContext().currentUser();
+  if (options.isValid()) {
+    String indexName=new CmsUserSettings(user).getWorkplaceSearchIndexName();
+    int pageSize=m_manager.getSearchPageSize();
+    CmsSearchParameters params=new CmsSearchParameters(options.getText());
+    params.setIndex(indexName);
+    params.setMatchesPerPage(pageSize);
+    params.setSearchPage(options.getPage() + 1);
+    params.setResourceTypes(options.getTypesAsList());
+    CmsSearch searchBean=new CmsSearch();
+    searchBean.init(cms);
+    searchBean.setParameters(params);
+    searchBean.setSearchRoot(options.getLocation());
+    List<CmsSearchResult> searchResults=searchBean.getSearchResult();
+    if (searchResults != null) {
+      CmsElementUtil elemUtil=new CmsElementUtil(cms,getRequest().getParameter(PARAMETER_URI),getRequest(),getResponse());
+      Iterator<CmsSearchResult> it=searchResults.iterator();
+      while (it.hasNext()) {
+        CmsSearchResult sr=it.next();
+        String uri=cms.getRequestContext().removeSiteRoot(sr.getPath());
+        try {
+          JSONObject resElement=elemUtil.getElementData(uri,types);
+          elements.put(resElement);
+        }
+ catch (        Exception e) {
+          LOG.warn(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+    int results=searchBean.getSearchPage() * searchBean.getMatchesPerPage();
+    boolean hasMore=(searchBean.getSearchResultCount() > results);
+    result.put(CmsADEServer.P_SEARCH_HASMORE,hasMore);
+    result.put(CmsADEServer.P_SEARCH_COUNT,searchBean.getSearchResultCount());
+  }
+ else {
+    result.put(CmsADEServer.P_SEARCH_HASMORE,false);
+    result.put(CmsADEServer.P_SEARCH_COUNT,0);
+  }
+  m_manager.saveSearchOptions(options);
+  return result;
+}
