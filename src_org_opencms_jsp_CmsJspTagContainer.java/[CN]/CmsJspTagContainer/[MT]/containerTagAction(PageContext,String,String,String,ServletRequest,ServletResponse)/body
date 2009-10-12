@@ -38,7 +38,6 @@
     }
     container.setMaxElements(maxElements);
   }
-  CmsXmlEntityResolver entityResolver=new CmsXmlEntityResolver(cms);
   int renderElems=container.getElements().size();
   if ((maxElements > -1) && (renderElems > maxElements)) {
     renderElems=maxElements;
@@ -57,21 +56,14 @@
  else {
         resUri=cms.readResource(cms.getRequestContext().getUri());
       }
-      List<CmsRelation> relations=cms.getRelationsForResource(resUri,CmsRelationFilter.TARGETS.filterType(CmsRelationType.XSD));
-      CmsXmlContentDefinition contentDef=null;
-      if ((relations != null) && !relations.isEmpty()) {
-        String xsd=cms.getSitePath(relations.get(0).getTarget(cms,CmsResourceFilter.ALL));
-        contentDef=entityResolver.getCachedContentDefinition(xsd);
-      }
-      if (contentDef == null) {
-        CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,cms.readFile(resUri));
-        contentDef=content.getContentDefinition();
-      }
-      String elementFormatter=contentDef.getContentHandler().getFormatters().get(containerType);
-      if (CmsStringUtil.isEmptyOrWhitespaceOnly(elementFormatter)) {
+      CmsXmlContentDefinition contentDef=CmsXmlContentDefinition.getContentDefinitionForResource(cms,resUri);
+      String elementFormater=contentDef.getContentHandler().getFormatters().get(containerType);
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(elementFormater)) {
         throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,cms.getRequestContext().getUri(),contentDef.getSchemaLocation(),CmsContainerPageBean.TYPE_TEMPLATE));
       }
-      CmsJspTagInclude.includeTagAction(pageContext,elementFormatter,cms.getSitePath(resUri),false,null,req,res);
+      CmsContainerElementBean element=new CmsContainerElementBean(resUri,cms.readResource(elementFormater),null,cms);
+      req.setAttribute(P_CURRENT_ELEMENT,element);
+      CmsJspTagInclude.includeTagAction(pageContext,elementFormater,null,false,null,req,res);
     }
   }
   for (  CmsContainerElementBean element : container.getElements()) {
@@ -85,16 +77,7 @@
       CmsContainerBean subcontainer=subcntPage.getContainers().values().iterator().next();
       for (      CmsContainerElementBean subelement : subcontainer.getElements()) {
         String subelementUri=cms.getSitePath(subelement.getElement());
-        List<CmsRelation> relations=cms.getRelationsForResource(subelement.getElement(),CmsRelationFilter.TARGETS.filterType(CmsRelationType.XSD));
-        CmsXmlContentDefinition contentDef=null;
-        if ((relations != null) && !relations.isEmpty()) {
-          String xsd=cms.getSitePath(relations.get(0).getTarget(cms,CmsResourceFilter.ALL));
-          contentDef=entityResolver.getCachedContentDefinition(xsd);
-        }
-        if (contentDef == null) {
-          CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,cms.readFile(subelement.getElement()));
-          contentDef=content.getContentDefinition();
-        }
+        CmsXmlContentDefinition contentDef=CmsXmlContentDefinition.getContentDefinitionForResource(cms,subelement.getElement());
         String subelementFormatter=contentDef.getContentHandler().getFormatters().get(containerType);
         if (CmsStringUtil.isEmptyOrWhitespaceOnly(subelementFormatter)) {
           subelementFormatter=cms.getSitePath(subelement.getFormatter());
@@ -102,13 +85,14 @@
         if (CmsStringUtil.isEmptyOrWhitespaceOnly(subelementFormatter)) {
           throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,subelementUri,contentDef.getSchemaLocation(),containerType));
         }
-        CmsJspTagInclude.includeTagAction(pageContext,subelementFormatter,subelementUri,false,null,req,res);
+        req.setAttribute(P_CURRENT_ELEMENT,subelement);
+        CmsJspTagInclude.includeTagAction(pageContext,subelementFormatter,null,false,null,req,res);
       }
     }
  else {
-      String elementUri=cms.getSitePath(element.getElement());
       String elementFormatter=cms.getSitePath(element.getFormatter());
-      CmsJspTagInclude.includeTagAction(pageContext,elementFormatter,elementUri,false,null,req,res);
+      req.setAttribute(P_CURRENT_ELEMENT,element);
+      CmsJspTagInclude.includeTagAction(pageContext,elementFormatter,null,false,null,req,res);
     }
   }
 }
