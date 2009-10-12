@@ -1,0 +1,116 @@
+{
+  int changes=0;
+  Iterator<Node> itNodes=document.selectNodes(xPath).iterator();
+  if (!itNodes.hasNext()) {
+    if (value == null) {
+      return 0;
+    }
+    Iterator<String> it=CmsStringUtil.splitAsList(xPath,"/",false).iterator();
+    Node currentNode=document;
+    while (it.hasNext()) {
+      String nodeName=it.next();
+      while ((nodeName.indexOf("='") > 0) && (nodeName.indexOf("']") < 0)) {
+        nodeName+="/" + it.next();
+      }
+      Node node=currentNode.selectSingleNode(nodeName);
+      if (node != null) {
+        currentNode=node;
+        if (!it.hasNext()) {
+          currentNode.setText(value);
+        }
+      }
+ else       if (currentNode.getNodeType() == Node.ELEMENT_NODE) {
+        Element elem=(Element)currentNode;
+        if (!nodeName.startsWith("@")) {
+          String childName=null;
+          String childValue="";
+          int pos=nodeName.indexOf("[");
+          if (pos > 0) {
+            int pos2=nodeName.indexOf("=\'",pos);
+            if (pos2 > 0) {
+              childName=nodeName.substring(pos + 1,pos2);
+              childValue=nodeName.substring(pos2 + 2,nodeName.indexOf('\'',pos2 + 2));
+            }
+            nodeName=nodeName.substring(0,pos);
+          }
+          elem=elem.addElement(nodeName);
+          if (childName != null) {
+            if (childName.startsWith("@")) {
+              elem.addAttribute(childName.substring(1),childValue);
+            }
+ else {
+              Element child=elem.addElement(childName);
+              if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(childValue)) {
+                child.addText(childValue);
+              }
+            }
+          }
+          if (!it.hasNext()) {
+            elem.setText(value);
+          }
+        }
+ else {
+          elem.addAttribute(nodeName.substring(1),value);
+        }
+        currentNode=elem;
+      }
+ else {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.ERR_XML_SET_VALUE_2,xPath,value));
+        }
+        break;
+      }
+    }
+    if (nodeToInsert == null) {
+      return 1;
+    }
+    itNodes=document.selectNodes(xPath).iterator();
+  }
+  while (itNodes.hasNext()) {
+    Node node=itNodes.next();
+    if (nodeToInsert == null) {
+      if (value != null) {
+        node.setText(value);
+      }
+ else {
+        node.getParent().remove(node);
+      }
+    }
+ else {
+      Element parent=node.getParent();
+      String childName=null;
+      String childValue="";
+      String nodeName=nodeToInsert;
+      int pos=nodeName.indexOf("[");
+      if (pos > 0) {
+        int pos2=nodeName.indexOf("=\'",pos);
+        if (pos2 > 0) {
+          childName=nodeName.substring(pos + 1,pos2);
+          childValue=nodeName.substring(pos2 + 2,nodeName.indexOf('\'',pos2 + 2));
+        }
+        nodeName=nodeName.substring(0,pos);
+      }
+      Element elem=parent.addElement(nodeName);
+      if (childName != null) {
+        if (childName.startsWith("@")) {
+          elem.addAttribute(childName.substring(1),childValue);
+        }
+ else {
+          Element child=elem.addElement(childName);
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(childValue)) {
+            child.addText(childValue);
+          }
+        }
+      }
+      if (value != null) {
+        elem.setText(value);
+      }
+      List<Node> list=parent.content();
+      list.remove(list.size() - 1);
+      pos=list.indexOf(node);
+      list.add(pos + 1,elem);
+    }
+    changes++;
+  }
+  return changes;
+}

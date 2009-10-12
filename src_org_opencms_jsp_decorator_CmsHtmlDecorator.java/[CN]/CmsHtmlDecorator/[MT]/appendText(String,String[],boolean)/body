@@ -4,7 +4,8 @@
   }
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(text) && m_decorate) {
     List wordList=splitAsList(text,delimiters,false,true);
-    for (int i=0; i < wordList.size(); i++) {
+    int wordCount=wordList.size();
+    for (int i=0; i < wordCount; i++) {
       String word=(String)wordList.get(i);
       if (LOG.isDebugEnabled()) {
         LOG.debug(Messages.get().getBundle().key(Messages.LOG_HTML_DECORATOR_PROCESS_WORD_2,word,Boolean.valueOf(mustDecode(word,wordList,i))));
@@ -23,12 +24,23 @@
         LOG.debug(Messages.get().getBundle().key(Messages.LOG_HTML_DECORATOR_DECORATION_FOUND_2,decObj,word));
       }
       if (decObj == null) {
-        if (hasDelimiter(word,DELIMITERS_SECOND_LEVEL) && recursive) {
+        if (recursive && hasDelimiter(word,DELIMITERS_SECOND_LEVEL)) {
           String secondLevel=word;
-          if (i < wordList.size() - 1) {
-            if (!((String)wordList.get(i + 1)).equals(" ")) {
-              secondLevel=word + (String)wordList.get(i + 1);
-              i++;
+          if (i < wordCount - 1) {
+            String nextWord=(String)wordList.get(i + 1);
+            if (!nextWord.equals(" ")) {
+              String afterNextWord="";
+              if (i < wordCount - 2) {
+                afterNextWord=(String)wordList.get(i + 2);
+              }
+              if (nextWord.contains("&") && afterNextWord.equals(";")) {
+                secondLevel=word + nextWord + ";";
+                i+=2;
+              }
+ else {
+                secondLevel=word + nextWord;
+                i++;
+              }
             }
           }
           appendText(secondLevel,DELIMITERS_SECOND_LEVEL,false);
@@ -40,7 +52,7 @@
           if (forwardLookup > FORWARD_LOOKUP) {
             forwardLookup=FORWARD_LOOKUP;
           }
-          if (i < wordList.size() - forwardLookup) {
+          if (i < wordCount - forwardLookup) {
             for (int j=1; j <= forwardLookup; j++) {
               decKey.append(wordList.get(i + j));
               decObj=(CmsDecorationObject)m_decorations.get(decKey.toString());
