@@ -28,7 +28,8 @@
       for (int i=0; i < elems.length(); i++) {
         String elemId=elems.getString(i);
         try {
-          resElements.put(elemId,elemUtil.getElementData(CmsADEManager.convertToServerId(elemId),cntPage.getTypes()));
+          CmsContainerElementBean element=m_manager.getCachedElement(elemId);
+          resElements.put(element.getClientId(),elemUtil.getElementData(element,cntPage.getTypes()));
         }
  catch (        Exception e) {
           if (!LOG.isDebugEnabled()) {
@@ -40,7 +41,8 @@
     }
  else {
       try {
-        resElements.put(elemParam,elemUtil.getElementData(CmsADEManager.convertToServerId(elemParam),cntPage.getTypes()));
+        CmsContainerElementBean element=m_manager.getCachedElement(elemParam);
+        resElements.put(element.getClientId(),elemUtil.getElementData(element,cntPage.getTypes()));
       }
  catch (      Exception e) {
         if (!LOG.isDebugEnabled()) {
@@ -50,6 +52,33 @@
       }
     }
     result.put(P_ELEMENTS,resElements);
+  }
+ else   if (actionParam.equals(ACTION_ELEM_PROPS)) {
+    String elemParam=request.getParameter(PARAMETER_ELEM);
+    String propertiesParam=request.getParameter(PARAMETER_PROPERTIES);
+    if (elemParam == null) {
+      storeErrorMissingParam(result,PARAMETER_ELEM);
+      return result;
+    }
+    if (propertiesParam == null) {
+      storeErrorMissingParam(result,PARAMETER_PROPERTIES);
+      return result;
+    }
+    try {
+      CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
+      JSONObject resElements=new JSONObject();
+      JSONObject properties=new JSONObject(propertiesParam);
+      CmsContainerElementBean element=m_manager.createElementBean(CmsADEManager.convertToServerId(elemParam),properties);
+      String clientId=element.getClientId();
+      m_manager.setCachedElement(clientId,element);
+      resElements.put(clientId,elemUtil.getElementData(element,cntPage.getTypes()));
+    }
+ catch (    Exception e) {
+      if (!LOG.isDebugEnabled()) {
+        LOG.warn(e.getLocalizedMessage());
+      }
+      LOG.debug(e.getLocalizedMessage(),e);
+    }
   }
  else   if (actionParam.equals(ACTION_FAV)) {
     result.put(P_FAVORITES,getFavoriteList(null,cntPage.getTypes()));
@@ -82,6 +111,24 @@
     CmsResource newResource=m_manager.createNewElement(type);
     result.put(CmsElementUtil.P_ELEMENT_ID,CmsADEManager.convertToClientId(newResource.getStructureId()));
     result.put(P_URI,cms.getSitePath(newResource));
+  }
+ else   if (actionParam.equals(ACTION_PROPS)) {
+    String elemParam=request.getParameter(PARAMETER_ELEM);
+    if (elemParam == null) {
+      storeErrorMissingParam(result,PARAMETER_ELEM);
+      return result;
+    }
+    try {
+      CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
+      CmsContainerElementBean element=m_manager.getCachedElement(elemParam);
+      result=elemUtil.getElementPropertyInfo(element);
+    }
+ catch (    Exception e) {
+      if (!LOG.isDebugEnabled()) {
+        LOG.warn(e.getLocalizedMessage());
+      }
+      LOG.debug(e.getLocalizedMessage(),e);
+    }
   }
  else {
     result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,PARAMETER_ACTION,actionParam));

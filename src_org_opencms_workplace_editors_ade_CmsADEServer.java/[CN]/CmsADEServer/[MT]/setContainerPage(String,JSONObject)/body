@@ -31,9 +31,32 @@
       if (type.equals(CmsContainerPageBean.TYPE_TEMPLATE) && elemUri.equals(paramUri)) {
         continue;
       }
+      String clientId=elem.getString(P_ID);
       I_CmsXmlContentValue elemValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(cntValue.getPath(),CmsContainerPageLoader.N_ELEMENT),locale,i);
       xmlCnt.getValue(CmsXmlUtils.concatXpath(elemValue.getPath(),CmsContainerPageLoader.N_URI),locale,0).setStringValue(cms,elemUri);
       xmlCnt.getValue(CmsXmlUtils.concatXpath(elemValue.getPath(),CmsContainerPageLoader.N_FORMATTER),locale,0).setStringValue(cms,formatter);
+      if (clientId.contains("#")) {
+        CmsContainerElementBean element=m_manager.getCachedElement(clientId);
+        Map<String,CmsProperty> properties=element.getProperties();
+        Map<String,CmsXmlContentProperty> propertiesConf=m_manager.getElementPropertyConfiguration(element.getElement());
+        Iterator<String> itProps=properties.keySet().iterator();
+        int j=0;
+        while (itProps.hasNext()) {
+          String propertyName=itProps.next();
+          if ((properties.get(propertyName).getStructureValue() != null) && propertiesConf.containsKey(propertyName)) {
+            I_CmsXmlContentValue propValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(elemValue.getPath(),CmsContainerPageLoader.N_PROPERTIES),locale,j);
+            xmlCnt.getValue(CmsXmlUtils.concatXpath(propValue.getPath(),CmsContainerPageLoader.N_NAME),locale,0).setStringValue(cms,propertyName);
+            I_CmsXmlContentValue valValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(propValue.getPath(),CmsContainerPageLoader.N_VALUE),locale,0);
+            if (propertiesConf.get(propertyName).getPropertyType() == CmsXmlContentProperty.T_URI) {
+              xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(valValue.getPath(),CmsContainerPageLoader.N_URI),locale,0).setStringValue(cms,properties.get(propertyName).getStructureValue());
+            }
+ else {
+              xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(valValue.getPath(),CmsContainerPageLoader.N_STRING),locale,0).setStringValue(cms,properties.get(propertyName).getStructureValue());
+            }
+            j++;
+          }
+        }
+      }
     }
     cntCount++;
   }
