@@ -1,0 +1,39 @@
+{
+  byte[] contentBytes=file.getContents();
+  String filename=cms.getSitePath(file);
+  String encoding=null;
+  try {
+    encoding=cms.readPropertyObject(filename,CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true).getValue();
+  }
+ catch (  CmsException e) {
+  }
+  if (encoding == null) {
+    encoding=OpenCms.getSystemInfo().getDefaultEncoding();
+  }
+ else {
+    encoding=CmsEncoder.lookupEncoding(encoding,null);
+    if (encoding == null) {
+      throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_INVALID_ENC_1,filename));
+    }
+  }
+  CmsXmlContainerPage content;
+  if (contentBytes.length > 0) {
+    if (keepEncoding) {
+      content=unmarshal(cms,contentBytes,encoding,new CmsXmlEntityResolver(cms));
+    }
+ else {
+      try {
+        String contentStr=new String(contentBytes,encoding);
+        content=unmarshal(cms,contentStr,encoding,new CmsXmlEntityResolver(cms));
+      }
+ catch (      UnsupportedEncodingException e) {
+        throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_INVALID_ENC_1,filename));
+      }
+    }
+  }
+ else {
+    content=new CmsXmlContainerPage(cms,DocumentHelper.createDocument(),encoding,new CmsXmlEntityResolver(cms));
+  }
+  content.setFile(file);
+  return (CmsXmlContainerPage)content.getContentDefinition().getContentHandler().prepareForUse(cms,content);
+}

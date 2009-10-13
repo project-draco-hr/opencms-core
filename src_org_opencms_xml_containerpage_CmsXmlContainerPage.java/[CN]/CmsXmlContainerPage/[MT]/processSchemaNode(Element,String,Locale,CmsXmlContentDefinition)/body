@@ -1,0 +1,38 @@
+{
+  for (Iterator<Node> i=CmsXmlGenericWrapper.content(root).iterator(); i.hasNext(); ) {
+    Node node=i.next();
+    if (!(node instanceof Element)) {
+      node.detach();
+    }
+ else {
+      Element element=(Element)node;
+      String name=element.getName();
+      int xpathIndex=CmsXmlUtils.getXpathIndexInt(element.getUniquePath(root));
+      String path;
+      if (rootPath != null) {
+        StringBuffer b=new StringBuffer(rootPath.length() + name.length() + 6);
+        b.append(rootPath);
+        b.append('/');
+        b.append(CmsXmlUtils.createXpathElement(name,xpathIndex));
+        path=b.toString();
+      }
+ else {
+        path=CmsXmlUtils.createXpathElement(name,xpathIndex);
+      }
+      I_CmsXmlSchemaType schemaType=definition.getSchemaType(name);
+      if (schemaType != null) {
+        I_CmsXmlContentValue value=schemaType.createValue(this,element,locale);
+        addBookmark(path,locale,true,value);
+        if (!schemaType.isSimpleType()) {
+          CmsXmlNestedContentDefinition nestedSchema=(CmsXmlNestedContentDefinition)schemaType;
+          processSchemaNode(element,path,locale,nestedSchema.getNestedContentDefinition());
+        }
+      }
+ else {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().getBundle().key(Messages.LOG_XMLCONTENT_INVALID_ELEM_2,name,definition.getSchemaLocation()));
+        }
+      }
+    }
+  }
+}
