@@ -1,0 +1,62 @@
+{
+  StringBuffer result=new StringBuffer(16384);
+  List<CmsResource> resources=getResources();
+  int amountOfInputFields=4 * resources.size();
+  int height=amountOfInputFields * 25;
+  height+=resources.size() * 30;
+  height+=80;
+  height=Math.min(height,600);
+  Iterator<CmsResource> i=resources.iterator();
+  result.append("<div style=\"height: ").append(height).append("px; padding: 4px; overflow: auto;\">");
+  CmsResource res;
+  while (i.hasNext()) {
+    res=i.next();
+    I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(res);
+    CmsExplorerTypeSettings settings=getSettingsForType(type.getTypeName());
+    List<String> editProperties=settings.getProperties();
+    if (editProperties.size() > 0) {
+      String iconPath=getSkinUri() + "filetypes/" + settings.getIcon();
+      String imageName=res.getName();
+      String propertySuffix="" + imageName.hashCode();
+      result.append(dialogBlockStart("<img src=\"" + iconPath + "\"/>&nbsp;"+ imageName));
+      result.append("<table border=\"0\">\n");
+      Iterator<String> itProperties=editProperties.iterator();
+      String property;
+      while (itProperties.hasNext()) {
+        property=itProperties.next();
+        result.append("<tr>\n");
+        result.append("<td>&nbsp;</td>\n");
+        String title="";
+        try {
+          title=getCms().readPropertyObject(res,property,false).getValue();
+        }
+ catch (        CmsException e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(e.getLocalizedMessage(getLocale()));
+          }
+        }
+        result.append("<td style=\"white-space: nowrap;\" unselectable=\"on\" width=\"15%\">");
+        result.append(property).append(": ");
+        result.append("</td>\n");
+        result.append("<td class=\"maxwidth\">");
+        result.append("<input type=\"text\" class=\"maxwidth\" name=\"");
+        result.append(property);
+        result.append(propertySuffix);
+        result.append("\" value=\"");
+        if (CmsStringUtil.isNotEmpty(title)) {
+          result.append(CmsEncoder.escapeXml(title));
+        }
+        result.append("\"");
+        result.append(">");
+        result.append("</td>\n</tr>\n");
+      }
+      result.append("</table>\n");
+      result.append(dialogBlockEnd());
+    }
+    if (i.hasNext()) {
+      result.append(dialogSpacer());
+    }
+  }
+  result.append("</div>");
+  return result.toString();
+}
