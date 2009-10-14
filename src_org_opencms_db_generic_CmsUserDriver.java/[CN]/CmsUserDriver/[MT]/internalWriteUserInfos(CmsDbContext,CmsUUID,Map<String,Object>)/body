@@ -1,13 +1,30 @@
 {
-  deleteUserInfos(dbc,userId);
-  if (additionalInfo == null) {
-    return;
-  }
-  Iterator<Map.Entry<String,Object>> itEntries=additionalInfo.entrySet().iterator();
+  Map existingInfos=readUserInfos(dbc,userId);
+  Iterator itEntries=existingInfos.entrySet().iterator();
   while (itEntries.hasNext()) {
-    Map.Entry<String,Object> entry=itEntries.next();
+    Map.Entry entry=(Map.Entry)itEntries.next();
     if ((entry.getKey() != null) && (entry.getValue() != null)) {
-      writeUserInfo(dbc,userId,entry.getKey(),entry.getValue());
+      if (!additionalInfo.containsKey(entry.getKey())) {
+        dbc.setAttribute(CmsDriverManager.ATTRIBUTE_USERADDINFO,CmsDriverManager.ATTRIBUTE_USERADDINFO_VALUE_DELETE);
+        writeUserInfo(dbc,userId,(String)entry.getKey(),entry.getValue());
+      }
+ else {
+        Object newValue=additionalInfo.get(entry.getKey());
+        if ((newValue != null) && !newValue.equals(entry.getValue())) {
+          dbc.setAttribute(CmsDriverManager.ATTRIBUTE_USERADDINFO,CmsDriverManager.ATTRIBUTE_USERADDINFO_VALUE_UPDATE);
+          writeUserInfo(dbc,userId,(String)entry.getKey(),newValue);
+        }
+      }
+    }
+  }
+  Iterator itNewEntries=additionalInfo.entrySet().iterator();
+  while (itNewEntries.hasNext()) {
+    Map.Entry entry=(Map.Entry)itNewEntries.next();
+    if ((entry.getKey() != null) && (entry.getValue() != null)) {
+      if (!existingInfos.containsKey(entry.getKey())) {
+        dbc.setAttribute(CmsDriverManager.ATTRIBUTE_USERADDINFO,CmsDriverManager.ATTRIBUTE_USERADDINFO_VALUE_INSERT);
+        writeUserInfo(dbc,userId,(String)entry.getKey(),entry.getValue());
+      }
     }
   }
 }
