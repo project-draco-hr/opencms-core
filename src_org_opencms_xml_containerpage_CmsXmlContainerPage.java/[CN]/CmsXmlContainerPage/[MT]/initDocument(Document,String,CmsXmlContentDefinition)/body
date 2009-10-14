@@ -5,13 +5,47 @@
   m_elementLocales=new HashMap<String,Set<Locale>>();
   m_elementNames=new HashMap<Locale,Set<String>>();
   m_locales=new HashSet<Locale>();
+  m_cntPages=new HashMap<Locale,I_CmsContainerPageBean>();
   clearBookmarks();
-  for (Iterator<Element> i=CmsXmlGenericWrapper.elementIterator(m_document.getRootElement()); i.hasNext(); ) {
-    Element node=i.next();
+  for (Iterator<Element> itCntPages=CmsXmlGenericWrapper.elementIterator(m_document.getRootElement()); itCntPages.hasNext(); ) {
+    Element cntPage=itCntPages.next();
     try {
-      Locale locale=CmsLocaleManager.getLocale(node.attribute(CmsXmlContentDefinition.XSD_ATTRIBUTE_VALUE_LANGUAGE).getValue());
+      Locale locale=CmsLocaleManager.getLocale(cntPage.attribute(CmsXmlContentDefinition.XSD_ATTRIBUTE_VALUE_LANGUAGE).getValue());
       addLocale(locale);
-      processSchemaNode(node,null,locale,definition);
+      processSchemaNode(cntPage,null,locale,definition);
+      if (m_locales.contains(locale)) {
+        continue;
+      }
+      CmsContainerPageBean cntPageBean=new CmsContainerPageBean(locale);
+      for (Iterator<Element> itCnts=CmsXmlGenericWrapper.elementIterator(cntPage,N_CONTAINER); itCnts.hasNext(); ) {
+        Element container=itCnts.next();
+        int cntIndex=CmsXmlUtils.getXpathIndexInt(container.getUniquePath(cntPage));
+        String cntPath=CmsXmlUtils.createXpathElement(container.getName(),cntIndex);
+        I_CmsXmlSchemaType cntSchemaType=definition.getSchemaType(container.getName());
+        I_CmsXmlContentValue cntValue=cntSchemaType.createValue(this,container,locale);
+        addBookmark(cntPath,locale,true,cntValue);
+        CmsXmlContentDefinition cntDef=((CmsXmlNestedContentDefinition)cntSchemaType).getNestedContentDefinition();
+        Element name=container.element(N_NAME);
+        createBookmark(name,locale,container,cntPath,cntDef);
+        Element type=container.element(N_TYPE);
+        createBookmark(type,locale,container,cntPath,cntDef);
+        CmsContainerBean cntBean=new CmsContainerBean(name.getText(),type.getText(),-1);
+        for (Iterator<Element> itElems=CmsXmlGenericWrapper.elementIterator(container,N_ELEMENT); itElems.hasNext(); ) {
+          Element element=itElems.next();
+          int elemIndex=CmsXmlUtils.getXpathIndexInt(element.getUniquePath(container));
+          String elemPath=CmsXmlUtils.createXpathElement(element.getName(),elemIndex);
+          I_CmsXmlSchemaType elemSchemaType=cntDef.getSchemaType(element.getName());
+          I_CmsXmlContentValue elemValue=elemSchemaType.createValue(this,element,locale);
+          addBookmark(elemPath,locale,true,elemValue);
+          CmsXmlContentDefinition elemDef=((CmsXmlNestedContentDefinition)elemSchemaType).getNestedContentDefinition();
+          Element uri=container.element(N_URI);
+          createBookmark(uri,locale,element,elemPath,elemDef);
+          Element formatter=container.element(N_FORMATTER);
+          createBookmark(formatter,locale,element,elemPath,elemDef);
+        }
+        cntPageBean.addContainer(cntBean);
+      }
+      m_cntPages.put(locale,cntPageBean);
     }
  catch (    NullPointerException e) {
       LOG.error(Messages.get().getBundle().key(Messages.LOG_XMLCONTENT_INIT_BOOKMARKS_0),e);

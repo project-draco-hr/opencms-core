@@ -136,23 +136,6 @@
   m_linkManager=new CmsLinkManager(m_staticExportManager.getLinkSubstitutionHandler());
   m_runtimeProperties.putAll(systemConfiguration.getRuntimeProperties());
   I_CmsSessionStorageProvider sessionStorageProvider=systemConfiguration.getSessionStorageProvider();
-  CmsADECacheSettings adeCacheSettings=systemConfiguration.getAdeCacheSettings();
-  if (adeCacheSettings == null) {
-    adeCacheSettings=new CmsADECacheSettings();
-  }
-  m_adeCache=new CmsADECache(m_memoryMonitor,adeCacheSettings);
-  String adeConfigurationClassName=systemConfiguration.getAdeConfiguration();
-  if (adeConfigurationClassName == null) {
-    m_adeConfiguration=new CmsADEDefaultConfiguration();
-  }
- else {
-    try {
-      m_adeConfiguration=(I_CmsADEConfiguration)Class.forName(adeConfigurationClassName).newInstance();
-    }
- catch (    Exception e) {
-      throw new CmsInitException(org.opencms.main.Messages.get().container(org.opencms.main.Messages.ERR_CRITICAL_CLASS_CREATION_1,adeConfigurationClassName),e);
-    }
-  }
   CmsObject adminCms;
   try {
     adminCms=initCmsObject(null,null,getDefaultUsers().getUserAdmin(),(String)null,(String)null);
@@ -176,6 +159,24 @@
     m_workplaceManager.initialize(initCmsObject(adminCms));
     m_sessionManager.initialize(sessionStorageProvider);
     m_publishManager.startPublishing();
+    CmsADECacheSettings adeCacheSettings=systemConfiguration.getAdeCacheSettings();
+    if (adeCacheSettings == null) {
+      adeCacheSettings=new CmsADECacheSettings();
+    }
+    I_CmsADEConfiguration adeConfiguration;
+    String adeConfigurationClassName=systemConfiguration.getAdeConfiguration();
+    if (adeConfigurationClassName == null) {
+      adeConfiguration=new CmsADEDefaultConfiguration();
+    }
+ else {
+      try {
+        adeConfiguration=(I_CmsADEConfiguration)Class.forName(adeConfigurationClassName).newInstance();
+      }
+ catch (      Exception e) {
+        throw new CmsInitException(org.opencms.main.Messages.get().container(org.opencms.main.Messages.ERR_CRITICAL_CLASS_CREATION_1,adeConfigurationClassName),e);
+      }
+    }
+    m_adeManager=new CmsADEManager(adminCms,m_memoryMonitor,adeCacheSettings,adeConfiguration);
   }
  catch (  CmsException e) {
     throw new CmsInitException(Messages.get().container(Messages.ERR_CRITICAL_INIT_MANAGERS_0),e);
