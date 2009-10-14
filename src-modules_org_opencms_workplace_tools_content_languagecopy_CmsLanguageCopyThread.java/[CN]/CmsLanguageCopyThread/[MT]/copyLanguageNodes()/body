@@ -1,0 +1,57 @@
+{
+  CmsObject cms=this.getCms();
+  CmsMultiplexReport report=(CmsMultiplexReport)this.getReport();
+  CmsFile file;
+  CmsXmlContent content;
+  int totalFiles=this.m_copyresources.length;
+  int processedFiles=0;
+  Locale sourceLocale=new Locale(this.m_sourceLanguage);
+  Locale targetLocale=new Locale(this.m_targetLanguage);
+  for (int i=0; i < this.m_copyresources.length; i++) {
+    processedFiles++;
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,new Object[]{String.valueOf(processedFiles),String.valueOf(totalFiles)}),I_CmsReport.FORMAT_NOTE);
+    report.print(Messages.get().container(Messages.LOCALIZATION_BYPASS_1,new Object[]{this.m_copyresources[i]}));
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    try {
+      file=cms.readFile(this.m_copyresources[i]);
+      content=CmsXmlContentFactory.unmarshal(cms,file);
+      if (!content.hasLocale(sourceLocale)) {
+        report.println(Messages.get().container(Messages.GUI_REPORT_LANGUAGEC0PY_WARN_SOURCELOCALE_MISSING_1,new Object[]{sourceLocale}),I_CmsReport.FORMAT_WARNING);
+        CmsMessageContainer container=Messages.get().container(Messages.GUI_REPORT_LANGUAGEC0PY_WARN_SOURCELOCALE_MISSING_2,new Object[]{this.m_copyresources[i],sourceLocale});
+        report.addWarning(container);
+      }
+ else       if (content.hasLocale(targetLocale)) {
+        report.println(Messages.get().container(Messages.GUI_REPORT_LANGUAGEC0PY_WARN_TARGETLOCALE_EXISTS_1,new Object[]{targetLocale}),I_CmsReport.FORMAT_WARNING);
+        CmsMessageContainer container=Messages.get().container(Messages.GUI_REPORT_LANGUAGEC0PY_WARN_TARGETLOCALE_EXISTS_2,new Object[]{this.m_copyresources[i],targetLocale});
+        report.addWarning(container);
+      }
+ else {
+        content.copyLocale(sourceLocale,targetLocale);
+        file.setContents(content.marshal());
+        CmsLock lock=cms.getLock(file);
+        if (lock.isInherited()) {
+          this.unlockInherited(file.getRootPath());
+          cms.lockResource(this.m_copyresources[i]);
+        }
+ else {
+          if (lock.isNullLock()) {
+            cms.lockResource(this.m_copyresources[i]);
+          }
+ else {
+            if (!lock.isLockableBy(cms.getRequestContext().currentUser())) {
+              cms.changeLock(this.m_copyresources[i]);
+            }
+          }
+        }
+        cms.writeFile(file);
+        cms.unlockResource(this.m_copyresources[i]);
+        report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+      }
+    }
+ catch (    Throwable f) {
+      CmsMessageContainer error=Messages.get().container(Messages.GUI_REPORT_LANGUAGEC0PY_ERROR_2,new String[]{this.m_copyresources[i],CmsException.getStackTraceAsString(f)});
+      report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_FAILED_0),I_CmsReport.FORMAT_ERROR);
+      report.addError(error);
+    }
+  }
+}

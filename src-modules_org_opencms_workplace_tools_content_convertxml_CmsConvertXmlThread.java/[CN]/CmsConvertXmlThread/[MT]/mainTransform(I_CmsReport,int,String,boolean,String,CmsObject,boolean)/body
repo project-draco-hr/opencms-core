@@ -1,0 +1,103 @@
+{
+  boolean transformSuccess=true;
+  boolean transformConditions=true;
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_BEGIN_TRANSFORM_0),I_CmsReport.FORMAT_NOTE);
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_PARAMETERS_0),I_CmsReport.FORMAT_NOTE);
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_PARAMETERS_RESOURCE_PATH_1,resourcePath),I_CmsReport.FORMAT_NOTE);
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_PARAMETERS_INC_SUBFOLDERS_1,new Boolean(inclSubFolder).toString()),I_CmsReport.FORMAT_NOTE);
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_PARAMETERS_XSLT_FILE_1,xsltFile),I_CmsReport.FORMAT_NOTE);
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_PARAMETERS_ONLY_COUNT_1,new Boolean(countFilesToTransformOnly).toString()),I_CmsReport.FORMAT_NOTE);
+  if (CmsStringUtil.isEmpty(xsltFile)) {
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_NO_XSLT_FILE_0),I_CmsReport.FORMAT_ERROR);
+    transformConditions=false;
+  }
+  String newXsdMainFile="";
+  String xsltString="";
+  try {
+    xsltString=new String(cmsObject.readFile(xsltFile).getContents());
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getMessageContainer(),e);
+    }
+  }
+  int posMainFileBegin=xsltString.indexOf("xsi:noNamespaceSchemaLocation=\"");
+  if (posMainFileBegin > 0) {
+    String fileName=xsltString.substring(posMainFileBegin + "xsi:noNamespaceSchemaLocation=\"".length());
+    int posMainFileEnd=fileName.indexOf("\"");
+    if (posMainFileEnd > 0) {
+      newXsdMainFile=fileName.substring(0,posMainFileEnd);
+    }
+  }
+  int fileLength=newXsdMainFile.length();
+  if ((fileLength < 5) || !newXsdMainFile.substring(fileLength - 4,fileLength).toUpperCase().equals(".XSD")) {
+    newXsdMainFile="";
+  }
+  if (CmsStringUtil.isEmpty(newXsdMainFile)) {
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_NO_XSD_FILE_0),I_CmsReport.FORMAT_ERROR);
+    transformConditions=false;
+  }
+ else {
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_PARAMETERS_NEW_XSD_MAINFILE_1,newXsdMainFile),I_CmsReport.FORMAT_NOTE);
+  }
+  if (CmsStringUtil.isEmpty(resourcePath)) {
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_NO_VFS_FOLDER_0),I_CmsReport.FORMAT_ERROR);
+    transformConditions=false;
+  }
+  if (!transformConditions) {
+    return false;
+  }
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_START_SEARCHING_0),I_CmsReport.FORMAT_NOTE);
+  List<CmsResource> files2Transform=null;
+  try {
+    files2Transform=cmsObject.readResources(resourcePath,CmsResourceFilter.requireType(fileFormat),inclSubFolder);
+  }
+ catch (  CmsException e) {
+    m_errorTransform+=1;
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_SEARCH_ERROR_0),I_CmsReport.FORMAT_ERROR);
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getMessageContainer(),e);
+    }
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORM_END_0),I_CmsReport.FORMAT_NOTE);
+    return false;
+  }
+  int file2Transform=0;
+  if (files2Transform != null) {
+    file2Transform=files2Transform.size();
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_FOUND_FILES_1,new Integer(file2Transform).toString()),I_CmsReport.FORMAT_OK);
+  }
+ else {
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_NO_FILES_FOUND_0),I_CmsReport.FORMAT_OK);
+    return false;
+  }
+  if (countFilesToTransformOnly || (file2Transform < 1)) {
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_NO_FILES_FOUND_0),I_CmsReport.FORMAT_OK);
+    return false;
+  }
+  CmsObject cmsObject2Publish=transformAndWriteFiles(files2Transform,xsltFile,cmsObject,newXsdMainFile,report);
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_PUBLISHING_FILES_0),I_CmsReport.FORMAT_NOTE);
+  CmsPublishManager cmsPublishManager=OpenCms.getPublishManager();
+  try {
+    cmsPublishManager.publishProject(cmsObject2Publish);
+  }
+ catch (  Exception e) {
+    m_errorTransform+=1;
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORMATION_ERROR_0),I_CmsReport.FORMAT_ERROR);
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.toString());
+    }
+  }
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_RESULT_0),I_CmsReport.FORMAT_NOTE);
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_FOUND_FILES_1,new Integer(file2Transform).toString()),I_CmsReport.FORMAT_NOTE);
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_FILES_ALREADY_TRANSFORMED_1,new Integer(m_alreadyTransformed).toString()),I_CmsReport.FORMAT_NOTE);
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORM_NUMBER_ERRORS_1,new Integer(m_errorTransform).toString()),I_CmsReport.FORMAT_NOTE);
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_LOCKED_FILES_1,new Integer(m_lockedFiles).toString()),I_CmsReport.FORMAT_NOTE);
+  if ((m_lockedFiles > 0) || (m_errorTransform > 0)) {
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORMING_FAILED_0),I_CmsReport.FORMAT_ERROR);
+  }
+ else {
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORMING_SUCCESS_0),I_CmsReport.FORMAT_OK);
+  }
+  report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORM_END_0),I_CmsReport.FORMAT_NOTE);
+  return transformSuccess;
+}

@@ -1,0 +1,121 @@
+{
+  CmsObject cms1=null;
+  CmsObject cms2=null;
+  CmsProject project2Publish=null;
+  try {
+    cms1=OpenCms.initCmsObject(cmsObject);
+    cms2=OpenCms.initCmsObject(cmsObject);
+    cms1.copyResourceToProject("/");
+    project2Publish=cms1.createTempfileProject();
+    cms1.getRequestContext().setCurrentProject(project2Publish);
+  }
+ catch (  CmsException e) {
+    report.println(Messages.get().container(Messages.RPT_CONVERTXML_INITIALIZE_CMS_ERROR_0),I_CmsReport.FORMAT_ERROR);
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.toString());
+    }
+    return cms1;
+  }
+  Iterator<CmsResource> iter=files2Transform.iterator();
+  while (iter.hasNext()) {
+    CmsResource cmsResource=iter.next();
+    boolean resource2Publish=false;
+    CmsResourceState cmsResourceState=cmsResource.getState();
+    if (!(cmsResourceState.equals(CmsResourceState.STATE_CHANGED) || cmsResourceState.equals(CmsResourceState.STATE_NEW))) {
+      resource2Publish=true;
+    }
+    if (resource2Publish) {
+      try {
+        if (!lockResource(cms1,project2Publish,cmsResource,report)) {
+          report.println(Messages.get().container(Messages.RPT_CONVERTXML_LOCKED_FILE_1,cmsObject.getSitePath(cmsResource)),I_CmsReport.FORMAT_ERROR);
+          continue;
+        }
+      }
+ catch (      CmsException e) {
+        report.println(Messages.get().container(Messages.RPT_CONVERTXML_LOCKED_FILE_1,cmsObject.getSitePath(cmsResource)),I_CmsReport.FORMAT_ERROR);
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getMessageContainer(),e);
+        }
+        continue;
+      }
+    }
+ else {
+      try {
+        CmsUUID pid=cmsResource.getProjectLastModified();
+        CmsProject fileProject=cms2.readProject(pid);
+        cms2.getRequestContext().setCurrentProject(fileProject);
+        if (!lockResource(cms2,fileProject,cmsResource,report)) {
+          report.println(Messages.get().container(Messages.RPT_CONVERTXML_LOCKED_FILE_1,cmsObject.getSitePath(cmsResource)),I_CmsReport.FORMAT_ERROR);
+          continue;
+        }
+      }
+ catch (      CmsException e) {
+        report.println(Messages.get().container(Messages.RPT_CONVERTXML_LOCKED_FILE_1,cmsObject.getSitePath(cmsResource)),I_CmsReport.FORMAT_ERROR);
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getMessageContainer(),e);
+        }
+        continue;
+      }
+    }
+    CmsFile cmsFile=null;
+    String fileXmlContent="";
+    try {
+      cmsFile=cmsObject.readFile(cmsResource);
+      CmsXmlContent xmlContent=CmsXmlContentFactory.unmarshal(getCms(),cmsFile);
+      fileXmlContent=xmlContent.toString();
+    }
+ catch (    CmsException e) {
+      m_errorTransform+=1;
+      report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORMATION_ERROR_0),I_CmsReport.FORMAT_ERROR);
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e.getMessageContainer(),e);
+      }
+      continue;
+    }
+    String encodingType="";
+    try {
+      encodingType=cmsObject.readPropertyObject(cmsResource.getRootPath(),CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true).getValue(OpenCms.getSystemInfo().getDefaultEncoding());
+    }
+ catch (    CmsException e) {
+      encodingType=OpenCms.getSystemInfo().getDefaultEncoding();
+    }
+    if (CmsStringUtil.isEmpty(encodingType)) {
+      m_missingEncodingType+=1;
+      report.println(Messages.get().container(Messages.RPT_CONVERTXML_MISSION_ENCODING_TYPE_1,cmsResource.getRootPath()),I_CmsReport.FORMAT_ERROR);
+      continue;
+    }
+    if (fileXmlContent.toUpperCase().contains(newXsdMainFile.toUpperCase())) {
+      m_alreadyTransformed+=1;
+      report.println(Messages.get().container(Messages.RPT_CONVERTXML_FILE_ALREADY_TRANSFORMED_1,cmsResource.getRootPath()),I_CmsReport.FORMAT_OK);
+      continue;
+    }
+    try {
+      String transformedXmlContent=CmsXsltUtil.transformXmlContent(cmsObject,xsltFile,fileXmlContent);
+      transformedXmlContent="<?xml version=\"1.0\" encoding=\"".concat(encodingType).concat("\"?>").concat(transformedXmlContent);
+      if (resource2Publish) {
+        report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORM_CURRENT_FILE_NAME2_2,cmsResource.getRootPath(),encodingType),I_CmsReport.FORMAT_OK);
+        cms1.getRequestContext().setCurrentProject(project2Publish);
+        setXmlContentFromFile(cmsResource,cmsFile,cms1,transformedXmlContent,encodingType,report);
+      }
+ else {
+        report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORM_CURRENT_FILE_NAME_2,cmsResource.getRootPath(),encodingType),I_CmsReport.FORMAT_OK);
+        setXmlContentFromFile(cmsResource,cmsFile,cms2,transformedXmlContent,encodingType,report);
+      }
+    }
+ catch (    CmsXmlException e) {
+      m_errorTransform+=1;
+      report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORMATION_ERROR_0),I_CmsReport.FORMAT_ERROR);
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e.getMessageContainer(),e);
+      }
+    }
+catch (    CmsException e) {
+      m_errorTransform+=1;
+      report.println(Messages.get().container(Messages.RPT_CONVERTXML_TRANSFORMATION_ERROR_0),I_CmsReport.FORMAT_ERROR);
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e.getMessageContainer(),e);
+      }
+    }
+  }
+  return cms1;
+}
