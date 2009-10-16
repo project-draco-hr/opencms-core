@@ -2,14 +2,30 @@
   Iterator<CmsConfigurationCopyResource> i=m_copyResources.iterator();
   while (i.hasNext()) {
     CmsConfigurationCopyResource copyResource=i.next();
-    String target=copyResource.getTarget();
-    if (copyResource.isTargetWasNull() || CmsMacroResolver.isMacro(target,MACRO_RESOURCE_FOLDER_PATH)) {
+    String oriTarget=copyResource.getTarget();
+    String target=oriTarget;
+    if (copyResource.isTargetWasNull() || CmsMacroResolver.isMacro(target,MACRO_RESOURCE_FOLDER_PATH) || CmsMacroResolver.isMacro(target,MACRO_RESOURCE_FOLDER_PATH_TOUCH)) {
       target=target.concat(CmsResource.getName(copyResource.getSource()));
     }
     target=resolver.resolveMacros(target);
     target=CmsFileUtil.normalizePath(CmsLinkManager.getAbsoluteUri(target,resourcename),'/');
     try {
       cms.copyResource(copyResource.getSource(),target,copyResource.getType());
+      if (CmsMacroResolver.isMacro(oriTarget,MACRO_RESOURCE_FOLDER_PATH_TOUCH)) {
+        CmsResource res=cms.readResource(target);
+        if (res.isFile()) {
+          CmsFile file=cms.readFile(res);
+          cms.writeFile(file);
+        }
+ else {
+          Iterator<CmsResource> it=cms.readResources(target,CmsResourceFilter.DEFAULT_FILES,true).iterator();
+          while (it.hasNext()) {
+            CmsResource subRes=it.next();
+            CmsFile file=cms.readFile(subRes);
+            cms.writeFile(file);
+          }
+        }
+      }
     }
  catch (    Exception e) {
       if (LOG.isDebugEnabled()) {
