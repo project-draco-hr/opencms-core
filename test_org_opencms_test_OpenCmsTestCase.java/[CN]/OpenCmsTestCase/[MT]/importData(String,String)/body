@@ -1,0 +1,40 @@
+{
+  String configFolder=getTestDataPath("WEB-INF/config." + m_dbProduct + "/");
+  OpenCmsTestLogAppender.setBreakOnError(false);
+  System.out.println("\n\n\n----- Starting test case: Importing OpenCms VFS data -----");
+  if (m_shell != null) {
+    try {
+      m_shell.exit();
+      m_shell=null;
+    }
+ catch (    Throwable t) {
+    }
+  }
+  m_shell=new CmsShell(getTestDataPath("WEB-INF" + File.separator),null,null,"${user}@${project}>",null);
+  File script;
+  FileInputStream stream=null;
+  CmsObject cms=null;
+  try {
+    script=new File(getTestDataPath("scripts/script_import.txt"));
+    stream=new FileInputStream(script);
+    m_shell.start(stream);
+    cms=OpenCms.initCmsObject(OpenCms.getDefaultUsers().getUserGuest());
+    cms.loginUser("Admin","admin");
+    cms.getRequestContext().setCurrentProject(cms.readProject("tempFileProject"));
+    if (importFolder != null) {
+      importResources(cms,importFolder,targetFolder);
+    }
+    script=new File(getTestDataPath("scripts/script_import_publish.txt"));
+    stream=new FileInputStream(script);
+    m_shell.start(stream);
+    OpenCms.getPublishManager().waitWhileRunning();
+    cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+    cms.getRequestContext().setSiteRoot("/sites/default/");
+    System.out.println("----- Starting test cases -----");
+  }
+ catch (  Throwable t) {
+    t.printStackTrace(System.err);
+    fail("Unable to setup OpenCms\n" + CmsException.getStackTraceAsString(t));
+  }
+  OpenCmsTestLogAppender.setBreakOnError(true);
+}
