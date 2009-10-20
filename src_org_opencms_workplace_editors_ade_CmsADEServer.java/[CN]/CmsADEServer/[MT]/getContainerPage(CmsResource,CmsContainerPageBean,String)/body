@@ -1,0 +1,79 @@
+{
+  CmsObject cms=getCmsObject();
+  JSONObject result=new JSONObject();
+  JSONObject resElements=new JSONObject();
+  JSONObject resContainers=new JSONObject();
+  result.put(P_ELEMENTS,resElements);
+  result.put(P_CONTAINERS,resContainers);
+  result.put(P_CNTPAGE_LOCALE,cms.getRequestContext().getLocale().toString());
+  CmsResourceUtil resUtil=new CmsResourceUtil(cms,resource);
+  Set<String> types=cntPage.getTypes();
+  result.put(CmsADEServer.P_CNTPAGE_ALLOWEDIT,resUtil.getLock().isLockableBy(cms.getRequestContext().currentUser()) && resUtil.isEditable());
+  result.put(CmsADEServer.P_CNTPAGE_LOCKED,resUtil.getLockedByName());
+  resElements.merge(getNewResourceTypes(cms.getSitePath(resource),types),true,false);
+  CmsElementUtil elemUtil=new CmsElementUtil(cms,getRequest().getParameter(PARAMETER_URI),getRequest(),getResponse());
+  Set<String> ids=new HashSet<String>();
+  for (  Map.Entry<String,CmsContainerBean> entry : cntPage.getContainers().entrySet()) {
+    CmsContainerBean container=entry.getValue();
+    JSONObject resContainer=new JSONObject();
+    resContainer.put(P_OBJTYPE,CONTAINER_TYPE);
+    resContainer.put(P_CNTPAGE_NAME,container.getName());
+    resContainer.put(P_CNTPAGE_TYPE,container.getType());
+    resContainer.put(P_MAXELEMENTS,container.getMaxElements());
+    JSONArray resContainerElems=new JSONArray();
+    resContainer.put(P_ELEMENTS,resContainerElems);
+    int renderElems=container.getElements().size();
+    if ((container.getMaxElements() > -1) && (renderElems > container.getMaxElements())) {
+      renderElems=container.getMaxElements();
+    }
+    if ((elemUri != null) && container.getType().equals(CmsContainerPageBean.TYPE_TEMPLATE)) {
+      renderElems--;
+      CmsResource elemRes=cms.readResource(elemUri);
+      CmsContainerElementBean element=createElement(elemRes);
+      String id=element.getClientId();
+      resContainerElems.put(id);
+      if (ids.contains(id)) {
+        continue;
+      }
+      JSONObject resElement=elemUtil.getElementData(element,types);
+      ids.add(id);
+      resElements.put(id,resElement);
+    }
+    for (    CmsContainerElementBean element : container.getElements()) {
+      if (renderElems < 1) {
+        break;
+      }
+      renderElems--;
+      String id=element.getClientId();
+      resContainerElems.put(id);
+      if (ids.contains(id)) {
+        continue;
+      }
+      JSONObject resElement=elemUtil.getElementData(element,types);
+      if (resElement.has(P_SUBITEMS)) {
+        CmsXmlContainerPage subXmlCntPage=CmsXmlContainerPageFactory.unmarshal(cms,element.getElement(),getRequest());
+        CmsContainerPageBean subCntPage=subXmlCntPage.getCntPage(cms,cms.getRequestContext().getLocale());
+        CmsContainerBean subContainer=subCntPage.getContainers().values().iterator().next();
+        for (        CmsContainerElementBean subElement : subContainer.getElements()) {
+          if (!ids.contains(subElement.getElement().getStructureId())) {
+            String subId=subElement.getClientId();
+            if (ids.contains(subId)) {
+              continue;
+            }
+            JSONObject subItemData=elemUtil.getElementData(subElement,types);
+            ids.add(subId);
+            resElements.put(subId,subItemData);
+          }
+        }
+      }
+      ids.add(id);
+      resElements.put(id,resElement);
+    }
+    resContainers.put(container.getName(),resContainer);
+  }
+  JSONArray resFavorites=getFavoriteList(resElements,types);
+  result.put(P_FAVORITES,resFavorites);
+  JSONArray resRecent=getRecentList(resElements,types);
+  result.put(P_RECENT,resRecent);
+  return result;
+}

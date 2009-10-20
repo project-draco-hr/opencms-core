@@ -1,22 +1,19 @@
 {
+  CmsObject cms=OpenCms.getADEManager().m_adminCms;
   m_document=document;
   m_contentDefinition=definition;
   m_encoding=CmsEncoder.lookupEncoding(encoding,encoding);
   m_elementLocales=new HashMap<String,Set<Locale>>();
   m_elementNames=new HashMap<Locale,Set<String>>();
   m_locales=new HashSet<Locale>();
-  m_cntPages=new HashMap<Locale,I_CmsContainerPageBean>();
+  m_cntPages=new HashMap<Locale,CmsContainerPageBean>();
   clearBookmarks();
   for (Iterator<Element> itCntPages=CmsXmlGenericWrapper.elementIterator(m_document.getRootElement()); itCntPages.hasNext(); ) {
     Element cntPage=itCntPages.next();
     try {
       Locale locale=CmsLocaleManager.getLocale(cntPage.attribute(CmsXmlContentDefinition.XSD_ATTRIBUTE_VALUE_LANGUAGE).getValue());
       addLocale(locale);
-      processSchemaNode(cntPage,null,locale,definition);
-      if (m_locales.contains(locale)) {
-        continue;
-      }
-      CmsContainerPageBean cntPageBean=new CmsContainerPageBean(locale);
+      List<CmsContainerBean> containers=new ArrayList<CmsContainerBean>();
       for (Iterator<Element> itCnts=CmsXmlGenericWrapper.elementIterator(cntPage,N_CONTAINER); itCnts.hasNext(); ) {
         Element container=itCnts.next();
         int cntIndex=CmsXmlUtils.getXpathIndexInt(container.getUniquePath(cntPage));
@@ -29,7 +26,7 @@
         createBookmark(name,locale,container,cntPath,cntDef);
         Element type=container.element(N_TYPE);
         createBookmark(type,locale,container,cntPath,cntDef);
-        CmsContainerBean cntBean=new CmsContainerBean(name.getText(),type.getText(),-1);
+        List<CmsContainerElementBean> elements=new ArrayList<CmsContainerElementBean>();
         for (Iterator<Element> itElems=CmsXmlGenericWrapper.elementIterator(container,N_ELEMENT); itElems.hasNext(); ) {
           Element element=itElems.next();
           int elemIndex=CmsXmlUtils.getXpathIndexInt(element.getUniquePath(container));
@@ -38,17 +35,59 @@
           I_CmsXmlContentValue elemValue=elemSchemaType.createValue(this,element,locale);
           addBookmark(elemPath,locale,true,elemValue);
           CmsXmlContentDefinition elemDef=((CmsXmlNestedContentDefinition)elemSchemaType).getNestedContentDefinition();
-          Element uri=container.element(N_URI);
+          Element uri=element.element(N_URI);
           createBookmark(uri,locale,element,elemPath,elemDef);
-          Element formatter=container.element(N_FORMATTER);
+          String elementUri=new CmsLink(uri.element(CmsXmlPage.NODE_LINK)).getUri();
+          Element formatter=element.element(N_FORMATTER);
           createBookmark(formatter,locale,element,elemPath,elemDef);
+          String formatterUri=new CmsLink(formatter.element(CmsXmlPage.NODE_LINK)).getUri();
+          Map<String,String> propertiesMap=new HashMap<String,String>();
+          for (Iterator<Element> itProps=CmsXmlGenericWrapper.elementIterator(element,N_PROPERTIES); itProps.hasNext(); ) {
+            Element property=itProps.next();
+            int propIndex=CmsXmlUtils.getXpathIndexInt(property.getUniquePath(element));
+            String propPath=CmsXmlUtils.createXpathElement(property.getName(),propIndex);
+            I_CmsXmlSchemaType propSchemaType=elemDef.getSchemaType(property.getName());
+            I_CmsXmlContentValue propValue=propSchemaType.createValue(this,property,locale);
+            addBookmark(propPath,locale,true,propValue);
+            CmsXmlContentDefinition propDef=((CmsXmlNestedContentDefinition)propSchemaType).getNestedContentDefinition();
+            Element propName=property.element(N_NAME);
+            createBookmark(propName,locale,property,propPath,propDef);
+            Element value=property.element(N_VALUE);
+            int valueIndex=CmsXmlUtils.getXpathIndexInt(value.getUniquePath(property));
+            String valuePath=CmsXmlUtils.createXpathElement(value.getName(),valueIndex);
+            I_CmsXmlSchemaType valueSchemaType=propDef.getSchemaType(value.getName());
+            I_CmsXmlContentValue valueValue=propSchemaType.createValue(this,value,locale);
+            addBookmark(valuePath,locale,true,valueValue);
+            CmsXmlContentDefinition valueDef=((CmsXmlNestedContentDefinition)valueSchemaType).getNestedContentDefinition();
+            String val=null;
+            Element string=value.element(N_STRING);
+            if (string != null) {
+              createBookmark(string,locale,value,valuePath,valueDef);
+              val=string.getTextTrim();
+            }
+ else {
+              Element valueUri=value.element(N_URI);
+              createBookmark(valueUri,locale,value,valuePath,valueDef);
+              val=new CmsLink(valueUri.element(CmsXmlPage.NODE_LINK)).getUri();
+            }
+            propertiesMap.put(propName.getTextTrim(),val);
+          }
+          try {
+            elements.add(new CmsContainerElementBean(cms.readResource(elementUri),cms.readResource(formatterUri),propertiesMap));
+          }
+ catch (          CmsException e) {
+            if (!LOG.isDebugEnabled()) {
+              LOG.warn(e.getLocalizedMessage());
+            }
+            LOG.debug(e.getLocalizedMessage(),e);
+          }
         }
-        cntPageBean.addContainer(cntBean);
+        containers.add(new CmsContainerBean(name.getText(),type.getText(),-1,elements));
       }
-      m_cntPages.put(locale,cntPageBean);
+      m_cntPages.put(locale,new CmsContainerPageBean(locale,containers));
     }
  catch (    NullPointerException e) {
-      LOG.error(Messages.get().getBundle().key(Messages.LOG_XMLCONTENT_INIT_BOOKMARKS_0),e);
+      LOG.error(org.opencms.xml.content.Messages.get().getBundle().key(org.opencms.xml.content.Messages.LOG_XMLCONTENT_INIT_BOOKMARKS_0),e);
     }
   }
 }

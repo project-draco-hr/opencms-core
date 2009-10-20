@@ -16,16 +16,22 @@
     }
     actAsTemplate=true;
   }
- else   if (req.getParameter(I_CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER) != null) {
+ else   if (req.getParameter(CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER) != null) {
     actAsTemplate=true;
   }
-  CmsADEManager manager=OpenCms.getADEManager();
-  I_CmsContainerPageBean cntPage=manager.getCache(cms,containerPage,cms.getRequestContext().getLocale());
+  CmsXmlContainerPage xmlCntPage=CmsXmlContainerPageFactory.unmarshal(cms,containerPage,req);
+  CmsContainerPageBean cntPage=xmlCntPage.getCntPage(cms,cms.getRequestContext().getLocale());
   Locale locale=cntPage.getLocale();
   if (!cntPage.getContainers().containsKey(containerName)) {
-    throw new CmsIllegalStateException(Messages.get().container(Messages.LOG_CONTAINER_NOT_FOUND_3,cms.getSitePath(containerPage),locale,containerName));
+    if (!cms.getRequestContext().currentProject().isOnlineProject()) {
+      throw new CmsIllegalStateException(Messages.get().container(Messages.LOG_CONTAINER_NOT_FOUND_3,cms.getSitePath(containerPage),locale,containerName));
+    }
+ else {
+      LOG.error(Messages.get().container(Messages.LOG_CONTAINER_NOT_FOUND_3,cms.getSitePath(containerPage),locale,containerName).key());
+      return;
+    }
   }
-  I_CmsContainerBean container=cntPage.getContainers().get(containerName);
+  CmsContainerBean container=cntPage.getContainers().get(containerName);
   if (!containerType.equals(container.getType())) {
     throw new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_TYPE_4,new Object[]{cms.getSitePath(containerPage),locale,containerName,containerType}));
   }
@@ -37,21 +43,21 @@
  catch (    NumberFormatException e) {
       throw new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_MAXELEMENTS_4,new Object[]{cms.getSitePath(containerPage),locale,containerName,containerMaxElements}),e);
     }
-    ((CmsContainerBean)container).setMaxElements(maxElements);
+    container.setMaxElements(maxElements);
   }
   int renderElems=container.getElements().size();
   if ((maxElements > -1) && (renderElems > maxElements)) {
     renderElems=maxElements;
   }
   if (actAsTemplate) {
-    if (!cntPage.getTypes().contains(I_CmsContainerPageBean.TYPE_TEMPLATE)) {
-      throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_CONTAINER_PAGE_NO_TYPE_3,cms.getRequestContext().getUri(),cms.getSitePath(containerPage),I_CmsContainerPageBean.TYPE_TEMPLATE));
+    if (!cntPage.getTypes().contains(CmsContainerPageBean.TYPE_TEMPLATE)) {
+      throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_CONTAINER_PAGE_NO_TYPE_3,cms.getRequestContext().getUri(),cms.getSitePath(containerPage),CmsContainerPageBean.TYPE_TEMPLATE));
     }
-    if (containerType.equals(I_CmsContainerPageBean.TYPE_TEMPLATE)) {
+    if (containerType.equals(CmsContainerPageBean.TYPE_TEMPLATE)) {
       renderElems--;
       CmsResource resUri;
-      if (req.getParameter(I_CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER) != null) {
-        CmsUUID id=new CmsUUID(req.getParameter(I_CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER));
+      if (req.getParameter(CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER) != null) {
+        CmsUUID id=new CmsUUID(req.getParameter(CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER));
         resUri=cms.readResource(id);
       }
  else {
@@ -60,9 +66,9 @@
       CmsXmlContentDefinition contentDef=CmsXmlContentDefinition.getContentDefinitionForResource(cms,resUri);
       String elementFormatter=contentDef.getContentHandler().getFormatters().get(containerType);
       if (CmsStringUtil.isEmptyOrWhitespaceOnly(elementFormatter)) {
-        throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,cms.getRequestContext().getUri(),contentDef.getSchemaLocation(),I_CmsContainerPageBean.TYPE_TEMPLATE));
+        throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,cms.getRequestContext().getUri(),contentDef.getSchemaLocation(),CmsContainerPageBean.TYPE_TEMPLATE));
       }
-      I_CmsContainerElementBean element=new CmsContainerElementBean(resUri,cms.readResource(elementFormatter),null);
+      CmsContainerElementBean element=new CmsContainerElementBean(resUri,cms.readResource(elementFormatter),null);
       Object currentElement=req.getAttribute(CmsADEManager.ATTR_CURRENT_ELEMENT);
       req.setAttribute(CmsADEManager.ATTR_CURRENT_ELEMENT,element);
       try {
@@ -73,16 +79,17 @@
       }
     }
   }
-  for (  I_CmsContainerElementBean element : container.getElements()) {
+  for (  CmsContainerElementBean element : container.getElements()) {
     if (renderElems < 1) {
       break;
     }
     renderElems--;
     CmsResource resUri=element.getElement();
     if (resUri.getTypeId() == CmsResourceTypeContainerPage.getStaticTypeId()) {
-      I_CmsContainerPageBean subcntPage=manager.getCache(cms,resUri,cms.getRequestContext().getLocale());
-      I_CmsContainerBean subcontainer=subcntPage.getContainers().values().iterator().next();
-      for (      I_CmsContainerElementBean subelement : subcontainer.getElements()) {
+      CmsXmlContainerPage subXmlCntPage=CmsXmlContainerPageFactory.unmarshal(cms,resUri,req);
+      CmsContainerPageBean subcntPage=subXmlCntPage.getCntPage(cms,cms.getRequestContext().getLocale());
+      CmsContainerBean subcontainer=subcntPage.getContainers().values().iterator().next();
+      for (      CmsContainerElementBean subelement : subcontainer.getElements()) {
         String subelementUri=cms.getSitePath(subelement.getElement());
         CmsXmlContentDefinition contentDef=CmsXmlContentDefinition.getContentDefinitionForResource(cms,subelement.getElement());
         String subelementFormatter=contentDef.getContentHandler().getFormatters().get(containerType);
