@@ -5,7 +5,8 @@
     return result;
   }
   String actionParam=request.getParameter(PARAMETER_ACTION);
-  if (actionParam.equals(ACTION_PUB_LIST)) {
+  Action action=Action.valueOf(actionParam.toUpperCase());
+  if (action.equals(Action.PUBLISH_LIST)) {
     if (checkParameters(request,null,PARAMETER_REMOVE_RESOURCES)) {
       String remResParam=request.getParameter(PARAMETER_REMOVE_RESOURCES);
       JSONArray resourcesToRemove=new JSONArray(remResParam);
@@ -30,7 +31,7 @@
     }
     return result;
   }
- else   if (actionParam.equals(ACTION_PUBLISH)) {
+ else   if (action.equals(Action.PUBLISH)) {
     if (!checkParameters(request,result,PARAMETER_RESOURCES)) {
       return result;
     }
@@ -56,15 +57,14 @@
   CmsResource cntPageRes=cms.readResource(cntPageParam);
   CmsXmlContainerPage xmlCntPage=CmsXmlContainerPageFactory.unmarshal(cms,cntPageRes,request);
   CmsContainerPageBean cntPage=xmlCntPage.getCntPage(cms,cms.getRequestContext().getLocale());
-  if (actionParam.equals(ACTION_ALL)) {
+  if (action.equals(Action.ALL)) {
     result=getContainerPage(cntPageRes,cntPage,uriParam.equals(cntPageParam) ? null : uriParam);
   }
- else   if (actionParam.equals(ACTION_ELEM)) {
-    String elemParam=request.getParameter(PARAMETER_ELEM);
-    if (elemParam == null) {
-      storeErrorMissingParam(result,PARAMETER_ELEM);
+ else   if (action.equals(Action.ELEM)) {
+    if (!checkParameters(request,result,PARAMETER_ELEM)) {
       return result;
     }
+    String elemParam=request.getParameter(PARAMETER_ELEM);
     CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
     JSONObject resElements=new JSONObject();
     if (elemParam.startsWith("[")) {
@@ -97,17 +97,12 @@
     }
     result.put(P_ELEMENTS,resElements);
   }
- else   if (actionParam.equals(ACTION_ELEM_PROPS)) {
+ else   if (action.equals(Action.ELEMPROPS)) {
+    if (!checkParameters(request,result,PARAMETER_ELEM,PARAMETER_PROPERTIES)) {
+      return result;
+    }
     String elemParam=request.getParameter(PARAMETER_ELEM);
     String propertiesParam=request.getParameter(PARAMETER_PROPERTIES);
-    if (elemParam == null) {
-      storeErrorMissingParam(result,PARAMETER_ELEM);
-      return result;
-    }
-    if (propertiesParam == null) {
-      storeErrorMissingParam(result,PARAMETER_PROPERTIES);
-      return result;
-    }
     try {
       CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
       JSONObject resElements=new JSONObject();
@@ -125,18 +120,18 @@
       LOG.debug(e.getLocalizedMessage(),e);
     }
   }
- else   if (actionParam.equals(ACTION_FAV)) {
+ else   if (action.equals(Action.FAV)) {
     result.put(P_FAVORITES,getFavoriteList(null,cntPage.getTypes()));
   }
- else   if (actionParam.equals(ACTION_REC)) {
+ else   if (action.equals(Action.REC)) {
     result.put(P_RECENT,getRecentList(null,cntPage.getTypes()));
   }
- else   if (actionParam.equals(ACTION_SEARCH)) {
+ else   if (action.equals(Action.SEARCH)) {
     CmsSearchOptions searchOptions=new CmsSearchOptions(request);
     JSONObject searchResult=getSearchResult(cntPageParam,searchOptions,cntPage.getTypes());
     result.merge(searchResult,true,false);
   }
- else   if (actionParam.equals(ACTION_LS)) {
+ else   if (action.equals(Action.LS)) {
     CmsSearchOptions searchOptions=new CmsSearchOptions(request);
     JSONObject searchResult=getLastSearchResult(cntPageParam,searchOptions,cntPage.getTypes());
     CmsSearchOptions oldOptions=m_sessionCache.getADESearchOptions();
@@ -147,7 +142,7 @@
     }
     result.merge(searchResult,true,false);
   }
- else   if (actionParam.equals(ACTION_NEW)) {
+ else   if (action.equals(Action.NEW)) {
     if (!checkParameters(request,result,PARAMETER_DATA)) {
       return result;
     }
@@ -157,12 +152,11 @@
     result.put(CmsElementUtil.P_ELEMENT_ID,m_manager.convertToClientId(newResource.getStructureId()));
     result.put(P_URI,cms.getSitePath(newResource));
   }
- else   if (actionParam.equals(ACTION_PROPS)) {
-    String elemParam=request.getParameter(PARAMETER_ELEM);
-    if (elemParam == null) {
-      storeErrorMissingParam(result,PARAMETER_ELEM);
+ else   if (action.equals(Action.PROPS)) {
+    if (!checkParameters(request,result,PARAMETER_ELEM)) {
       return result;
     }
+    String elemParam=request.getParameter(PARAMETER_ELEM);
     try {
       CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
       CmsContainerElementBean element=getCachedElement(elemParam);
