@@ -1,24 +1,24 @@
 {
   JSONObject result=new JSONObject();
   HttpServletRequest request=getRequest();
-  if (!checkParameters(request,result,PARAMETER_ACTION)) {
+  if (!checkParameters(request,result,ReqParam.ACTION.getName())) {
     return result;
   }
-  String actionParam=request.getParameter(PARAMETER_ACTION);
+  String actionParam=request.getParameter(ReqParam.ACTION.getName());
   Action action=Action.valueOf(actionParam.toUpperCase());
   if (action.equals(Action.PUBLISH_LIST)) {
-    if (checkParameters(request,null,PARAMETER_REMOVE_RESOURCES)) {
-      String remResParam=request.getParameter(PARAMETER_REMOVE_RESOURCES);
+    if (checkParameters(request,null,ParamPublish.REMOVE_RESOURCES.getName())) {
+      String remResParam=request.getParameter(ParamPublish.REMOVE_RESOURCES.getName());
       JSONArray resourcesToRemove=new JSONArray(remResParam);
       removeResourcesFromPublishList(resourcesToRemove);
     }
-    if (checkParameters(request,null,PARAMETER_RELATED,PARAMETER_SIBLINGS)) {
-      String relatedParam=request.getParameter(PARAMETER_RELATED);
-      String siblingsParam=request.getParameter(PARAMETER_SIBLINGS);
+    if (checkParameters(request,null,ParamPublish.RELATED.getName(),ParamPublish.SIBLINGS.getName())) {
+      String relatedParam=request.getParameter(ParamPublish.RELATED.getName());
+      String siblingsParam=request.getParameter(ParamPublish.SIBLINGS.getName());
       boolean related=Boolean.parseBoolean(relatedParam);
       boolean siblings=Boolean.parseBoolean(siblingsParam);
       JSONArray resourcesToPublish=getPublishList(related,siblings);
-      result.put(P_RESOURCES,resourcesToPublish);
+      result.put(JsonResponse.RESOURCES.getName(),resourcesToPublish);
     }
  else {
       boolean related=true;
@@ -27,31 +27,31 @@
       if (resources.length() == 0) {
         resources=getPublishList(related,siblings);
       }
-      result.put(P_RESOURCES,resources);
+      result.put(JsonResponse.RESOURCES.getName(),resources);
     }
     return result;
   }
  else   if (action.equals(Action.PUBLISH)) {
-    if (!checkParameters(request,result,PARAMETER_RESOURCES)) {
+    if (!checkParameters(request,result,ParamPublish.RESOURCES.getName())) {
       return result;
     }
-    String resourcesParam=request.getParameter(PARAMETER_RESOURCES);
+    String resourcesParam=request.getParameter(ParamPublish.RESOURCES.getName());
     JSONArray resourcesToPublish=new JSONArray(resourcesParam);
     JSONArray resources=getResourcesWithLinkCheck(resourcesToPublish);
     if (resources.length() == 0) {
       publishResources(resourcesToPublish);
     }
  else {
-      result.put(P_RESOURCES,resources);
+      result.put(JsonResponse.RESOURCES.getName(),resources);
     }
     return result;
   }
-  if (!checkParameters(request,result,PARAMETER_CNTPAGE,PARAMETER_LOCALE,PARAMETER_URI)) {
+  if (!checkParameters(request,result,ReqParam.CNTPAGE.getName(),ReqParam.LOCALE.getName(),ReqParam.URI.getName())) {
     return result;
   }
-  String cntPageParam=request.getParameter(PARAMETER_CNTPAGE);
-  String localeParam=request.getParameter(PARAMETER_LOCALE);
-  String uriParam=request.getParameter(PARAMETER_URI);
+  String cntPageParam=request.getParameter(ReqParam.CNTPAGE.getName());
+  String localeParam=request.getParameter(ReqParam.LOCALE.getName());
+  String uriParam=request.getParameter(ReqParam.URI.getName());
   CmsObject cms=getCmsObject();
   cms.getRequestContext().setLocale(CmsLocaleManager.getLocale(localeParam));
   CmsResource cntPageRes=cms.readResource(cntPageParam);
@@ -61,70 +61,46 @@
     result=getContainerPage(cntPageRes,cntPage,uriParam.equals(cntPageParam) ? null : uriParam);
   }
  else   if (action.equals(Action.ELEM)) {
-    if (!checkParameters(request,result,PARAMETER_ELEM)) {
+    if (!checkParameters(request,result,ReqParam.ELEM.getName())) {
       return result;
     }
-    String elemParam=request.getParameter(PARAMETER_ELEM);
+    String elemParam=request.getParameter(ReqParam.ELEM.getName());
     CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
     JSONObject resElements=new JSONObject();
     if (elemParam.startsWith("[")) {
       JSONArray elems=new JSONArray(elemParam);
       for (int i=0; i < elems.length(); i++) {
         String elemId=elems.getString(i);
-        try {
-          CmsContainerElementBean element=getCachedElement(elemId);
-          resElements.put(element.getClientId(),elemUtil.getElementData(element,cntPage.getTypes()));
-        }
- catch (        Exception e) {
-          if (!LOG.isDebugEnabled()) {
-            LOG.warn(e.getLocalizedMessage());
-          }
-          LOG.debug(e.getLocalizedMessage(),e);
-        }
+        CmsContainerElementBean element=getCachedElement(elemId);
+        resElements.put(element.getClientId(),elemUtil.getElementData(element,cntPage.getTypes()));
       }
     }
  else {
-      try {
-        CmsContainerElementBean element=getCachedElement(elemParam);
-        resElements.put(element.getClientId(),elemUtil.getElementData(element,cntPage.getTypes()));
-      }
- catch (      Exception e) {
-        if (!LOG.isDebugEnabled()) {
-          LOG.warn(e.getLocalizedMessage());
-        }
-        LOG.debug(e.getLocalizedMessage(),e);
-      }
+      CmsContainerElementBean element=getCachedElement(elemParam);
+      resElements.put(element.getClientId(),elemUtil.getElementData(element,cntPage.getTypes()));
     }
-    result.put(P_ELEMENTS,resElements);
+    result.put(JsonResponse.ELEMENTS.getName(),resElements);
   }
  else   if (action.equals(Action.ELEMPROPS)) {
-    if (!checkParameters(request,result,PARAMETER_ELEM,PARAMETER_PROPERTIES)) {
+    if (!checkParameters(request,result,ReqParam.ELEM.getName(),ReqParam.PROPERTIES.getName())) {
       return result;
     }
-    String elemParam=request.getParameter(PARAMETER_ELEM);
-    String propertiesParam=request.getParameter(PARAMETER_PROPERTIES);
-    try {
-      CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
-      JSONObject resElements=new JSONObject();
-      JSONObject properties=new JSONObject(propertiesParam);
-      CmsContainerElementBean element=createElement(m_manager.convertToServerId(elemParam),properties);
-      String clientId=element.getClientId();
-      m_sessionCache.setCacheContainerElement(element.getClientId(),element);
-      resElements.put(clientId,elemUtil.getElementData(element,cntPage.getTypes()));
-      result.put(P_ELEMENTS,resElements);
-    }
- catch (    Exception e) {
-      if (!LOG.isDebugEnabled()) {
-        LOG.warn(e.getLocalizedMessage());
-      }
-      LOG.debug(e.getLocalizedMessage(),e);
-    }
+    String elemParam=request.getParameter(ReqParam.ELEM.getName());
+    String propertiesParam=request.getParameter(ReqParam.PROPERTIES.getName());
+    CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
+    JSONObject resElements=new JSONObject();
+    JSONObject properties=new JSONObject(propertiesParam);
+    CmsContainerElementBean element=createElement(m_manager.convertToServerId(elemParam),properties);
+    String clientId=element.getClientId();
+    m_sessionCache.setCacheContainerElement(element.getClientId(),element);
+    resElements.put(clientId,elemUtil.getElementData(element,cntPage.getTypes()));
+    result.put(JsonResponse.ELEMENTS.getName(),resElements);
   }
  else   if (action.equals(Action.FAV)) {
-    result.put(P_FAVORITES,getFavoriteList(null,cntPage.getTypes()));
+    result.put(JsonResponse.FAVORITES.getName(),getFavoriteList(null,cntPage.getTypes()));
   }
  else   if (action.equals(Action.REC)) {
-    result.put(P_RECENT,getRecentList(null,cntPage.getTypes()));
+    result.put(JsonResponse.RECENT.getName(),getRecentList(null,cntPage.getTypes()));
   }
  else   if (action.equals(Action.SEARCH)) {
     CmsSearchOptions searchOptions=new CmsSearchOptions(request);
@@ -136,41 +112,33 @@
     JSONObject searchResult=getLastSearchResult(cntPageParam,searchOptions,cntPage.getTypes());
     CmsSearchOptions oldOptions=m_sessionCache.getADESearchOptions();
     if (oldOptions != null) {
-      result.put(PARAMETER_TYPE,oldOptions.getTypes());
-      result.put(PARAMETER_TEXT,oldOptions.getText());
-      result.put(PARAMETER_LOCATION,oldOptions.getLocation());
+      result.put(JsonSearch.TYPE.getName(),oldOptions.getTypes());
+      result.put(JsonSearch.TEXT.getName(),oldOptions.getText());
+      result.put(JsonSearch.LOCATION.getName(),oldOptions.getLocation());
     }
     result.merge(searchResult,true,false);
   }
  else   if (action.equals(Action.NEW)) {
-    if (!checkParameters(request,result,PARAMETER_DATA)) {
+    if (!checkParameters(request,result,ReqParam.DATA.getName())) {
       return result;
     }
-    String dataParam=request.getParameter(PARAMETER_DATA);
+    String dataParam=request.getParameter(ReqParam.DATA.getName());
     String type=dataParam;
-    CmsResource newResource=m_manager.createNewElement(cms,request.getParameter(PARAMETER_CNTPAGE),request,type);
-    result.put(CmsElementUtil.P_ELEMENT_ID,m_manager.convertToClientId(newResource.getStructureId()));
-    result.put(P_URI,cms.getSitePath(newResource));
+    CmsResource newResource=m_manager.createNewElement(cms,cntPageParam,request,type);
+    result.put(JsonNewRes.ID.getName(),m_manager.convertToClientId(newResource.getStructureId()));
+    result.put(JsonNewRes.URI.getName(),cms.getSitePath(newResource));
   }
  else   if (action.equals(Action.PROPS)) {
-    if (!checkParameters(request,result,PARAMETER_ELEM)) {
+    if (!checkParameters(request,result,ReqParam.ELEM.getName())) {
       return result;
     }
-    String elemParam=request.getParameter(PARAMETER_ELEM);
-    try {
-      CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
-      CmsContainerElementBean element=getCachedElement(elemParam);
-      result=elemUtil.getElementPropertyInfo(element);
-    }
- catch (    Exception e) {
-      if (!LOG.isDebugEnabled()) {
-        LOG.warn(e.getLocalizedMessage());
-      }
-      LOG.debug(e.getLocalizedMessage(),e);
-    }
+    String elemParam=request.getParameter(ReqParam.ELEM.getName());
+    CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
+    CmsContainerElementBean element=getCachedElement(elemParam);
+    result=elemUtil.getElementPropertyInfo(element);
   }
  else {
-    result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,PARAMETER_ACTION,actionParam));
+    result.put(RES_ERROR,Messages.get().getBundle().key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));
   }
   return result;
 }
