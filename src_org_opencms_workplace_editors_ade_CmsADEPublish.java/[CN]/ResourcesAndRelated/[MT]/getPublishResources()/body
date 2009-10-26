@@ -1,0 +1,102 @@
+{
+  if (m_resourceList != null) {
+    return m_resourceList;
+  }
+ else {
+    m_resourceList=new ResourcesAndRelated();
+    try {
+      m_resourceList.getResources().addAll(OpenCms.getPublishManager().getPublishList(getCmsObject()).getAllResources());
+    }
+ catch (    CmsException e) {
+      e.printStackTrace();
+    }
+  }
+  m_resourceList=new ResourcesAndRelated();
+  CmsObject cms=getCmsObject();
+  CmsUser user;
+  try {
+    user=cms.readUser(cms.getRequestContext().currentUser().getId());
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+    return m_resourceList;
+  }
+  String info=(String)user.getAdditionalInfo(INFO_PUBLISH_LIST);
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(info)) {
+    return m_resourceList;
+  }
+  JSONArray userPubList;
+  try {
+    userPubList=new JSONArray(info);
+  }
+ catch (  JSONException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    return m_resourceList;
+  }
+  for (int i=0; i < userPubList.length(); i++) {
+    String id=userPubList.optString(i);
+    try {
+      CmsResource resource=cms.readResource(new CmsUUID(id),CmsResourceFilter.ALL);
+      m_resourceList.getResources().add(resource);
+    }
+ catch (    CmsException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+      continue;
+    }
+  }
+  if (m_includeSiblings) {
+    for (    CmsResource resource : new HashSet<CmsResource>(m_resourceList.getResources())) {
+      if (resource.getState().isUnchanged()) {
+        continue;
+      }
+      try {
+        m_resourceList.getResources().addAll(cms.readSiblings(cms.getSitePath(resource),CmsResourceFilter.ALL_MODIFIED));
+      }
+ catch (      CmsException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+        continue;
+      }
+    }
+  }
+  if (m_includeRelated) {
+    for (    CmsResource resource : m_resourceList.getResources()) {
+      if (resource.getState().isUnchanged()) {
+        continue;
+      }
+      try {
+        for (        CmsRelation relation : cms.getRelationsForResource(resource,CmsRelationFilter.TARGETS.filterStrong().filterIncludeChildren())) {
+          CmsResource target=null;
+          try {
+            target=relation.getTarget(cms,CmsResourceFilter.ALL);
+          }
+ catch (          CmsException e) {
+            if (LOG.isErrorEnabled()) {
+              LOG.error(e.getLocalizedMessage(),e);
+            }
+            continue;
+          }
+          if (target.getState().isUnchanged()) {
+            continue;
+          }
+          if (m_resourceList.contains(target)) {
+            continue;
+          }
+          m_resourceList.getRelatedResources().add(target);
+        }
+      }
+ catch (      CmsException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+        continue;
+      }
+    }
+  }
+  return m_resourceList;
+}

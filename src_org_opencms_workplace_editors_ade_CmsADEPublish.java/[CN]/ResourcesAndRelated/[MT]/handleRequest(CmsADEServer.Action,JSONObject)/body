@@ -1,0 +1,47 @@
+{
+  HttpServletRequest request=m_jsp.getRequest();
+  if (action.equals(CmsADEServer.Action.PUBLISH_LIST)) {
+    if (checkParameters(request,null,ParamPublish.REMOVE_RESOURCES)) {
+      String remResParam=request.getParameter(ParamPublish.REMOVE_RESOURCES.getName());
+      JSONArray resourcesToRemove=new JSONArray(remResParam);
+      removeResourcesFromPublishList(resourcesToRemove);
+    }
+    if (checkParameters(request,null,ParamPublish.RELATED,ParamPublish.SIBLINGS)) {
+      String relatedParam=request.getParameter(ParamPublish.RELATED.getName());
+      String siblingsParam=request.getParameter(ParamPublish.SIBLINGS.getName());
+      m_includeRelated=Boolean.parseBoolean(relatedParam);
+      m_includeSiblings=Boolean.parseBoolean(siblingsParam);
+      JSONArray resourcesToPublish=getJsonPublishResources();
+      result.put(JsonResponse.RESOURCES.getName(),resourcesToPublish);
+      result.put(JsonResponse.DIALOG.getName(),Dialog.PUBLISH.getName());
+    }
+ else {
+      JSONArray resources=getJsonBlockedResources();
+      if (resources.length() == 0) {
+        resources=getJsonPublishResources();
+        result.put(JsonResponse.DIALOG.getName(),Dialog.PUBLISH.getName());
+      }
+ else {
+        result.put(JsonResponse.DIALOG.getName(),Dialog.BLOCKED.getName());
+      }
+      result.put(JsonResponse.RESOURCES.getName(),resources);
+    }
+  }
+ else   if (action.equals(CmsADEServer.Action.PUBLISH)) {
+    if (!checkParameters(request,result,ParamPublish.RESOURCES)) {
+      return result;
+    }
+    String resourcesParam=request.getParameter(ParamPublish.RESOURCES.getName());
+    JSONArray resourcesToPublish=new JSONArray(resourcesParam);
+    JSONArray resources=getResourcesWithLinkCheck(resourcesToPublish);
+    if (resources.length() == 0) {
+      publishResources(resourcesToPublish);
+      result.put(JsonResponse.DIALOG.getName(),Dialog.FINISHED.getName());
+    }
+ else {
+      result.put(JsonResponse.RESOURCES.getName(),resources);
+      result.put(JsonResponse.DIALOG.getName(),Dialog.LINKCHECK.getName());
+    }
+  }
+  return result;
+}
