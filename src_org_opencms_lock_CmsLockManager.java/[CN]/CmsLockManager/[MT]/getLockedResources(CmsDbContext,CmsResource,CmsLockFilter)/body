@@ -1,0 +1,30 @@
+{
+  List<CmsResource> lockedResources=new ArrayList<CmsResource>();
+  Iterator<CmsLock> itLocks=OpenCms.getMemoryMonitor().getAllCachedLocks().iterator();
+  while (itLocks.hasNext()) {
+    CmsLock lock=itLocks.next();
+    CmsResource lockedResource;
+    try {
+      lockedResource=m_driverManager.readResource(dbc,lock.getResourceName(),CmsResourceFilter.ALL);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      OpenCms.getMemoryMonitor().uncacheLock(lock.getResourceName());
+      continue;
+    }
+    if (filter.isSharedExclusive() && (lockedResource.getSiblingCount() > 1)) {
+      Iterator<CmsResource> itSiblings=internalReadSiblings(dbc,lockedResource).iterator();
+      while (itSiblings.hasNext()) {
+        CmsResource sibling=itSiblings.next();
+        CmsLock siblingLock=internalSiblingLock(lock,sibling.getRootPath());
+        if (filter.match(resource.getRootPath(),siblingLock)) {
+          lockedResources.add(sibling);
+        }
+      }
+    }
+    if (filter.match(resource.getRootPath(),lock)) {
+      lockedResources.add(lockedResource);
+    }
+  }
+  Collections.sort(lockedResources,I_CmsResource.COMPARE_ROOT_PATH);
+  return lockedResources;
+}
