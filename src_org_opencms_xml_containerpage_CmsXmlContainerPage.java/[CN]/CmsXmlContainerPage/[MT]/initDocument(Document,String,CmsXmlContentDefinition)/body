@@ -29,22 +29,34 @@
         for (Iterator<Element> itElems=CmsXmlGenericWrapper.elementIterator(container,XmlNode.ELEMENT.getName()); itElems.hasNext(); ) {
           Element element=itElems.next();
           int elemIndex=CmsXmlUtils.getXpathIndexInt(element.getUniquePath(container));
-          String elemPath=CmsXmlUtils.createXpathElement(element.getName(),elemIndex);
+          String elemPath=CmsXmlUtils.concatXpath(cntPath,CmsXmlUtils.createXpathElement(element.getName(),elemIndex));
           I_CmsXmlSchemaType elemSchemaType=cntDef.getSchemaType(element.getName());
           I_CmsXmlContentValue elemValue=elemSchemaType.createValue(this,element,locale);
           addBookmark(elemPath,locale,true,elemValue);
           CmsXmlContentDefinition elemDef=((CmsXmlNestedContentDefinition)elemSchemaType).getNestedContentDefinition();
           Element uri=element.element(XmlNode.URI.getName());
           createBookmark(uri,locale,element,elemPath,elemDef);
-          CmsUUID elementId=new CmsLink(uri.element(CmsXmlPage.NODE_LINK)).getStructureId();
+          Element uriLink=uri.element(CmsXmlPage.NODE_LINK);
+          CmsUUID elementId=null;
+          if (uriLink == null) {
+          }
+ else {
+            elementId=new CmsLink(uriLink).getStructureId();
+          }
           Element formatter=element.element(XmlNode.FORMATTER.getName());
           createBookmark(formatter,locale,element,elemPath,elemDef);
-          CmsUUID formatterId=new CmsLink(formatter.element(CmsXmlPage.NODE_LINK)).getStructureId();
+          Element formatterLink=formatter.element(CmsXmlPage.NODE_LINK);
+          CmsUUID formatterId=null;
+          if (formatterLink == null) {
+          }
+ else {
+            formatterId=new CmsLink(formatterLink).getStructureId();
+          }
           Map<String,String> propertiesMap=new HashMap<String,String>();
           for (Iterator<Element> itProps=CmsXmlGenericWrapper.elementIterator(element,XmlNode.PROPERTIES.getName()); itProps.hasNext(); ) {
             Element property=itProps.next();
             int propIndex=CmsXmlUtils.getXpathIndexInt(property.getUniquePath(element));
-            String propPath=CmsXmlUtils.createXpathElement(property.getName(),propIndex);
+            String propPath=CmsXmlUtils.concatXpath(elemPath,CmsXmlUtils.createXpathElement(property.getName(),propIndex));
             I_CmsXmlSchemaType propSchemaType=elemDef.getSchemaType(property.getName());
             I_CmsXmlContentValue propValue=propSchemaType.createValue(this,property,locale);
             addBookmark(propPath,locale,true,propValue);
@@ -53,9 +65,9 @@
             createBookmark(propName,locale,property,propPath,propDef);
             Element value=property.element(XmlNode.VALUE.getName());
             int valueIndex=CmsXmlUtils.getXpathIndexInt(value.getUniquePath(property));
-            String valuePath=CmsXmlUtils.createXpathElement(value.getName(),valueIndex);
+            String valuePath=CmsXmlUtils.concatXpath(propPath,CmsXmlUtils.createXpathElement(value.getName(),valueIndex));
             I_CmsXmlSchemaType valueSchemaType=propDef.getSchemaType(value.getName());
-            I_CmsXmlContentValue valueValue=propSchemaType.createValue(this,value,locale);
+            I_CmsXmlContentValue valueValue=valueSchemaType.createValue(this,value,locale);
             addBookmark(valuePath,locale,true,valueValue);
             CmsXmlContentDefinition valueDef=((CmsXmlNestedContentDefinition)valueSchemaType).getNestedContentDefinition();
             String val=null;
@@ -67,11 +79,14 @@
  else {
               Element valueUri=value.element(XmlNode.URI.getName());
               createBookmark(valueUri,locale,value,valuePath,valueDef);
-              val=new CmsLink(valueUri.element(CmsXmlPage.NODE_LINK)).getStructureId().toString();
+              Element valueUriLink=valueUri.element(CmsXmlPage.NODE_LINK);
+              val=new CmsLink(valueUriLink).getStructureId().toString();
             }
             propertiesMap.put(propName.getTextTrim(),val);
           }
-          elements.add(new CmsContainerElementBean(elementId,formatterId,propertiesMap));
+          if (elementId != null) {
+            elements.add(new CmsContainerElementBean(elementId,formatterId,propertiesMap));
+          }
         }
         containers.add(new CmsContainerBean(name.getText(),type.getText(),-1,elements));
       }
