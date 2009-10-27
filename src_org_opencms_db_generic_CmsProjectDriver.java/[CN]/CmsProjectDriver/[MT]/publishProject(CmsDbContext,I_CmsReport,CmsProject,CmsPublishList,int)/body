@@ -2,7 +2,8 @@
   int publishedFolderCount=0;
   int deletedFolderCount=0;
   int publishedFileCount=0;
-  Set publishedContentIds=new HashSet();
+  Set<CmsUUID> publishedContentIds=new HashSet<CmsUUID>();
+  Set<CmsUUID> publishedIds=new HashSet<CmsUUID>();
   try {
     if (OpenCms.getSystemInfo().isHistoryEnabled()) {
       try {
@@ -21,13 +22,14 @@
     if (foldersSize > 0) {
       report.println(Messages.get().container(Messages.RPT_PUBLISH_FOLDERS_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
     }
-    Iterator itFolders=publishList.getFolderList().iterator();
+    Iterator<CmsResource> itFolders=publishList.getFolderList().iterator();
     while (itFolders.hasNext()) {
-      CmsResource currentFolder=(CmsResource)itFolders.next();
+      CmsResource currentFolder=itFolders.next();
       try {
         if (currentFolder.getState().isNew() || currentFolder.getState().isChanged()) {
           m_driverManager.getProjectDriver().publishFolder(dbc,report,++publishedFolderCount,foldersSize,onlineProject,new CmsFolder(currentFolder),publishList.getPublishHistoryId(),publishTag);
           dbc.pop();
+          publishedIds.add(currentFolder.getStructureId());
           m_driverManager.getHistoryDriver().deleteEntries(dbc,new CmsHistoryFile(currentFolder),OpenCms.getSystemInfo().getHistoryVersions(),-1);
           internalResetResourceState(dbc,currentFolder);
           m_driverManager.unlockResource(dbc,currentFolder,true,true);
@@ -55,15 +57,16 @@
     if (filesSize > 0) {
       report.println(Messages.get().container(Messages.RPT_PUBLISH_FILES_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
     }
-    Iterator itFiles=publishList.getFileList().iterator();
+    Iterator<CmsResource> itFiles=publishList.getFileList().iterator();
     while (itFiles.hasNext()) {
-      CmsResource currentResource=(CmsResource)itFiles.next();
+      CmsResource currentResource=itFiles.next();
       try {
         m_driverManager.getProjectDriver().publishFile(dbc,report,++publishedFileCount,filesSize,onlineProject,currentResource,publishedContentIds,publishList.getPublishHistoryId(),publishTag);
         if (!currentResource.getState().isDeleted()) {
           internalResetResourceState(dbc,currentResource);
         }
         m_driverManager.unlockResource(dbc,currentResource,true,true);
+        publishedIds.add(currentResource.getStructureId());
         dbc.pop();
       }
  catch (      Throwable t) {
@@ -73,7 +76,7 @@
     if (filesSize > 0) {
       report.println(Messages.get().container(Messages.RPT_PUBLISH_FILES_END_0),I_CmsReport.FORMAT_HEADLINE);
     }
-    List deletedFolders=publishList.getDeletedFolderList();
+    List<CmsResource> deletedFolders=publishList.getDeletedFolderList();
     if (deletedFolders.isEmpty()) {
       return;
     }
@@ -82,13 +85,14 @@
     if (deletedFoldersSize > 0) {
       report.println(Messages.get().container(Messages.RPT_DELETE_FOLDERS_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
     }
-    Iterator itDeletedFolders=deletedFolders.iterator();
+    Iterator<CmsResource> itDeletedFolders=deletedFolders.iterator();
     while (itDeletedFolders.hasNext()) {
-      CmsResource currentFolder=(CmsResource)itDeletedFolders.next();
+      CmsResource currentFolder=itDeletedFolders.next();
       try {
         m_driverManager.getProjectDriver().publishDeletedFolder(dbc,report,++deletedFolderCount,deletedFoldersSize,onlineProject,new CmsFolder(currentFolder),publishList.getPublishHistoryId(),publishTag);
         dbc.pop();
         m_driverManager.getHistoryDriver().deleteEntries(dbc,new CmsHistoryFile(currentFolder),OpenCms.getSystemInfo().getHistoryVersionsAfterDeletion(),-1);
+        publishedIds.add(currentFolder.getStructureId());
         m_driverManager.unlockResource(dbc,currentFolder,true,true);
         dbc.pop();
       }
@@ -101,7 +105,7 @@
     }
   }
  catch (  OutOfMemoryError o) {
-    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_CLEAR_CACHES,Collections.EMPTY_MAP));
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_CLEAR_CACHES,Collections.<String,Object>emptyMap()));
     CmsMessageContainer message=Messages.get().container(Messages.ERR_OUT_OF_MEMORY_0);
     if (LOG.isErrorEnabled()) {
       LOG.error(message.key(),o);
@@ -111,6 +115,8 @@
  finally {
     m_driverManager.getVfsDriver().publishVersions(dbc,null,false);
     Object[] msgArgs=new Object[]{String.valueOf(publishedFileCount),String.valueOf(publishedFolderCount),String.valueOf(deletedFolderCount),report.formatRuntime()};
+    CmsUUID userId=dbc.currentUser().getId();
+    removeResourceFromUsersPubList(dbc,userId,publishedIds);
     CmsMessageContainer message=Messages.get().container(Messages.RPT_PUBLISH_STAT_4,msgArgs);
     if (LOG.isInfoEnabled()) {
       LOG.info(message.key());
