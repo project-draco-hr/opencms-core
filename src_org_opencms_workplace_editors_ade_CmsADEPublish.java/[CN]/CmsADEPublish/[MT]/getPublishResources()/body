@@ -1,0 +1,84 @@
+{
+  if (m_resourceList != null) {
+    return m_resourceList;
+  }
+  m_resourceList=new ResourcesAndRelated();
+  try {
+    if (m_options.getProjectId() == null) {
+      m_resourceList.getResources().addAll(OpenCms.getPublishManager().getUsersPubList(m_cms));
+    }
+ else {
+      CmsProject project=m_cms.getRequestContext().currentProject();
+      try {
+        project=m_cms.readProject(m_options.getProjectId());
+      }
+ catch (      Exception e) {
+      }
+      CmsProject originalProject=m_cms.getRequestContext().currentProject();
+      try {
+        m_cms.getRequestContext().setCurrentProject(project);
+        OpenCms.getPublishManager().getPublishList(m_cms);
+      }
+  finally {
+        m_cms.getRequestContext().setCurrentProject(originalProject);
+      }
+    }
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+    return m_resourceList;
+  }
+  if (m_options.isIncludeSiblings()) {
+    for (    CmsResource resource : new HashSet<CmsResource>(m_resourceList.getResources())) {
+      if (resource.getState().isUnchanged()) {
+        continue;
+      }
+      try {
+        m_resourceList.getResources().addAll(m_cms.readSiblings(m_cms.getSitePath(resource),CmsResourceFilter.ALL_MODIFIED));
+      }
+ catch (      CmsException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+        continue;
+      }
+    }
+  }
+  if (m_options.isIncludeRelated()) {
+    for (    CmsResource resource : m_resourceList.getResources()) {
+      if (resource.getState().isUnchanged()) {
+        continue;
+      }
+      try {
+        for (        CmsRelation relation : m_cms.getRelationsForResource(resource,CmsRelationFilter.TARGETS.filterStrong().filterIncludeChildren())) {
+          CmsResource target=null;
+          try {
+            target=relation.getTarget(m_cms,CmsResourceFilter.ALL);
+          }
+ catch (          CmsException e) {
+            if (LOG.isErrorEnabled()) {
+              LOG.error(e.getLocalizedMessage(),e);
+            }
+            continue;
+          }
+          if (target.getState().isUnchanged()) {
+            continue;
+          }
+          if (m_resourceList.contains(target)) {
+            continue;
+          }
+          m_resourceList.getRelatedResources().add(target);
+        }
+      }
+ catch (      CmsException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+        continue;
+      }
+    }
+  }
+  return m_resourceList;
+}

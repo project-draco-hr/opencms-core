@@ -1,0 +1,49 @@
+{
+  List<CmsPublishResourceBean> resources=new ArrayList<CmsPublishResourceBean>();
+  CmsPublishList publishList=new CmsPublishList(pubResources,m_options.isIncludeSiblings(),false);
+  CmsRelationPublishValidator validator=new CmsRelationPublishValidator(m_cms,publishList);
+  for (  String resourceName : validator.keySet()) {
+    CmsRelationValidatorInfoEntry infoEntry=validator.getInfoEntry(resourceName);
+    try {
+      CmsResource resource=m_cms.readResource(resourceName,CmsResourceFilter.ALL);
+      if (resource.getState().isDeleted()) {
+        for (        CmsRelation relation : infoEntry.getRelations()) {
+          try {
+            CmsResource theResource=relation.getSource(m_cms,CmsResourceFilter.ALL);
+            CmsPublishResourceInfoBean info=new CmsPublishResourceInfoBean(Messages.get().getBundle(m_locale).key(Messages.GUI_RESOURCE_MISSING_ONLINE_0),CmsPublishResourceInfoBean.Type.MISSING);
+            CmsPublishResourceBean pubRes=resourceToBean(theResource,info,false,Collections.singletonList(resourceToBean(resource,null,false,null)));
+            resources.add(pubRes);
+          }
+ catch (          CmsException e) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+ else {
+        try {
+          List<CmsPublishResourceBean> related=new ArrayList<CmsPublishResourceBean>();
+          for (          CmsRelation relation : infoEntry.getRelations()) {
+            try {
+              CmsResource theResource=relation.getTarget(m_cms,CmsResourceFilter.ALL);
+              CmsPublishResourceInfoBean info=new CmsPublishResourceInfoBean(Messages.get().getBundle(m_locale).key(Messages.GUI_BROKEN_LINK_ONLINE_0),CmsPublishResourceInfoBean.Type.BROKENLINK);
+              CmsPublishResourceBean pubRes=resourceToBean(theResource,info,false,null);
+              related.add(pubRes);
+            }
+ catch (            CmsException e) {
+              LOG.error(e.getLocalizedMessage(),e);
+            }
+          }
+          CmsPublishResourceBean pubRes=resourceToBean(resource,null,false,related);
+          resources.add(pubRes);
+        }
+ catch (        Exception e) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+ catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+  return resources;
+}
