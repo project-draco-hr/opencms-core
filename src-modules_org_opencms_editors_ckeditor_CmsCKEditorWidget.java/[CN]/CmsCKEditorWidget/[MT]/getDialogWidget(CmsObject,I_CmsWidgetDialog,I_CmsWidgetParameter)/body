@@ -1,0 +1,82 @@
+{
+  String id=param.getId();
+  String value=param.getStringValue(cms);
+  StringBuffer result=new StringBuffer(4096);
+  result.append("<td class=\"xmlTd\">");
+  result.append("<textarea class=\"xmlInput maxwidth\" name=\"ta_");
+  result.append(id);
+  result.append("\" id=\"ta_");
+  result.append(id);
+  result.append("\" style=\"height: ");
+  result.append(getHtmlWidgetOption().getEditorHeight());
+  result.append(";\" rows=\"20\" cols=\"60\">");
+  result.append(CmsEncoder.escapeXml(value));
+  result.append("</textarea>");
+  result.append("<input type=\"hidden\" name=\"");
+  result.append(id);
+  result.append("\" id=\"");
+  result.append(id);
+  result.append("\" value=\"");
+  result.append(CmsEncoder.encode(value));
+  result.append("\">");
+  result.append("<script type=\"text/javascript\">\n");
+  result.append("tmpEditorSettings = new Object();\n");
+  boolean cssConfigured=false;
+  String cssPath="";
+  if (getHtmlWidgetOption().useCss()) {
+    cssPath=getHtmlWidgetOption().getCssPath();
+    getHtmlWidgetOption().setCssPath(null);
+    cssConfigured=true;
+  }
+ else   if (OpenCms.getWorkplaceManager().getEditorCssHandlers().size() > 0) {
+    Iterator<I_CmsEditorCssHandler> i=OpenCms.getWorkplaceManager().getEditorCssHandlers().iterator();
+    try {
+      I_CmsXmlContentValue contentValue=(I_CmsXmlContentValue)param;
+      String editedResource=cms.getSitePath(contentValue.getDocument().getFile());
+      while (i.hasNext()) {
+        I_CmsEditorCssHandler handler=i.next();
+        if (handler.matches(cms,editedResource)) {
+          cssPath=handler.getUriStyleSheet(cms,editedResource);
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(cssPath)) {
+            cssConfigured=true;
+          }
+          break;
+        }
+      }
+    }
+ catch (    Exception e) {
+    }
+  }
+  result.append("tmpEditorSettings.contentsCss = \"");
+  if (cssConfigured) {
+    result.append(OpenCms.getLinkManager().substituteLink(cms,cssPath));
+  }
+  result.append("\";\n");
+  result.append("tmpEditorSettings.stylesCombo_stylesSet = \"");
+  if (getHtmlWidgetOption().showStylesXml()) {
+    result.append(OpenCms.getLinkManager().substituteLink(cms,getHtmlWidgetOption().getStylesXmlPath()));
+    getHtmlWidgetOption().setStylesXmlPath("true");
+  }
+  result.append("\";\n");
+  result.append("tmpEditorSettings.fullPage = ");
+  result.append(getHtmlWidgetOption().isFullPage() ? "true" : "false");
+  result.append(";\n");
+  result.append("tmpEditorSettings.areaId = \"");
+  result.append(id);
+  result.append("\";\n");
+  StringBuffer configJs=new StringBuffer(128);
+  configJs.append(CmsEditor.PATH_EDITORS);
+  configJs.append("ckeditor/configwidget.js");
+  configJs.append("?");
+  configJs.append(PARAM_CONFIGURATION);
+  configJs.append("=");
+  configJs.append(CmsHtmlWidgetOption.createConfigurationString(getHtmlWidgetOption()));
+  result.append("tmpEditorSettings.configPath = \"");
+  result.append(OpenCms.getLinkManager().substituteLink(cms,configJs.toString()));
+  result.append("\";\n");
+  result.append("editorInstances[editorInstances.length] = tmpEditorSettings;\n");
+  result.append("contentFields[contentFields.length] = document.getElementById(\"").append(id).append("\");\n");
+  result.append("</script>\n");
+  result.append("</td>");
+  return result.toString();
+}
