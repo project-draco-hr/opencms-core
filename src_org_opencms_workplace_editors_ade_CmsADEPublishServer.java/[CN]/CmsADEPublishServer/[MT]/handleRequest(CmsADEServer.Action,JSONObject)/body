@@ -1,6 +1,10 @@
 {
   HttpServletRequest request=m_jsp.getRequest();
   CmsPublishOptions options=((CmsADESessionCache)request.getSession().getAttribute(CmsADESessionCache.SESSION_ATTR_ADE_CACHE)).getADEPublishOptions();
+  if (action.equals(CmsADEServer.Action.PUBLISH_OPTIONS)) {
+    result.merge(options.toJson(),true,false);
+    return result;
+  }
   if (checkParameters(request,null,ParamPublish.RELATED)) {
     String relatedParam=request.getParameter(ParamPublish.RELATED.getName());
     options.setIncludeRelated(Boolean.parseBoolean(relatedParam));
@@ -11,7 +15,11 @@
   }
   if (checkParameters(request,null,ParamPublish.PROJECT)) {
     String projectParam=request.getParameter(ParamPublish.PROJECT.getName());
-    options.setProjectId(new CmsUUID(projectParam));
+    try {
+      options.setProjectId(new CmsUUID(projectParam));
+    }
+ catch (    NumberFormatException e) {
+    }
   }
   CmsADEPublish publish=new CmsADEPublish(m_cms);
   publish.getOptions().setIncludeRelated(options.isIncludeRelated());
@@ -57,6 +65,7 @@
     }
  else {
       result.put(JsonResponse.RESOURCES.getName(),resources);
+      result.put(JsonResponse.CANPUBLISH.getName(),isCanPublish());
     }
   }
   return result;
