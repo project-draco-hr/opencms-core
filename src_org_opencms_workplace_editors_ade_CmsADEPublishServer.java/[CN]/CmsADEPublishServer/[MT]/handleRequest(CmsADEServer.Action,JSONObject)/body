@@ -26,16 +26,7 @@
   publish.getOptions().setIncludeSiblings(options.isIncludeSiblings());
   publish.getOptions().setProjectId(options.getProjectId());
   if (action.equals(CmsADEServer.Action.PUBLISH_LIST)) {
-    if (checkParameters(request,null,ParamPublish.REMOVE_RESOURCES)) {
-      String remResParam=request.getParameter(ParamPublish.REMOVE_RESOURCES.getName());
-      JSONArray resourcesToRemove=new JSONArray(remResParam);
-      Set<CmsUUID> idsToRemove=new HashSet<CmsUUID>();
-      for (int i=0; i < resourcesToRemove.length(); i++) {
-        String id=resourcesToRemove.optString(i);
-        idsToRemove.add(new CmsUUID(id));
-      }
-      publish.removeResourcesFromPublishList(idsToRemove);
-    }
+    removeFromPublishList(publish);
     JSONArray groupsToPublish=toJsonArray(publish.getPublishGroups());
     result.put(JsonResponse.GROUPS.getName(),groupsToPublish);
   }
@@ -44,16 +35,7 @@
     result.put(JsonResponse.PROJECTS.getName(),manageableProjects);
   }
  else   if (action.equals(CmsADEServer.Action.PUBLISH)) {
-    if (checkParameters(request,null,ParamPublish.REMOVE_RESOURCES)) {
-      String remResParam=request.getParameter(ParamPublish.REMOVE_RESOURCES.getName());
-      JSONArray resourcesToRemove=new JSONArray(remResParam);
-      Set<CmsUUID> idsToRemove=new HashSet<CmsUUID>();
-      for (int i=0; i < resourcesToRemove.length(); i++) {
-        String id=resourcesToRemove.optString(i);
-        idsToRemove.add(new CmsUUID(id));
-      }
-      publish.removeResourcesFromPublishList(idsToRemove);
-    }
+    removeFromPublishList(publish);
     if (!checkParameters(request,result,ParamPublish.RESOURCES)) {
       return result;
     }
@@ -69,7 +51,10 @@
       return result;
     }
     Collections.sort(pubResources,I_CmsResource.COMPARE_DATE_LAST_MODIFIED);
-    JSONArray resources=toJsonArray(publish.getBrokenResources(pubResources));
+    JSONArray resources=new JSONArray();
+    if (!Boolean.parseBoolean(request.getParameter(ParamPublish.FORCE.getName())) || !isCanPublish()) {
+      resources=toJsonArray(publish.getBrokenResources(pubResources));
+    }
     if (resources.length() == 0) {
       publish.publishResources(pubResources);
     }
