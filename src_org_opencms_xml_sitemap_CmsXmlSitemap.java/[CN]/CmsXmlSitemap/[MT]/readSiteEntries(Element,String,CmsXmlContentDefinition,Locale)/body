@@ -1,0 +1,67 @@
+{
+  List<CmsSiteEntryBean> entries=new ArrayList<CmsSiteEntryBean>();
+  for (Iterator<Element> itCnts=CmsXmlGenericWrapper.elementIterator(rootElem,XmlNode.SITEENTRY.getName()); itCnts.hasNext(); ) {
+    Element entry=itCnts.next();
+    int entryIndex=CmsXmlUtils.getXpathIndexInt(entry.getUniquePath(rootElem));
+    String entryPath=CmsXmlUtils.concatXpath(rootPath,CmsXmlUtils.createXpathElement(entry.getName(),entryIndex));
+    I_CmsXmlSchemaType entrySchemaType=rootDef.getSchemaType(entry.getName());
+    I_CmsXmlContentValue entryValue=entrySchemaType.createValue(this,entry,locale);
+    addBookmark(entryPath,locale,true,entryValue);
+    CmsXmlContentDefinition entryDef=((CmsXmlNestedContentDefinition)entrySchemaType).getNestedContentDefinition();
+    Element uri=entry.element(XmlNode.VFSFILE.getName());
+    createBookmark(uri,locale,entry,entryPath,entryDef);
+    Element uriLink=uri.element(CmsXmlPage.NODE_LINK);
+    CmsUUID entryId=null;
+    if (uriLink == null) {
+    }
+ else {
+      entryId=new CmsLink(uriLink).getStructureId();
+    }
+    Map<String,String> propertiesMap=new HashMap<String,String>();
+    for (Iterator<Element> itProps=CmsXmlGenericWrapper.elementIterator(entry,XmlNode.PROPERTIES.getName()); itProps.hasNext(); ) {
+      Element property=itProps.next();
+      int propIndex=CmsXmlUtils.getXpathIndexInt(property.getUniquePath(entry));
+      String propPath=CmsXmlUtils.concatXpath(entryPath,CmsXmlUtils.createXpathElement(property.getName(),propIndex));
+      I_CmsXmlSchemaType propSchemaType=entryDef.getSchemaType(property.getName());
+      I_CmsXmlContentValue propValue=propSchemaType.createValue(this,property,locale);
+      addBookmark(propPath,locale,true,propValue);
+      CmsXmlContentDefinition propDef=((CmsXmlNestedContentDefinition)propSchemaType).getNestedContentDefinition();
+      Element propName=property.element(XmlNode.NAME.getName());
+      createBookmark(propName,locale,property,propPath,propDef);
+      Element value=property.element(XmlNode.VALUE.getName());
+      int valueIndex=CmsXmlUtils.getXpathIndexInt(value.getUniquePath(property));
+      String valuePath=CmsXmlUtils.concatXpath(propPath,CmsXmlUtils.createXpathElement(value.getName(),valueIndex));
+      I_CmsXmlSchemaType valueSchemaType=propDef.getSchemaType(value.getName());
+      I_CmsXmlContentValue valueValue=valueSchemaType.createValue(this,value,locale);
+      addBookmark(valuePath,locale,true,valueValue);
+      CmsXmlContentDefinition valueDef=((CmsXmlNestedContentDefinition)valueSchemaType).getNestedContentDefinition();
+      String val=null;
+      Element string=value.element(XmlNode.STRING.getName());
+      if (string != null) {
+        createBookmark(string,locale,value,valuePath,valueDef);
+        val=string.getTextTrim();
+      }
+ else {
+        Element valueFileList=value.element(XmlNode.FILELIST.getName());
+        int valueFileListIndex=CmsXmlUtils.getXpathIndexInt(valueFileList.getUniquePath(value));
+        String valueFileListPath=CmsXmlUtils.concatXpath(valuePath,CmsXmlUtils.createXpathElement(valueFileList.getName(),valueFileListIndex));
+        I_CmsXmlSchemaType valueFileListSchemaType=valueDef.getSchemaType(valueFileList.getName());
+        I_CmsXmlContentValue valueFileListValue=valueFileListSchemaType.createValue(this,valueFileList,locale);
+        addBookmark(valueFileListPath,locale,true,valueFileListValue);
+        CmsXmlContentDefinition valueFileListDef=((CmsXmlNestedContentDefinition)valueFileListSchemaType).getNestedContentDefinition();
+        List<CmsUUID> idList=new ArrayList<CmsUUID>();
+        for (Iterator<Element> itFiles=CmsXmlGenericWrapper.elementIterator(valueFileList,XmlNode.URI.getName()); itFiles.hasNext(); ) {
+          Element valueUri=itFiles.next();
+          createBookmark(valueUri,locale,value,valueFileListPath,valueFileListDef);
+          Element valueUriLink=valueUri.element(CmsXmlPage.NODE_LINK);
+          idList.add(new CmsLink(valueUriLink).getStructureId());
+        }
+        val=CmsStringUtil.listAsString(idList,",");
+      }
+      propertiesMap.put(propName.getTextTrim(),val);
+    }
+    List<CmsSiteEntryBean> subEntries=readSiteEntries(entry,entryPath,entryDef,locale);
+    entries.add(new CmsSiteEntryBean(entryId,propertiesMap,subEntries));
+  }
+  return entries;
+}
