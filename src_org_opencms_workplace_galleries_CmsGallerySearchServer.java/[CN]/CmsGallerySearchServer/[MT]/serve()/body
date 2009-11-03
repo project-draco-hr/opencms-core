@@ -1,0 +1,32 @@
+{
+  CmsFlexController controller=CmsFlexController.getController(getRequest());
+  controller.getTopResponse().setContentType(MIMETYPE_APPLICATION_JSON);
+  JSONObject result=new JSONObject();
+  HttpServletRequest request=getRequest();
+  CmsObject cms=getCmsObject();
+  String actionParam=request.getParameter(ReqParam.ACTION.getName());
+  String localeParam=request.getParameter(ReqParam.LOCALE.getName());
+  Action action=Action.valueOf(actionParam.toUpperCase());
+  cms.getRequestContext().setLocale(CmsLocaleManager.getLocale(localeParam));
+  JSONObject data=new JSONObject(request.getParameter(ReqParam.DATA.getName()));
+  if (action.equals(Action.ALL)) {
+    JSONArray types=data.getJSONArray(JsonKeys.TYPES.getName());
+    int[] typesArr=transformToIntArray(types);
+    List<CmsResource> galleries=getGalleriesForTypes(cms,typesArr);
+    result.put(JsonKeys.GALLERIES.getName(),buildJSONForGalleries(cms,galleries));
+    result.put(JsonKeys.CATEGORIES.getName(),getCategories(cms,galleries));
+  }
+ else   if (action.equals(Action.CATEGORIES)) {
+    result.put(JsonKeys.CATEGORIES.getName(),getCategories(cms));
+  }
+ else   if (action.equals(Action.CONTAINERS)) {
+  }
+ else   if (action.equals(Action.GALLERIES)) {
+    result.put(JsonKeys.GALLERIES.getName(),getGalleries(cms,data.getJSONArray(JsonKeys.TYPES.getName())));
+  }
+ else   if (action.equals(Action.SEARCH)) {
+    JSONObject query=data.getJSONObject(JsonKeys.QUERYDATA.getName());
+    result.put(JsonKeys.SEARCHRESULT.getName(),search(query));
+  }
+  result.write(getResponse().getWriter());
+}
