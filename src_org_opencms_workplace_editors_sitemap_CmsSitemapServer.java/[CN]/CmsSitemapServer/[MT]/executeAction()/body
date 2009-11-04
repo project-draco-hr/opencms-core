@@ -1,0 +1,71 @@
+{
+  JSONObject result=new JSONObject();
+  HttpServletRequest request=getRequest();
+  CmsObject cms=getCmsObject();
+  if (!checkParameters(request,result,ReqParam.ACTION,ReqParam.LOCALE,ReqParam.SITEMAP)) {
+    return result;
+  }
+  String actionParam=request.getParameter(ReqParam.ACTION.getName());
+  Action action=Action.valueOf(actionParam.toUpperCase());
+  String localeParam=request.getParameter(ReqParam.LOCALE.getName());
+  cms.getRequestContext().setLocale(CmsLocaleManager.getLocale(localeParam));
+  JSONObject data=new JSONObject();
+  if (checkParameters(request,null,ReqParam.DATA)) {
+    String dataParam=request.getParameter(ReqParam.DATA.getName());
+    data=new JSONObject(dataParam);
+  }
+  String sitemapParam=request.getParameter(ReqParam.SITEMAP.getName());
+  CmsResource sitemapRes=cms.readResource(sitemapParam);
+  CmsXmlSitemap xmlSitemap=CmsXmlSitemapFactory.unmarshal(cms,sitemapRes,request);
+  CmsSitemapBean sitemap=xmlSitemap.getSitemap(cms,cms.getRequestContext().getLocale());
+  if (action.equals(Action.ALL)) {
+    result=getSitemap(sitemapRes,sitemap);
+  }
+ else   if (action.equals(Action.GET)) {
+    if (checkParameters(data,null,JsonRequest.FAV)) {
+      result.put(JsonResponse.FAVORITES.getName(),getFavoriteList());
+    }
+ else     if (checkParameters(data,result,JsonRequest.REC)) {
+      result.put(JsonResponse.RECENT.getName(),m_sessionCache.getRecentList());
+    }
+ else {
+      return result;
+    }
+  }
+ else   if (action.equals(Action.SET)) {
+    if (checkParameters(data,null,JsonRequest.FAV)) {
+      JSONArray list=data.optJSONArray(JsonRequest.FAV.getName());
+      saveFavoriteList(cms,list);
+    }
+ else     if (checkParameters(data,result,JsonRequest.REC)) {
+      JSONArray list=data.optJSONArray(JsonRequest.REC.getName());
+      m_sessionCache.setRecentList(list);
+    }
+ else {
+      return result;
+    }
+  }
+ else   if (action.equals(Action.SAVE)) {
+    saveSitemap(sitemapParam,data);
+  }
+ else   if (action.equals(Action.STARTEDIT)) {
+    try {
+      cms.lockResourceTemporary(sitemapParam);
+    }
+ catch (    CmsException e) {
+      result.put(JsonResponse.ERROR.getName(),e.getLocalizedMessage(cms.getRequestContext().getLocale()));
+    }
+  }
+ else   if (action.equals(Action.STOPEDIT)) {
+    try {
+      cms.unlockResource(sitemapParam);
+    }
+ catch (    CmsException e) {
+      result.put(JsonResponse.ERROR.getName(),e.getLocalizedMessage(cms.getRequestContext().getLocale()));
+    }
+  }
+ else {
+    result.put(JsonResponse.ERROR.getName(),Messages.get().getBundle().key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));
+  }
+  return result;
+}
