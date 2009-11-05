@@ -1,7 +1,27 @@
 {
   CmsObject cms=getCmsObject();
   CmsResource elementRes=cms.readResource(entry.getResourceId());
-  CmsResource formatter=cms.readResource("/system/workplace/editors/sitemap/default-formatter.jsp");
+  CmsResource formatter=m_formatters.get(new Integer(elementRes.getTypeId()));
+  if (formatter == null) {
+    I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(elementRes);
+    String formatterPath=type.getConfiguration().get(RESTYPE_PARAM_SITEMAP_FORMATTER);
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatterPath)) {
+      try {
+        formatter=cms.readResource(formatterPath);
+        m_formatters.put(new Integer(elementRes.getTypeId()),formatter);
+      }
+ catch (      CmsException e) {
+        if (!LOG.isDebugEnabled()) {
+          LOG.warn(e.getLocalizedMessage());
+        }
+        LOG.debug(e.getLocalizedMessage(),e);
+      }
+    }
+  }
+  if (formatter == null) {
+    formatter=m_formatters.get(KEY_DEFAULT_FORMATTER);
+    m_formatters.put(new Integer(elementRes.getTypeId()),formatter);
+  }
   CmsTemplateLoaderFacade loaderFacade=new CmsTemplateLoaderFacade(OpenCms.getResourceManager().getLoader(formatter),elementRes,formatter);
   CmsResource loaderRes=loaderFacade.getLoaderStartResource();
   HttpServletRequest m_req=getRequest();
