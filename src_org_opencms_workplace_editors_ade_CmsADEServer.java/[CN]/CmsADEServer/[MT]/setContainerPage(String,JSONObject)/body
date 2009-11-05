@@ -43,18 +43,34 @@
         int j=0;
         while (itProps.hasNext()) {
           String propertyName=itProps.next();
-          if ((properties.get(propertyName).getStructureValue() != null) && propertiesConf.containsKey(propertyName)) {
-            I_CmsXmlContentValue propValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(elemValue.getPath(),CmsXmlContainerPage.XmlNode.PROPERTIES.getName()),locale,j);
-            xmlCnt.getValue(CmsXmlUtils.concatXpath(propValue.getPath(),CmsXmlContainerPage.XmlNode.NAME.getName()),locale,0).setStringValue(cms,propertyName);
-            I_CmsXmlContentValue valValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(propValue.getPath(),CmsXmlContainerPage.XmlNode.VALUE.getName()),locale,0);
-            if (propertiesConf.get(propertyName).getPropertyType() == CmsXmlContentProperty.T_URI) {
-              xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(valValue.getPath(),CmsXmlContainerPage.XmlNode.URI.getName()),locale,0).setStringValue(cms,properties.get(propertyName).getStructureValue());
-            }
- else {
-              xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(valValue.getPath(),CmsXmlContainerPage.XmlNode.STRING.getName()),locale,0).setStringValue(cms,properties.get(propertyName).getStructureValue());
-            }
-            j++;
+          if ((properties.get(propertyName).getStructureValue() == null) || !propertiesConf.containsKey(propertyName)) {
+            continue;
           }
+          I_CmsXmlContentValue propValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(elemValue.getPath(),CmsXmlContainerPage.XmlNode.PROPERTIES.getName()),locale,j);
+          xmlCnt.getValue(CmsXmlUtils.concatXpath(propValue.getPath(),CmsXmlContainerPage.XmlNode.NAME.getName()),locale,0).setStringValue(cms,propertyName);
+          I_CmsXmlContentValue valValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(propValue.getPath(),CmsXmlContainerPage.XmlNode.VALUE.getName()),locale,0);
+          if (propertiesConf.get(propertyName).getPropertyType().equals(CmsXmlContentProperty.T_VFSLIST)) {
+            I_CmsXmlContentValue filelistValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(valValue.getPath(),CmsXmlContainerPage.XmlNode.FILELIST.getName()),locale,0);
+            int index=0;
+            for (            String strId : CmsStringUtil.splitAsList(properties.get(propertyName).getStructureValue(),CmsXmlContainerPage.IDS_SEPARATOR)) {
+              try {
+                CmsResource res=cms.readResource(new CmsUUID(strId));
+                I_CmsXmlContentValue fileValue=xmlCnt.getValue(CmsXmlUtils.concatXpath(filelistValue.getPath(),CmsXmlContainerPage.XmlNode.URI.getName()),locale,index);
+                if (fileValue == null) {
+                  fileValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(filelistValue.getPath(),CmsXmlContainerPage.XmlNode.URI.getName()),locale,index);
+                }
+                fileValue.setStringValue(cms,cms.getSitePath(res));
+                index++;
+              }
+ catch (              CmsException e) {
+                LOG.error(e.getLocalizedMessage(),e);
+              }
+            }
+          }
+ else {
+            xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(valValue.getPath(),CmsXmlContainerPage.XmlNode.STRING.getName()),locale,0).setStringValue(cms,properties.get(propertyName).getStructureValue());
+          }
+          j++;
         }
       }
     }
