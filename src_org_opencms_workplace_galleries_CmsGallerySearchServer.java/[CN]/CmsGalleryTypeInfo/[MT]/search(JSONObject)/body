@@ -1,0 +1,39 @@
+{
+  JSONObject result=new JSONObject();
+  if (query == null) {
+    return result;
+  }
+  JSONArray types=query.getJSONArray(JsonKeys.TYPES.getName());
+  JSONArray galleries=query.getJSONArray(JsonKeys.GALLERIES.getName());
+  List<String> galleriesList=transformToStringList(galleries);
+  JSONArray categories=query.getJSONArray(JsonKeys.CATEGORIES.getName());
+  List<String> categoriesList=transformToStringList(categories);
+  String queryStr=query.getString(JsonKeys.QUERY.getName());
+  CmsGallerySearch.SortParam sortOrder=CmsGallerySearch.SortParam.valueOf(query.getString(JsonKeys.SORTORDER.getName()));
+  int page=query.getInt(JsonKeys.PAGE.getName());
+  List<String> typeNames=new ArrayList<String>();
+  try {
+    typeNames=getTypeNames(types);
+  }
+ catch (  CmsLoaderException e) {
+    e.printStackTrace();
+  }
+  CmsUser user=m_cms.getRequestContext().currentUser();
+  String indexName=new CmsUserSettings(user).getWorkplaceSearchIndexName();
+  CmsSearchParameters params=new CmsSearchParameters(queryStr);
+  params.setIndex(indexName);
+  params.setMatchesPerPage(20);
+  params.setSearchPage(page);
+  params.setResourceTypes(typeNames);
+  params.setCategories(categoriesList);
+  params.setRoots(galleriesList);
+  CmsSearch searchBean=new CmsSearch();
+  searchBean.init(m_cms);
+  searchBean.setParameters(params);
+  List<CmsSearchResult> searchResults=searchBean.getSearchResult();
+  result.put("sortorder",searchBean.getSortOrder());
+  result.put("resultcount",searchBean.getSearchResultCount());
+  result.put("resultpage",searchBean.getSearchPage());
+  result.put("resultlist",buildJSONForSearchResult(searchResults));
+  return result;
+}
