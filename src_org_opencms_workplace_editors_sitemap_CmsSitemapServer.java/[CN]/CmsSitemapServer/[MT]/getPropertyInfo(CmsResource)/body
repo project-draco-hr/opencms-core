@@ -1,0 +1,28 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsUserSettings settings=new CmsUserSettings(cms.getRequestContext().currentUser());
+  CmsMessages messages=CmsXmlContentDefinition.getContentHandlerForResource(cms,sitemapRes).getMessages(settings.getLocale());
+  JSONObject result=new JSONObject();
+  JSONObject jSONProperties=new JSONObject();
+  Map<String,CmsXmlContentProperty> propertiesConf=OpenCms.getADEManager().getElementPropertyConfiguration(cms,sitemapRes);
+  Iterator<Map.Entry<String,CmsXmlContentProperty>> itProperties=propertiesConf.entrySet().iterator();
+  while (itProperties.hasNext()) {
+    Map.Entry<String,CmsXmlContentProperty> entry=itProperties.next();
+    String propertyName=entry.getKey();
+    CmsXmlContentProperty conf=entry.getValue();
+    CmsMacroResolver.resolveMacros(conf.getWidgetConfiguration(),cms,Messages.get().getBundle());
+    JSONObject jSONProperty=new JSONObject();
+    jSONProperty.put(JsonProperty.DEFAULT_VALUE.getName(),conf.getDefault());
+    jSONProperty.put(JsonProperty.TYPE.getName(),conf.getPropertyType());
+    jSONProperty.put(JsonProperty.WIDGET.getName(),conf.getWidget());
+    jSONProperty.put(JsonProperty.WIDGET_CONF.getName(),CmsMacroResolver.resolveMacros(conf.getWidgetConfiguration(),cms,messages));
+    jSONProperty.put(JsonProperty.RULE_TYPE.getName(),conf.getRuleType());
+    jSONProperty.put(JsonProperty.RULE_REGEX.getName(),conf.getRuleRegex());
+    jSONProperty.put(JsonProperty.NICE_NAME.getName(),CmsMacroResolver.resolveMacros(conf.getNiceName(),cms,messages));
+    jSONProperty.put(JsonProperty.DESCRIPTION.getName(),CmsMacroResolver.resolveMacros(conf.getDescription(),cms,messages));
+    jSONProperty.put(JsonProperty.ERROR.getName(),CmsMacroResolver.resolveMacros(conf.getError(),cms,messages));
+    jSONProperties.put(propertyName,jSONProperty);
+  }
+  result.put(JsonElement.PROPERTIES.getName(),jSONProperties);
+  return result;
+}
