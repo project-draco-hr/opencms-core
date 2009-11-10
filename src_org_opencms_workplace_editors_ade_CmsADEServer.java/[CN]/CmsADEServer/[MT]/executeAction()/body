@@ -2,35 +2,28 @@
   JSONObject result=new JSONObject();
   HttpServletRequest request=getRequest();
   CmsObject cms=getCmsObject();
-  if (!checkParameters(request,result,ReqParam.ACTION,ReqParam.LOCALE)) {
+  if (!checkParameters(request,result,ReqParam.ACTION.getName(),ReqParam.LOCALE.getName(),ReqParam.CNTPAGE.getName(),ReqParam.URI.getName())) {
     return result;
   }
   String actionParam=request.getParameter(ReqParam.ACTION.getName());
   Action action=Action.valueOf(actionParam.toUpperCase());
   String localeParam=request.getParameter(ReqParam.LOCALE.getName());
   cms.getRequestContext().setLocale(CmsLocaleManager.getLocale(localeParam));
-  JSONObject data=new JSONObject();
-  if (checkParameters(request,null,ReqParam.DATA)) {
-    String dataParam=request.getParameter(ReqParam.DATA.getName());
-    data=new JSONObject(dataParam);
-  }
-  if (action.equals(Action.PUBLISH_LIST) || action.equals(Action.PUBLISH) || action.equals(Action.PROJECTS)|| action.equals(Action.PUBLISH_OPTIONS)) {
-    CmsADEPublishServer pubHelper=new CmsADEPublishServer(this);
-    return pubHelper.handleRequest(action,result,data);
-  }
-  if (!checkParameters(request,result,ReqParam.CNTPAGE,ReqParam.URI)) {
-    return result;
-  }
   String cntPageParam=request.getParameter(ReqParam.CNTPAGE.getName());
   String uriParam=request.getParameter(ReqParam.URI.getName());
   CmsResource cntPageRes=cms.readResource(cntPageParam);
   CmsXmlContainerPage xmlCntPage=CmsXmlContainerPageFactory.unmarshal(cms,cntPageRes,request);
   CmsContainerPageBean cntPage=xmlCntPage.getCntPage(cms,cms.getRequestContext().getLocale());
+  JSONObject data=new JSONObject();
+  if (checkParameters(request,null,ReqParam.DATA.getName())) {
+    String dataParam=request.getParameter(ReqParam.DATA.getName());
+    data=new JSONObject(dataParam);
+  }
   if (action.equals(Action.ALL)) {
     result=getContainerPage(cntPageRes,cntPage,uriParam.equals(cntPageParam) ? null : uriParam);
   }
  else   if (action.equals(Action.ELEM)) {
-    if (!checkParameters(data,result,JsonRequest.ELEM)) {
+    if (!checkParameters(data,result,JsonRequest.ELEM.getName())) {
       return result;
     }
     JSONArray elems=data.optJSONArray(JsonRequest.ELEM.getName());
@@ -48,7 +41,7 @@
     result.put(JsonResponse.ELEMENTS.getName(),resElements);
   }
  else   if (action.equals(Action.ELEMPROPS)) {
-    if (!checkParameters(data,result,JsonRequest.ELEM,JsonRequest.PROPERTIES)) {
+    if (!checkParameters(data,result,JsonRequest.ELEM.getName(),JsonRequest.PROPERTIES.getName())) {
       return result;
     }
     String elemParam=data.optString(JsonRequest.ELEM.getName());
@@ -61,10 +54,10 @@
     result.put(JsonResponse.ELEMENTS.getName(),resElements);
   }
  else   if (action.equals(Action.GET)) {
-    if (checkParameters(data,null,JsonRequest.FAV)) {
+    if (checkParameters(data,null,JsonRequest.FAV.getName())) {
       result.put(JsonResponse.FAVORITES.getName(),getFavoriteList(null,cntPage.getTypes()));
     }
- else     if (checkParameters(data,result,JsonRequest.REC)) {
+ else     if (checkParameters(data,result,JsonRequest.REC.getName())) {
       result.put(JsonResponse.RECENT.getName(),getRecentList(null,cntPage.getTypes()));
     }
  else {
@@ -88,7 +81,7 @@
     result.merge(searchResult,true,false);
   }
  else   if (action.equals(Action.NEW)) {
-    if (!checkParameters(data,result,JsonRequest.TYPE)) {
+    if (!checkParameters(data,result,JsonRequest.TYPE.getName())) {
       return result;
     }
     String type=data.optString(JsonRequest.TYPE.getName());
@@ -97,7 +90,7 @@
     result.put(JsonNewRes.URI.getName(),cms.getSitePath(newResource));
   }
  else   if (action.equals(Action.PROPS)) {
-    if (!checkParameters(data,result,JsonRequest.ELEM)) {
+    if (!checkParameters(data,result,JsonRequest.ELEM.getName())) {
       return result;
     }
     String elemParam=data.optString(JsonRequest.ELEM.getName());
@@ -106,11 +99,11 @@
     result=elemUtil.getElementPropertyInfo(element);
   }
  else   if (action.equals(Action.SET)) {
-    if (checkParameters(data,null,JsonRequest.FAV)) {
+    if (checkParameters(data,null,JsonRequest.FAV.getName())) {
       JSONArray list=data.optJSONArray(JsonRequest.FAV.getName());
       m_manager.saveFavoriteList(cms,arrayToElementList(list));
     }
- else     if (checkParameters(data,result,JsonRequest.REC)) {
+ else     if (checkParameters(data,result,JsonRequest.REC.getName())) {
       JSONArray list=data.optJSONArray(JsonRequest.REC.getName());
       m_sessionCache.setCacheRecentList(arrayToElementList(list));
     }
@@ -126,7 +119,7 @@
       cms.lockResourceTemporary(cntPageParam);
     }
  catch (    CmsException e) {
-      result.put(JsonResponse.ERROR.getName(),e.getLocalizedMessage(cms.getRequestContext().getLocale()));
+      error(result,e.getLocalizedMessage(getWorkplaceLocale()));
     }
   }
  else   if (action.equals(Action.STOPEDIT)) {
@@ -134,18 +127,18 @@
       cms.unlockResource(cntPageParam);
     }
  catch (    CmsException e) {
-      result.put(JsonResponse.ERROR.getName(),e.getLocalizedMessage(cms.getRequestContext().getLocale()));
+      error(result,e.getLocalizedMessage(getWorkplaceLocale()));
     }
   }
  else   if (action.equals(Action.DEL)) {
-    if (!checkParameters(data,result,JsonRequest.ELEM)) {
+    if (!checkParameters(data,result,JsonRequest.ELEM.getName())) {
       return result;
     }
     JSONArray elems=data.optJSONArray(JsonRequest.ELEM.getName());
     deleteElements(elems);
   }
  else {
-    result.put(JsonResponse.ERROR.getName(),Messages.get().getBundle().key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));
+    error(result,Messages.get().getBundle(getWorkplaceLocale()).key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));
   }
   return result;
 }

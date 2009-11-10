@@ -1,0 +1,83 @@
+{
+  I_CmsXmlSchemaType type=m_contentDefinition.getSchemaType(path);
+  if (type == null) {
+    throw new CmsIllegalArgumentException(org.opencms.xml.content.Messages.get().container(org.opencms.xml.content.Messages.ERR_XMLCONTENT_UNKNOWN_ELEM_PATH_SCHEMA_1,path));
+  }
+  Element parentElement;
+  String elementName;
+  CmsXmlContentDefinition contentDefinition;
+  if (CmsXmlUtils.isDeepXpath(path)) {
+    String parentPath=CmsXmlUtils.createXpath(CmsXmlUtils.removeLastXpathElement(path),1);
+    Object o=getBookmark(parentPath,locale);
+    if (o == null) {
+      throw new CmsIllegalArgumentException(org.opencms.xml.content.Messages.get().container(org.opencms.xml.content.Messages.ERR_XMLCONTENT_UNKNOWN_ELEM_PATH_1,path));
+    }
+    CmsXmlNestedContentDefinition parentValue=(CmsXmlNestedContentDefinition)o;
+    parentElement=parentValue.getElement();
+    elementName=CmsXmlUtils.getLastXpathElement(path);
+    contentDefinition=parentValue.getNestedContentDefinition();
+  }
+ else {
+    parentElement=getLocaleNode(locale);
+    elementName=CmsXmlUtils.removeXpathIndex(path);
+    contentDefinition=m_contentDefinition;
+  }
+  List<Element> siblings=CmsXmlGenericWrapper.elements(parentElement,elementName);
+  int insertIndex;
+  if (contentDefinition.getChoiceMaxOccurs() > 0) {
+    insertIndex=index;
+  }
+ else   if (siblings.size() > 0) {
+    if (siblings.size() >= type.getMaxOccurs()) {
+      throw new CmsRuntimeException(org.opencms.xml.content.Messages.get().container(org.opencms.xml.content.Messages.ERR_XMLCONTENT_ELEM_MAXOCCURS_2,elementName,new Integer(type.getMaxOccurs())));
+    }
+    if (index > siblings.size()) {
+      throw new CmsRuntimeException(org.opencms.xml.content.Messages.get().container(org.opencms.xml.content.Messages.ERR_XMLCONTENT_ADD_ELEM_INVALID_IDX_3,new Integer(index),new Integer(siblings.size())));
+    }
+    int offset=(index == siblings.size()) ? 1 : 0;
+    Element sibling=siblings.get(index - offset);
+    insertIndex=sibling.getParent().content().indexOf(sibling) + offset;
+  }
+ else {
+    if (index > 0) {
+      throw new CmsRuntimeException(org.opencms.xml.content.Messages.get().container(org.opencms.xml.content.Messages.ERR_XMLCONTENT_ADD_ELEM_INVALID_IDX_2,new Integer(index),elementName));
+    }
+    int typeIndex=contentDefinition.getTypeSequence().indexOf(type);
+    if (typeIndex == 0) {
+      insertIndex=0;
+    }
+ else {
+      List<String> previousTypeNames=new ArrayList<String>();
+      for (int i=0; i < typeIndex; i++) {
+        I_CmsXmlSchemaType t=contentDefinition.getTypeSequence().get(i);
+        previousTypeNames.add(t.getName());
+      }
+      Iterator<Node> i=CmsXmlGenericWrapper.content(parentElement).iterator();
+      int pos=0;
+      while (i.hasNext()) {
+        Node node=i.next();
+        if (node instanceof Element) {
+          if (!previousTypeNames.contains(node.getName())) {
+            break;
+          }
+        }
+        pos++;
+      }
+      insertIndex=pos;
+    }
+  }
+  I_CmsXmlContentValue newValue;
+  if (contentDefinition.getChoiceMaxOccurs() > 0) {
+    try {
+      newValue=addValue(cms,parentElement,type,locale,insertIndex);
+    }
+ catch (    Exception e) {
+      throw new CmsRuntimeException(org.opencms.xml.content.Messages.get().container(org.opencms.xml.content.Messages.ERR_XMLCONTENT_ADD_ELEM_INVALID_IDX_CHOICE_3,new Integer(insertIndex),elementName,parentElement.getUniquePath()));
+    }
+  }
+ else {
+    newValue=addValue(cms,parentElement,type,locale,insertIndex);
+  }
+  initDocument(m_document,m_encoding,m_contentDefinition);
+  return getBookmark(getBookmarkName(newValue.getPath(),locale));
+}

@@ -2,7 +2,7 @@
   JSONObject result=new JSONObject();
   HttpServletRequest request=getRequest();
   CmsObject cms=getCmsObject();
-  if (!checkParameters(request,result,ReqParam.ACTION,ReqParam.LOCALE,ReqParam.SITEMAP)) {
+  if (!checkParameters(request,result,ReqParam.ACTION.getName(),ReqParam.LOCALE.getName(),ReqParam.SITEMAP.getName())) {
     return result;
   }
   String actionParam=request.getParameter(ReqParam.ACTION.getName());
@@ -10,22 +10,36 @@
   String localeParam=request.getParameter(ReqParam.LOCALE.getName());
   cms.getRequestContext().setLocale(CmsLocaleManager.getLocale(localeParam));
   JSONObject data=new JSONObject();
-  if (checkParameters(request,null,ReqParam.DATA)) {
+  if (checkParameters(request,null,ReqParam.DATA.getName())) {
     String dataParam=request.getParameter(ReqParam.DATA.getName());
     data=new JSONObject(dataParam);
   }
   String sitemapParam=request.getParameter(ReqParam.SITEMAP.getName());
-  CmsResource sitemapRes=cms.readResource(sitemapParam);
-  CmsXmlSitemap xmlSitemap=CmsXmlSitemapFactory.unmarshal(cms,sitemapRes,request);
-  CmsSitemapBean sitemap=xmlSitemap.getSitemap(cms,cms.getRequestContext().getLocale());
+  CmsResource sitemapRes=null;
+  CmsXmlSitemap xmlSitemap=null;
+  if (sitemapParam.contains(CmsRequestUtil.URL_DELIMITER)) {
+    int pos=sitemapParam.indexOf(CmsRequestUtil.URL_DELIMITER);
+    Map<String,String[]> params=CmsRequestUtil.createParameterMap(sitemapParam.substring(pos));
+    if (params.containsKey(CmsHistoryResourceHandler.PARAM_VERSION)) {
+      int version=Integer.parseInt(params.get(CmsHistoryResourceHandler.PARAM_VERSION)[0]);
+      sitemapParam=sitemapParam.substring(0,pos);
+      sitemapRes=cms.readResource(sitemapParam);
+      CmsFile histRes=cms.readFile((CmsResource)cms.readResource(sitemapRes.getStructureId(),version));
+      xmlSitemap=CmsXmlSitemapFactory.unmarshal(cms,histRes,request);
+    }
+  }
+  if (xmlSitemap == null) {
+    sitemapRes=cms.readResource(sitemapParam);
+    xmlSitemap=CmsXmlSitemapFactory.unmarshal(cms,sitemapRes,request);
+  }
   if (action.equals(Action.ALL)) {
-    result=getSitemap(sitemapRes,sitemap);
+    result=getSitemap(sitemapRes,xmlSitemap);
   }
  else   if (action.equals(Action.GET)) {
-    if (checkParameters(data,null,JsonRequest.FAV)) {
+    if (checkParameters(data,null,JsonRequest.FAV.getName())) {
       result.put(JsonResponse.FAVORITES.getName(),getFavoriteList());
     }
- else     if (checkParameters(data,result,JsonRequest.REC)) {
+ else     if (checkParameters(data,result,JsonRequest.REC.getName())) {
       result.put(JsonResponse.RECENT.getName(),addContents(m_sessionCache.getRecentList()));
     }
  else {
@@ -33,11 +47,11 @@
     }
   }
  else   if (action.equals(Action.SET)) {
-    if (checkParameters(data,null,JsonRequest.FAV)) {
+    if (checkParameters(data,null,JsonRequest.FAV.getName())) {
       JSONArray list=data.optJSONArray(JsonRequest.FAV.getName());
       saveFavoriteList(cms,list);
     }
- else     if (checkParameters(data,result,JsonRequest.REC)) {
+ else     if (checkParameters(data,result,JsonRequest.REC.getName())) {
       JSONArray list=data.optJSONArray(JsonRequest.REC.getName());
       m_sessionCache.setRecentList(list);
     }
@@ -46,14 +60,14 @@
     }
   }
  else   if (action.equals(Action.VALIDATE)) {
-    if (!checkParameters(data,result,JsonRequest.NAME)) {
+    if (!checkParameters(data,result,JsonRequest.NAME.getName())) {
       return result;
     }
     String name=data.optString(JsonRequest.NAME.getName());
     result.put(JsonResponse.NAME.getName(),cms.getRequestContext().getFileTranslator().translateResource(name));
   }
  else   if (action.equals(Action.PROPS)) {
-    result=getPropertyInfo(sitemapRes);
+    result.put(JsonResponse.PROPERTIES.getName(),getPropertyInfo(sitemapRes));
   }
  else   if (action.equals(Action.SAVE)) {
     saveSitemap(xmlSitemap,data);
@@ -63,7 +77,7 @@
       cms.lockResourceTemporary(sitemapParam);
     }
  catch (    CmsException e) {
-      result.put(JsonResponse.ERROR.getName(),e.getLocalizedMessage(cms.getRequestContext().getLocale()));
+      error(result,e.getLocalizedMessage(getWorkplaceLocale()));
     }
   }
  else   if (action.equals(Action.STOPEDIT)) {
@@ -71,11 +85,11 @@
       cms.unlockResource(sitemapParam);
     }
  catch (    CmsException e) {
-      result.put(JsonResponse.ERROR.getName(),e.getLocalizedMessage(cms.getRequestContext().getLocale()));
+      error(result,e.getLocalizedMessage(getWorkplaceLocale()));
     }
   }
  else {
-    result.put(JsonResponse.ERROR.getName(),Messages.get().getBundle().key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));
+    error(result,Messages.get().getBundle(getWorkplaceLocale()).key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));
   }
   return result;
 }
