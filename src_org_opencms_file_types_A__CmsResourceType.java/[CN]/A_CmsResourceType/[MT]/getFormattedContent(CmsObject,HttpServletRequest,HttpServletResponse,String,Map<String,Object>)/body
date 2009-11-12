@@ -1,0 +1,41 @@
+{
+  CmsResource formatter=m_formatters.get(formatterKey);
+  if (formatter == null) {
+    String formatterPath=getConfiguration().get(CmsResourceTypeXmlSitemap.PARAM_SITEMAP_FORMATTER);
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatterPath)) {
+      try {
+        formatter=cms.readResource(formatterPath);
+        m_formatters.put(formatterKey,formatter);
+      }
+ catch (      CmsException e) {
+        if (!LOG.isDebugEnabled()) {
+          LOG.warn(e.getLocalizedMessage());
+        }
+        LOG.debug(e.getLocalizedMessage(),e);
+      }
+    }
+    if (formatter == null) {
+      formatterPath=DefaultFormatters.getFormatterByKey(formatterKey).getPath();
+      formatter=cms.readResource(formatterPath);
+      m_formatters.put(formatterKey,formatter);
+    }
+  }
+  Map<String,Object> attributeStore=new HashMap<String,Object>();
+  Iterator<Entry<String,Object>> attrIt=requestAttributes.entrySet().iterator();
+  while (attrIt.hasNext()) {
+    Entry<String,Object> ent=attrIt.next();
+    attributeStore.put(ent.getKey(),req.getAttribute(ent.getKey()));
+    req.setAttribute(ent.getKey(),ent.getValue());
+  }
+  try {
+    String content=new String(OpenCms.getResourceManager().getLoader(formatter).dump(cms,formatter,null,cms.getRequestContext().getLocale(),req,res),CmsLocaleManager.getResourceEncoding(cms,formatter));
+    return content.trim();
+  }
+  finally {
+    Iterator<Entry<String,Object>> storeIt=attributeStore.entrySet().iterator();
+    while (storeIt.hasNext()) {
+      Entry<String,Object> ent=storeIt.next();
+      req.setAttribute(ent.getKey(),ent.getValue());
+    }
+  }
+}

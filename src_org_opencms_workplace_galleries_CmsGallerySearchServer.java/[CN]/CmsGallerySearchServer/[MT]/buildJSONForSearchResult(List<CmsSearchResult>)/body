@@ -5,25 +5,33 @@
   }
   Iterator<CmsSearchResult> iSearchResult=searchResult.iterator();
   while (iSearchResult.hasNext()) {
-    CmsSearchResult sResult=iSearchResult.next();
-    JSONObject resultEntry=new JSONObject();
-    String path=sResult.getPath();
-    String fileIcon=getFileIconName(path);
-    String iconpath="filetypes/";
-    if (CmsStringUtil.isEmptyOrWhitespaceOnly(fileIcon)) {
-      iconpath+=OpenCms.getWorkplaceManager().getExplorerTypeSetting(sResult.getDocumentType()).getIcon();
-    }
+    try {
+      CmsSearchResult sResult=iSearchResult.next();
+      JSONObject resultEntry=new JSONObject();
+      String path=sResult.getPath();
+      String fileIcon=getFileIconName(path);
+      String iconpath=CmsWorkplace.RES_PATH_FILETYPES;
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(fileIcon)) {
+        iconpath+=OpenCms.getWorkplaceManager().getExplorerTypeSetting(sResult.getDocumentType()).getIcon();
+      }
  else {
-      iconpath+="mimetype/" + fileIcon;
+        iconpath+="mimetype/" + fileIcon;
+      }
+      iconpath=CmsWorkplace.getResourceUri(iconpath);
+      resultEntry.put(JsonKeys.DATEMODIFIED.getName(),sResult.getDateLastModified());
+      resultEntry.put(JsonKeys.TITLE.getName(),sResult.getField(CmsSearchField.FIELD_TITLE));
+      resultEntry.put(JsonKeys.INFO.getName(),sResult.getField(CmsSearchField.FIELD_DESCRIPTION));
+      resultEntry.put(JsonKeys.TYPE.getName(),sResult.getDocumentType());
+      resultEntry.put(JsonKeys.PATH.getName(),sResult.getPath());
+      resultEntry.put(JsonKeys.ICON.getName(),iconpath);
+      resultEntry.put(JsonKeys.ITEMHTML.getName(),getFormattedListContent(OpenCms.getResourceManager().getResourceType(sResult.getDocumentType()),sResult.getField(CmsSearchField.FIELD_TITLE),sResult.getField(CmsSearchField.FIELD_DESCRIPTION),iconpath,sResult));
+      result.put(resultEntry);
     }
-    iconpath=CmsWorkplace.getResourceUri(iconpath);
-    resultEntry.put(JsonKeys.DATEMODIFIED.getName(),sResult.getDateLastModified());
-    resultEntry.put(JsonKeys.TITLE.getName(),sResult.getField(CmsSearchField.FIELD_TITLE));
-    resultEntry.put(JsonKeys.INFO.getName(),sResult.getField(CmsSearchField.FIELD_DESCRIPTION));
-    resultEntry.put(JsonKeys.TYPE.getName(),sResult.getDocumentType());
-    resultEntry.put(JsonKeys.PATH.getName(),sResult.getPath());
-    resultEntry.put(JsonKeys.ICON.getName(),iconpath);
-    result.put(resultEntry);
+ catch (    Exception e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+    }
   }
   return result;
 }
