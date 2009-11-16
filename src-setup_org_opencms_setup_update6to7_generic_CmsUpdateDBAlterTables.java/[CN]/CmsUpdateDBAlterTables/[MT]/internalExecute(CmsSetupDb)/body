@@ -29,6 +29,8 @@
       HashMap replacer=new HashMap();
       replacer.put(REPLACEMENT_TABLENAME,table);
       dbCon.updateSqlStatement(addColumn,replacer,null);
+      String initStructureVersion=readQuery(QUERY_SET_STRUCTURE_VERSION);
+      dbCon.updateSqlStatement(initStructureVersion,replacer,null);
       String structureVersion=readQuery(QUERY_SELECT_CMS_STRUCTURE_VERSION);
       CmsSetupDBWrapper db=null;
       try {
@@ -88,6 +90,27 @@
     if (!dbCon.hasTableOrColumn(table,COLUMN_RESOURCES_RESOURCE_VERSION)) {
       String addResourceVersion=readQuery(QUERY_UPDATE_RESOURCES_RESOURCE_VERSION);
       dbCon.updateSqlStatement(addResourceVersion,replacer,null);
+      String initResourceVersion=readQuery(QUERY_SET_RESOURCES_VERSION);
+      dbCon.updateSqlStatement(initResourceVersion,replacer,null);
+      String resourceVersion=readQuery(QUERY_SELECT_CMS_RESOURCE_VERSION);
+      CmsSetupDBWrapper db=null;
+      try {
+        db=dbCon.executeSqlStatement(resourceVersion,replacer);
+        while (db.getResultSet().next()) {
+          String updateQuery=readQuery(QUERY_UPDATE_RESOURCE_VERSION);
+          String resourceId=db.getResultSet().getString("RESOURCE_ID");
+          int version=db.getResultSet().getInt("RESOURCE_VERSION");
+          List params=new ArrayList();
+          params.add(new Integer(version));
+          params.add(resourceId);
+          dbCon.updateSqlStatement(updateQuery,replacer,params);
+        }
+      }
+  finally {
+        if (db != null) {
+          db.close();
+        }
+      }
     }
  else {
       System.out.println("column " + COLUMN_RESOURCES_RESOURCE_VERSION + " in table "+ table+ " already exists");
