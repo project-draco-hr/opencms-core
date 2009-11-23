@@ -1,0 +1,22 @@
+{
+  CmsObject cms=getCmsObject();
+  cms.lockResourceTemporary(cms.getSitePath(sitemapRes));
+  CmsFile file=cms.readFile(sitemapRes);
+synchronized (file) {
+    CmsXmlSitemap xmlSitemap=CmsXmlSitemapFactory.unmarshal(cms,file,getRequest());
+    Locale locale=cms.getRequestContext().getLocale();
+    if (xmlSitemap.hasLocale(locale)) {
+      xmlSitemap.removeLocale(locale);
+    }
+    xmlSitemap.addLocale(cms,locale);
+    Map<String,CmsXmlContentProperty> propertiesConf=OpenCms.getADEManager().getElementPropertyConfiguration(cms,sitemapRes);
+    int entryCount=0;
+    List<CmsSiteEntryBean> entries=jsonToEntryList(sitemap.getJSONArray(JsonResponse.SITEMAP.getName()),true);
+    for (    CmsSiteEntryBean entry : entries) {
+      saveEntry(cms,locale,null,xmlSitemap,entry,entryCount,propertiesConf);
+      entryCount++;
+    }
+    file.setContents(xmlSitemap.marshal());
+  }
+  cms.writeFile(file);
+}
