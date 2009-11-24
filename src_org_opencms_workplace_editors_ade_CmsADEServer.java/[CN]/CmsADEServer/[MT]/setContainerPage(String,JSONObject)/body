@@ -3,81 +3,79 @@
   String paramUri=getRequest().getParameter(ReqParam.URI.getName());
   cms.lockResourceTemporary(uri);
   CmsFile containerPage=cms.readFile(uri);
-synchronized (containerPage) {
-    CmsXmlContainerPage xmlCnt=CmsXmlContainerPageFactory.unmarshal(cms,containerPage);
-    Locale locale=CmsLocaleManager.getLocale(cntPage.getString(JsonCntPage.LOCALE.getName()));
-    if (xmlCnt.hasLocale(locale)) {
-      xmlCnt.removeLocale(locale);
+  CmsXmlContainerPage xmlCnt=CmsXmlContainerPageFactory.unmarshal(cms,containerPage);
+  Locale locale=CmsLocaleManager.getLocale(cntPage.getString(JsonCntPage.LOCALE.getName()));
+  if (xmlCnt.hasLocale(locale)) {
+    xmlCnt.removeLocale(locale);
+  }
+  xmlCnt.addLocale(cms,locale);
+  JSONObject cnts=cntPage.getJSONObject(JsonCntPage.CONTAINERS.getName());
+  int cntCount=0;
+  Iterator<String> itCnt=cnts.keys();
+  while (itCnt.hasNext()) {
+    String cntKey=itCnt.next();
+    JSONObject cnt=cnts.getJSONObject(cntKey);
+    I_CmsXmlContentValue cntValue=xmlCnt.getValue(CmsXmlContainerPage.XmlNode.CONTAINER.getName(),locale,cntCount);
+    if (cntValue == null) {
+      cntValue=xmlCnt.addValue(cms,CmsXmlContainerPage.XmlNode.CONTAINER.getName(),locale,cntCount);
     }
-    xmlCnt.addLocale(cms,locale);
-    JSONObject cnts=cntPage.getJSONObject(JsonCntPage.CONTAINERS.getName());
-    int cntCount=0;
-    Iterator<String> itCnt=cnts.keys();
-    while (itCnt.hasNext()) {
-      String cntKey=itCnt.next();
-      JSONObject cnt=cnts.getJSONObject(cntKey);
-      I_CmsXmlContentValue cntValue=xmlCnt.getValue(CmsXmlContainerPage.XmlNode.CONTAINER.getName(),locale,cntCount);
-      if (cntValue == null) {
-        cntValue=xmlCnt.addValue(cms,CmsXmlContainerPage.XmlNode.CONTAINER.getName(),locale,cntCount);
+    String name=cnt.getString(JsonContainer.NAME.getName());
+    xmlCnt.getValue(CmsXmlUtils.concatXpath(cntValue.getPath(),CmsXmlContainerPage.XmlNode.NAME.getName()),locale,0).setStringValue(cms,name);
+    String type=cnt.getString(JsonContainer.TYPE.getName());
+    xmlCnt.getValue(CmsXmlUtils.concatXpath(cntValue.getPath(),CmsXmlContainerPage.XmlNode.TYPE.getName()),locale,0).setStringValue(cms,type);
+    JSONArray elems=cnt.getJSONArray(JsonCntPage.ELEMENTS.getName());
+    for (int i=0; i < elems.length(); i++) {
+      JSONObject elem=elems.getJSONObject(i);
+      String formatter=elem.getString(JsonCntElem.FORMATTER.getName());
+      String elemUri=elem.getString(JsonCntElem.URI.getName());
+      if (type.equals(CmsContainerPageBean.TYPE_TEMPLATE) && elemUri.equals(paramUri)) {
+        continue;
       }
-      String name=cnt.getString(JsonContainer.NAME.getName());
-      xmlCnt.getValue(CmsXmlUtils.concatXpath(cntValue.getPath(),CmsXmlContainerPage.XmlNode.NAME.getName()),locale,0).setStringValue(cms,name);
-      String type=cnt.getString(JsonContainer.TYPE.getName());
-      xmlCnt.getValue(CmsXmlUtils.concatXpath(cntValue.getPath(),CmsXmlContainerPage.XmlNode.TYPE.getName()),locale,0).setStringValue(cms,type);
-      JSONArray elems=cnt.getJSONArray(JsonCntPage.ELEMENTS.getName());
-      for (int i=0; i < elems.length(); i++) {
-        JSONObject elem=elems.getJSONObject(i);
-        String formatter=elem.getString(JsonCntElem.FORMATTER.getName());
-        String elemUri=elem.getString(JsonCntElem.URI.getName());
-        if (type.equals(CmsContainerPageBean.TYPE_TEMPLATE) && elemUri.equals(paramUri)) {
-          continue;
-        }
-        String clientId=elem.getString(JsonCntElem.ID.getName());
-        I_CmsXmlContentValue elemValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(cntValue.getPath(),CmsXmlContainerPage.XmlNode.ELEMENT.getName()),locale,i);
-        xmlCnt.getValue(CmsXmlUtils.concatXpath(elemValue.getPath(),CmsXmlContainerPage.XmlNode.URI.getName()),locale,0).setStringValue(cms,elemUri);
-        xmlCnt.getValue(CmsXmlUtils.concatXpath(elemValue.getPath(),CmsXmlContainerPage.XmlNode.FORMATTER.getName()),locale,0).setStringValue(cms,formatter);
-        if (clientId.contains("#")) {
-          CmsContainerElementBean element=getCachedElement(clientId);
-          Map<String,CmsProperty> properties=m_manager.getElementProperties(cms,element);
-          Map<String,CmsXmlContentProperty> propertiesConf=m_manager.getElementPropertyConfiguration(cms,cms.readResource(element.getElementId()));
-          Iterator<String> itProps=properties.keySet().iterator();
-          int j=0;
-          while (itProps.hasNext()) {
-            String propertyName=itProps.next();
-            if ((properties.get(propertyName).getStructureValue() == null) || !propertiesConf.containsKey(propertyName)) {
-              continue;
-            }
-            I_CmsXmlContentValue propValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(elemValue.getPath(),CmsXmlContainerPage.XmlNode.PROPERTIES.getName()),locale,j);
-            xmlCnt.getValue(CmsXmlUtils.concatXpath(propValue.getPath(),CmsXmlContainerPage.XmlNode.NAME.getName()),locale,0).setStringValue(cms,propertyName);
-            I_CmsXmlContentValue valValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(propValue.getPath(),CmsXmlContainerPage.XmlNode.VALUE.getName()),locale,0);
-            if (propertiesConf.get(propertyName).getPropertyType().equals(CmsXmlContentProperty.T_VFSLIST)) {
-              I_CmsXmlContentValue filelistValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(valValue.getPath(),CmsXmlContainerPage.XmlNode.FILELIST.getName()),locale,0);
-              int index=0;
-              for (              String strId : CmsStringUtil.splitAsList(properties.get(propertyName).getStructureValue(),CmsXmlContainerPage.IDS_SEPARATOR)) {
-                try {
-                  CmsResource res=cms.readResource(new CmsUUID(strId));
-                  I_CmsXmlContentValue fileValue=xmlCnt.getValue(CmsXmlUtils.concatXpath(filelistValue.getPath(),CmsXmlContainerPage.XmlNode.URI.getName()),locale,index);
-                  if (fileValue == null) {
-                    fileValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(filelistValue.getPath(),CmsXmlContainerPage.XmlNode.URI.getName()),locale,index);
-                  }
-                  fileValue.setStringValue(cms,cms.getSitePath(res));
-                  index++;
+      String clientId=elem.getString(JsonCntElem.ID.getName());
+      I_CmsXmlContentValue elemValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(cntValue.getPath(),CmsXmlContainerPage.XmlNode.ELEMENT.getName()),locale,i);
+      xmlCnt.getValue(CmsXmlUtils.concatXpath(elemValue.getPath(),CmsXmlContainerPage.XmlNode.URI.getName()),locale,0).setStringValue(cms,elemUri);
+      xmlCnt.getValue(CmsXmlUtils.concatXpath(elemValue.getPath(),CmsXmlContainerPage.XmlNode.FORMATTER.getName()),locale,0).setStringValue(cms,formatter);
+      if (clientId.contains("#")) {
+        CmsContainerElementBean element=getCachedElement(clientId);
+        Map<String,CmsProperty> properties=m_manager.getElementProperties(cms,element);
+        Map<String,CmsXmlContentProperty> propertiesConf=m_manager.getElementPropertyConfiguration(cms,cms.readResource(element.getElementId()));
+        Iterator<String> itProps=properties.keySet().iterator();
+        int j=0;
+        while (itProps.hasNext()) {
+          String propertyName=itProps.next();
+          if ((properties.get(propertyName).getStructureValue() == null) || !propertiesConf.containsKey(propertyName)) {
+            continue;
+          }
+          I_CmsXmlContentValue propValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(elemValue.getPath(),CmsXmlContainerPage.XmlNode.PROPERTIES.getName()),locale,j);
+          xmlCnt.getValue(CmsXmlUtils.concatXpath(propValue.getPath(),CmsXmlContainerPage.XmlNode.NAME.getName()),locale,0).setStringValue(cms,propertyName);
+          I_CmsXmlContentValue valValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(propValue.getPath(),CmsXmlContainerPage.XmlNode.VALUE.getName()),locale,0);
+          if (propertiesConf.get(propertyName).getPropertyType().equals(CmsXmlContentProperty.T_VFSLIST)) {
+            I_CmsXmlContentValue filelistValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(valValue.getPath(),CmsXmlContainerPage.XmlNode.FILELIST.getName()),locale,0);
+            int index=0;
+            for (            String strId : CmsStringUtil.splitAsList(properties.get(propertyName).getStructureValue(),CmsXmlContainerPage.IDS_SEPARATOR)) {
+              try {
+                CmsResource res=cms.readResource(new CmsUUID(strId));
+                I_CmsXmlContentValue fileValue=xmlCnt.getValue(CmsXmlUtils.concatXpath(filelistValue.getPath(),CmsXmlContainerPage.XmlNode.URI.getName()),locale,index);
+                if (fileValue == null) {
+                  fileValue=xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(filelistValue.getPath(),CmsXmlContainerPage.XmlNode.URI.getName()),locale,index);
                 }
- catch (                CmsException e) {
-                  LOG.error(e.getLocalizedMessage(),e);
-                }
+                fileValue.setStringValue(cms,cms.getSitePath(res));
+                index++;
+              }
+ catch (              CmsException e) {
+                LOG.error(e.getLocalizedMessage(),e);
               }
             }
- else {
-              xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(valValue.getPath(),CmsXmlContainerPage.XmlNode.STRING.getName()),locale,0).setStringValue(cms,properties.get(propertyName).getStructureValue());
-            }
-            j++;
           }
+ else {
+            xmlCnt.addValue(cms,CmsXmlUtils.concatXpath(valValue.getPath(),CmsXmlContainerPage.XmlNode.STRING.getName()),locale,0).setStringValue(cms,properties.get(propertyName).getStructureValue());
+          }
+          j++;
         }
       }
-      cntCount++;
     }
-    containerPage.setContents(xmlCnt.marshal());
+    cntCount++;
   }
+  containerPage.setContents(xmlCnt.marshal());
   cms.writeFile(containerPage);
 }
