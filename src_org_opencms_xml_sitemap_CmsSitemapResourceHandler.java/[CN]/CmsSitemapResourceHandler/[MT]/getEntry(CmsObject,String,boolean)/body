@@ -1,0 +1,58 @@
+{
+  CmsSitemapBean sitemap=getSitemap(cms,cms.getRequestContext().getSiteRoot(),online);
+  String sitePath=normalizePath(uri);
+  LinkedList<String> entryPaths=new LinkedList<String>(CmsStringUtil.splitAsList(sitePath,"/"));
+  if (entryPaths.isEmpty()) {
+    CmsSiteEntryBean entry=sitemap.getSiteEntries().get(0);
+    entry.setPosition(0);
+    return entry;
+  }
+  String uriPath="";
+  List<CmsSiteEntryBean> subEntries=sitemap.getSiteEntries().get(0).getSubEntries();
+  boolean finished=false;
+  while (!finished) {
+    String name=entryPaths.removeFirst();
+    uriPath+="/" + name;
+    Boolean missing;
+    if (online) {
+      missing=m_missingUrisOnline.get(uriPath.substring(1));
+    }
+ else {
+      missing=m_missingUrisOffline.get(uriPath.substring(1));
+    }
+    if (missing != null) {
+      return null;
+    }
+    int position=0;
+    for (; position < subEntries.size(); position++) {
+      CmsSiteEntryBean entry=subEntries.get(position);
+      if (!entry.getName().equals(name)) {
+        continue;
+      }
+      if (entryPaths.isEmpty()) {
+        entry.setPosition(position);
+        return entry;
+      }
+ else {
+        subEntries=entry.getSubEntries();
+        if (subEntries.isEmpty()) {
+          String sitemapPath=entry.getProperties().get(CmsSitemapResourceHandler.PROPERTY_SITEMAP);
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(sitemapPath)) {
+            sitemapPath=cms.getRequestContext().addSiteRoot(sitemapPath);
+            sitemap=getSitemap(cms,sitemapPath,online);
+            if (sitemap == null) {
+              return null;
+            }
+            subEntries=sitemap.getSiteEntries();
+          }
+        }
+        finished=subEntries.isEmpty();
+      }
+      break;
+    }
+    if (position == subEntries.size()) {
+      finished=true;
+    }
+  }
+  return null;
+}

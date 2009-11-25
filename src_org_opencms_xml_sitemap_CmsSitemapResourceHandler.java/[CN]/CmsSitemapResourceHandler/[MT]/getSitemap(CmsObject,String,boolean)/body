@@ -1,0 +1,37 @@
+{
+  CmsFile sitemap;
+  if (online) {
+    sitemap=m_sitemapsOnline.get(path);
+  }
+ else {
+    sitemap=m_sitemapsOffline.get(path);
+  }
+  if (sitemap != null) {
+    return CmsXmlSitemapFactory.unmarshal(cms,sitemap).getSitemap(cms,cms.getRequestContext().getLocale());
+  }
+  String sitemapPath=normalizePath(path);
+  if (path.equals(normalizePath(cms.getRequestContext().getSiteRoot()))) {
+    sitemapPath=cms.readPropertyObject("/",CmsPropertyDefinition.PROPERTY_SITEMAP,false).getValue("/sitemap");
+    sitemapPath=normalizePath(cms.getRequestContext().addSiteRoot(sitemapPath));
+  }
+  try {
+    sitemap=cms.readFile(sitemapPath);
+  }
+ catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    if (online) {
+      m_missingUrisOnline.put(path,Boolean.TRUE);
+    }
+ else {
+      m_missingUrisOffline.put(path,Boolean.TRUE);
+    }
+    return null;
+  }
+  if (online) {
+    m_sitemapsOnline.put(sitemapPath,sitemap);
+  }
+ else {
+    m_sitemapsOffline.put(sitemapPath,sitemap);
+  }
+  return CmsXmlSitemapFactory.unmarshal(cms,sitemap).getSitemap(cms,cms.getRequestContext().getLocale());
+}
