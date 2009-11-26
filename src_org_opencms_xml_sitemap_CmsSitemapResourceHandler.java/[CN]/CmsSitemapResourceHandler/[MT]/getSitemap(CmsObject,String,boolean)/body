@@ -1,37 +1,44 @@
 {
   CmsFile sitemap;
+  String cacheKey=normalizePath(cms.getRequestContext().addSiteRoot(path));
   if (online) {
-    sitemap=m_sitemapsOnline.get(path);
+    sitemap=m_sitemapsOnline.get(cacheKey);
   }
  else {
-    sitemap=m_sitemapsOffline.get(path);
+    sitemap=m_sitemapsOffline.get(cacheKey);
   }
   if (sitemap != null) {
     return CmsXmlSitemapFactory.unmarshal(cms,sitemap).getSitemap(cms,cms.getRequestContext().getLocale());
   }
-  String sitemapPath=normalizePath(path);
-  if (path.equals(normalizePath(cms.getRequestContext().getSiteRoot()))) {
+  String sitemapPath=path;
+  if (path.equals("/")) {
     sitemapPath=cms.readPropertyObject("/",CmsPropertyDefinition.PROPERTY_SITEMAP,false).getValue("/sitemap");
-    sitemapPath=normalizePath(cms.getRequestContext().addSiteRoot(sitemapPath));
+    String cacheKey2=normalizePath(cms.getRequestContext().addSiteRoot(sitemapPath));
+    if (!cacheKey.equals(cacheKey2)) {
+      CmsSitemapBean sitemapBean=getSitemap(cms,sitemapPath,online);
+      if (sitemapBean != null) {
+        if (online) {
+          m_sitemapsOnline.put(cacheKey2,m_sitemapsOnline.get(cacheKey));
+        }
+ else {
+          m_sitemapsOffline.put(cacheKey2,m_sitemapsOffline.get(cacheKey));
+        }
+      }
+      return sitemapBean;
+    }
   }
   try {
     sitemap=cms.readFile(sitemapPath);
   }
  catch (  Exception e) {
     LOG.error(e.getLocalizedMessage(),e);
-    if (online) {
-      m_missingUrisOnline.put(path,Boolean.TRUE);
-    }
- else {
-      m_missingUrisOffline.put(path,Boolean.TRUE);
-    }
     return null;
   }
   if (online) {
-    m_sitemapsOnline.put(sitemapPath,sitemap);
+    m_sitemapsOnline.put(cacheKey,sitemap);
   }
  else {
-    m_sitemapsOffline.put(sitemapPath,sitemap);
+    m_sitemapsOffline.put(cacheKey,sitemap);
   }
   return CmsXmlSitemapFactory.unmarshal(cms,sitemap).getSitemap(cms,cms.getRequestContext().getLocale());
 }
