@@ -1,0 +1,53 @@
+{
+  CmsResource resource=m_cms.readResource(resourceName);
+  String rootPath=resource.getRootPath();
+  JSONObject queryData=new JSONObject();
+  JSONArray types=new JSONArray();
+  types.put(resource.getTypeId());
+  queryData.put(JsonKeys.TYPES.getName(),types);
+  JSONArray galleries=new JSONArray();
+  galleries.put(CmsResource.getFolderPath(resourceName));
+  queryData.put(JsonKeys.GALLERIES.getName(),galleries);
+  queryData.put(JsonKeys.CATEGORIES.getName(),new JSONArray());
+  queryData.put(JsonKeys.MATCHESPERPAGE.getName(),m_matchesPerPage);
+  queryData.put(JsonKeys.QUERY.getName(),"");
+  queryData.put(JsonKeys.SORTORDER.getName(),CmsGallerySearch.SortParam.DEFAULT.getName());
+  int currentPage=1;
+  boolean found=false;
+  queryData.put(JsonKeys.PAGE.getName(),currentPage);
+  CmsSearchParameters params=prepareSearchParams(queryData);
+  CmsSearch searchBean=new CmsSearch();
+  searchBean.init(m_cms);
+  searchBean.setParameters(params);
+  List<CmsSearchResult> searchResults=null;
+  while (!found) {
+    searchBean.setSearchPage(currentPage);
+    searchResults=searchBean.getSearchResult();
+    Iterator<CmsSearchResult> resultsIt=searchResults.iterator();
+    while (resultsIt.hasNext()) {
+      CmsSearchResult searchResult=resultsIt.next();
+      if (searchResult.getPath().equals(rootPath)) {
+        found=true;
+        break;
+      }
+    }
+    if (!found && (searchBean.getSearchResultCount() / (currentPage * searchBean.getMatchesPerPage()) >= 1)) {
+      currentPage++;
+    }
+ else {
+      break;
+    }
+  }
+  JSONObject result=new JSONObject();
+  if (found) {
+    JSONObject sResult=new JSONObject();
+    sResult.put("sortorder",searchBean.getSortOrder());
+    sResult.put("resultcount",searchBean.getSearchResultCount());
+    sResult.put("resultpage",searchBean.getSearchPage());
+    sResult.put("resultlist",buildJSONForSearchResult(searchResults));
+    queryData.put(JsonKeys.PAGE.getName(),currentPage);
+    result.put(JsonKeys.QUERYDATA.getName(),queryData);
+    result.put(JsonKeys.SEARCHRESULT.getName(),sResult);
+  }
+  return result;
+}
