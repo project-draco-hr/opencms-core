@@ -19,6 +19,14 @@
     CmsResource sitemapRes=CmsHistoryResourceHandler.getResourceWithHistory(cms,sitemapParam);
     CmsXmlSitemap xmlSitemap=CmsXmlSitemapFactory.unmarshal(cms,sitemapRes,request);
     result=getSitemap(sitemapRes,xmlSitemap);
+    CmsADEManager ade=OpenCms.getADEManager();
+    List<CmsResource> creatableElements=ade.getCreatableElements(cms,sitemapParam,request);
+    JSONArray creatableTypes=new JSONArray();
+    for (    CmsResource resource : creatableElements) {
+      String typeName=OpenCms.getResourceManager().getResourceType(resource.getTypeId()).getTypeName();
+      creatableTypes.put(typeName);
+    }
+    result.put("types",creatableTypes);
   }
  else   if (action.equals(Action.GET)) {
     if (checkParameters(data,null,JsonRequest.FAV.getName())) {
@@ -74,6 +82,30 @@
  catch (    CmsException e) {
       error(result,e.getLocalizedMessage(getWorkplaceLocale()));
     }
+  }
+ else   if (action.equals(Action.CONTENT)) {
+    JSONArray entries=data.getJSONArray(JsonResponse.ENTRIES.getName().toLowerCase());
+    addContents(entries);
+    result.put(JsonResponse.ENTRIES.getName().toLowerCase(),entries);
+  }
+ else   if (action.equals(Action.NEW_ENTRY)) {
+    CmsADEManager ade=OpenCms.getADEManager();
+    String type=data.getString(JsonRequest.TYPE.getName());
+    CmsResource newResource=ade.createNewElement(cms,sitemapParam,request,type);
+    CmsProperty titleProp=cms.readPropertyObject(newResource,"Title",false);
+    String title=titleProp.getValue();
+    String name=newResource.getName();
+    String extension="";
+    int dotPos=name.lastIndexOf('.');
+    if (dotPos != -1) {
+      extension=name.substring(dotPos + 1,name.length());
+    }
+    CmsSiteEntryBean entryBean=new CmsSiteEntryBean(newResource.getStructureId(),name.substring(0,dotPos),extension,title,new HashMap<String,String>(),new ArrayList<CmsSiteEntryBean>());
+    JSONObject jsonEntry=jsonifyEntry(entryBean);
+    JSONArray entries=new JSONArray();
+    entries.put(jsonEntry);
+    addContents(entries);
+    result.put(JsonResponse.ENTRY.getName(),jsonEntry);
   }
  else {
     error(result,Messages.get().getBundle(getWorkplaceLocale()).key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));
