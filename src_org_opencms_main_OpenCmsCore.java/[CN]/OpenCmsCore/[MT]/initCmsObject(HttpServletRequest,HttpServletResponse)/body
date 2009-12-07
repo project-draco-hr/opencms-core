@@ -6,6 +6,21 @@
   CmsSite site=getSiteManager().matchRequest(req);
   I_CmsAuthorizationHandler.I_PrivilegedLoginAction loginAction=new I_CmsAuthorizationHandler.I_PrivilegedLoginAction(){
     private CmsObject m_adminCms;
+    /** 
+ * @see org.opencms.security.I_CmsAuthorizationHandler.I_PrivilegedLoginAction#setCmsObject(org.opencms.file.CmsObject)
+ */
+    public void setCmsObject(    CmsObject adminCms){
+      m_adminCms=adminCms;
+    }
+    /** 
+ * @see org.opencms.security.I_CmsAuthorizationHandler.I_PrivilegedLoginAction#getCmsObject()
+ */
+    public CmsObject getCmsObject(){
+      return m_adminCms;
+    }
+    /** 
+ * @see org.opencms.security.I_CmsAuthorizationHandler.I_PrivilegedLoginAction#doLogin(javax.servlet.http.HttpServletRequest,java.lang.String)
+ */
     public CmsObject doLogin(    HttpServletRequest request,    String principal) throws CmsException {
       try {
         CmsUser user=m_adminCms.readUser(principal);
@@ -14,14 +29,23 @@
         }
         CmsContextInfo contextInfo=new CmsContextInfo(m_adminCms.getRequestContext());
         contextInfo.setUserName(principal);
-        return initCmsObject(m_adminCms,contextInfo);
+        CmsObject newCms=initCmsObject(m_adminCms,contextInfo);
+        if (contextInfo.getRequestedUri().startsWith("/system/workplace/") && getRoleManager().hasRole(newCms,CmsRole.WORKPLACE_USER)) {
+          CmsUserSettings settings=new CmsUserSettings(newCms);
+          try {
+            CmsProject project=newCms.readProject(settings.getStartProject());
+            if (getOrgUnitManager().getAllAccessibleProjects(newCms,project.getOuFqn(),false).contains(project)) {
+              newCms.getRequestContext().setCurrentProject(project);
+            }
+          }
+ catch (          CmsException e) {
+          }
+        }
+        return newCms;
       }
   finally {
         m_adminCms=null;
       }
-    }
-    public void setCmsObject(    CmsObject adminCms){
-      m_adminCms=adminCms;
     }
   }
 ;
