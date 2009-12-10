@@ -4,17 +4,19 @@
     logId=new CmsUUID();
     LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_3,logId,uri,Boolean.valueOf(online)).key());
   }
-  CmsSitemapBean sitemap=getSitemap(cms,"/",online);
+  CmsXmlSitemap sitemapXml=getSitemap(cms,"/",online);
+  CmsSitemapBean sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
   if (sitemap == null) {
     return null;
   }
+  Map<String,String> properties=new HashMap<String,String>();
   String sitePath=normalizePath(uri);
   LinkedList<String> entryPaths=new LinkedList<String>(CmsStringUtil.splitAsList(sitePath,"/"));
   if (entryPaths.isEmpty()) {
     CmsSiteEntryBean entry=sitemap.getSiteEntries().get(0);
     entry.setPosition(0);
     LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(0),entry.getName()).key());
-    return entry;
+    return new EntryData(entry,properties,sitemapXml);
   }
   String uriPath=normalizePath(cms.getRequestContext().getSiteRoot());
   List<CmsSiteEntryBean> subEntries=sitemap.getSiteEntries().get(0).getSubEntries();
@@ -43,10 +45,13 @@
         continue;
       }
       LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_MATCH_3,logId,new Integer(position),entry.getName()).key());
+      if (collectProperties) {
+        properties.putAll(entry.getProperties());
+      }
       if (entryPaths.isEmpty()) {
         LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(position),entry.getName()).key());
         entry.setPosition(position);
-        return entry;
+        return new EntryData(entry,properties,sitemapXml);
       }
  else {
         newSubEntries=entry.getSubEntries();
@@ -55,7 +60,8 @@
           if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(subSitemapId)) {
             CmsResource subSitemapPath=cms.readResource(new CmsUUID(subSitemapId));
             LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_SUBSITEMAP_2,logId,subSitemapPath).key());
-            sitemap=getSitemap(cms,cms.getSitePath(subSitemapPath),online);
+            sitemapXml=getSitemap(cms,cms.getSitePath(subSitemapPath),online);
+            sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
             if (sitemap == null) {
               return null;
             }
