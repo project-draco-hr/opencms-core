@@ -83,19 +83,19 @@
     }
     renderElems--;
     CmsResource resUri=cms.readResource(element.getElementId());
-    if (CmsResourceTypeXmlContainerPage.isContainerPage(resUri)) {
-      CmsXmlContainerPage subXmlCntPage=CmsXmlContainerPageFactory.unmarshal(cms,resUri,req);
-      CmsContainerPageBean subcntPage=subXmlCntPage.getCntPage(cms,cms.getRequestContext().getLocale());
-      CmsContainerBean subcontainer=subcntPage.getContainers().values().iterator().next();
-      for (      CmsContainerElementBean subelement : subcontainer.getElements()) {
+    if (resUri.getTypeId() == CmsADEManager.SUB_CONTAINER_TYPE_ID) {
+      CmsXmlSubContainer xmlSubContainer=CmsXmlSubContainerFactory.unmarshal(cms,resUri,req);
+      CmsSubContainerBean subContainer=xmlSubContainer.getSubContainer(cms,cms.getRequestContext().getLocale());
+      if (!subContainer.getTypes().contains(containerType)) {
+        throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,resUri.getRootPath(),OpenCms.getResourceManager().getResourceType(resUri).getTypeName(),containerType));
+      }
+      for (      CmsContainerElementBean subelement : subContainer.getElements()) {
         CmsResource subelementRes=cms.readResource(subelement.getElementId());
         String subelementUri=cms.getSitePath(subelementRes);
         String subelementFormatter=OpenCms.getADEManager().getXmlContentFormatters(cms,subelementRes).get(containerType);
-        if (CmsStringUtil.isEmptyOrWhitespaceOnly(subelementFormatter)) {
-          subelementFormatter=cms.getSitePath(cms.readResource(subelement.getFormatterId()));
-        }
-        if (CmsStringUtil.isEmptyOrWhitespaceOnly(subelementFormatter)) {
-          throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,subelementUri,OpenCms.getResourceManager().getResourceType(subelementRes).getTypeName(),containerType));
+        if (CmsStringUtil.isEmptyOrWhitespaceOnly(subelementFormatter) && LOG.isErrorEnabled()) {
+          LOG.error(new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,subelementUri,OpenCms.getResourceManager().getResourceType(subelementRes).getTypeName(),containerType)));
+          continue;
         }
         CmsJspTagInclude.includeTagAction(pageContext,subelementFormatter,null,false,null,Collections.singletonMap(CmsADEManager.ATTR_CURRENT_ELEMENT,(Object)subelement),req,res);
       }

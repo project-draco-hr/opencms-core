@@ -15,19 +15,42 @@
   resElement.put(JsonElement.CONTENTS.getName(),resContents);
   JSONObject formatters=new JSONObject();
   resElement.put(JsonElement.FORMATTERS.getName(),formatters);
-  if (CmsResourceTypeXmlContainerPage.isContainerPage(resource)) {
-    Iterator<String> itTypes=types.iterator();
-    while (itTypes.hasNext()) {
-      String type=itTypes.next();
-      formatters.put(type,"");
-      resContents.put(type,"");
+  if (resource.getTypeId() == CmsADEManager.SUB_CONTAINER_TYPE_ID) {
+    CmsXmlSubContainer xmlSubContainer=CmsXmlSubContainerFactory.unmarshal(m_cms,resource,m_req);
+    CmsSubContainerBean subContainer=xmlSubContainer.getSubContainer(m_cms,m_cms.getRequestContext().getLocale());
+    if (subContainer.getTypes().isEmpty()) {
+      if (subContainer.getElements().isEmpty()) {
+        String emptySub="<div>NEW AND EMPTY</div>";
+        for (        String type : types) {
+          formatters.put(type,"formatter");
+          resContents.put(type,emptySub);
+        }
+      }
+ else {
+        return null;
+      }
     }
-    CmsXmlContainerPage xmlCntPage=CmsXmlContainerPageFactory.unmarshal(m_cms,resource,m_req);
-    CmsContainerPageBean cntPage=xmlCntPage.getCntPage(m_cms,m_cms.getRequestContext().getLocale());
-    CmsContainerBean container=cntPage.getContainers().values().iterator().next();
+ else {
+      for (      String type : subContainer.getTypes()) {
+        if (types.contains(type)) {
+          formatters.put(type,"formatter");
+          resContents.put(type,"<div>should not be used</div>");
+        }
+      }
+    }
+    String defaultFormatter=m_manager.getXmlContentFormatters(m_cms,resource).get(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE);
+    String jspResult;
+    try {
+      jspResult=getElementContent(element,m_cms.readResource(defaultFormatter));
+      formatters.put(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE,defaultFormatter);
+      resContents.put(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE,jspResult);
+    }
+ catch (    Exception e) {
+      LOG.error(Messages.get().getBundle().key(Messages.ERR_GENERATE_FORMATTED_ELEMENT_3,m_cms.getSitePath(resource),defaultFormatter,CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE),e);
+    }
     JSONArray subitems=new JSONArray();
     resElement.put(JsonElement.SUBITEMS.getName(),subitems);
-    for (    CmsContainerElementBean subElement : container.getElements()) {
+    for (    CmsContainerElementBean subElement : subContainer.getElements()) {
       subitems.put(subElement.getClientId());
     }
   }
