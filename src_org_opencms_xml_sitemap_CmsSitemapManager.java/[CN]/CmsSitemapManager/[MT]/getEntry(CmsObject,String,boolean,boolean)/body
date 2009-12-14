@@ -1,0 +1,78 @@
+{
+  CmsUUID logId=null;
+  if (LOG.isDebugEnabled()) {
+    logId=new CmsUUID();
+    LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_3,logId,uri,Boolean.valueOf(online)).key());
+  }
+  CmsXmlSitemap sitemapXml=getSitemap(cms,"/",online);
+  CmsSitemapBean sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
+  if (sitemap == null) {
+    return null;
+  }
+  Map<String,String> properties=new HashMap<String,String>();
+  String sitePath=normalizePath(uri);
+  LinkedList<String> entryPaths=new LinkedList<String>(CmsStringUtil.splitAsList(sitePath,"/"));
+  if (entryPaths.isEmpty()) {
+    CmsSiteEntryBean entry=sitemap.getSiteEntries().get(0);
+    entry.setPosition(0);
+    LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(0),entry.getName()).key());
+    return new EntryData(entry,properties,sitemapXml);
+  }
+  String uriPath=cms.getRequestContext().getSiteRoot();
+  List<CmsSiteEntryBean> subEntries=sitemap.getSiteEntries().get(0).getSubEntries();
+  boolean finished=false;
+  while (!finished) {
+    String name=entryPaths.removeFirst();
+    LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_CHECK_2,logId,uriPath).key());
+    uriPath+="/" + name;
+    if (m_cache.getMissingUri(uriPath,online) != null) {
+      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_MISSING_2,logId,uriPath).key());
+      return null;
+    }
+    List<CmsSiteEntryBean> newSubEntries=null;
+    int position=0;
+    for (; position < subEntries.size(); position++) {
+      CmsSiteEntryBean entry=subEntries.get(position);
+      if (!entry.getName().equals(name)) {
+        LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NO_MATCH_3,logId,new Integer(position),entry.getName()).key());
+        continue;
+      }
+      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_MATCH_3,logId,new Integer(position),entry.getName()).key());
+      if (collectProperties) {
+        properties.putAll(entry.getProperties());
+      }
+      if (entryPaths.isEmpty()) {
+        LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(position),entry.getName()).key());
+        entry.setPosition(position);
+        return new EntryData(entry,properties,sitemapXml);
+      }
+ else {
+        newSubEntries=entry.getSubEntries();
+        if (newSubEntries.isEmpty()) {
+          String subSitemapId=entry.getProperties().get(CmsSitemapManager.PROPERTY_SITEMAP);
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(subSitemapId)) {
+            CmsResource subSitemapPath=cms.readResource(new CmsUUID(subSitemapId));
+            LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_SUBSITEMAP_2,logId,subSitemapPath).key());
+            sitemapXml=getSitemap(cms,cms.getSitePath(subSitemapPath),online);
+            sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
+            if (sitemap == null) {
+              return null;
+            }
+            newSubEntries=sitemap.getSiteEntries();
+          }
+        }
+        finished=newSubEntries.isEmpty();
+        if (finished) {
+          LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NO_SUBENTRIES_3,logId,new Integer(position),entry.getName()).key());
+        }
+      }
+      break;
+    }
+    if (position == subEntries.size()) {
+      finished=true;
+      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NOT_FOUND_2,logId,uriPath).key());
+    }
+    subEntries=newSubEntries;
+  }
+  return null;
+}
