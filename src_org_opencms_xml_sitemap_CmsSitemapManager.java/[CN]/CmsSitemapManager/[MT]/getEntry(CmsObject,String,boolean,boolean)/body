@@ -4,21 +4,29 @@
     logId=new CmsUUID();
     LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_3,logId,uri,Boolean.valueOf(online)).key());
   }
+  LinkedList<String> entryPaths=new LinkedList<String>(CmsStringUtil.splitAsList(normalizePath(uri),"/"));
+  String sitemapFolder="";
   CmsXmlSitemap sitemapXml=getSitemap(cms,"/",online);
+  while (!entryPaths.isEmpty() && (sitemapXml == null)) {
+    String currentFolder="/" + entryPaths.removeFirst();
+    sitemapFolder+=currentFolder;
+    sitemapXml=getSitemap(cms,sitemapFolder,online);
+  }
+  if (sitemapXml == null) {
+    return null;
+  }
   CmsSitemapBean sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
   if (sitemap == null) {
     return null;
   }
   Map<String,String> properties=new HashMap<String,String>();
-  String sitePath=normalizePath(uri);
-  LinkedList<String> entryPaths=new LinkedList<String>(CmsStringUtil.splitAsList(sitePath,"/"));
   if (entryPaths.isEmpty()) {
     CmsSiteEntryBean entry=sitemap.getSiteEntries().get(0);
     entry.setPosition(0);
     LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(0),entry.getName()).key());
     return new EntryData(entry,properties,sitemapXml);
   }
-  String uriPath=cms.getRequestContext().getSiteRoot();
+  String uriPath=cms.getRequestContext().getSiteRoot() + sitemapFolder;
   List<CmsSiteEntryBean> subEntries=sitemap.getSiteEntries().get(0).getSubEntries();
   boolean finished=false;
   while (!finished) {
@@ -29,9 +37,9 @@
       LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_MISSING_2,logId,uriPath).key());
       return null;
     }
-    List<CmsSiteEntryBean> newSubEntries=null;
     int position=0;
-    for (; position < subEntries.size(); position++) {
+    int size=subEntries.size();
+    for (; position < size; position++) {
       CmsSiteEntryBean entry=subEntries.get(position);
       if (!entry.getName().equals(name)) {
         LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NO_MATCH_3,logId,new Integer(position),entry.getName()).key());
@@ -47,8 +55,8 @@
         return new EntryData(entry,properties,sitemapXml);
       }
  else {
-        newSubEntries=entry.getSubEntries();
-        if (newSubEntries.isEmpty()) {
+        subEntries=entry.getSubEntries();
+        if (subEntries.isEmpty()) {
           String subSitemapId=entry.getProperties().get(CmsSitemapManager.PROPERTY_SITEMAP);
           if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(subSitemapId)) {
             CmsResource subSitemapPath=cms.readResource(new CmsUUID(subSitemapId));
@@ -58,21 +66,20 @@
             if (sitemap == null) {
               return null;
             }
-            newSubEntries=sitemap.getSiteEntries();
+            subEntries=sitemap.getSiteEntries();
           }
         }
-        finished=newSubEntries.isEmpty();
+        finished=subEntries.isEmpty();
         if (finished) {
           LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NO_SUBENTRIES_3,logId,new Integer(position),entry.getName()).key());
         }
       }
       break;
     }
-    if (position == subEntries.size()) {
+    if (position == size) {
       finished=true;
       LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NOT_FOUND_2,logId,uriPath).key());
     }
-    subEntries=newSubEntries;
   }
   return null;
 }
