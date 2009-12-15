@@ -39,7 +39,26 @@
     for (int i=0; i < elems.length(); i++) {
       String elemId=elems.getString(i);
       CmsContainerElementBean element=getCachedElement(elemId);
-      resElements.put(element.getClientId(),elemUtil.getElementData(element,cntPage.getTypes()));
+      JSONObject elementData=elemUtil.getElementData(element,cntPage.getTypes());
+      resElements.put(element.getClientId(),elementData);
+      if (elementData.has(CmsElementUtil.JsonElement.SUBITEMS.getName())) {
+        Set<String> ids=new HashSet<String>();
+        ids.add(elemId);
+        CmsResource elementRes=cms.readResource(element.getElementId());
+        CmsXmlSubContainer xmlSubContainer=CmsXmlSubContainerFactory.unmarshal(cms,elementRes,getRequest());
+        CmsSubContainerBean subContainer=xmlSubContainer.getSubContainer(cms,cms.getRequestContext().getLocale());
+        for (        CmsContainerElementBean subElement : subContainer.getElements()) {
+          if (!ids.contains(subElement.getElementId())) {
+            String subId=subElement.getClientId();
+            if (ids.contains(subId)) {
+              continue;
+            }
+            JSONObject subItemData=elemUtil.getElementData(subElement,cntPage.getTypes());
+            ids.add(subId);
+            resElements.put(subId,subItemData);
+          }
+        }
+      }
     }
     result.put(JsonResponse.ELEMENTS.getName(),resElements);
   }
