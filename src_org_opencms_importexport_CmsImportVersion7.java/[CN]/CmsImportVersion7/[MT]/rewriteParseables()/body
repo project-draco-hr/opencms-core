@@ -2,30 +2,33 @@
   if (m_parseables.isEmpty()) {
     return;
   }
-  getReport().println(Messages.get().container(Messages.RPT_START_PARSE_LINKS_0),I_CmsReport.FORMAT_HEADLINE);
+  I_CmsReport report=getReport();
+  CmsObject cms=getCms();
+  cms.getRequestContext().setAttribute(CmsLogEntry.ATTR_LOG_ENTRY,Boolean.FALSE);
+  report.println(Messages.get().container(Messages.RPT_START_PARSE_LINKS_0),I_CmsReport.FORMAT_HEADLINE);
   int i=0;
-  Iterator it=m_parseables.iterator();
+  Iterator<String> it=m_parseables.iterator();
   while (it.hasNext()) {
-    String resName=(String)it.next();
-    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,String.valueOf(i + 1),String.valueOf(m_parseables.size())),I_CmsReport.FORMAT_NOTE);
-    getReport().print(Messages.get().container(Messages.RPT_PARSE_LINKS_FOR_1,resName),I_CmsReport.FORMAT_NOTE);
-    getReport().print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    String resName=it.next();
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,String.valueOf(i + 1),String.valueOf(m_parseables.size())),I_CmsReport.FORMAT_NOTE);
+    report.print(Messages.get().container(Messages.RPT_PARSE_LINKS_FOR_1,resName),I_CmsReport.FORMAT_NOTE);
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
     try {
-      CmsFile file=getCms().readFile(resName);
+      CmsFile file=cms.readFile(resName);
       file.setDateLastModified(file.getDateLastModified());
-      CmsLock lock=getCms().getLock(file);
+      CmsLock lock=cms.getLock(file);
       if (lock.isUnlocked()) {
-        getCms().lockResource(resName);
+        cms.lockResource(resName);
       }
- else       if (!lock.isExclusiveOwnedBy(getCms().getRequestContext().currentUser())) {
-        getCms().changeLock(resName);
+ else       if (!lock.isExclusiveOwnedBy(cms.getRequestContext().currentUser())) {
+        cms.changeLock(resName);
       }
-      getCms().writeFile(file);
-      getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+      cms.writeFile(file);
+      report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
     }
  catch (    Throwable e) {
-      getReport().addWarning(e);
-      getReport().println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_FAILED_0),I_CmsReport.FORMAT_ERROR);
+      report.addWarning(e);
+      report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_FAILED_0),I_CmsReport.FORMAT_ERROR);
       if (LOG.isWarnEnabled()) {
         LOG.warn(Messages.get().getBundle().key(Messages.LOG_IMPORTEXPORT_REWRITING_1,resName));
       }
@@ -35,6 +38,7 @@
     }
     i++;
   }
-  getReport().println(Messages.get().container(Messages.RPT_END_PARSE_LINKS_0),I_CmsReport.FORMAT_HEADLINE);
+  cms.getRequestContext().removeAttribute(CmsLogEntry.ATTR_LOG_ENTRY);
+  report.println(Messages.get().container(Messages.RPT_END_PARSE_LINKS_0),I_CmsReport.FORMAT_HEADLINE);
   m_parseables=null;
 }

@@ -35,17 +35,24 @@
     res.setState(newState);
     m_vfsDriver.writeResourceState(dbc,dbc.currentProject(),res,UPDATE_ALL,false);
   }
-  m_vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),offlineResource,CmsRelationFilter.TARGETS);
+  if (offlineResource != null) {
+    m_vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),offlineResource,CmsRelationFilter.TARGETS);
+  }
   List<CmsRelation> relations=m_vfsDriver.readRelations(dbc,CmsProject.ONLINE_PROJECT_ID,onlineResource,CmsRelationFilter.TARGETS);
   Iterator<CmsRelation> itRelations=relations.iterator();
   while (itRelations.hasNext()) {
     CmsRelation relation=itRelations.next();
     m_vfsDriver.createRelation(dbc,dbc.currentProject().getUuid(),relation);
   }
-  addResourceToUsersPubList(dbc,offlineResource);
   m_monitor.clearResourceCache();
   m_monitor.flushProperties();
   m_monitor.flushPropertyLists();
+  if ((offlineResource == null) || offlineResource.getRootPath().equals(onlineResource.getRootPath())) {
+    log(dbc,new CmsLogEntry(dbc,onlineResource.getStructureId(),CmsLogEntryType.RESOURCE_RESTORED,new String[]{onlineResource.getRootPath()}));
+  }
+ else {
+    log(dbc,new CmsLogEntry(dbc,offlineResource.getStructureId(),CmsLogEntryType.RESOURCE_MOVE_RESTORED,new String[]{offlineResource.getRootPath(),onlineResource.getRootPath()}));
+  }
   if (offlineResource != null) {
     OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.singletonMap(I_CmsEventListener.KEY_RESOURCE,offlineResource)));
   }
