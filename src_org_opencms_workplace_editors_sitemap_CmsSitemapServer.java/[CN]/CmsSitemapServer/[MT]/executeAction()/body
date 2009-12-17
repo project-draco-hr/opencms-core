@@ -27,7 +27,9 @@
       String typeName=OpenCms.getResourceManager().getResourceType(resource.getTypeId()).getTypeName();
       creatableTypes.put(typeName);
       CmsSiteEntryBean siteEntryData=resourceToSiteEntryBean(cms,resource);
-      models.put(jsonifyEntry(siteEntryData));
+      if (typeName.equals(CmsResourceTypeXmlContainerPage.getStaticTypeName())) {
+        models.put(jsonifyEntry(siteEntryData));
+      }
     }
     addContents(models);
     result.put(JsonResponse.TYPES.getName(),creatableTypes);
@@ -97,7 +99,7 @@
     CmsSitemapManager manager=OpenCms.getSitemapManager();
     String type=data.getString(JsonRequest.TYPE.getName());
     CmsResource newResource=manager.createNewElement(cms,sitemapParam,request,type);
-    CmsProperty titleProp=cms.readPropertyObject(newResource,"Title",false);
+    CmsProperty titleProp=cms.readPropertyObject(newResource,CmsPropertyDefinition.PROPERTY_TITLE,false);
     String title=titleProp.getValue();
     String name=newResource.getName();
     String extension="";
@@ -111,6 +113,13 @@
     entries.put(jsonEntry);
     addContents(entries);
     result.put(JsonResponse.ENTRY.getName(),jsonEntry);
+  }
+ else   if (action.equals(Action.NEW_SITEMAP)) {
+    CmsSitemapManager manager=OpenCms.getSitemapManager();
+    CmsResource newSitemapRes=manager.createSitemap(cms,data.getString("title"),sitemapParam,request);
+    saveSitemap(newSitemapRes,data);
+    String sitemapId=newSitemapRes.getStructureId().toString();
+    result.put(JsonResponse.ID.getName(),sitemapId);
   }
  else {
     error(result,Messages.get().getBundle(getWorkplaceLocale()).key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));
