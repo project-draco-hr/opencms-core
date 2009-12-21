@@ -31,36 +31,7 @@
       elems=new JSONArray();
       elems.put(data.optString(JsonRequest.ELEM.getName()));
     }
-    CmsResource cntPageRes=cms.readResource(cntPageParam);
-    CmsXmlContainerPage xmlCntPage=CmsXmlContainerPageFactory.unmarshal(cms,cntPageRes,request);
-    CmsContainerPageBean cntPage=xmlCntPage.getCntPage(cms,cms.getRequestContext().getLocale());
-    CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
-    JSONObject resElements=new JSONObject();
-    for (int i=0; i < elems.length(); i++) {
-      String elemId=elems.getString(i);
-      CmsContainerElementBean element=getCachedElement(elemId);
-      JSONObject elementData=elemUtil.getElementData(element,cntPage.getTypes());
-      resElements.put(element.getClientId(),elementData);
-      if (elementData.has(CmsElementUtil.JsonElement.SUBITEMS.getName())) {
-        Set<String> ids=new HashSet<String>();
-        ids.add(elemId);
-        CmsResource elementRes=cms.readResource(element.getElementId());
-        CmsXmlSubContainer xmlSubContainer=CmsXmlSubContainerFactory.unmarshal(cms,elementRes,getRequest());
-        CmsSubContainerBean subContainer=xmlSubContainer.getSubContainer(cms,cms.getRequestContext().getLocale());
-        for (        CmsContainerElementBean subElement : subContainer.getElements()) {
-          if (!ids.contains(subElement.getElementId())) {
-            String subId=subElement.getClientId();
-            if (ids.contains(subId)) {
-              continue;
-            }
-            JSONObject subItemData=elemUtil.getElementData(subElement,cntPage.getTypes());
-            ids.add(subId);
-            resElements.put(subId,subItemData);
-          }
-        }
-      }
-    }
-    result.put(JsonResponse.ELEMENTS.getName(),resElements);
+    result.put(JsonResponse.ELEMENTS.getName(),getElements(elems,uriParam,cntPageParam,request));
   }
  else   if (action.equals(Action.ELEMPROPS)) {
     if (!checkParameters(data,result,JsonRequest.ELEM.getName(),JsonRequest.PROPERTIES.getName())) {
@@ -170,6 +141,33 @@
     }
     JSONArray elems=data.optJSONArray(JsonRequest.ELEM.getName());
     deleteElements(elems);
+  }
+ else   if (action.equals(Action.SUBCNT)) {
+    if (!checkParameters(data,result,JsonRequest.ELEM.getName())) {
+      return result;
+    }
+    try {
+      setSubContainer(data.getJSONObject(JsonRequest.ELEM.getName()),localeParam);
+    }
+ catch (    Exception e) {
+      error(result,e.getLocalizedMessage());
+    }
+  }
+ else   if (action.equals(Action.NEWSUB)) {
+    if (!checkParameters(data,result,JsonRequest.ELEM.getName())) {
+      return result;
+    }
+    try {
+      CmsResource newSub=createNewSubContainer(cntPageParam,request);
+      JSONObject subcontainer=data.getJSONObject(JsonRequest.ELEM.getName());
+      subcontainer.put(CmsElementUtil.JsonElement.FILE.getName(),cms.getSitePath(newSub));
+      setSubContainer(subcontainer,localeParam);
+      result.put(JsonNewRes.ID.getName(),m_manager.convertToClientId(newSub.getStructureId()));
+      result.put(JsonNewRes.URI.getName(),cms.getSitePath(newSub));
+    }
+ catch (    Exception e) {
+      error(result,e.getLocalizedMessage());
+    }
   }
  else {
     error(result,Messages.get().getBundle(getWorkplaceLocale()).key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));

@@ -8,7 +8,21 @@
       String id=element.getClientId();
       if ((resElements != null) && !resElements.has(id)) {
         try {
-          resElements.put(id,elemUtil.getElementData(element,types));
+          JSONObject elemData=elemUtil.getElementData(element,types);
+          resElements.put(id,elemData);
+          if (elemData.has(CmsElementUtil.JsonElement.SUBITEMS.getName())) {
+            CmsResource elementRes=cms.readResource(element.getElementId());
+            CmsXmlSubContainer xmlSubContainer=CmsXmlSubContainerFactory.unmarshal(cms,elementRes,getRequest());
+            CmsSubContainerBean subContainer=xmlSubContainer.getSubContainer(cms,cms.getRequestContext().getLocale());
+            for (            CmsContainerElementBean subElement : subContainer.getElements()) {
+              String subId=subElement.getClientId();
+              if (!resElements.has(subId)) {
+                JSONObject subItemData=elemUtil.getElementData(subElement,types);
+                resElements.put(subId,subItemData);
+                m_sessionCache.setCacheContainerElement(subId,subElement);
+              }
+            }
+          }
           result.put(id);
         }
  catch (        Exception e) {

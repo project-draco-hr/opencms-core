@@ -1,0 +1,34 @@
+{
+  CmsObject cms=getCmsObject();
+  String resourceName=subcontainer.getString(CmsElementUtil.JsonElement.FILE.getName());
+  String title=subcontainer.getString(CmsElementUtil.JsonElement.TITLE.getName());
+  String description=subcontainer.getString(CmsElementUtil.JsonElement.DESCRIPTION.getName());
+  JSONArray types=subcontainer.getJSONArray(CmsElementUtil.JsonElement.TYPES.getName());
+  JSONArray subitems=subcontainer.getJSONArray(CmsElementUtil.JsonElement.SUBITEMS.getName());
+  cms.lockResourceTemporary(resourceName);
+  CmsFile subcontainerFile=cms.readFile(resourceName);
+  CmsXmlSubContainer xmlSubContainer=CmsXmlSubContainerFactory.unmarshal(cms,subcontainerFile);
+  Locale locale=CmsLocaleManager.getLocale(localeParam);
+  if (xmlSubContainer.hasLocale(locale)) {
+    xmlSubContainer.removeLocale(locale);
+  }
+  xmlSubContainer.addLocale(cms,locale);
+  I_CmsXmlContentValue cntValue=xmlSubContainer.getValue(CmsXmlSubContainer.XmlNode.SUBCONTAINER.getName(),locale,0);
+  if (cntValue == null) {
+    xmlSubContainer.addValue(cms,CmsXmlSubContainer.XmlNode.SUBCONTAINER.getName(),locale,0);
+  }
+  xmlSubContainer.getValue(CmsXmlUtils.concatXpath(cntValue.getPath(),CmsXmlSubContainer.XmlNode.TITLE.getName()),locale,0).setStringValue(cms,title);
+  xmlSubContainer.getValue(CmsXmlUtils.concatXpath(cntValue.getPath(),CmsXmlSubContainer.XmlNode.DESCRIPTION.getName()),locale,0).setStringValue(cms,description);
+  if (types != null) {
+    for (int i=0; i < types.length(); i++) {
+      xmlSubContainer.addValue(cms,CmsXmlUtils.concatXpath(cntValue.getPath(),CmsXmlSubContainer.XmlNode.TYPE.getName()),locale,i).setStringValue(cms,types.getString(i));
+    }
+  }
+  if (subitems != null) {
+    for (int i=0; i < subitems.length(); i++) {
+      xmlSubContainer.addValue(cms,CmsXmlUtils.concatXpath(cntValue.getPath(),CmsXmlSubContainer.XmlNode.ELEMENT.getName()),locale,i).setStringValue(cms,subitems.getString(i));
+    }
+  }
+  subcontainerFile.setContents(xmlSubContainer.marshal());
+  cms.writeFile(subcontainerFile);
+}
