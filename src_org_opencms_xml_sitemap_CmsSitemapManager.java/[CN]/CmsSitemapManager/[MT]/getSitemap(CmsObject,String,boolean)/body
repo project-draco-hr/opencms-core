@@ -5,13 +5,19 @@
     return CmsXmlSitemapFactory.unmarshal(cms,sitemapFile);
   }
   String sitemapPath=path;
+  CmsResource sitemapRes=null;
   try {
-    sitemapFile=cms.readFile(sitemapPath);
+    sitemapRes=cms.readResource(sitemapPath);
   }
- catch (  Exception e) {
+ catch (  CmsVfsResourceNotFoundException e) {
     LOG.debug(e.getLocalizedMessage(),e);
+    return null;
   }
-  if (sitemapFile == null) {
+catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    return null;
+  }
+  if ((sitemapRes == null) || !CmsResourceTypeXmlSitemap.isSitemap(sitemapRes)) {
     sitemapPath=cms.readPropertyObject(sitemapPath,CmsPropertyDefinition.PROPERTY_SITEMAP,false).getValue();
     if (CmsStringUtil.isEmptyOrWhitespaceOnly(sitemapPath)) {
       return null;
@@ -22,11 +28,12 @@
     }
     CmsXmlSitemap sitemap=getSitemap(cms,sitemapPath,online);
     if (sitemap != null) {
-      CmsFile file=m_cache.getFile(cacheKey2,online);
-      m_cache.setFile(cacheKey,file,online);
+      sitemapFile=m_cache.getFile(cacheKey2,online);
+      m_cache.setFile(cacheKey,sitemapFile,online);
     }
     return sitemap;
   }
+  sitemapFile=cms.readFile(sitemapRes);
   m_cache.setFile(cacheKey,sitemapFile,online);
   return CmsXmlSitemapFactory.unmarshal(cms,sitemapFile);
 }
