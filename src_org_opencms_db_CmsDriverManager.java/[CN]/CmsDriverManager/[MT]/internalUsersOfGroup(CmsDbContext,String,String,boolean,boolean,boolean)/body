@@ -1,60 +1,58 @@
 {
   CmsGroup group=readGroup(dbc,groupname);
-  if ((group != null) && ((!readRoles && !group.isRole()) || (readRoles && group.isRole()))) {
-    String prefix="_" + includeOtherOuUsers + "_"+ directUsersOnly+ "_"+ ouFqn;
-    String cacheKey=m_keyGenerator.getCacheKeyForGroupUsers(prefix,dbc,group);
-    List<CmsUser> allUsers=m_monitor.getCachedUserList(cacheKey);
-    if (allUsers == null) {
-      Set<CmsUser> users=new HashSet<CmsUser>(m_userDriver.readUsersOfGroup(dbc,groupname,includeOtherOuUsers));
-      if (readRoles && !directUsersOnly) {
-        CmsRole role=CmsRole.valueOf(group);
-        if (role.getParentRole() != null) {
-          try {
-            String parentGroup=role.getParentRole().getGroupName();
-            readGroup(dbc,parentGroup);
-            users.addAll(internalUsersOfGroup(dbc,ouFqn,parentGroup,includeOtherOuUsers,directUsersOnly,readRoles));
-          }
- catch (          CmsDbEntryNotFoundException e) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug(e.getLocalizedMessage(),e);
-            }
-          }
-        }
-        String parentOu=CmsOrganizationalUnit.getParentFqn(group.getOuFqn());
-        if (parentOu != null) {
-          users.addAll(internalUsersOfGroup(dbc,ouFqn,parentOu + group.getSimpleName(),includeOtherOuUsers,directUsersOnly,readRoles));
-        }
-      }
- else       if (!readRoles && !directUsersOnly) {
-        List<CmsGroup> groups=getChildren(dbc,group,false);
-        for (        CmsGroup parentGroup : groups) {
-          try {
-            users.addAll(internalUsersOfGroup(dbc,ouFqn,parentGroup.getName(),includeOtherOuUsers,directUsersOnly,readRoles));
-          }
- catch (          CmsDbEntryNotFoundException e) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug(e.getLocalizedMessage(),e);
-            }
-          }
-        }
-      }
-      if (!includeOtherOuUsers) {
-        Iterator<CmsUser> itUsers=users.iterator();
-        while (itUsers.hasNext()) {
-          CmsUser user=itUsers.next();
-          if (!user.getOuFqn().equals(ouFqn)) {
-            itUsers.remove();
-          }
-        }
-      }
-      allUsers=Collections.unmodifiableList(new ArrayList<CmsUser>(users));
-      if (dbc.getProjectId().isNullUUID()) {
-        m_monitor.cacheUserList(cacheKey,allUsers);
-      }
-    }
-    return allUsers;
-  }
- else {
+  if ((group == null) || (!((!readRoles && !group.isRole()) || (readRoles && group.isRole())))) {
     throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_UNKNOWN_GROUP_1,groupname));
   }
+  String prefix="_" + includeOtherOuUsers + "_"+ directUsersOnly+ "_"+ ouFqn;
+  String cacheKey=m_keyGenerator.getCacheKeyForGroupUsers(prefix,dbc,group);
+  List<CmsUser> allUsers=m_monitor.getCachedUserList(cacheKey);
+  if (allUsers == null) {
+    Set<CmsUser> users=new HashSet<CmsUser>(m_userDriver.readUsersOfGroup(dbc,groupname,includeOtherOuUsers));
+    if (readRoles && !directUsersOnly) {
+      CmsRole role=CmsRole.valueOf(group);
+      if (role.getParentRole() != null) {
+        try {
+          String parentGroup=role.getParentRole().getGroupName();
+          readGroup(dbc,parentGroup);
+          users.addAll(internalUsersOfGroup(dbc,ouFqn,parentGroup,includeOtherOuUsers,directUsersOnly,readRoles));
+        }
+ catch (        CmsDbEntryNotFoundException e) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+      String parentOu=CmsOrganizationalUnit.getParentFqn(group.getOuFqn());
+      if (parentOu != null) {
+        users.addAll(internalUsersOfGroup(dbc,ouFqn,parentOu + group.getSimpleName(),includeOtherOuUsers,directUsersOnly,readRoles));
+      }
+    }
+ else     if (!readRoles && !directUsersOnly) {
+      List<CmsGroup> groups=getChildren(dbc,group,false);
+      for (      CmsGroup parentGroup : groups) {
+        try {
+          users.addAll(internalUsersOfGroup(dbc,ouFqn,parentGroup.getName(),includeOtherOuUsers,directUsersOnly,readRoles));
+        }
+ catch (        CmsDbEntryNotFoundException e) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+    }
+    if (!includeOtherOuUsers) {
+      Iterator<CmsUser> itUsers=users.iterator();
+      while (itUsers.hasNext()) {
+        CmsUser user=itUsers.next();
+        if (!user.getOuFqn().equals(ouFqn)) {
+          itUsers.remove();
+        }
+      }
+    }
+    allUsers=Collections.unmodifiableList(new ArrayList<CmsUser>(users));
+    if (dbc.getProjectId().isNullUUID()) {
+      m_monitor.cacheUserList(cacheKey,allUsers);
+    }
+  }
+  return allUsers;
 }
