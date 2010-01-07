@@ -4,22 +4,38 @@
     logId=new CmsUUID();
     LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_3,logId,uri,Boolean.valueOf(online)).key());
   }
-  LinkedList<String> entryPaths=new LinkedList<String>(CmsStringUtil.splitAsList(normalizePath(uri),"/"));
-  String sitemapFolder="";
-  CmsXmlSitemap sitemapXml=getSitemap(cms,"/",online);
-  while (!entryPaths.isEmpty() && (sitemapXml == null)) {
-    String currentFolder="/" + entryPaths.removeFirst();
-    sitemapFolder+=currentFolder;
-    sitemapXml=getSitemap(cms,sitemapFolder,online);
+  CmsXmlSitemap sitemapXml=null;
+  String sitemapFolder=uri;
+  while (sitemapFolder != null) {
+    if (cms.existsResource(sitemapFolder)) {
+      String prop=cms.readPropertyObject(sitemapFolder,CmsPropertyDefinition.PROPERTY_SITEMAP,true).getValue();
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(prop)) {
+        if (cms.getRequestContext().getSiteRoot().equals("")) {
+          CmsSite site=OpenCms.getSiteManager().getSiteForRootPath(uri);
+          if (site != null) {
+            prop=site.getSiteRoot() + prop;
+          }
+        }
+        if (cms.existsResource(prop)) {
+          sitemapXml=CmsXmlSitemapFactory.unmarshal(cms,cms.readResource(prop));
+          break;
+        }
+      }
+    }
+    sitemapFolder=CmsResource.getParentFolder(sitemapFolder);
   }
-  if (sitemapXml == null) {
+  if ((sitemapXml == null) || (sitemapFolder == null)) {
     return null;
   }
   CmsSitemapBean sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
   if (sitemap == null) {
     return null;
   }
+  LinkedList<String> entryPaths=new LinkedList<String>(CmsStringUtil.splitAsList(normalizePath(uri.substring(sitemapFolder.length())),"/"));
   Map<String,String> properties=new HashMap<String,String>();
+  if (collectProperties) {
+    properties.putAll(sitemap.getSiteEntries().get(0).getProperties());
+  }
   if (entryPaths.isEmpty()) {
     CmsSiteEntryBean entry=sitemap.getSiteEntries().get(0);
     entry.setPosition(0);
@@ -60,9 +76,8 @@
           String subSitemapId=entry.getProperties().get(CmsSitemapManager.PROPERTY_SITEMAP);
           if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(subSitemapId)) {
             CmsResource subSitemap=cms.readResource(new CmsUUID(subSitemapId));
-            String subSitemapPath=cms.getSitePath(subSitemap);
-            LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_SUBSITEMAP_2,logId,subSitemapPath).key());
-            sitemapXml=getSitemap(cms,subSitemapPath,online);
+            LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_SUBSITEMAP_2,logId,cms.getSitePath(subSitemap)).key());
+            sitemapXml=CmsXmlSitemapFactory.unmarshal(cms,subSitemap);
             sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
             if (sitemap == null) {
               return null;
