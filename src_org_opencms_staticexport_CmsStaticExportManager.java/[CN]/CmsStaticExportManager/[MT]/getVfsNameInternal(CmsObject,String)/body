@@ -1,68 +1,46 @@
 {
-  String vfsName=null;
-  CmsResource resource;
-  boolean match=false;
-  try {
-    resource=cms.readResource(cms.getRequestContext().removeSiteRoot(rfsName));
-    if (resource.isFolder() && !CmsResource.isFolder(rfsName)) {
-      rfsName+='/';
+  String path=rfsName;
+  path=path.substring(0,path.lastIndexOf('/'));
+  while (true) {
+    String expName=m_exportnameResources.get(path + '/');
+    if (expName == null) {
+      if (path.length() == 0) {
+        break;
+      }
+      path=path.substring(0,path.lastIndexOf('/'));
+      continue;
     }
-    vfsName=rfsName;
-    match=true;
+    String vfsName=expName + rfsName.substring(path.length() + 1);
+    try {
+      return readResource(cms,vfsName);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      path=path.substring(0,path.lastIndexOf('/'));
+      continue;
+    }
+catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+      break;
+    }
+  }
+  try {
+    return readResource(cms,rfsName);
   }
  catch (  Throwable t) {
     if (LOG.isDebugEnabled()) {
       LOG.debug(Messages.get().getBundle().key(Messages.ERR_EXPORT_FILE_FAILED_1,new String[]{rfsName}),t);
     }
   }
-  if (!match) {
-    Map exportnameFolders=getExportnames();
-    Iterator i=exportnameFolders.entrySet().iterator();
-    while (i.hasNext()) {
-      Map.Entry entry=(Map.Entry)i.next();
-      String exportName=(String)entry.getKey();
-      if (rfsName.startsWith(exportName)) {
-        match=true;
-        vfsName="" + entry.getValue() + rfsName.substring(exportName.length());
-        try {
-          resource=cms.readResource(vfsName);
-          if (resource.isFolder()) {
-            if (!CmsResource.isFolder(rfsName)) {
-              rfsName+='/';
-            }
-            if (!CmsResource.isFolder(vfsName)) {
-              vfsName+='/';
-            }
-          }
-          break;
-        }
- catch (        CmsVfsResourceNotFoundException e) {
-          match=false;
-          continue;
-        }
-catch (        CmsException e) {
-          break;
-        }
+  int extPos=rfsName.lastIndexOf('.');
+  if (extPos >= 0) {
+    String cutName=rfsName.substring(0,extPos);
+    int pos=cutName.lastIndexOf('.');
+    if (pos >= 0) {
+      String extension=cutName.substring(pos).toLowerCase();
+      if (".jsp".equals(extension)) {
+        return getVfsNameInternal(cms,cutName);
       }
     }
   }
-  if (!match) {
-    int extPos=rfsName.lastIndexOf('.');
-    if (extPos >= 0) {
-      String cutName=rfsName.substring(0,extPos);
-      int pos=cutName.lastIndexOf('.');
-      if (pos >= 0) {
-        String extension=cutName.substring(pos).toLowerCase();
-        if (".jsp".equals(extension)) {
-          return getVfsNameInternal(cms,cutName);
-        }
-      }
-    }
-  }
-  if (match) {
-    return vfsName;
-  }
- else {
-    return null;
-  }
+  return null;
 }

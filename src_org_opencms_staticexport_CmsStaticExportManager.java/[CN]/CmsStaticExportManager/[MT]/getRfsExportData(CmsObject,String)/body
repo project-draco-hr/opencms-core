@@ -1,0 +1,41 @@
+{
+  String rfsName=uri.substring(getRfsPrefixForRfsName(uri).length());
+  String storedSiteRoot=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.getRequestContext().setSiteRoot("/");
+    CmsStaticExportData data=m_cacheExportUris.get(rfsName);
+    if (data == null) {
+      data=getVfsNameInternal(cms,rfsName);
+    }
+    if (data == null) {
+      try {
+        String parameters=cms.readStaticExportPublishedResourceParameters(rfsName);
+        if (CmsStringUtil.isNotEmpty(parameters)) {
+          String rfsBaseName=rfsName.substring(0,rfsName.lastIndexOf('_'));
+          data=getVfsNameInternal(cms,rfsBaseName);
+          data.setParameters(parameters);
+        }
+      }
+ catch (      CmsException e) {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().getBundle().key(Messages.ERR_EXPORT_FILE_FAILED_1,new String[]{rfsName}),e);
+        }
+      }
+    }
+    if (data == null) {
+      data=new CmsStaticExportData(CACHEVALUE_404,rfsName,null,null);
+    }
+    m_cacheExportUris.put(rfsName,data);
+    if (data.getVfsName() != CACHEVALUE_404) {
+      if (data.getResource().isFolder() && !CmsResource.isFolder(rfsName)) {
+        rfsName+="/";
+      }
+      data.setRfsName(rfsName);
+      return data;
+    }
+    return null;
+  }
+  finally {
+    cms.getRequestContext().setSiteRoot(storedSiteRoot);
+  }
+}

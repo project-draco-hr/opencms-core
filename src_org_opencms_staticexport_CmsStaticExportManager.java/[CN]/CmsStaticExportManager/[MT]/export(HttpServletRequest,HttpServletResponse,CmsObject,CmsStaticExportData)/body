@@ -8,8 +8,6 @@
   if (remoteAddr == null) {
     remoteAddr=CmsContextInfo.LOCALHOST;
   }
-  CmsContextInfo contextInfo=new CmsContextInfo(cms.getRequestContext().currentUser(),cms.getRequestContext().currentProject(),vfsName,"/",i18nInfo.getLocale(),i18nInfo.getEncoding(),remoteAddr,CmsContextInfo.CURRENT_TIME,cms.getRequestContext().getOuFqn());
-  cms=OpenCms.initCmsObject(null,contextInfo);
   if (siteRoot != null) {
     vfsName=vfsName.substring(siteRoot.length());
   }
@@ -19,8 +17,8 @@
   if (LOG.isDebugEnabled()) {
     LOG.debug(Messages.get().getBundle().key(Messages.LOG_STATIC_EXPORT_SITE_ROOT_2,siteRoot,vfsName));
   }
-  cms.getRequestContext().setSiteRoot(siteRoot);
-  String oldUri=null;
+  CmsContextInfo contextInfo=new CmsContextInfo(cms.getRequestContext().currentUser(),cms.getRequestContext().currentProject(),vfsName,siteRoot,i18nInfo.getLocale(),i18nInfo.getEncoding(),remoteAddr,CmsContextInfo.CURRENT_TIME,cms.getRequestContext().getOuFqn());
+  CmsObject exportCms=OpenCms.initCmsObject(null,contextInfo);
   boolean exportOnDemand=((req != null) && (res != null));
   CmsStaticExportResponseWrapper wrapRes=null;
   if (res != null) {
@@ -30,15 +28,16 @@
     LOG.debug(Messages.get().getBundle().key(Messages.LOG_SE_RESOURCE_START_1,data));
   }
   CmsFile file;
-  if (resource.isFile()) {
-    file=cms.readFile(vfsName);
+  if (resource.isFile() && !CmsResource.isFolder(rfsName)) {
+    file=exportCms.readFile(vfsName);
   }
  else {
-    file=cms.readFile(OpenCms.initResource(cms,vfsName,req,wrapRes));
-    if (cms.existsResource(vfsName + file.getName())) {
-      vfsName=vfsName + file.getName();
-    }
+    file=exportCms.readFile(OpenCms.initResource(exportCms,vfsName,req,wrapRes));
+    vfsName=exportCms.getSitePath(file);
     rfsName+=EXPORT_DEFAULT_FILE;
+  }
+  if (!isExportLink(exportCms,file)) {
+    return HttpServletResponse.SC_SEE_OTHER;
   }
   I_CmsResourceLoader loader=OpenCms.getResourceManager().getLoader(file);
   if ((loader == null) || (!loader.isStaticExportEnabled())) {
@@ -46,67 +45,57 @@
     throw new CmsStaticExportException(Messages.get().container(Messages.ERR_EXPORT_NOT_SUPPORTED_2,arguments));
   }
   if (exportOnDemand) {
-    String mimetype=OpenCms.getResourceManager().getMimeType(file.getName(),cms.getRequestContext().getEncoding());
+    String mimetype=OpenCms.getResourceManager().getMimeType(file.getName(),exportCms.getRequestContext().getEncoding());
     if (wrapRes != null) {
       wrapRes.setContentType(mimetype);
     }
-    oldUri=cms.getRequestContext().getUri();
-    cms.getRequestContext().setUri(vfsName);
+    exportCms.getRequestContext().setUri(vfsName);
   }
   int status=-1;
-  if (isExportLink(cms,vfsName)) {
-    CmsLocaleManager locManager=OpenCms.getLocaleManager();
-    List locales=locManager.getDefaultLocales(cms,vfsName);
-    boolean exported=false;
-    boolean matched=false;
-    Iterator it=getRfsRules().iterator();
-    while (it.hasNext()) {
-      CmsStaticExportRfsRule rule=(CmsStaticExportRfsRule)it.next();
-      boolean export=rule.getSource().matcher(siteRoot + vfsName).matches();
-      matched|=export;
-      export|=(vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM) && rule.match(vfsName));
-      if (export) {
-        CmsObject locCms=cms;
-        Locale locale=CmsLocaleManager.getLocale(rule.getName());
-        if (locales.contains(locale)) {
-          CmsContextInfo ctxInfo=new CmsContextInfo(cms.getRequestContext());
-          ctxInfo.setLocale(locale);
-          locCms=OpenCms.initCmsObject(cms,ctxInfo);
-        }
-        byte[] content=loader.export(locCms,file,req,wrapRes);
-        if (content != null) {
-          exported=true;
-          String locRfsName=rfsName;
-          if (locales.contains(locale)) {
-            locRfsName=rule.getLocalizedRfsName(rfsName,"/");
-          }
-          writeResource(req,rule.getExportPath(),locRfsName,resource,content);
-        }
+  List<Locale> locales=OpenCms.getLocaleManager().getDefaultLocales(exportCms,vfsName);
+  boolean exported=false;
+  boolean matched=false;
+  Iterator<CmsStaticExportRfsRule> it=getRfsRules().iterator();
+  while (it.hasNext()) {
+    CmsStaticExportRfsRule rule=it.next();
+    boolean export=rule.getSource().matcher(siteRoot + vfsName).matches();
+    matched|=export;
+    export|=(vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM) && rule.match(vfsName));
+    if (export) {
+      CmsObject locCms=exportCms;
+      Locale locale=CmsLocaleManager.getLocale(rule.getName());
+      if (locales.contains(locale)) {
+        CmsContextInfo ctxInfo=new CmsContextInfo(exportCms.getRequestContext());
+        ctxInfo.setLocale(locale);
+        locCms=OpenCms.initCmsObject(exportCms,ctxInfo);
       }
-    }
-    if (!matched) {
-      String exportPath=getExportPath(siteRoot + vfsName);
-      byte[] content=loader.export(cms,file,req,wrapRes);
+      byte[] content=loader.export(locCms,file,req,wrapRes);
       if (content != null) {
         exported=true;
-        writeResource(req,exportPath,rfsName,resource,content);
+        String locRfsName=rfsName;
+        if (locales.contains(locale)) {
+          locRfsName=rule.getLocalizedRfsName(rfsName,"/");
+        }
+        writeResource(req,rule.getExportPath(),locRfsName,resource,content);
       }
     }
-    if (exported) {
-      status=(wrapRes != null) ? wrapRes.getStatus() : -1;
-      if (status < 0) {
-        status=HttpServletResponse.SC_OK;
-      }
+  }
+  if (!matched) {
+    String exportPath=getExportPath(siteRoot + vfsName);
+    byte[] content=loader.export(exportCms,file,req,wrapRes);
+    if (content != null) {
+      exported=true;
+      writeResource(req,exportPath,rfsName,resource,content);
     }
- else {
-      status=HttpServletResponse.SC_NOT_MODIFIED;
+  }
+  if (exported) {
+    status=(wrapRes != null) ? wrapRes.getStatus() : -1;
+    if (status < 0) {
+      status=HttpServletResponse.SC_OK;
     }
   }
  else {
-    status=HttpServletResponse.SC_SEE_OTHER;
-  }
-  if (exportOnDemand) {
-    cms.getRequestContext().setUri(oldUri);
+    status=HttpServletResponse.SC_NOT_MODIFIED;
   }
   return status;
 }
