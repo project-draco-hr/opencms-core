@@ -41,24 +41,48 @@
   if (cms.getRequestContext().currentProject().isOnlineProject()) {
     CmsStaticExportManager exportManager=OpenCms.getStaticExportManager();
     if (exportManager.relativeLinksInExport(cms.getRequestContext().getSiteRoot() + cms.getRequestContext().getUri())) {
-      uriBaseName=exportManager.getCachedOnlineLink(exportManager.getCacheKey(cms.getRequestContext().getSiteRoot(),cms.getRequestContext().getUri()));
+      String cacheKey=exportManager.getCacheKey(cms.getRequestContext().getSiteRoot(),cms.getRequestContext().getUri());
+      uriBaseName=exportManager.getCachedOnlineLink(cacheKey);
       if (uriBaseName == null) {
-        if (exportManager.isExportLink(cms,cms.getRequestContext().getUri())) {
+        CmsResource resource=null;
+        try {
+          resource=cms.readResource(cms.getRequestContext().getUri());
+        }
+ catch (        CmsException e) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+        if ((resource != null) && exportManager.isExportLink(cms,resource)) {
           uriBaseName=exportManager.getRfsName(cms,cms.getRequestContext().getUri());
         }
  else {
           uriBaseName=exportManager.getVfsPrefix() + cms.getRequestContext().getUri();
         }
-        exportManager.cacheOnlineLink(exportManager.getCacheKey(cms.getRequestContext().getSiteRoot(),cms.getRequestContext().getUri()),uriBaseName);
+        exportManager.cacheOnlineLink(cacheKey,uriBaseName);
       }
       useRelativeLinks=uriBaseName.startsWith(OpenCms.getStaticExportManager().getRfsPrefix(cms.getRequestContext().getSiteRoot() + cms.getRequestContext().getUri()));
     }
-    resultLink=exportManager.getCachedOnlineLink(cms.getRequestContext().getSiteRoot() + ":" + absoluteLink);
+    String cacheKey=cms.getRequestContext().getSiteRoot() + ":" + absoluteLink;
+    resultLink=exportManager.getCachedOnlineLink(cacheKey);
     if (resultLink == null) {
       String storedSiteRoot=cms.getRequestContext().getSiteRoot();
       try {
         cms.getRequestContext().setSiteRoot(targetSite.getSiteRoot());
-        if (exportManager.isExportLink(cms,vfsName)) {
+        CmsResource resource=null;
+        try {
+          resource=cms.readResource(vfsName);
+        }
+ catch (        CmsException e) {
+          try {
+            CmsSiteEntryBean entry=OpenCms.getSitemapManager().getEntryForUri(cms,vfsName);
+            if (entry != null) {
+              resource=cms.readResource(entry.getResourceId());
+            }
+          }
+ catch (          CmsException e1) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+        if ((resource != null) && exportManager.isExportLink(cms,resource)) {
           resultLink=exportManager.getRfsName(cms,vfsName,parameters);
           parameters=null;
         }
@@ -72,7 +96,7 @@
   finally {
         cms.getRequestContext().setSiteRoot(storedSiteRoot);
       }
-      exportManager.cacheOnlineLink(cms.getRequestContext().getSiteRoot() + ":" + absoluteLink,resultLink);
+      exportManager.cacheOnlineLink(cacheKey,resultLink);
     }
     if (targetSite.hasSecureServer() || currentSite.hasSecureServer()) {
       if (!vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
