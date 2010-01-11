@@ -22,17 +22,15 @@
  else   if (req.getParameter(CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER) != null) {
     actAsTemplate=true;
   }
+  boolean createTag=false;
+  String tagName=CmsStringUtil.isEmptyOrWhitespaceOnly(tag) ? DEFAULT_TAG_NAME : tag;
+  if (!CREATE_NO_TAG.equals(tag)) {
+    createTag=true;
+    pageContext.getOut().print(getTagOpen(tagName,containerName,tagClass));
+  }
   CmsXmlContainerPage xmlCntPage=CmsXmlContainerPageFactory.unmarshal(cms,containerPage,req);
   CmsContainerPageBean cntPage=xmlCntPage.getCntPage(cms,cms.getRequestContext().getLocale());
   Locale locale=cntPage.getLocale();
-  CmsContainerBean container=cntPage.getContainers().get(containerName);
-  if (container == null) {
-    LOG.error(Messages.get().container(Messages.LOG_CONTAINER_NOT_FOUND_3,cms.getSitePath(containerPage),locale,containerName).key());
-    return;
-  }
-  if (!containerType.equals(container.getType())) {
-    throw new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_TYPE_4,new Object[]{cms.getSitePath(containerPage),locale,containerName,containerType}));
-  }
   int maxElements=-1;
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(containerMaxElements)) {
     try {
@@ -41,27 +39,46 @@
  catch (    NumberFormatException e) {
       throw new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_MAXELEMENTS_4,new Object[]{cms.getSitePath(containerPage),locale,containerName,containerMaxElements}),e);
     }
-    container.setMaxElements(maxElements);
   }
  else {
     if (LOG.isWarnEnabled()) {
       LOG.warn(Messages.get().container(Messages.LOG_MAXELEMENTS_NOT_SET_3,new Object[]{containerName,locale,cms.getSitePath(containerPage)}));
     }
   }
+  CmsContainerBean container=cntPage.getContainers().get(containerName);
+  boolean isOnline=cms.getRequestContext().currentProject().isOnlineProject();
+  if (container == null) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().container(Messages.LOG_CONTAINER_NOT_FOUND_3,cms.getSitePath(containerPage),locale,containerName).key());
+    }
+    if (!isOnline) {
+      try {
+        pageContext.getOut().print(getCntDataTag(new CmsContainerBean(containerName,containerType,maxElements,null)));
+      }
+ catch (      JSONException e) {
+        throw new JspException(e);
+      }
+    }
+    if (createTag) {
+      pageContext.getOut().print(getTagClose(tagName));
+    }
+    return;
+  }
+  container.setMaxElements(maxElements);
+  if (!isOnline) {
+    try {
+      pageContext.getOut().print(getCntDataTag(container));
+    }
+ catch (    JSONException e) {
+      throw new JspException(e);
+    }
+  }
+  if (!containerType.equals(container.getType())) {
+    throw new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_TYPE_4,new Object[]{cms.getSitePath(containerPage),locale,containerName,containerType}));
+  }
   int renderElems=container.getElements().size();
   if ((maxElements > 0) && (renderElems > maxElements)) {
     renderElems=maxElements;
-  }
-  boolean createTag=false;
-  String tagName=CmsStringUtil.isEmptyOrWhitespaceOnly(tag) ? DEFAULT_TAG_NAME : tag;
-  if (!CREATE_NO_TAG.equals(tag)) {
-    createTag=true;
-    try {
-      pageContext.getOut().print(getTagOpen(tagName,containerName,tagClass));
-    }
- catch (    IOException t) {
-      throw new JspException(t);
-    }
   }
   if (actAsTemplate) {
     if (!cntPage.getTypes().contains(CmsContainerPageBean.TYPE_TEMPLATE)) {
@@ -117,11 +134,6 @@
     }
   }
   if (createTag) {
-    try {
-      pageContext.getOut().print(getTagClose(tagName));
-    }
- catch (    IOException t) {
-      throw new JspException(t);
-    }
+    pageContext.getOut().print(getTagClose(tagName));
   }
 }
