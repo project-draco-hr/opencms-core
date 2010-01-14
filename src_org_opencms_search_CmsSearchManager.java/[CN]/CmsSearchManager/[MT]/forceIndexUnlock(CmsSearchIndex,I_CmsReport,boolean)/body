@@ -2,8 +2,10 @@
   File indexPath=new File(index.getPath());
   boolean indexLocked=true;
   if (indexPath.exists()) {
+    Directory indexDirectory=null;
     try {
-      indexLocked=IndexWriter.isLocked(index.getPath());
+      indexDirectory=FSDirectory.open(new File(index.getPath()));
+      indexLocked=IndexWriter.isLocked(indexDirectory);
     }
  catch (    Exception e) {
       LOG.error(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_READER_OPEN_2,index.getPath(),index.getName()),e);
@@ -11,7 +13,7 @@
     if (indexLocked) {
       if ((m_forceUnlockMode != null) && m_forceUnlockMode.equals(CmsSearchForceUnlockMode.ALWAYS)) {
         try {
-          IndexWriter.unlock(FSDirectory.getDirectory(index.getPath()));
+          IndexWriter.unlock(indexDirectory);
         }
  catch (        Exception e) {
           CmsMessageContainer msg=Messages.get().container(Messages.ERR_INDEX_LOCK_FAILED_1,index.getName());
@@ -20,7 +22,7 @@
         }
       }
  else       if ((m_forceUnlockMode != null) && m_forceUnlockMode.equals(CmsSearchForceUnlockMode.NEVER)) {
-        indexLocked=waitIndexLock(index,report,indexLocked);
+        indexLocked=waitIndexLock(index,indexDirectory,report,indexLocked);
         if (indexLocked) {
           CmsMessageContainer msg=Messages.get().container(Messages.ERR_INDEX_LOCK_FAILED_1,index.getName());
           report.println(msg,I_CmsReport.FORMAT_ERROR);
@@ -29,7 +31,7 @@
       }
  else {
         if (mode) {
-          indexLocked=waitIndexLock(index,report,indexLocked);
+          indexLocked=waitIndexLock(index,indexDirectory,report,indexLocked);
         }
         if (indexLocked) {
           if (mode) {
@@ -39,7 +41,7 @@
           }
  else {
             try {
-              IndexWriter.unlock(FSDirectory.getDirectory(index.getPath()));
+              IndexWriter.unlock(indexDirectory);
             }
  catch (            Exception e) {
               CmsMessageContainer msg=Messages.get().container(Messages.ERR_INDEX_LOCK_FAILED_1,index.getName());

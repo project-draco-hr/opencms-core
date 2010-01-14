@@ -1,15 +1,23 @@
 {
   I_CmsReport report=new CmsLogReport(m_adminCms.getRequestContext().getLocale(),CmsSearchManager.class);
+  long offlineUpdateFrequency=OpenCms.getSearchManager().getOfflineUpdateFrequency();
+  boolean frequencyChange=false;
   try {
     while (m_isAlive) {
-      List<CmsPublishedResource> resourcesToIndex=getResourcesToIndex();
-      if (resourcesToIndex.size() > 0) {
-        updateIndexOffline(report,resourcesToIndex);
-      }
       try {
-        sleep(OpenCms.getSearchManager().getOfflineUpdateFrequency());
+        frequencyChange=false;
+        sleep(offlineUpdateFrequency);
       }
  catch (      InterruptedException e) {
+        if (offlineUpdateFrequency != OpenCms.getSearchManager().getOfflineUpdateFrequency()) {
+          frequencyChange=interrupted();
+        }
+      }
+      if (m_isAlive && !frequencyChange) {
+        List<CmsPublishedResource> resourcesToIndex=getResourcesToIndex();
+        if (resourcesToIndex.size() > 0) {
+          updateIndexOffline(report,resourcesToIndex);
+        }
       }
     }
   }

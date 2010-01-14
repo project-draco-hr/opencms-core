@@ -1,0 +1,41 @@
+{
+  I_CmsReport report=indexer.getReport();
+  m_startedCounter++;
+  CmsIndexingThread thread=new CmsIndexingThread(indexer.getCms(),res,indexer.getIndex(),m_startedCounter,report);
+  thread.setPriority(Thread.MIN_PRIORITY);
+  thread.start();
+  try {
+    thread.join(m_timeout);
+  }
+ catch (  InterruptedException e) {
+  }
+  if (thread.isAlive()) {
+    m_abandonedCounter++;
+    thread.interrupt();
+    if (LOG.isWarnEnabled()) {
+      LOG.warn(Messages.get().getBundle().key(Messages.LOG_INDEXING_TIMEOUT_1,res.getRootPath()));
+    }
+    if (report != null) {
+      report.println();
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_FAILED_0),I_CmsReport.FORMAT_WARNING);
+      report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_TIMEOUT_1,res.getRootPath()),I_CmsReport.FORMAT_WARNING);
+    }
+  }
+ else {
+    m_returnedCounter++;
+  }
+  Document doc=thread.getResult();
+  if (doc != null) {
+    indexer.updateResource(writer,res.getRootPath(),doc);
+  }
+  if ((m_startedCounter % m_maxModificationsBeforeCommit) == 0) {
+    try {
+      writer.commit();
+    }
+ catch (    IOException e) {
+      if (LOG.isWarnEnabled()) {
+        LOG.warn(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_WRITER_COMMIT_2,indexer.getIndex().getName(),indexer.getIndex().getPath()),e);
+      }
+    }
+  }
+}

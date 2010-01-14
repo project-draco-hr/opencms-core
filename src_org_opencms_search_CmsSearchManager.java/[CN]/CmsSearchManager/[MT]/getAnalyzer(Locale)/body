@@ -8,12 +8,35 @@
   try {
     className=analyzerConf.getClassName();
     Class<?> analyzerClass=Class.forName(className);
-    String stemmerAlgorithm=analyzerConf.getStemmerAlgorithm();
-    if (stemmerAlgorithm != null) {
-      analyzer=(Analyzer)analyzerClass.getDeclaredConstructor(new Class[]{String.class}).newInstance(new Object[]{stemmerAlgorithm});
+    if (StandardAnalyzer.class.equals(analyzerClass)) {
+      analyzer=new StandardAnalyzer(Version.LUCENE_CURRENT);
+    }
+ else     if (CmsGallerySearchAnalyzer.class.equals(analyzerClass)) {
+      analyzer=new CmsGallerySearchAnalyzer(Version.LUCENE_CURRENT);
+    }
+ else     if (SnowballAnalyzer.class.equals(analyzerClass)) {
+      analyzer=new SnowballAnalyzer(Version.LUCENE_CURRENT,analyzerConf.getStemmerAlgorithm());
     }
  else {
-      analyzer=(Analyzer)analyzerClass.newInstance();
+      boolean hasEmpty=false;
+      boolean hasVersion=false;
+      Constructor<?>[] constructors=analyzerClass.getConstructors();
+      for (int i=0; i < constructors.length; i++) {
+        Constructor<?> c=constructors[i];
+        Class<?>[] parameters=c.getParameterTypes();
+        if (parameters.length == 0) {
+          hasEmpty=true;
+        }
+        if ((parameters.length == 1) && parameters[0].equals(Version.class)) {
+          hasVersion=true;
+        }
+        if (hasVersion) {
+          analyzer=(Analyzer)analyzerClass.getDeclaredConstructor(new Class[]{Version.class}).newInstance(Version.LUCENE_CURRENT);
+        }
+ else         if (hasEmpty) {
+          analyzer=(Analyzer)analyzerClass.newInstance();
+        }
+      }
     }
   }
  catch (  Exception e) {

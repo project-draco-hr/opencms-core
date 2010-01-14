@@ -1,0 +1,84 @@
+{
+  TopDocs hits;
+  CmsGallerySearchResultList searchResults=new CmsGallerySearchResultList();
+  try {
+    CmsObject searchCms=OpenCms.initCmsObject(cms);
+    searchCms.getRequestContext().setCurrentProject(searchCms.readProject(getProject()));
+    BooleanFilter filter=new BooleanFilter();
+    filter=appendPathFilter(searchCms,filter,params.getGalleries());
+    filter=appendCategoryFilter(searchCms,filter,params.getCategories());
+    filter=appendResourceTypeFilter(searchCms,filter,params.getResourceTypes());
+    filter=appendDateLastModifiedFilter(filter,params.getDateLastModifiedRange().getStartTime(),params.getDateLastModifiedRange().getEndTime());
+    filter=appendDateCreatedFilter(filter,params.getDateCreatedRange().getStartTime(),params.getDateCreatedRange().getEndTime());
+    Query query=null;
+    Query fieldsQuery=null;
+    if (params.getSearchWords() != null) {
+      BooleanQuery booleanFieldsQuery=new BooleanQuery();
+      for (int i=0; i < params.getFields().size(); i++) {
+        QueryParser p=new QueryParser(Version.LUCENE_CURRENT,params.getFields().get(i),getAnalyzer());
+        booleanFieldsQuery.add(p.parse(params.getSearchWords()),BooleanClause.Occur.SHOULD);
+      }
+      fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
+    }
+    query=fieldsQuery;
+    if (query == null) {
+      query=new MatchAllDocsQuery();
+    }
+    hits=getSearcher().search(query,filter,getMaxHits(),params.getSort());
+    if (hits != null) {
+      int hitCount=hits.totalHits > hits.scoreDocs.length ? hits.scoreDocs.length : hits.totalHits;
+      int page=params.getResultPage();
+      int start=-1, end=-1;
+      if ((params.getMatchesPerPage() > 0) && (page > 0) && (hitCount > 0)) {
+        start=params.getMatchesPerPage() * (page - 1);
+        end=start + params.getMatchesPerPage();
+        start=(start > hitCount) ? hitCount : start;
+        end=(end > hitCount) ? hitCount : end;
+      }
+ else {
+        start=0;
+        end=hitCount;
+      }
+      Document doc;
+      CmsGallerySearchResult searchResult;
+      CmsSearchParameters searchParams=params.getCmsSearchParams();
+      int visibleHitCount=hitCount;
+      for (int i=0, cnt=0; (i < hitCount) && (cnt < end); i++) {
+        try {
+          doc=getSearcher().doc(hits.scoreDocs[i].doc);
+          if (hasReadPermission(searchCms,doc)) {
+            if (cnt >= start) {
+              String excerpt=null;
+              if (isCreatingExcerpt() && (fieldsQuery != null)) {
+                I_CmsTermHighlighter highlighter=OpenCms.getSearchManager().getHighlighter();
+                excerpt=highlighter.getExcerpt(doc,this,searchParams,fieldsQuery,getAnalyzer());
+              }
+              searchResult=new CmsGallerySearchResult(Math.round((hits.scoreDocs[i].score / hits.getMaxScore()) * 100f),doc,excerpt);
+              searchResults.add(searchResult);
+            }
+            cnt++;
+          }
+ else {
+            visibleHitCount--;
+          }
+        }
+ catch (        Exception e) {
+          if (LOG.isWarnEnabled()) {
+            LOG.warn(Messages.get().getBundle().key(Messages.LOG_RESULT_ITERATION_FAILED_0),e);
+          }
+        }
+      }
+      searchResults.setHitCount(visibleHitCount);
+    }
+ else {
+      searchResults.setHitCount(0);
+    }
+  }
+ catch (  RuntimeException e) {
+    throw new CmsSearchException(Messages.get().container(Messages.ERR_SEARCH_PARAMS_1,params),e);
+  }
+catch (  Exception e) {
+    throw new CmsSearchException(Messages.get().container(Messages.ERR_SEARCH_PARAMS_1,params),e);
+  }
+  return searchResults;
+}

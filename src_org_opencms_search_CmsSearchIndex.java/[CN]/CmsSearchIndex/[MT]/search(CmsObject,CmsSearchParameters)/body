@@ -16,31 +16,11 @@
     searchCms.getRequestContext().setCurrentProject(searchCms.readProject(getProject()));
     timeLucene=-System.currentTimeMillis();
     BooleanFilter filter=new BooleanFilter();
-    TermsFilter pathFilter=new TermsFilter();
-    if ((params.getRoots() != null) && (params.getRoots().size() > 0)) {
-      for (int i=0; i < params.getRoots().size(); i++) {
-        String searchRoot=searchCms.getRequestContext().addSiteRoot(params.getRoots().get(i));
-        extendPathFilter(pathFilter,searchRoot);
-      }
-    }
- else {
-      extendPathFilter(pathFilter,searchCms.getRequestContext().getSiteRoot());
-    }
-    filter.add(new FilterClause(pathFilter,BooleanClause.Occur.MUST));
-    if ((params.getCategories() != null) && (params.getCategories().size() > 0)) {
-      filter.add(new FilterClause(getMultiTermQueryFilter(CmsSearchField.FIELD_CATEGORY,params.getCategories()),BooleanClause.Occur.MUST));
-    }
-    if ((params.getResourceTypes() != null) && (params.getResourceTypes().size() > 0)) {
-      filter.add(new FilterClause(getMultiTermQueryFilter(CmsSearchField.FIELD_TYPE,params.getResourceTypes()),BooleanClause.Occur.MUST));
-    }
-    Filter dateFilter=createDateRangeFilter(CmsSearchField.FIELD_DATE_LASTMODIFIED_LOOKUP,params.getMinDateLastModified(),params.getMaxDateLastModified());
-    if (dateFilter != null) {
-      filter.add(new FilterClause(dateFilter,BooleanClause.Occur.MUST));
-    }
-    dateFilter=createDateRangeFilter(CmsSearchField.FIELD_DATE_CREATED_LOOKUP,params.getMinDateCreated(),params.getMaxDateCreated());
-    if (dateFilter != null) {
-      filter.add(new FilterClause(dateFilter,BooleanClause.Occur.MUST));
-    }
+    filter=appendPathFilter(searchCms,filter,params.getRoots());
+    filter=appendCategoryFilter(searchCms,filter,params.getCategories());
+    filter=appendResourceTypeFilter(searchCms,filter,params.getResourceTypes());
+    filter=appendDateLastModifiedFilter(filter,params.getMinDateLastModified(),params.getMaxDateLastModified());
+    filter=appendDateCreatedFilter(filter,params.getMinDateCreated(),params.getMaxDateCreated());
     Query query=null;
     Query fieldsQuery=null;
     if (!params.isIgnoreQuery()) {
@@ -50,7 +30,7 @@
         Iterator<CmsSearchParameters.CmsSearchFieldQuery> i=params.getFieldQueries().iterator();
         while (i.hasNext()) {
           CmsSearchParameters.CmsSearchFieldQuery fq=i.next();
-          QueryParser p=new QueryParser(fq.getFieldName(),getAnalyzer());
+          QueryParser p=new QueryParser(Version.LUCENE_CURRENT,fq.getFieldName(),getAnalyzer());
           if (BooleanClause.Occur.SHOULD.equals(fq.getOccur())) {
             if (shouldOccur == null) {
               shouldOccur=new BooleanQuery();
@@ -76,20 +56,19 @@
  else       if ((params.getFields() != null) && (params.getFields().size() > 0)) {
         BooleanQuery booleanFieldsQuery=new BooleanQuery();
         for (int i=0; i < params.getFields().size(); i++) {
-          QueryParser p=new QueryParser(params.getFields().get(i),getAnalyzer());
+          QueryParser p=new QueryParser(Version.LUCENE_CURRENT,params.getFields().get(i),getAnalyzer());
           booleanFieldsQuery.add(p.parse(params.getQuery()),BooleanClause.Occur.SHOULD);
         }
         fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
       }
  else {
-        QueryParser p=new QueryParser(CmsSearchField.FIELD_CONTENT,getAnalyzer());
+        QueryParser p=new QueryParser(Version.LUCENE_CURRENT,CmsSearchField.FIELD_CONTENT,getAnalyzer());
         fieldsQuery=getSearcher().rewrite(p.parse(params.getQuery()));
       }
       query=fieldsQuery;
     }
     if (LOG.isDebugEnabled()) {
       LOG.debug(Messages.get().getBundle().key(Messages.LOG_BASE_QUERY_1,query));
-      LOG.debug(Messages.get().getBundle().key(Messages.LOG_FIELDS_QUERY_1,fieldsQuery));
     }
     if (query == null) {
       query=new MatchAllDocsQuery();
