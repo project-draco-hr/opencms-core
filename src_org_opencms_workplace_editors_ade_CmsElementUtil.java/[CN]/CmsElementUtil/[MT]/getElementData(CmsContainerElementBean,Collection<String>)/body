@@ -42,7 +42,7 @@
         }
       }
     }
-    String defaultFormatter=m_manager.getXmlContentFormatters(m_cms,resource).get(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE);
+    String defaultFormatter=OpenCms.getResourceManager().getResourceType(resource).getFormatterForContainerType(m_cms,resource,CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE);
     String jspResult;
     try {
       jspResult=getElementContent(element,m_cms.readResource(defaultFormatter));
@@ -59,14 +59,14 @@
     }
   }
  else {
-    Iterator<Map.Entry<String,String>> it=m_manager.getXmlContentFormatters(m_cms,resource).entrySet().iterator();
+    Iterator<String> it=types.iterator();
+    I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(resource);
     while (it.hasNext()) {
-      Map.Entry<String,String> entry=it.next();
-      String type=entry.getKey();
-      if (!types.contains(type) && !type.equals(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE)) {
+      String type=it.next();
+      String formatterUri=resType.getFormatterForContainerType(m_cms,resource,type);
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(formatterUri)) {
         continue;
       }
-      String formatterUri=entry.getValue();
       formatters.put(type,formatterUri);
       try {
         String jspResult=getElementContent(element,m_cms.readResource(formatterUri));
@@ -75,6 +75,16 @@
  catch (      Exception e) {
         LOG.error(Messages.get().getBundle().key(Messages.ERR_GENERATE_FORMATTED_ELEMENT_3,m_cms.getSitePath(resource),formatterUri,type),e);
       }
+    }
+    String defaultFormatter=OpenCms.getResourceManager().getResourceType(resource).getFormatterForContainerType(m_cms,resource,CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE);
+    String jspResult;
+    try {
+      jspResult=getElementContent(element,m_cms.readResource(defaultFormatter));
+      formatters.put(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE,defaultFormatter);
+      resContents.put(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE,jspResult);
+    }
+ catch (    Exception e) {
+      LOG.error(Messages.get().getBundle().key(Messages.ERR_GENERATE_FORMATTED_ELEMENT_3,m_cms.getSitePath(resource),defaultFormatter,CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE),e);
     }
   }
   return resElement;
