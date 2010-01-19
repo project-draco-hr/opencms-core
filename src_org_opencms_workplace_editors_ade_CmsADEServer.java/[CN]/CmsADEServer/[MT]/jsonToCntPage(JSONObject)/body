@@ -1,0 +1,47 @@
+{
+  CmsObject cms=getCmsObject();
+  String paramUri=getRequest().getParameter(ReqParam.URI.getName());
+  List<CmsContainerBean> containers=new ArrayList<CmsContainerBean>();
+  JSONObject jsonCnts=json.getJSONObject(JsonCntPage.CONTAINERS.getName());
+  Iterator<String> itCnt=jsonCnts.keys();
+  while (itCnt.hasNext()) {
+    String cntKey=itCnt.next();
+    JSONObject jsonCnt=jsonCnts.getJSONObject(cntKey);
+    String name=jsonCnt.getString(CmsJspTagContainer.JsonContainer.NAME.getName());
+    String type=jsonCnt.getString(CmsJspTagContainer.JsonContainer.TYPE.getName());
+    List<CmsContainerElementBean> elements=new ArrayList<CmsContainerElementBean>();
+    JSONArray elems=jsonCnt.getJSONArray(JsonCntPage.ELEMENTS.getName());
+    for (int i=0; i < elems.length(); i++) {
+      JSONObject jsonElem=elems.getJSONObject(i);
+      String elemUri=jsonElem.getString(JsonCntElem.URI.getName());
+      CmsResource elem;
+      try {
+        elem=cms.readResource(elemUri);
+      }
+ catch (      CmsException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+        continue;
+      }
+      if (type.equals(CmsContainerPageBean.TYPE_TEMPLATE) && elemUri.equals(paramUri)) {
+        continue;
+      }
+      String formatterUri=jsonElem.getString(JsonCntElem.FORMATTER.getName());
+      CmsResource formatter;
+      try {
+        formatter=cms.readResource(formatterUri);
+      }
+ catch (      CmsException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+        continue;
+      }
+      String clientId=jsonElem.getString(JsonCntElem.ID.getName());
+      Map<String,String> props=new HashMap<String,String>();
+      if (clientId.contains("#")) {
+        props=getCachedElement(clientId).getProperties();
+      }
+      elements.add(new CmsContainerElementBean(elem.getStructureId(),formatter.getStructureId(),props));
+    }
+    containers.add(new CmsContainerBean(name,type,-1,elements));
+  }
+  return new CmsContainerPageBean(cms.getRequestContext().getLocale(),containers);
+}

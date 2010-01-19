@@ -1,0 +1,46 @@
+{
+  parent.clearContent();
+  CmsADEManager manager=OpenCms.getADEManager();
+  for (  String containerName : cntPage.getNames()) {
+    CmsContainerBean container=cntPage.getContainers().get(containerName);
+    Element cntElement=parent.addElement(XmlNode.CONTAINER.getName());
+    cntElement.addElement(XmlNode.NAME.getName()).addCDATA(container.getName());
+    cntElement.addElement(XmlNode.TYPE.getName()).addCDATA(container.getType());
+    for (    CmsContainerElementBean element : container.getElements()) {
+      Element elemElement=cntElement.addElement(XmlNode.ELEMENT.getName());
+      Element uriElem=elemElement.addElement(XmlNode.URI.getName());
+      fillResource(cms,uriElem,element.getElementId());
+      Element formatterElem=elemElement.addElement(XmlNode.FORMATTER.getName());
+      fillResource(cms,formatterElem,element.getFormatterId());
+      Element propElement=null;
+      Map<String,CmsProperty> properties=manager.getElementProperties(cms,element);
+      for (      Map.Entry<String,CmsProperty> property : properties.entrySet()) {
+        String propName=property.getKey();
+        String propValue=property.getValue().getStructureValue();
+        if (!propertiesConf.containsKey(propName) || (propValue == null)) {
+          continue;
+        }
+        if (propElement == null) {
+          propElement=cntElement.addElement(XmlNode.PROPERTIES.getName());
+        }
+        propElement.addElement(XmlNode.NAME.getName()).addCDATA(propName);
+        Element valueElement=propElement.addElement(XmlNode.VALUE.getName());
+        if (propertiesConf.get(propName).getPropertyType().equals(CmsXmlContentProperty.T_VFSLIST)) {
+          Element filelistElem=valueElement.addElement(XmlNode.FILELIST.getName());
+          for (          String strId : CmsStringUtil.splitAsList(propValue,CmsXmlSitemap.IDS_SEPARATOR)) {
+            try {
+              Element fileValueElem=filelistElem.addElement(XmlNode.URI.getName());
+              fillResource(cms,fileValueElem,new CmsUUID(strId));
+            }
+ catch (            CmsException e) {
+              LOG.error(e.getLocalizedMessage(),e);
+            }
+          }
+        }
+ else {
+          valueElement.addElement(XmlNode.STRING.getName()).addCDATA(propValue);
+        }
+      }
+    }
+  }
+}
