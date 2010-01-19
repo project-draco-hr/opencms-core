@@ -65,27 +65,16 @@
     return;
   }
   container.setMaxElements(maxElements);
-  if (!isOnline) {
-    try {
-      pageContext.getOut().print(getCntDataTag(container));
-    }
- catch (    JSONException e) {
-      throw new JspException(e);
-    }
-  }
   if (!containerType.equals(container.getType())) {
     throw new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_TYPE_4,new Object[]{cms.getSitePath(containerPage),locale,containerName,containerType}));
   }
-  int renderElems=container.getElements().size();
-  if ((maxElements > 0) && (renderElems > maxElements)) {
-    renderElems=maxElements;
-  }
+  List<CmsContainerElementBean> allElems=new ArrayList<CmsContainerElementBean>();
+  allElems.addAll(container.getElements());
   if (actAsTemplate) {
     if (!cntPage.getTypes().contains(CmsContainerPageBean.TYPE_TEMPLATE)) {
       throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_CONTAINER_PAGE_NO_TYPE_3,cms.getRequestContext().getUri(),cms.getSitePath(containerPage),CmsContainerPageBean.TYPE_TEMPLATE));
     }
     if (containerType.equals(CmsContainerPageBean.TYPE_TEMPLATE)) {
-      renderElems--;
       CmsResource resUri;
       if (req.getParameter(CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER) != null) {
         CmsUUID id=new CmsUUID(req.getParameter(CmsContainerPageBean.TEMPLATE_ELEMENT_PARAMETER));
@@ -102,10 +91,22 @@
         throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,cms.getRequestContext().getUri(),OpenCms.getResourceManager().getResourceType(resUri).getTypeName(),CmsContainerPageBean.TYPE_TEMPLATE));
       }
       CmsContainerElementBean element=new CmsContainerElementBean(resUri.getStructureId(),cms.readResource(elementFormatter).getStructureId(),null);
-      CmsJspTagInclude.includeTagAction(pageContext,elementFormatter,null,false,null,Collections.singletonMap(CmsADEManager.ATTR_CURRENT_ELEMENT,(Object)element),req,res);
+      allElems.add(0,element);
     }
   }
-  for (  CmsContainerElementBean element : container.getElements()) {
+  if (!isOnline) {
+    try {
+      pageContext.getOut().print(getCntDataTag(new CmsContainerBean(containerName,containerType,maxElements,allElems)));
+    }
+ catch (    JSONException e) {
+      throw new JspException(e);
+    }
+  }
+  int renderElems=allElems.size();
+  if ((maxElements > 0) && (renderElems > maxElements)) {
+    renderElems=maxElements;
+  }
+  for (  CmsContainerElementBean element : allElems) {
     if (renderElems < 1) {
       break;
     }
