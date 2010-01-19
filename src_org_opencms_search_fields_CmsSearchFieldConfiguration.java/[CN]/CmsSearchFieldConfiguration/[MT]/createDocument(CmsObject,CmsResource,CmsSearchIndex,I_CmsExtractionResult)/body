@@ -31,17 +31,22 @@
   }
   String value;
   Fieldable field;
-  value=CmsProperty.get(CmsPropertyDefinition.PROPERTY_SEARCH_CATEGORY,propertiesSearched).getValue();
-  if (CmsStringUtil.isNotEmpty(value)) {
-    value=value.trim().toLowerCase();
-    if (value.length() > 0) {
-      field=new Field(CmsSearchField.FIELD_CATEGORY,value,Field.Store.YES,Field.Index.NOT_ANALYZED);
+  CmsCategoryService categoryService=CmsCategoryService.getInstance();
+  List<CmsCategory> categories=categoryService.readResourceCategories(cms,resource);
+  if ((categories != null) && (categories.size() > 0)) {
+    StringBuffer categoryBuffer=new StringBuffer(128);
+    for (    CmsCategory category : categories) {
+      categoryBuffer.append(category.getRootPath());
+      categoryBuffer.append(' ');
+    }
+    if (categoryBuffer.length() > 0) {
+      field=new Field(CmsSearchField.FIELD_CATEGORY,categoryBuffer.toString(),Field.Store.YES,Field.Index.ANALYZED);
       field.setBoost(0);
       document.add(field);
     }
   }
  else {
-    field=new Field(CmsSearchField.FIELD_CATEGORY,CmsSearchCategoryCollector.UNKNOWN_CATEGORY,Field.Store.YES,Field.Index.NOT_ANALYZED);
+    field=new Field(CmsSearchField.FIELD_CATEGORY,CmsSearchCategoryCollector.UNKNOWN_CATEGORY,Field.Store.YES,Field.Index.ANALYZED);
     document.add(field);
   }
   String parentFolders=getParentFolderTokens(resource.getRootPath());
