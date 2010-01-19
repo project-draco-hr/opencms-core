@@ -1,0 +1,62 @@
+{
+  m_resourceStorages=new HashMap();
+  OpenCmsTestLogAppender.setBreakOnError(false);
+  System.out.println("\n\n\n----- Starting test case: Importing OpenCms VFS data -----");
+  if (m_shell != null) {
+    try {
+      m_shell.exit();
+      m_shell=null;
+    }
+ catch (    Throwable t) {
+    }
+  }
+  File configFile=new File(m_testDataPath.get(0) + "WEB-INF" + File.separator+ CmsSystemInfo.FOLDER_CONFIG);
+  if (!configFile.exists()) {
+    configFile.mkdir();
+  }
+  copyConfiguration(getTestDataPath("WEB-INF/base/"));
+  copyConfiguration(configFolder);
+  if (specialConfigFolder != null) {
+    copyConfiguration(specialConfigFolder);
+  }
+  setupDatabase();
+  m_shell=new CmsShell(getTestDataPath("WEB-INF" + File.separator),null,null,"${user}@${project}>",null);
+  File script;
+  FileInputStream stream=null;
+  CmsObject cms=null;
+  try {
+    script=new File(getTestDataPath("scripts/script_base.txt"));
+    stream=new FileInputStream(script);
+    m_shell.start(stream);
+    script=new File(getTestDataPath("scripts/script_default_folders.txt"));
+    stream=new FileInputStream(script);
+    m_shell.start(stream);
+    cms=OpenCms.initCmsObject(OpenCms.getDefaultUsers().getUserGuest());
+    cms.loginUser("Admin","admin");
+    cms.getRequestContext().setCurrentProject(cms.readProject("_setupProject"));
+    if (importFolder != null) {
+      importResources(cms,importFolder,targetFolder);
+    }
+    script=new File(getTestDataPath("scripts/script_default_projects.txt"));
+    stream=new FileInputStream(script);
+    m_shell.start(stream);
+    if (publish) {
+      script=new File(getTestDataPath("scripts/script_publish.txt"));
+      stream=new FileInputStream(script);
+      m_shell.start(stream);
+      OpenCms.getPublishManager().waitWhileRunning();
+    }
+ else {
+      cms.unlockProject(cms.readProject("_setupProject").getUuid());
+    }
+    cms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+    cms.getRequestContext().setSiteRoot("/sites/default/");
+    System.out.println("----- Starting test cases -----");
+  }
+ catch (  Throwable t) {
+    t.printStackTrace(System.err);
+    fail("Unable to setup OpenCms\n" + CmsException.getStackTraceAsString(t));
+  }
+  OpenCmsTestLogAppender.setBreakOnError(true);
+  return cms;
+}
