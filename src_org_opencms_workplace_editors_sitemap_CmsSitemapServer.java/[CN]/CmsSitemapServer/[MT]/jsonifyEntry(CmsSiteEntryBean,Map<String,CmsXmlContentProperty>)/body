@@ -6,7 +6,24 @@
   result.put(JsonSiteEntry.LINK_ID.getName(),entry.getResourceId().toString());
   JSONObject props=new JSONObject();
   for (  Map.Entry<String,String> prop : entry.getProperties().entrySet()) {
-    props.put(prop.getKey(),prop.getValue());
+    CmsXmlContentProperty currentPropertyConf=propertyConf.get(prop.getKey());
+    if (currentPropertyConf == null) {
+      if (prop.getKey().equals(CmsSitemapManager.PROPERTY_SITEMAP)) {
+        props.put(prop.getKey(),CmsXmlContentProperty.convertIdsToPaths(getCmsObject(),prop.getValue(),CmsXmlSitemap.IDS_SEPARATOR,CmsXmlSitemap.IDS_SEPARATOR));
+      }
+ else {
+        props.put(prop.getKey(),prop.getValue());
+      }
+      continue;
+    }
+    String propType=currentPropertyConf.getPropertyType();
+    if (propType.equals(CmsXmlContentProperty.T_VFSLIST)) {
+      CmsObject cms=getCmsObject();
+      props.put(prop.getKey(),CmsXmlContentProperty.convertIdsToPaths(cms,prop.getValue(),CmsXmlSitemap.IDS_SEPARATOR,CmsXmlSitemap.IDS_SEPARATOR));
+    }
+ else {
+      props.put(prop.getKey(),prop.getValue());
+    }
   }
   result.put(JsonSiteEntry.PROPERTIES.getName(),props);
   try {
@@ -26,7 +43,7 @@ catch (  Exception e) {
   }
   JSONArray subentries=new JSONArray();
   for (  CmsSiteEntryBean subentry : entry.getSubEntries()) {
-    JSONObject jsonSubEntry=jsonifyEntry(subentry);
+    JSONObject jsonSubEntry=jsonifyEntry(subentry,propertyConf);
     if (jsonSubEntry != null) {
       subentries.put(jsonSubEntry);
     }

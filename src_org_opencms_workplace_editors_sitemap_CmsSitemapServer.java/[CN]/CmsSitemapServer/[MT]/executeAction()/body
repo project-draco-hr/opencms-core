@@ -28,10 +28,10 @@
       creatableTypes.put(typeName);
       CmsSiteEntryBean siteEntryData=resourceToSiteEntryBean(cms,resource);
       if (typeName.equals(CmsResourceTypeXmlContainerPage.getStaticTypeName())) {
-        models.put(jsonifyEntry(siteEntryData));
+        models.put(jsonifyEntry(siteEntryData,getPropertyConfig(sitemapRes)));
       }
     }
-    addContents(models);
+    addContents(models,getPropertyConfig(sitemapRes));
     result.put(JsonResponse.TYPES.getName(),creatableTypes);
     result.put(JsonResponse.MODELS.getName(),models);
     result.put("templates",getTemplates());
@@ -41,7 +41,8 @@
       result.put(JsonResponse.FAVORITES.getName(),getFavoriteList());
     }
  else     if (checkParameters(data,result,JsonRequest.REC.getName())) {
-      result.put(JsonResponse.RECENT.getName(),addContents(m_sessionCache.getRecentList()));
+      CmsResource sitemapRes=CmsHistoryResourceHandler.getResourceWithHistory(cms,sitemapParam);
+      result.put(JsonResponse.RECENT.getName(),addContents(m_sessionCache.getRecentList(),getPropertyConfig(sitemapRes)));
     }
  else {
       return result;
@@ -69,7 +70,7 @@
   }
  else   if (action.equals(Action.PROPS)) {
     CmsResource sitemapRes=cms.readResource(sitemapParam);
-    result.put(JsonResponse.PROPERTIES.getName(),getPropertyInfo(sitemapRes));
+    result.put(JsonResponse.PROPERTIES.getName(),getPropertyInfoJSON(sitemapRes));
   }
  else   if (action.equals(Action.SAVE)) {
     CmsResource sitemapRes=cms.readResource(sitemapParam);
@@ -92,11 +93,13 @@
     }
   }
  else   if (action.equals(Action.CONTENT)) {
+    CmsResource sitemapRes=CmsHistoryResourceHandler.getResourceWithHistory(cms,sitemapParam);
     JSONArray entries=data.getJSONArray(JsonResponse.ENTRIES.getName().toLowerCase());
-    addContents(entries);
+    addContents(entries,getPropertyConfig(sitemapRes));
     result.put(JsonResponse.ENTRIES.getName().toLowerCase(),entries);
   }
  else   if (action.equals(Action.NEW_ENTRY)) {
+    CmsResource sitemapRes=CmsHistoryResourceHandler.getResourceWithHistory(cms,sitemapParam);
     CmsSitemapManager manager=OpenCms.getSitemapManager();
     String type=data.getString(JsonRequest.TYPE.getName());
     CmsResource newResource=manager.createNewElement(cms,sitemapParam,request,type);
@@ -109,18 +112,18 @@
       name=name.substring(0,dotPos);
     }
     CmsSiteEntryBean entryBean=new CmsSiteEntryBean(new CmsUUID(),newResource.getStructureId(),extension,title,new HashMap<String,String>(),new ArrayList<CmsSiteEntryBean>());
-    JSONObject jsonEntry=jsonifyEntry(entryBean);
+    Map<String,CmsXmlContentProperty> propertyConf=getPropertyConfig(sitemapRes);
+    JSONObject jsonEntry=jsonifyEntry(entryBean,propertyConf);
     JSONArray entries=new JSONArray();
     entries.put(jsonEntry);
-    addContents(entries);
+    addContents(entries,propertyConf);
     result.put(JsonResponse.ENTRY.getName(),jsonEntry);
   }
  else   if (action.equals(Action.NEW_SITEMAP)) {
     CmsSitemapManager manager=OpenCms.getSitemapManager();
     CmsResource newSitemapRes=manager.createSitemap(cms,data.getString(JsonRequest.TITLE.getName()),sitemapParam,request);
     saveSitemap(newSitemapRes,data);
-    String sitemapId=newSitemapRes.getStructureId().toString();
-    result.put(JsonResponse.ID.getName(),sitemapId);
+    result.put(JsonResponse.PATH.getName(),cms.getSitePath(newSitemapRes));
   }
  else {
     error(result,Messages.get().getBundle(getWorkplaceLocale()).key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));
