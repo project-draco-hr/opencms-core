@@ -24,23 +24,23 @@
   int currentPage=1;
   boolean found=false;
   queryData.put(JsonKeys.PAGE.getName(),currentPage);
-  CmsSearchParameters params=prepareSearchParams(queryData);
-  CmsSearch searchBean=new CmsSearch();
+  CmsGallerySearchParameters params=prepareSearchParams(queryData);
+  CmsGallerySearch searchBean=new CmsGallerySearch();
   searchBean.init(m_cms);
-  searchBean.setParameters(params);
-  List<CmsSearchResult> searchResults=null;
+  searchBean.setIndex(ADVANCED_GALLERY_INDEX);
+  CmsGallerySearchResultList searchResults=null;
   while (!found) {
-    searchBean.setSearchPage(currentPage);
-    searchResults=searchBean.getSearchResult();
-    Iterator<CmsSearchResult> resultsIt=searchResults.iterator();
+    params.setResultPage(currentPage);
+    searchResults=searchBean.getResult(params);
+    Iterator<CmsGallerySearchResult> resultsIt=searchResults.listIterator();
     while (resultsIt.hasNext()) {
-      CmsSearchResult searchResult=resultsIt.next();
+      CmsGallerySearchResult searchResult=resultsIt.next();
       if (searchResult.getPath().equals(rootPath)) {
         found=true;
         break;
       }
     }
-    if (!found && (searchBean.getSearchResultCount() / (currentPage * searchBean.getMatchesPerPage()) >= 1)) {
+    if (!found && (searchResults.getHitCount() / (currentPage * params.getMatchesPerPage()) >= 1)) {
       currentPage++;
     }
  else {
@@ -48,11 +48,11 @@
     }
   }
   JSONObject result=new JSONObject();
-  if (found) {
+  if (found && (searchResults != null)) {
     JSONObject sResult=new JSONObject();
-    sResult.put(JsonKeys.SORTORDER.getName(),searchBean.getSortOrder());
-    sResult.put(JsonKeys.RESULTCOUNT.getName(),searchBean.getSearchResultCount());
-    sResult.put(JsonKeys.PAGE.getName(),searchBean.getSearchPage());
+    sResult.put(JsonKeys.SORTORDER.getName(),params.getSortOrder());
+    sResult.put(JsonKeys.RESULTCOUNT.getName(),searchResults.getHitCount());
+    sResult.put(JsonKeys.PAGE.getName(),params.getResultPage());
     sResult.put(JsonKeys.RESULTLIST.getName(),buildJSONForSearchResult(searchResults));
     queryData.put(JsonKeys.PAGE.getName(),currentPage);
     queryData.put(JsonKeys.TABID.getName(),RESULT_TAB_ID);

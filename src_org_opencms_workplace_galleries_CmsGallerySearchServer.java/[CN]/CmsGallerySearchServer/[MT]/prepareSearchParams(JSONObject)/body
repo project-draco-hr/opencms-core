@@ -6,7 +6,27 @@
   List<String> categoriesList=transformToStringList(categories);
   String queryStr=queryData.getString(JsonKeys.QUERY.getName());
   int matches=queryData.getInt(JsonKeys.MATCHESPERPAGE.getName());
+  CmsGallerySearchParameters.CmsGallerySortParam sortOrder;
+  if (queryData.has(JsonKeys.SORTORDER.getName())) {
+    String temp=queryData.getString(JsonKeys.SORTORDER.getName());
+    try {
+      sortOrder=CmsGallerySearchParameters.CmsGallerySortParam.valueOf(temp);
+    }
+ catch (    Exception e) {
+      sortOrder=CmsGallerySearchParameters.CmsGallerySortParam.DEFAULT;
+    }
+  }
+ else {
+    sortOrder=CmsGallerySearchParameters.CmsGallerySortParam.DEFAULT;
+  }
   int page=queryData.getInt(JsonKeys.PAGE.getName());
+  String locale;
+  if (queryData.has(JsonKeys.LOCALE.getName()) && !CmsStringUtil.isEmptyOrWhitespaceOnly(queryData.getString(JsonKeys.LOCALE.getName()))) {
+    locale=queryData.getString(JsonKeys.LOCALE.getName());
+  }
+ else {
+    locale=getRequest().getParameter(ReqParam.LOCALE.getName());
+  }
   List<String> typeNames=new ArrayList<String>();
   try {
     typeNames=getTypeNames(types);
@@ -16,19 +36,14 @@
       LOG.error(e.getLocalizedMessage(),e);
     }
   }
-  CmsUser user=m_cms.getRequestContext().currentUser();
-  String indexName=new CmsUserSettings(user).getWorkplaceSearchIndexName();
-  CmsSearchParameters params=new CmsSearchParameters();
-  if (CmsStringUtil.isEmptyOrWhitespaceOnly(queryStr)) {
-    params.setIgnoreQuery(true);
+  CmsGallerySearchParameters params=new CmsGallerySearchParameters();
+  if (!CmsStringUtil.isEmptyOrWhitespaceOnly(queryStr)) {
+    params.setSearchWords(queryStr);
   }
- else {
-    params.setQuery(queryStr);
-  }
-  params.setSort(CmsSearchParameters.SORT_TITLE);
-  params.setIndex(indexName);
+  params.setSearchLocale(locale);
+  params.setSortOrder(sortOrder);
   params.setMatchesPerPage(matches);
-  params.setSearchPage(page);
+  params.setResultPage(page);
   if (typeNames != null) {
     params.setResourceTypes(typeNames);
   }
@@ -36,7 +51,7 @@
     params.setCategories(categoriesList);
   }
   if (galleriesList != null) {
-    params.setRoots(galleriesList);
+    params.setGalleries(galleriesList);
   }
   return params;
 }
