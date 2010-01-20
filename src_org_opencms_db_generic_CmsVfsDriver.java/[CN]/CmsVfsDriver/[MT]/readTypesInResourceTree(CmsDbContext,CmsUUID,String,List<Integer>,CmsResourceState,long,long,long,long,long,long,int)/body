@@ -1,0 +1,48 @@
+{
+  List result=new ArrayList();
+  StringBuffer conditions=new StringBuffer();
+  List params=new ArrayList(5);
+  prepareProjectCondition(projectId,mode,conditions,params);
+  prepareResourceCondition(projectId,mode,conditions);
+  prepareTypesCondition(projectId,types,mode,conditions,params);
+  prepareTimeRangeCondition(projectId,lastModifiedAfter,lastModifiedBefore,conditions,params);
+  prepareReleasedTimeRangeCondition(projectId,releasedAfter,releasedBefore,conditions,params);
+  prepareExpiredTimeRangeCondition(projectId,expiredAfter,expiredBefore,conditions,params);
+  preparePathCondition(projectId,parentPath,mode,conditions,params);
+  prepareStateCondition(projectId,state,mode,conditions,params);
+  ResultSet res=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    StringBuffer queryBuf=new StringBuffer(256);
+    queryBuf.append(m_sqlManager.readQuery(projectId,"C_RESOURCES_READ_TREE"));
+    queryBuf.append(conditions);
+    queryBuf.append(" ");
+    queryBuf.append(m_sqlManager.readQuery(projectId,"C_RESOURCES_ORDER_BY_PATH"));
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,queryBuf.toString());
+    for (int i=0; i < params.size(); i++) {
+      if (params.get(i) instanceof Integer) {
+        stmt.setInt(i + 1,((Integer)params.get(i)).intValue());
+      }
+ else       if (params.get(i) instanceof Long) {
+        stmt.setLong(i + 1,((Long)params.get(i)).longValue());
+      }
+ else {
+        stmt.setString(i + 1,(String)params.get(i));
+      }
+    }
+    res=stmt.executeQuery();
+    while (res.next()) {
+      CmsResource resource=createResource(res,projectId);
+      result.add(resource);
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  return result;
+}
