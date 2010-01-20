@@ -1,0 +1,44 @@
+{
+  parent.clearContent();
+  Element subCntElem=parent.addElement(XmlNode.SUBCONTAINER.getName());
+  subCntElem.addElement(XmlNode.TITLE.getName()).addCDATA(subCnt.getTitle());
+  subCntElem.addElement(XmlNode.DESCRIPTION.getName()).addCDATA(subCnt.getDescription());
+  for (  String type : subCnt.getTypes()) {
+    subCntElem.addElement(XmlNode.TYPE.getName()).addCDATA(type);
+  }
+  CmsADEManager manager=OpenCms.getADEManager();
+  for (  CmsContainerElementBean element : subCnt.getElements()) {
+    Element elemElement=subCntElem.addElement(XmlNode.ELEMENT.getName());
+    Element uriElem=elemElement.addElement(XmlNode.URI.getName());
+    fillResource(cms,uriElem,element.getElementId());
+    Element propElement=null;
+    Map<String,CmsProperty> properties=manager.getElementProperties(cms,element);
+    for (    Map.Entry<String,CmsProperty> property : properties.entrySet()) {
+      String propName=property.getKey();
+      String propValue=property.getValue().getStructureValue();
+      if (!propertiesConf.containsKey(propName) || (propValue == null)) {
+        continue;
+      }
+      if (propElement == null) {
+        propElement=elemElement.addElement(CmsXmlContainerPage.XmlNode.PROPERTIES.getName());
+      }
+      propElement.addElement(CmsXmlContainerPage.XmlNode.NAME.getName()).addCDATA(propName);
+      Element valueElement=propElement.addElement(CmsXmlContainerPage.XmlNode.VALUE.getName());
+      if (propertiesConf.get(propName).getPropertyType().equals(CmsXmlContentProperty.T_VFSLIST)) {
+        Element filelistElem=valueElement.addElement(CmsXmlContainerPage.XmlNode.FILELIST.getName());
+        for (        String strId : CmsStringUtil.splitAsList(propValue,CmsXmlContentProperty.PROP_SEPARATOR)) {
+          try {
+            Element fileValueElem=filelistElem.addElement(XmlNode.URI.getName());
+            fillResource(cms,fileValueElem,new CmsUUID(strId));
+          }
+ catch (          CmsException e) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+ else {
+        valueElement.addElement(CmsXmlContainerPage.XmlNode.STRING.getName()).addCDATA(propValue);
+      }
+    }
+  }
+}
