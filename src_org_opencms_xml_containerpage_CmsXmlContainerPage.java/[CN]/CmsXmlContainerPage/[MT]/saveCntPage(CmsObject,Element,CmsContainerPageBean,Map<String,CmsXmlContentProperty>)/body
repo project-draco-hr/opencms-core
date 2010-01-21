@@ -1,44 +1,42 @@
 {
   parent.clearContent();
-  CmsADEManager manager=OpenCms.getADEManager();
   for (  String containerName : cntPage.getNames()) {
     CmsContainerBean container=cntPage.getContainers().get(containerName);
-    Element cntElement=parent.addElement(XmlNode.CONTAINER.getName());
-    cntElement.addElement(XmlNode.NAME.getName()).addCDATA(container.getName());
-    cntElement.addElement(XmlNode.TYPE.getName()).addCDATA(container.getType());
+    Element cntElement=parent.addElement(XmlNode.Containers.name());
+    cntElement.addElement(XmlNode.Name.name()).addCDATA(container.getName());
+    cntElement.addElement(XmlNode.Type.name()).addCDATA(container.getType());
     for (    CmsContainerElementBean element : container.getElements()) {
-      Element elemElement=cntElement.addElement(XmlNode.ELEMENT.getName());
-      Element uriElem=elemElement.addElement(XmlNode.URI.getName());
+      Element elemElement=cntElement.addElement(XmlNode.Elements.name());
+      Element uriElem=elemElement.addElement(XmlNode.Uri.name());
       fillResource(cms,uriElem,element.getElementId());
-      Element formatterElem=elemElement.addElement(XmlNode.FORMATTER.getName());
+      Element formatterElem=elemElement.addElement(XmlNode.Formatter.name());
       fillResource(cms,formatterElem,element.getFormatterId());
       Element propElement=null;
-      Map<String,CmsProperty> properties=manager.getElementProperties(cms,element);
-      for (      Map.Entry<String,CmsProperty> property : properties.entrySet()) {
+      for (      Map.Entry<String,String> property : element.getProperties().entrySet()) {
         String propName=property.getKey();
-        String propValue=property.getValue().getStructureValue();
+        String propValue=property.getValue();
         if (!propertiesConf.containsKey(propName) || (propValue == null)) {
           continue;
         }
         if (propElement == null) {
-          propElement=elemElement.addElement(XmlNode.PROPERTIES.getName());
+          propElement=elemElement.addElement(CmsXmlContentProperty.XmlNode.Properties.name());
         }
-        propElement.addElement(XmlNode.NAME.getName()).addCDATA(propName);
-        Element valueElement=propElement.addElement(XmlNode.VALUE.getName());
-        if (propertiesConf.get(propName).getPropertyType().equals(CmsXmlContentProperty.T_VFSLIST)) {
-          Element filelistElem=valueElement.addElement(XmlNode.FILELIST.getName());
+        propElement.addElement(CmsXmlContentProperty.XmlNode.Name.name()).addCDATA(propName);
+        Element valueElement=propElement.addElement(CmsXmlContentProperty.XmlNode.Value.name());
+        if (!CmsXmlContentProperty.PropType.isVfsList(propertiesConf.get(propName).getPropertyType())) {
+          valueElement.addElement(CmsXmlContentProperty.XmlNode.String.name()).addCDATA(propValue);
+        }
+ else {
+          Element filelistElem=valueElement.addElement(CmsXmlContentProperty.XmlNode.FileList.name());
           for (          String strId : CmsStringUtil.splitAsList(propValue,CmsXmlContentProperty.PROP_SEPARATOR)) {
             try {
-              Element fileValueElem=filelistElem.addElement(XmlNode.URI.getName());
+              Element fileValueElem=filelistElem.addElement(CmsXmlContentProperty.XmlNode.Uri.name());
               fillResource(cms,fileValueElem,new CmsUUID(strId));
             }
  catch (            CmsException e) {
               LOG.error(e.getLocalizedMessage(),e);
             }
           }
-        }
- else {
-          valueElement.addElement(XmlNode.STRING.getName()).addCDATA(propValue);
         }
       }
     }

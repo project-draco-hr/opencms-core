@@ -1,0 +1,30 @@
+{
+  CmsResource elementRes=m_cms.readResource(element.getElementId());
+  CmsUserSettings settings=new CmsUserSettings(m_cms.getRequestContext().currentUser());
+  CmsMessages messages=CmsXmlContentDefinition.getContentHandlerForResource(m_cms,elementRes).getMessages(settings.getLocale());
+  JSONObject result=new JSONObject();
+  JSONObject jSONProperties=new JSONObject();
+  Map<String,CmsXmlContentProperty> propertiesConf=m_manager.getElementPropertyConfiguration(m_cms,elementRes);
+  Map<String,CmsProperty> properties=m_manager.getElementProperties(m_cms,element);
+  Iterator<Map.Entry<String,CmsXmlContentProperty>> itProperties=propertiesConf.entrySet().iterator();
+  while (itProperties.hasNext()) {
+    Map.Entry<String,CmsXmlContentProperty> entry=itProperties.next();
+    String propertyName=entry.getKey();
+    CmsXmlContentProperty conf=entry.getValue();
+    JSONObject jsonProperty=new JSONObject();
+    jsonProperty.put(JsonProperty.VALUE.getName(),CmsXmlContentProperty.getPropValuePaths(m_cms,conf.getPropertyType(),properties.get(propertyName).getStructureValue()));
+    String propDefault=conf.getDefault();
+    jsonProperty.put(JsonProperty.DEFAULT_VALUE.getName(),propDefault);
+    jsonProperty.put(JsonProperty.TYPE.getName(),conf.getPropertyType());
+    jsonProperty.put(JsonProperty.WIDGET.getName(),conf.getWidget());
+    jsonProperty.put(JsonProperty.WIDGET_CONF.getName(),CmsMacroResolver.resolveMacros(conf.getWidgetConfiguration(),m_cms,messages));
+    jsonProperty.put(JsonProperty.RULE_TYPE.getName(),conf.getRuleType());
+    jsonProperty.put(JsonProperty.RULE_REGEX.getName(),conf.getRuleRegex());
+    jsonProperty.put(JsonProperty.NICE_NAME.getName(),CmsMacroResolver.resolveMacros(conf.getNiceName(),m_cms,messages));
+    jsonProperty.put(JsonProperty.DESCRIPTION.getName(),CmsMacroResolver.resolveMacros(conf.getDescription(),m_cms,messages));
+    jsonProperty.put(JsonProperty.ERROR.getName(),CmsMacroResolver.resolveMacros(conf.getError(),m_cms,messages));
+    jSONProperties.put(propertyName,jsonProperty);
+  }
+  result.put(JsonElement.PROPERTIES.getName(),jSONProperties);
+  return result;
+}

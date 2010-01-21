@@ -23,6 +23,7 @@
       LOG.error(e.getLocalizedMessage());
       continue;
     }
+    CmsObject cms=getCmsObject();
     String name=json.optString(JsonSiteEntry.NAME.getName());
     String title=json.optString(JsonSiteEntry.TITLE.getName());
     Map<String,String> properties=new HashMap<String,String>();
@@ -30,16 +31,15 @@
     Iterator<String> itKeys=jsonProps.keys();
     while (itKeys.hasNext()) {
       String key=itKeys.next();
-      String value=jsonProps.optString(key);
       CmsXmlContentProperty currentPropertyConf=propertyConf.get(key);
-      boolean isSitemapProperty=key.equals(CmsSitemapManager.PROPERTY_SITEMAP);
-      if (isSitemapProperty || ((currentPropertyConf != null) && currentPropertyConf.getPropertyType().equals(CmsXmlContentProperty.T_VFSLIST))) {
-        CmsObject cms=getCmsObject();
-        properties.put(key,CmsXmlContentProperty.convertPathsToIds(cms,value));
+      String propType=CmsXmlContentProperty.PropType.string.name();
+      if (currentPropertyConf != null) {
+        propType=currentPropertyConf.getPropertyType();
       }
- else {
-        properties.put(key,value);
+ else       if (key.equals(CmsSitemapManager.PROPERTY_SITEMAP)) {
+        propType=CmsXmlContentProperty.PropType.vfslist.name();
       }
+      properties.put(key,CmsXmlContentProperty.getPropValuePaths(cms,propType,jsonProps.optString(key)));
     }
     JSONArray jsonSub=json.optJSONArray(JsonSiteEntry.SUBENTRIES.getName());
     CmsSiteEntryBean entry=new CmsSiteEntryBean(id,linkId,name,title,properties,recursive ? jsonToEntryList(jsonSub,true,propertyConf) : Collections.<CmsSiteEntryBean>emptyList());
