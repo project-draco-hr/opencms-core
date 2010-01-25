@@ -1,19 +1,33 @@
 {
-  if (containerType.equals(CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE)) {
+  if (CmsDefaultXmlContentHandler.DEFAULT_FORMATTER_TYPE.equals(containerType)) {
     return CmsDefaultXmlContentHandler.DEFAULT_FORMATTER;
   }
   try {
-    CmsProperty formatterProp=cms.readPropertyObject(resource,PROPERTY_FORMATTER,true);
-    String formatter=formatterProp.getValue();
-    if (!CmsStringUtil.isEmptyOrWhitespaceOnly(formatter)) {
-      CmsMacroResolver resolver=CmsMacroResolver.newInstance();
+    String formatter=cms.readPropertyObject(resource,PROPERTY_FORMATTER,true).getValue();
+    List<String> types=Collections.emptyList();
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(formatter)) {
+      I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(resource);
+      if (resType.isAdditionalModuleResourceType()) {
+        String moduleName=resType.getModuleName();
+        CmsModule module=OpenCms.getModuleManager().getModule(moduleName);
+        formatter=module.getParameter(resType.getTypeName() + MODULE_PARAM_SUFFIX_FORMATTER);
+        String typesStr=module.getParameter(resType.getTypeName() + MODULE_PARAM_SUFFIX_CONTAINERTYPES);
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(typesStr)) {
+          types=CmsStringUtil.splitAsList(typesStr,CmsProperty.VALUE_LIST_DELIMITER);
+        }
+      }
+    }
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter)) {
+      CmsMacroResolver resolver=CmsMacroResolver.newInstance().setKeepEmptyMacros(true);
       resolver.addMacro(MACRO_CONTAINERTYPE,containerType);
       formatter=resolver.resolveMacros(formatter);
-      CmsProperty typesProp=cms.readPropertyObject(resource,PROPERTY_CONTAINERTYPES,true);
-      List<String> types=typesProp.getValueList();
+      if (types.isEmpty()) {
+        types=cms.readPropertyObject(resource,PROPERTY_CONTAINERTYPES,true).getValueList();
+      }
       if (types.isEmpty() || types.contains(containerType)) {
         return formatter;
       }
+      return null;
     }
   }
  catch (  CmsException e) {
@@ -21,5 +35,5 @@
       LOG.error(Messages.get().getBundle().key(Messages.ERR_READING_FORMATTER_CONFIGURATION_1,cms.getSitePath(resource)),e);
     }
   }
-  return null;
+  return super.getFormatterForContainerType(cms,resource,containerType);
 }
