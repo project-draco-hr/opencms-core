@@ -39,9 +39,7 @@
   properties.putAll(sitemap.getSiteEntries().get(0).getProperties());
   if (entryPaths.isEmpty()) {
     CmsSiteEntryBean entry=sitemap.getSiteEntries().get(0);
-    entry.setPosition(0);
-    entry.setInheritedProperties(properties);
-    entry.setPrefix(sitemapFolder);
+    entry.setRuntimeInfo(sitemapFolder,properties,0,null);
     LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(0),entry.getUri()).key());
     return entry;
   }
@@ -60,10 +58,7 @@
     int size=subEntries.size();
     for (; position < size; position++) {
       CmsSiteEntryBean entry=subEntries.get(position);
-      properties.putAll(entry.getProperties());
-      entry.setPosition(position);
-      entry.setInheritedProperties(properties);
-      entry.setPrefix(sitemapFolder);
+      entry.setRuntimeInfo(sitemapFolder,properties,position,null);
       m_cache.setUri(uri,entry,online);
       if (!entry.getName().equals(name)) {
         LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NO_MATCH_3,logId,new Integer(position),entry.getUri()).key());
@@ -78,7 +73,7 @@
         boolean changedSitemap=false;
         subEntries=entry.getSubEntries();
         if (subEntries.isEmpty()) {
-          String subSitemapId=entry.getProperties().get(CmsSitemapManager.Property.SITEMAP.getName());
+          String subSitemapId=entry.getProperties().get(CmsSitemapManager.Property.sitemap.name());
           if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(subSitemapId)) {
             CmsResource subSitemap=cms.readResource(new CmsUUID(subSitemapId));
             LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_SUBSITEMAP_2,logId,cms.getSitePath(subSitemap)).key());
@@ -96,11 +91,13 @@
           if ((entryPaths.size() == 1) && CmsUUID.isValidUUID(entryPaths.get(0))) {
             CmsUUID id=new CmsUUID(entryPaths.get(0));
             CmsResource contentRes=cms.readResource(id);
-            entry=new CmsSiteEntryBean(entry.getId(),entry.getOriginalUri(),entry.getResourceId(),id.toString(),cms.readPropertyObject(contentRes,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(id.toString()),entry.getProperties(),null);
-            entry.setInheritedProperties(properties);
-            entry.setPrefix(sitemapFolder);
-            entry.setContentId(id);
-            LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(position),entry.getUri()).key());
+            String title=cms.readPropertyObject(contentRes,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(id.toString());
+            HashMap<String,String> entryProps=new HashMap<String,String>(entry.getProperties());
+            entryProps.put(Property.navigation.name(),Boolean.FALSE.toString());
+            properties.put(Property.navigation.name(),Boolean.FALSE.toString());
+            entry=new CmsSiteEntryBean(entry.getId(),entry.getOriginalUri(),entry.getResourceId(),id.toString(),title,entryProps,null);
+            entry.setRuntimeInfo(sitemapFolder,properties,0,id);
+            LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(0),entry.getUri()).key());
             return entry;
           }
           LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NO_SUBENTRIES_3,logId,new Integer(position),entry.getUri()).key());
@@ -108,6 +105,7 @@
         if (changedSitemap) {
           sitemapFolder=cms.getRequestContext().removeSiteRoot(uriPath);
         }
+        properties.putAll(entry.getProperties());
       }
       break;
     }
