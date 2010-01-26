@@ -2,19 +2,19 @@
   JSONObject result=new JSONObject();
   HttpServletRequest request=getRequest();
   CmsObject cms=getCmsObject();
-  if (!checkParameters(request,result,ReqParam.ACTION.getName(),ReqParam.LOCALE.getName(),ReqParam.SITEMAP.getName())) {
+  if (!checkParameters(request,result,ReqParam.action.name(),ReqParam.locale.name(),ReqParam.sitemap.name())) {
     return result;
   }
-  String actionParam=request.getParameter(ReqParam.ACTION.getName());
+  String actionParam=request.getParameter(ReqParam.action.name());
   Action action=Action.valueOf(actionParam.toUpperCase());
-  String localeParam=request.getParameter(ReqParam.LOCALE.getName());
+  String localeParam=request.getParameter(ReqParam.locale.name());
   cms.getRequestContext().setLocale(CmsLocaleManager.getLocale(localeParam));
   JSONObject data=new JSONObject();
-  if (checkParameters(request,null,ReqParam.DATA.getName())) {
-    String dataParam=request.getParameter(ReqParam.DATA.getName());
+  if (checkParameters(request,null,ReqParam.data.name())) {
+    String dataParam=request.getParameter(ReqParam.data.name());
     data=new JSONObject(dataParam);
   }
-  String sitemapParam=request.getParameter(ReqParam.SITEMAP.getName());
+  String sitemapParam=request.getParameter(ReqParam.sitemap.name());
   if (action.equals(Action.ALL)) {
     CmsResource sitemapRes=CmsHistoryResourceHandler.getResourceWithHistory(cms,sitemapParam);
     CmsXmlSitemap xmlSitemap=CmsXmlSitemapFactory.unmarshal(cms,sitemapRes,request);
@@ -32,29 +32,29 @@
       }
     }
     addContents(models,getPropertyConfig(sitemapRes));
-    result.put(JsonResponse.TYPES.getName(),creatableTypes);
-    result.put(JsonResponse.MODELS.getName(),models);
+    result.put(JsonResponse.types.name(),creatableTypes);
+    result.put(JsonResponse.models.name(),models);
     result.put("templates",getTemplates());
   }
  else   if (action.equals(Action.GET)) {
-    if (checkParameters(data,null,JsonRequest.FAV.getName())) {
-      result.put(JsonResponse.FAVORITES.getName(),getFavoriteList());
+    if (checkParameters(data,null,JsonRequest.fav.name())) {
+      result.put(JsonResponse.favorites.name(),getFavoriteList());
     }
- else     if (checkParameters(data,result,JsonRequest.REC.getName())) {
+ else     if (checkParameters(data,result,JsonRequest.rec.name())) {
       CmsResource sitemapRes=CmsHistoryResourceHandler.getResourceWithHistory(cms,sitemapParam);
-      result.put(JsonResponse.RECENT.getName(),addContents(m_sessionCache.getRecentList(),getPropertyConfig(sitemapRes)));
+      result.put(JsonResponse.recent.name(),addContents(m_sessionCache.getRecentList(),getPropertyConfig(sitemapRes)));
     }
  else {
       return result;
     }
   }
  else   if (action.equals(Action.SET)) {
-    if (checkParameters(data,null,JsonRequest.FAV.getName())) {
-      JSONArray list=data.optJSONArray(JsonRequest.FAV.getName());
+    if (checkParameters(data,null,JsonRequest.fav.name())) {
+      JSONArray list=data.optJSONArray(JsonRequest.fav.name());
       saveFavoriteList(cms,list);
     }
- else     if (checkParameters(data,result,JsonRequest.REC.getName())) {
-      JSONArray list=data.optJSONArray(JsonRequest.REC.getName());
+ else     if (checkParameters(data,result,JsonRequest.rec.name())) {
+      JSONArray list=data.optJSONArray(JsonRequest.rec.name());
       m_sessionCache.setRecentList(list);
     }
  else {
@@ -62,15 +62,15 @@
     }
   }
  else   if (action.equals(Action.VALIDATE)) {
-    if (!checkParameters(data,result,JsonRequest.NAME.getName())) {
+    if (!checkParameters(data,result,JsonRequest.name.name())) {
       return result;
     }
-    String name=data.optString(JsonRequest.NAME.getName());
-    result.put(JsonResponse.NAME.getName(),cms.getRequestContext().getFileTranslator().translateResource(name));
+    String name=data.optString(JsonRequest.name.name());
+    result.put(JsonResponse.name.name(),cms.getRequestContext().getFileTranslator().translateResource(name));
   }
  else   if (action.equals(Action.PROPS)) {
     CmsResource sitemapRes=cms.readResource(sitemapParam);
-    result.put(JsonResponse.PROPERTIES.getName(),getPropertyInfoJSON(sitemapRes));
+    result.put(JsonResponse.properties.name(),getPropertyInfoJSON(sitemapRes));
   }
  else   if (action.equals(Action.SAVE)) {
     CmsResource sitemapRes=cms.readResource(sitemapParam);
@@ -94,39 +94,34 @@
   }
  else   if (action.equals(Action.CONTENT)) {
     CmsResource sitemapRes=CmsHistoryResourceHandler.getResourceWithHistory(cms,sitemapParam);
-    JSONArray entries=data.getJSONArray(JsonResponse.ENTRIES.getName().toLowerCase());
+    JSONArray entries=data.getJSONArray(JsonResponse.entries.name().toLowerCase());
     addContents(entries,getPropertyConfig(sitemapRes));
-    result.put(JsonResponse.ENTRIES.getName().toLowerCase(),entries);
+    result.put(JsonResponse.entries.name().toLowerCase(),entries);
   }
  else   if (action.equals(Action.NEW_ENTRY)) {
     CmsResource sitemapRes=CmsHistoryResourceHandler.getResourceWithHistory(cms,sitemapParam);
     CmsSitemapManager manager=OpenCms.getSitemapManager();
-    String type=data.getString(JsonRequest.TYPE.getName());
+    String type=data.getString(JsonRequest.type.name());
     CmsResource newResource=manager.createNewElement(cms,sitemapParam,request,type);
     CmsProperty titleProp=cms.readPropertyObject(newResource,CmsPropertyDefinition.PROPERTY_TITLE,false);
     String title=titleProp.getValue();
     String name=newResource.getName();
-    String extension="";
-    int dotPos=name.lastIndexOf('.');
-    if (dotPos != -1) {
-      name=name.substring(0,dotPos);
-    }
-    CmsSiteEntryBean entryBean=new CmsSiteEntryBean(new CmsUUID(),newResource.getStructureId(),extension,title,new HashMap<String,String>(),new ArrayList<CmsSiteEntryBean>());
+    CmsSiteEntryBean entryBean=new CmsSiteEntryBean(new CmsUUID(),null,newResource.getStructureId(),name,title,new HashMap<String,String>(),new ArrayList<CmsSiteEntryBean>());
     Map<String,CmsXmlContentProperty> propertyConf=getPropertyConfig(sitemapRes);
     JSONObject jsonEntry=jsonifyEntry(entryBean,propertyConf);
     JSONArray entries=new JSONArray();
     entries.put(jsonEntry);
     addContents(entries,propertyConf);
-    result.put(JsonResponse.ENTRY.getName(),jsonEntry);
+    result.put(JsonResponse.entry.name(),jsonEntry);
   }
  else   if (action.equals(Action.NEW_SITEMAP)) {
     CmsSitemapManager manager=OpenCms.getSitemapManager();
-    CmsResource newSitemapRes=manager.createSitemap(cms,data.getString(JsonRequest.TITLE.getName()),sitemapParam,request);
+    CmsResource newSitemapRes=manager.createSitemap(cms,data.getString(JsonRequest.title.name()),sitemapParam,request);
     saveSitemap(newSitemapRes,data);
-    result.put(JsonResponse.PATH.getName(),cms.getSitePath(newSitemapRes));
+    result.put(JsonResponse.path.name(),cms.getSitePath(newSitemapRes));
   }
  else {
-    error(result,Messages.get().getBundle(getWorkplaceLocale()).key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.ACTION.getName(),actionParam));
+    error(result,Messages.get().getBundle(getWorkplaceLocale()).key(Messages.ERR_JSON_WRONG_PARAMETER_VALUE_2,ReqParam.action.name(),actionParam));
   }
   return result;
 }

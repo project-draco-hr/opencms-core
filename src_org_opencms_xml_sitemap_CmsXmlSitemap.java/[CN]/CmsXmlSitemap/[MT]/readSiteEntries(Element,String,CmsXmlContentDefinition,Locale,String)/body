@@ -1,0 +1,105 @@
+{
+  List<CmsSiteEntryBean> entries=new ArrayList<CmsSiteEntryBean>();
+  for (Iterator<Element> itCnts=CmsXmlGenericWrapper.elementIterator(rootElem,XmlNode.SiteEntry.name()); itCnts.hasNext(); ) {
+    Element entry=itCnts.next();
+    int entryIndex=CmsXmlUtils.getXpathIndexInt(entry.getUniquePath(rootElem));
+    String entryPath=CmsXmlUtils.concatXpath(rootPath,CmsXmlUtils.createXpathElement(entry.getName(),entryIndex));
+    if (entryPath.startsWith("/")) {
+      entryPath=entryPath.substring(1);
+    }
+    I_CmsXmlSchemaType entrySchemaType=rootDef.getSchemaType(entry.getName());
+    I_CmsXmlContentValue entryValue=entrySchemaType.createValue(this,entry,locale);
+    addBookmark(entryPath,locale,true,entryValue);
+    CmsXmlContentDefinition entryDef=((CmsXmlNestedContentDefinition)entrySchemaType).getNestedContentDefinition();
+    Element id=entry.element(XmlNode.Id.name());
+    if (id == null) {
+      id=entry.addElement(XmlNode.Id.name());
+    }
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(id.getTextTrim())) {
+      id.addCDATA(new CmsUUID().toString());
+    }
+    if (!CmsUUID.isValidUUID(id.getTextTrim())) {
+      id.clearContent();
+      id.addCDATA(new CmsUUID().toString());
+    }
+    createBookmark(id,locale,entry,entryPath,entryDef);
+    CmsUUID entryId=new CmsUUID(id.getTextTrim());
+    Element name=entry.element(XmlNode.Name.name());
+    createBookmark(name,locale,entry,entryPath,entryDef);
+    String entryName=name.getTextTrim();
+    Element title=entry.element(XmlNode.Title.name());
+    createBookmark(title,locale,entry,entryPath,entryDef);
+    String titleValue=title.getTextTrim();
+    Element uri=entry.element(XmlNode.VfsFile.name());
+    createBookmark(uri,locale,entry,entryPath,entryDef);
+    Element linkUri=uri.element(CmsXmlPage.NODE_LINK);
+    CmsUUID linkId=null;
+    if (linkUri == null) {
+    }
+ else {
+      linkId=new CmsLink(linkUri).getStructureId();
+    }
+    Map<String,String> propertiesMap=new HashMap<String,String>();
+    for (Iterator<Element> itProps=CmsXmlGenericWrapper.elementIterator(entry,CmsXmlContentProperty.XmlNode.Properties.name()); itProps.hasNext(); ) {
+      Element property=itProps.next();
+      int propIndex=CmsXmlUtils.getXpathIndexInt(property.getUniquePath(entry));
+      String propPath=CmsXmlUtils.concatXpath(entryPath,CmsXmlUtils.createXpathElement(property.getName(),propIndex));
+      I_CmsXmlSchemaType propSchemaType=entryDef.getSchemaType(property.getName());
+      I_CmsXmlContentValue propValue=propSchemaType.createValue(this,property,locale);
+      addBookmark(propPath,locale,true,propValue);
+      CmsXmlContentDefinition propDef=((CmsXmlNestedContentDefinition)propSchemaType).getNestedContentDefinition();
+      Element propName=property.element(CmsXmlContentProperty.XmlNode.Name.name());
+      createBookmark(propName,locale,property,propPath,propDef);
+      Element value=property.element(CmsXmlContentProperty.XmlNode.Value.name());
+      if (value == null) {
+        continue;
+      }
+      int valueIndex=CmsXmlUtils.getXpathIndexInt(value.getUniquePath(property));
+      String valuePath=CmsXmlUtils.concatXpath(propPath,CmsXmlUtils.createXpathElement(value.getName(),valueIndex));
+      I_CmsXmlSchemaType valueSchemaType=propDef.getSchemaType(value.getName());
+      I_CmsXmlContentValue valueValue=valueSchemaType.createValue(this,value,locale);
+      addBookmark(valuePath,locale,true,valueValue);
+      CmsXmlContentDefinition valueDef=((CmsXmlNestedContentDefinition)valueSchemaType).getNestedContentDefinition();
+      String val=null;
+      Element string=value.element(CmsXmlContentProperty.XmlNode.String.name());
+      if (string != null) {
+        createBookmark(string,locale,value,valuePath,valueDef);
+        val=string.getTextTrim();
+      }
+ else {
+        Element valueFileList=value.element(CmsXmlContentProperty.XmlNode.FileList.name());
+        if (valueFileList == null) {
+          continue;
+        }
+        int valueFileListIndex=CmsXmlUtils.getXpathIndexInt(valueFileList.getUniquePath(value));
+        String valueFileListPath=CmsXmlUtils.concatXpath(valuePath,CmsXmlUtils.createXpathElement(valueFileList.getName(),valueFileListIndex));
+        I_CmsXmlSchemaType valueFileListSchemaType=valueDef.getSchemaType(valueFileList.getName());
+        I_CmsXmlContentValue valueFileListValue=valueFileListSchemaType.createValue(this,valueFileList,locale);
+        addBookmark(valueFileListPath,locale,true,valueFileListValue);
+        CmsXmlContentDefinition valueFileListDef=((CmsXmlNestedContentDefinition)valueFileListSchemaType).getNestedContentDefinition();
+        List<CmsUUID> idList=new ArrayList<CmsUUID>();
+        for (Iterator<Element> itFiles=CmsXmlGenericWrapper.elementIterator(valueFileList,CmsXmlContentProperty.XmlNode.Uri.name()); itFiles.hasNext(); ) {
+          Element valueUri=itFiles.next();
+          createBookmark(valueUri,locale,valueFileList,valueFileListPath,valueFileListDef);
+          Element valueUriLink=valueUri.element(CmsXmlPage.NODE_LINK);
+          CmsUUID fileId=null;
+          if (valueUriLink == null) {
+          }
+ else {
+            fileId=new CmsLink(valueUriLink).getStructureId();
+          }
+          idList.add(fileId);
+        }
+        val=CmsStringUtil.listAsString(idList,CmsXmlContentProperty.PROP_SEPARATOR);
+      }
+      propertiesMap.put(propName.getTextTrim(),val);
+    }
+    String path="/";
+    if (parentUri != null) {
+      path=parentUri + entryName + "/";
+    }
+    List<CmsSiteEntryBean> subEntries=readSiteEntries(entry,entryPath,entryDef,locale,path);
+    entries.add(new CmsSiteEntryBean(entryId,path,linkId,entryName,titleValue,propertiesMap,subEntries));
+  }
+  return entries;
+}
