@@ -1,0 +1,53 @@
+{
+  try {
+    CmsFile file=readFile(cms,resource);
+    A_CmsXmlDocument xmlContent=CmsXmlContentFactory.unmarshal(cms,file);
+    Map<String,String> items=new HashMap<String,String>();
+    StringBuffer locales=new StringBuffer();
+    for (    Locale locale : xmlContent.getLocales()) {
+      locales.append(locale.toString());
+      locales.append(' ');
+      StringBuffer content=new StringBuffer();
+      for (      String xpath : xmlContent.getNames(locale)) {
+        I_CmsXmlContentValue value=xmlContent.getValue(xpath,locale);
+        I_CmsXmlContentHandler handler=value.getContentDefinition().getContentHandler();
+        if (handler.isSearchable(value)) {
+          String extracted=value.getPlainText(cms);
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
+            content.append(extracted);
+            content.append('\n');
+          }
+        }
+        String[] mappings=handler.getMappings(value.getPath());
+        if ((mappings != null) && (mappings.length > 0)) {
+          for (          String mapping : mappings) {
+            if (mapping.startsWith(I_CmsXmlContentHandler.MAPTO_PROPERTY)) {
+              String propertyName=mapping.substring(mapping.lastIndexOf(':') + 1);
+              if (CmsPropertyDefinition.PROPERTY_TITLE.equals(propertyName) || CmsPropertyDefinition.PROPERTY_DESCRIPTION.equals(propertyName)) {
+                String extracted=value.getPlainText(cms);
+                if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
+                  String fieldName=null;
+                  if (CmsPropertyDefinition.PROPERTY_TITLE.equals(propertyName)) {
+                    fieldName=CmsSearchField.FIELD_TITLE_UNSTORED;
+                  }
+ else {
+                    fieldName=CmsSearchField.FIELD_DESCRIPTION;
+                  }
+                  items.put(CmsGallerySearchFieldConfiguration.getLocaleExtendedName(fieldName,locale),extracted);
+                }
+              }
+            }
+          }
+        }
+      }
+      if (content.length() > 0) {
+        items.put(CmsGallerySearchFieldConfiguration.getLocaleExtendedName(CmsSearchField.FIELD_CONTENT,locale),content.toString());
+      }
+      items.put(CmsGallerySearchFieldMapping.FIELD_RESOURCE_LOCALES,locales.toString());
+    }
+    return new CmsExtractionResult(null,items);
+  }
+ catch (  Exception e) {
+    throw new CmsIndexException(Messages.get().container(Messages.ERR_TEXT_EXTRACTION_1,resource.getRootPath()),e);
+  }
+}

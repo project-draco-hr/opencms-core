@@ -1,94 +1,13 @@
 {
   Document document=new Document();
-  if (content != null) {
-    byte[] data=content.getBytes();
-    if (data != null) {
-      Fieldable field=new Field(CmsSearchField.FIELD_CONTENT_BLOB,data,Field.Store.YES);
-      document.add(field);
-    }
-  }
   List<CmsProperty> propertiesSearched=cms.readPropertyObjects(resource,true);
   List<CmsProperty> properties=cms.readPropertyObjects(resource,false);
-  Iterator<CmsSearchField> fieldConfigs=getFields().iterator();
-  while (fieldConfigs.hasNext()) {
-    CmsSearchField fieldConfig=fieldConfigs.next();
-    StringBuffer text=new StringBuffer();
-    Iterator<CmsSearchFieldMapping> mappings=fieldConfig.getMappings().iterator();
-    while (mappings.hasNext()) {
-      CmsSearchFieldMapping mapping=mappings.next();
-      String mapResult=mapping.getStringValue(cms,resource,content,properties,propertiesSearched);
-      if (mapResult != null) {
-        if (text.length() > 0) {
-          text.append('\n');
-        }
-        text.append(mapResult);
-      }
-    }
-    if (text.length() > 0) {
-      Fieldable field=fieldConfig.createField(text.toString());
-      document.add(field);
-    }
-  }
-  String value;
-  Fieldable field;
-  CmsCategoryService categoryService=CmsCategoryService.getInstance();
-  List<CmsCategory> categories=categoryService.readResourceCategories(cms,resource);
-  if ((categories != null) && (categories.size() > 0)) {
-    StringBuffer categoryBuffer=new StringBuffer(128);
-    for (    CmsCategory category : categories) {
-      categoryBuffer.append(category.getPath());
-      categoryBuffer.append(' ');
-    }
-    if (categoryBuffer.length() > 0) {
-      field=new Field(CmsSearchField.FIELD_CATEGORY,categoryBuffer.toString(),Field.Store.YES,Field.Index.ANALYZED);
-      field.setBoost(0);
-      document.add(field);
-    }
-  }
- else {
-    field=new Field(CmsSearchField.FIELD_CATEGORY,CmsSearchCategoryCollector.UNKNOWN_CATEGORY,Field.Store.YES,Field.Index.ANALYZED);
-    document.add(field);
-  }
-  String parentFolders=getParentFolderTokens(resource.getRootPath());
-  field=new Field(CmsSearchField.FIELD_PARENT_FOLDERS,parentFolders,Field.Store.NO,Field.Index.ANALYZED);
-  field.setBoost(0);
-  document.add(field);
-  document.add(new Field(CmsSearchField.FIELD_PATH,resource.getRootPath(),Field.Store.YES,Field.Index.NOT_ANALYZED));
-  field=new Field(CmsSearchField.FIELD_DATE_CREATED,DateTools.dateToString(new Date(resource.getDateCreated()),DateTools.Resolution.MILLISECOND),Field.Store.YES,Field.Index.NOT_ANALYZED);
-  field.setBoost(0);
-  document.add(field);
-  field=new Field(CmsSearchField.FIELD_DATE_CREATED_LOOKUP,getDateTerms(resource.getDateCreated()),Field.Store.NO,Field.Index.ANALYZED);
-  document.add(field);
-  field=new Field(CmsSearchField.FIELD_DATE_LASTMODIFIED,DateTools.dateToString(new Date(resource.getDateLastModified()),DateTools.Resolution.MILLISECOND),Field.Store.YES,Field.Index.NOT_ANALYZED);
-  field.setBoost(0);
-  document.add(field);
-  field=new Field(CmsSearchField.FIELD_DATE_LASTMODIFIED_LOOKUP,getDateTerms(resource.getDateLastModified()),Field.Store.NO,Field.Index.ANALYZED);
-  document.add(field);
-  field=new Field(CmsSearchField.FIELD_DATE_CONTENT,DateTools.dateToString(new Date(resource.getDateContent()),DateTools.Resolution.MILLISECOND),Field.Store.YES,Field.Index.NOT_ANALYZED);
-  field.setBoost(0);
-  document.add(field);
-  I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(resource.getTypeId());
-  String typeName=VFS_DOCUMENT_KEY_PREFIX;
-  if (type != null) {
-    typeName=type.getTypeName();
-  }
-  document.add(new Field(CmsSearchField.FIELD_TYPE,typeName,Field.Store.YES,Field.Index.NOT_ANALYZED));
-  float boost=CmsSearchField.BOOST_DEFAULT;
-  value=CmsProperty.get(CmsPropertyDefinition.PROPERTY_SEARCH_PRIORITY,propertiesSearched).getValue();
-  if (value != null) {
-    value=value.trim().toLowerCase();
-    if (value.equals(SEARCH_PRIORITY_MAX_VALUE)) {
-      boost=2.0f;
-    }
- else     if (value.equals(SEARCH_PRIORITY_HIGH_VALUE)) {
-      boost=1.5f;
-    }
- else     if (value.equals(SEARCH_PRIORITY_LOW_VALUE)) {
-      boost=0.5f;
-    }
-  }
-  if (boost != CmsSearchField.BOOST_DEFAULT) {
-    document.setBoost(boost);
-  }
+  document=appendContentBlob(document,cms,resource,content,properties,propertiesSearched);
+  document=appendFieldMappings(document,cms,resource,content,properties,propertiesSearched);
+  document=appendPath(document,cms,resource,content,properties,propertiesSearched);
+  document=appendCategories(document,cms,resource,content,properties,propertiesSearched);
+  document=appendDates(document,cms,resource,content,properties,propertiesSearched);
+  document=appendType(document,cms,resource,content,properties,propertiesSearched);
+  document=setBoost(document,cms,resource,content,properties,propertiesSearched);
   return document;
 }

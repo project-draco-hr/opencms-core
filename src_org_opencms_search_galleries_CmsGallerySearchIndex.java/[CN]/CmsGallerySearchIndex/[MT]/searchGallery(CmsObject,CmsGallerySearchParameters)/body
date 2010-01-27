@@ -14,10 +14,14 @@
     filter=appendDateCreatedFilter(filter,params.getDateCreatedRange().getStartTime(),params.getDateCreatedRange().getEndTime());
     Query query=null;
     Query fieldsQuery=null;
+    Locale locale=params.getLocale() == null ? null : CmsLocaleManager.getLocale(params.getLocale());
     if (params.getSearchWords() != null) {
       BooleanQuery booleanFieldsQuery=new BooleanQuery();
-      for (int i=0; i < params.getFields().size(); i++) {
-        QueryParser p=new QueryParser(Version.LUCENE_CURRENT,params.getFields().get(i),getAnalyzer());
+      OpenCms.getLocaleManager();
+      List<String> fields=params.getFields();
+      fields=getLocaleExtendedFields(params.getFields(),locale);
+      for (      String field : fields) {
+        QueryParser p=new QueryParser(Version.LUCENE_CURRENT,field,getAnalyzer());
         booleanFieldsQuery.add(p.parse(params.getSearchWords()),BooleanClause.Occur.SHOULD);
       }
       fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
@@ -56,7 +60,7 @@
                 I_CmsTermHighlighter highlighter=OpenCms.getSearchManager().getHighlighter();
                 excerpt=highlighter.getExcerpt(doc,this,searchParams,fieldsQuery,getAnalyzer());
               }
-              searchResult=new CmsGallerySearchResult(Math.round((hits.scoreDocs[i].score / hits.getMaxScore()) * 100f),doc,excerpt);
+              searchResult=new CmsGallerySearchResult(Math.round((hits.scoreDocs[i].score / hits.getMaxScore()) * 100f),doc,excerpt,locale);
               searchResults.add(searchResult);
             }
             cnt++;
