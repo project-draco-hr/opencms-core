@@ -1,4 +1,34 @@
 {
   CmsFlexController controller=CmsFlexController.getController(req);
-  return OpenCms.getLinkManager().substituteLinkForUnknownTarget(controller.getCmsObject(),CmsLinkManager.getAbsoluteUri(target,controller.getCurrentRequest().getElementUri()));
+  String absoluteLink=CmsLinkManager.getAbsoluteUri(target,controller.getCurrentRequest().getElementUri());
+  int pos=absoluteLink.length();
+  int anchorPos=absoluteLink.lastIndexOf('#');
+  if ((anchorPos != -1) && (anchorPos < pos)) {
+    pos=anchorPos;
+  }
+  int paramPos=absoluteLink.lastIndexOf('?');
+  if ((paramPos != -1) && (paramPos < pos)) {
+    pos=paramPos;
+  }
+  String vfsName=absoluteLink.substring(0,pos);
+  String linkInfo=(pos == absoluteLink.length()) ? "" : absoluteLink.substring(pos);
+  String uri=vfsName;
+  CmsObject cms=controller.getCmsObject();
+  try {
+    CmsResource res=cms.readResource(vfsName);
+    String detailView=cms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_ADE_SITEMAP_DETAILVIEW,true).getValue("");
+    if (!CmsStringUtil.isEmptyOrWhitespaceOnly(detailView)) {
+      uri=detailView;
+      if (!uri.endsWith("/")) {
+        uri+="/";
+      }
+      uri+=res.getStructureId().toString();
+      uri+="/";
+    }
+  }
+ catch (  CmsException e) {
+    LOG.debug(e.getLocalizedMessage(),e);
+  }
+  String link=OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,uri);
+  return link + linkInfo;
 }
