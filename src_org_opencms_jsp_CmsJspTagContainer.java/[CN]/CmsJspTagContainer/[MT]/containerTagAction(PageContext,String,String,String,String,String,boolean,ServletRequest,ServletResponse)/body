@@ -1,14 +1,9 @@
 {
   CmsFlexController controller=CmsFlexController.getController(req);
   CmsObject cms=controller.getCmsObject();
-  CmsUUID detailId=null;
   CmsResource containerPage=(CmsResource)CmsHistoryResourceHandler.getHistoryResource(req);
   if (containerPage == null) {
     containerPage=cms.readResource(cms.getRequestContext().getUri());
-  }
-  CmsSiteEntryBean sitemap=OpenCms.getSitemapManager().getRuntimeInfo(req);
-  if (sitemap != null) {
-    detailId=sitemap.getContentId();
   }
   boolean createTag=false;
   String tagName=CmsStringUtil.isEmptyOrWhitespaceOnly(tag) ? DEFAULT_TAG_NAME : tag;
@@ -58,17 +53,24 @@
   container.setMaxElements(maxElements);
   List<CmsContainerElementBean> allElems=new ArrayList<CmsContainerElementBean>();
   allElems.addAll(container.getElements());
-  if ((detailId != null) && detailView) {
-    CmsResource resUri=cms.readResource(detailId);
-    String elementFormatter=OpenCms.getResourceManager().getResourceType(resUri).getFormatterForContainerType(cms,resUri,containerType);
-    if (CmsStringUtil.isEmptyOrWhitespaceOnly(elementFormatter)) {
-      if (!isOnline) {
-        throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,cms.getSitePath(resUri),OpenCms.getResourceManager().getResourceType(resUri).getTypeName(),containerType));
-      }
+  if (detailView) {
+    CmsUUID detailId=null;
+    CmsSiteEntryBean sitemap=OpenCms.getSitemapManager().getRuntimeInfo(req);
+    if (sitemap != null) {
+      detailId=sitemap.getContentId();
     }
+    if (detailId != null) {
+      CmsResource resUri=cms.readResource(detailId);
+      String elementFormatter=OpenCms.getResourceManager().getResourceType(resUri).getFormatterForContainerType(cms,resUri,containerType);
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(elementFormatter)) {
+        if (!isOnline) {
+          throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,cms.getSitePath(resUri),OpenCms.getResourceManager().getResourceType(resUri).getTypeName(),containerType));
+        }
+      }
  else {
-      CmsContainerElementBean element=new CmsContainerElementBean(resUri.getStructureId(),cms.readResource(elementFormatter).getStructureId(),null);
-      allElems.add(0,element);
+        CmsContainerElementBean element=new CmsContainerElementBean(resUri.getStructureId(),cms.readResource(elementFormatter).getStructureId(),null);
+        allElems.add(0,element);
+      }
     }
   }
   if (!isOnline) {
