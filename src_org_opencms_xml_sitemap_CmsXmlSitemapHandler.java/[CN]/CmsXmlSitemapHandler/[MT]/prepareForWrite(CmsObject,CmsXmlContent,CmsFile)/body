@@ -1,0 +1,35 @@
+{
+  for (  Locale locale : content.getLocales()) {
+    String path=CmsXmlSitemap.XmlNode.SiteEntry.name();
+    LinkedList<I_CmsXmlContentValue> entries=new LinkedList<I_CmsXmlContentValue>(content.getValues(path,locale));
+    while (!entries.isEmpty()) {
+      I_CmsXmlContentValue entry=entries.removeFirst();
+      String idPath=CmsXmlUtils.concatXpath(entry.getPath(),CmsXmlSitemap.XmlNode.Id.name());
+      I_CmsXmlContentValue id=content.getValue(idPath,locale);
+      if (id == null) {
+        id=content.addValue(cms,idPath,locale,0);
+      }
+      if (!CmsUUID.isValidUUID(id.getStringValue(cms))) {
+        id.setStringValue(cms,new CmsUUID().toString());
+      }
+      String subentriesPath=CmsXmlUtils.concatXpath(entry.getPath(),CmsXmlSitemap.XmlNode.SiteEntry.name());
+      entries.addAll(content.getValues(subentriesPath,locale));
+    }
+  }
+  file.setContents(content.marshal());
+  CmsFile result=super.prepareForWrite(cms,content,file);
+  cms.deleteRelationsFromResource(cms.getSitePath(file),CmsRelationFilter.TARGETS.filterType(CmsRelationType.ENTRY_POINT));
+  try {
+    I_CmsXmlContentValue entryPoint=content.getValue(CmsXmlSitemap.XmlNode.EntryPoint.name(),content.getLocales().get(0));
+    if (entryPoint != null) {
+      String path=entryPoint.getStringValue(cms);
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(path)) {
+        cms.addRelationToResource(cms.getSitePath(file),path,CmsRelationType.ENTRY_POINT.getName());
+      }
+    }
+  }
+ catch (  CmsException e) {
+    LOG.warn(e.getLocalizedMessage(),e);
+  }
+  return result;
+}
