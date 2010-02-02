@@ -5,40 +5,59 @@
     logId=new CmsUUID();
     LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_3,logId,rootUri,Boolean.valueOf(online)).key());
   }
-  CmsXmlSitemap sitemapXml=getSitemapForUri(cms,uri);
-  if (sitemapXml == null) {
-    return null;
+  CmsSiteEntryBean startEntry=null;
+  String startUri=rootUri;
+  while (!startUri.equals("/") && (startEntry == null)) {
+    startUri=CmsResource.getParentFolder(startUri);
+    if (m_cache.getMissingUri(startUri,online) != null) {
+      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_MISSING_2,logId,startUri).key());
+      return null;
+    }
+    startEntry=m_cache.getUri(startUri,online);
   }
-  CmsSitemapBean sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
-  if ((sitemap == null) || sitemap.getSiteEntries().isEmpty()) {
-    return null;
-  }
-  LinkedList<String> entryPaths=new LinkedList<String>(CmsStringUtil.splitAsList(normalizePath(rootUri.substring(sitemap.getEntryPoint().length())),"/"));
   Map<String,String> properties=new HashMap<String,String>();
-  properties.putAll(sitemap.getSiteEntries().get(0).getProperties());
-  if (entryPaths.isEmpty()) {
-    CmsSiteEntryBean entry=sitemap.getSiteEntries().get(0);
-    entry.setRuntimeInfo(properties,0,null);
-    LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(0),entry.getRootPath()).key());
-    return entry;
+  if (startEntry == null) {
+    CmsXmlSitemap sitemapXml=null;
+    for (    CmsRelation relation : cms.readRelations(CmsRelationFilter.TARGETS.filterType(CmsRelationType.ENTRY_POINT))) {
+      if (rootUri.startsWith(relation.getTargetPath())) {
+        sitemapXml=CmsXmlSitemapFactory.unmarshal(cms,cms.readResource(relation.getSourceId()));
+        break;
+      }
+    }
+    if (sitemapXml == null) {
+      return null;
+    }
+    CmsSitemapBean sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
+    if ((sitemap == null) || sitemap.getSiteEntries().isEmpty()) {
+      return null;
+    }
+    startUri=sitemap.getEntryPoint();
+    startEntry=sitemap.getSiteEntries().get(0);
+    startEntry.setRuntimeInfo(properties,0,null);
+    m_cache.setUri(startUri,startEntry,online);
+    if (normalizePath(rootUri.substring(startUri.length())).length() == 0) {
+      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(0),startEntry.getRootPath()).key());
+      return startEntry;
+    }
   }
-  String uriPath=cms.getRequestContext().getSiteRoot() + sitemap.getEntryPoint();
-  List<CmsSiteEntryBean> subEntries=sitemap.getSiteEntries().get(0).getSubEntries();
+  properties.putAll(startEntry.getInheritedProperties());
+  LinkedList<String> entryPaths=new LinkedList<String>(CmsStringUtil.splitAsList(normalizePath(rootUri.substring(startUri.length())),"/"));
+  String uriPath=startUri;
+  CmsSiteEntryBean parentEntry=startEntry;
+  List<CmsSiteEntryBean> subEntries=startEntry.getSubEntries();
   boolean finished=false;
   while (!finished) {
     String name=entryPaths.removeFirst();
+    uriPath+=name + "/";
     LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_CHECK_2,logId,uriPath).key());
-    uriPath+="/" + name;
-    if (m_cache.getMissingUri(uriPath,online) != null) {
-      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_ENTRY_MISSING_2,logId,uriPath).key());
-      return null;
-    }
     int position=0;
     int size=subEntries.size();
     for (; position < size; position++) {
       CmsSiteEntryBean entry=subEntries.get(position);
-      entry.setRuntimeInfo(properties,position,null);
-      m_cache.setUri(rootUri,entry,online);
+      if (entry.getInheritedProperties() == null) {
+        entry.setRuntimeInfo(properties,position,null);
+        m_cache.setUri(uriPath,entry,online);
+      }
       if (!entry.getName().equals(name)) {
         LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NO_MATCH_3,logId,new Integer(position),entry.getRootPath()).key());
         continue;
@@ -49,14 +68,16 @@
         return entry;
       }
  else {
+        properties.putAll(entry.getProperties());
+        parentEntry=entry;
         subEntries=entry.getSubEntries();
         if (subEntries.isEmpty()) {
           String subSitemapId=entry.getProperties().get(CmsSitemapManager.Property.sitemap.name());
           if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(subSitemapId)) {
             CmsResource subSitemap=cms.readResource(new CmsUUID(subSitemapId));
             LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_SUBSITEMAP_2,logId,cms.getSitePath(subSitemap)).key());
-            sitemapXml=CmsXmlSitemapFactory.unmarshal(cms,subSitemap);
-            sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
+            CmsXmlSitemap sitemapXml=CmsXmlSitemapFactory.unmarshal(cms,subSitemap);
+            CmsSitemapBean sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
             if (sitemap == null) {
               return null;
             }
@@ -65,27 +86,26 @@
         }
         finished=subEntries.isEmpty();
         if (finished) {
-          if ((entryPaths.size() == 1) && CmsUUID.isValidUUID(entryPaths.get(0))) {
-            CmsUUID id=new CmsUUID(entryPaths.get(0));
-            CmsResource contentRes=cms.readResource(id);
-            String title=cms.readPropertyObject(contentRes,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(id.toString());
-            HashMap<String,String> entryProps=new HashMap<String,String>(entry.getProperties());
-            entryProps.put(Property.navigation.name(),Boolean.FALSE.toString());
-            properties.put(Property.navigation.name(),Boolean.FALSE.toString());
-            entry=new CmsSiteEntryBean(entry.getId(),entry.getOriginalUri(),entry.getResourceId(),id.toString(),title,entryProps,null);
-            entry.setRuntimeInfo(properties,0,id);
-            LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(0),entry.getRootPath()).key());
-            return entry;
-          }
           LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NO_SUBENTRIES_3,logId,new Integer(position),entry.getRootPath()).key());
         }
-        properties.putAll(entry.getProperties());
       }
       break;
     }
     if (position == size) {
       finished=true;
       LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_NOT_FOUND_2,logId,uriPath).key());
+    }
+ else     if (finished && ((entryPaths.size() == 1) && CmsUUID.isValidUUID(entryPaths.get(0)))) {
+      CmsUUID id=new CmsUUID(entryPaths.get(0));
+      CmsResource contentRes=cms.readResource(id);
+      String title=cms.readPropertyObject(contentRes,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(id.toString());
+      HashMap<String,String> entryProps=new HashMap<String,String>(parentEntry.getProperties());
+      entryProps.put(Property.navigation.name(),Boolean.FALSE.toString());
+      properties.put(Property.navigation.name(),Boolean.FALSE.toString());
+      CmsSiteEntryBean contentEntry=new CmsSiteEntryBean(parentEntry.getId(),parentEntry.getOriginalUri(),parentEntry.getResourceId(),id.toString(),title,entryProps,null);
+      contentEntry.setRuntimeInfo(properties,0,id);
+      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(0),contentEntry.getRootPath()).key());
+      return contentEntry;
     }
   }
   return null;
