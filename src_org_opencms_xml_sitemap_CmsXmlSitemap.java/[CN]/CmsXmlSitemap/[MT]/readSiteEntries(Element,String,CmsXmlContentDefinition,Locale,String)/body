@@ -3,9 +3,9 @@
   for (Iterator<Element> itCnts=CmsXmlGenericWrapper.elementIterator(rootElem,XmlNode.SiteEntry.name()); itCnts.hasNext(); ) {
     Element entry=itCnts.next();
     int entryIndex=CmsXmlUtils.getXpathIndexInt(entry.getUniquePath(rootElem));
-    String entryPath=CmsXmlUtils.concatXpath(rootPath,CmsXmlUtils.createXpathElement(entry.getName(),entryIndex));
-    if (entryPath.startsWith("/")) {
-      entryPath=entryPath.substring(1);
+    String entryPath=CmsXmlUtils.createXpathElement(entry.getName(),entryIndex);
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(rootPath)) {
+      entryPath=CmsXmlUtils.concatXpath(rootPath,entryPath);
     }
     I_CmsXmlSchemaType entrySchemaType=rootDef.getSchemaType(entry.getName());
     I_CmsXmlContentValue entryValue=entrySchemaType.createValue(this,entry,locale);
@@ -25,6 +25,9 @@
     createBookmark(id,locale,entry,entryPath,entryDef);
     CmsUUID entryId=new CmsUUID(id.getTextTrim());
     Element name=entry.element(XmlNode.Name.name());
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(rootPath)) {
+      name.clearContent();
+    }
     createBookmark(name,locale,entry,entryPath,entryDef);
     String entryName=name.getTextTrim();
     Element title=entry.element(XmlNode.Title.name());
@@ -33,11 +36,11 @@
     Element uri=entry.element(XmlNode.VfsFile.name());
     createBookmark(uri,locale,entry,entryPath,entryDef);
     Element linkUri=uri.element(CmsXmlPage.NODE_LINK);
-    CmsUUID linkId=null;
+    CmsUUID uriId=null;
     if (linkUri == null) {
     }
  else {
-      linkId=new CmsLink(linkUri).getStructureId();
+      uriId=new CmsLink(linkUri).getStructureId();
     }
     Map<String,String> propertiesMap=new HashMap<String,String>();
     for (Iterator<Element> itProps=CmsXmlGenericWrapper.elementIterator(entry,CmsXmlContentProperty.XmlNode.Properties.name()); itProps.hasNext(); ) {
@@ -94,12 +97,12 @@
       }
       propertiesMap.put(propName.getTextTrim(),val);
     }
-    String path="/";
-    if (parentUri != null) {
-      path=parentUri + entryName + "/";
+    String path=parentUri + entryName;
+    if (!path.endsWith("/")) {
+      path+="/";
     }
     List<CmsSiteEntryBean> subEntries=readSiteEntries(entry,entryPath,entryDef,locale,path);
-    entries.add(new CmsSiteEntryBean(entryId,path,linkId,entryName,titleValue,propertiesMap,subEntries));
+    entries.add(new CmsSiteEntryBean(entryId,path,uriId,entryName,titleValue,propertiesMap,subEntries));
   }
   return entries;
 }
