@@ -43,6 +43,7 @@
     resolver.addMacro(Macro.galleryAdditionalJavascript.name(),CmsGallerySearchServer.getAdditionalJavascriptForTypes(searchableTypes));
     boolean isDetailPage=false;
     CmsResource containerPage=cms.readResource(currentUri);
+    CmsXmlSitemap sitemap=null;
     if (!CmsResourceTypeXmlContainerPage.isContainerPage(containerPage)) {
       String cntPagePath=cms.readPropertyObject(containerPage,CmsPropertyDefinition.PROPERTY_TEMPLATE_ELEMENTS,true).getValue("");
       try {
@@ -55,15 +56,18 @@
         LOG.debug(e.getLocalizedMessage(),e);
       }
     }
- else     if (OpenCms.getSitemapManager().getRuntimeInfo(req) != null) {
-      CmsUUID id=OpenCms.getSitemapManager().getRuntimeInfo(req).getContentId();
-      if (id != null) {
-        currentUri=cms.getSitePath(cms.readResource(id));
-        isDetailPage=true;
+ else {
+      CmsSiteEntryBean sitemapInfo=OpenCms.getSitemapManager().getRuntimeInfo(req);
+      if (sitemapInfo != null) {
+        CmsUUID id=sitemapInfo.getContentId();
+        if (id != null) {
+          currentUri=cms.getSitePath(cms.readResource(id));
+          isDetailPage=true;
+        }
+        sitemap=OpenCms.getSitemapManager().getSitemapForUri(cms,sitemapInfo.getSitePath(cms));
       }
     }
-    CmsProperty sitemapProperty=cms.readPropertyObject(containerPage,CmsPropertyDefinition.PROPERTY_SITEMAP,true);
-    String sitemapUri=linkMan.substituteLink(cms,sitemapProperty.getValue());
+    String sitemapUri=(sitemap == null) ? "" : linkMan.substituteLink(cms,sitemap.getFile());
     resolver.addMacro(Macro.sitemapUri.name(),sitemapUri);
     String containerPageUri=cms.getSitePath(containerPage);
     resolver.addMacro(Macro.currentUri.name(),currentUri);
