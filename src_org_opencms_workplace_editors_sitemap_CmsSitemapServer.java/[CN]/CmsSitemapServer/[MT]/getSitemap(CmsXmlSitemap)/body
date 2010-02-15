@@ -10,10 +10,18 @@
       siteEntries.put(siteEntry);
     }
   }
-  result.put(JsonResponse.sitemap.name(),siteEntries);
   CmsXmlSitemap superSitemap=OpenCms.getSitemapManager().getParentSitemap(cms,xmlSitemap);
-  String superSitemapPath=superSitemap == null ? "" : cms.getSitePath(superSitemap.getFile());
-  result.put(JsonResponse.superSitemap.name(),superSitemapPath);
+  if (superSitemap == null) {
+    result.put(JsonResponse.superSitemap.name(),"");
+    result.put(JsonResponse.sitemap.name(),siteEntries);
+  }
+ else {
+    result.put(JsonResponse.superSitemap.name(),cms.getSitePath(superSitemap.getFile()));
+    CmsSitemapEntry parentEntry=OpenCms.getSitemapManager().getEntryForUri(cms,sitemap.getEntryPoint());
+    JSONObject jsonParentEntry=jsonifyEntry(new CmsSitemapEntry(parentEntry.getId(),parentEntry.getOriginalUri(),parentEntry.getResourceId(),parentEntry.getName(),parentEntry.getTitle(),parentEntry.getInheritedProperties(),null),propertiesConf);
+    jsonParentEntry.put(JsonSiteEntry.subentries.name(),siteEntries);
+    result.put(JsonResponse.sitemap.name(),jsonParentEntry);
+  }
   result.put(JsonResponse.referencePath.name(),cms.getRequestContext().removeSiteRoot(sitemap.getEntryPoint()));
   result.put(JsonResponse.properties.name(),CmsXmlContentPropertyHelper.getPropertyInfoJSON(cms,xmlSitemap.getFile()));
   return result;
