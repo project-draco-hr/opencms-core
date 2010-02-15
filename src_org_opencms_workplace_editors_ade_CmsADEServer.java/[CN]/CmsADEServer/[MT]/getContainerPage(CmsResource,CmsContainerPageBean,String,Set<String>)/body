@@ -1,5 +1,6 @@
 {
   CmsObject cms=getCmsObject();
+  Map<CmsUUID,Set<String>> elementContainerTypes=getElementContainerTypes(cms,cntPage);
   JSONObject result=new JSONObject();
   JSONObject resElements=new JSONObject();
   result.put(JsonCntPage.elements.name(),resElements);
@@ -14,7 +15,7 @@
     CmsContainerElementBean element=new CmsContainerElementBean(elemRes.getStructureId(),null,null);
     m_sessionCache.setCacheContainerElement(element.getClientId(),element);
     String id=element.getClientId();
-    JSONObject resElement=elemUtil.getElementData(element,types);
+    JSONObject resElement=elemUtil.getElementData(element,elementContainerTypes.get(element.getElementId()));
     ids.add(id);
     resElements.put(id,resElement);
   }
@@ -34,7 +35,7 @@
         continue;
       }
       m_sessionCache.setCacheContainerElement(element.getClientId(),element);
-      JSONObject resElement=elemUtil.getElementData(element,types);
+      JSONObject resElement=elemUtil.getElementData(element,elementContainerTypes.get(element.getElementId()));
       if (resElement.has(CmsElementUtil.JsonElement.subItems.name())) {
         CmsResource elementRes=cms.readResource(element.getElementId());
         CmsXmlSubContainer xmlSubContainer=CmsXmlSubContainerFactory.unmarshal(cms,elementRes,getRequest());
@@ -46,7 +47,7 @@
             if (ids.contains(subId)) {
               continue;
             }
-            JSONObject subItemData=elemUtil.getElementData(subElement,types);
+            JSONObject subItemData=elemUtil.getElementData(subElement,elementContainerTypes.get(subElement.getElementId()));
             ids.add(subId);
             resElements.put(subId,subItemData);
           }
@@ -56,9 +57,10 @@
       resElements.put(id,resElement);
     }
   }
-  JSONArray resFavorites=getFavoriteList(resElements,types);
+  Set<String> noTypes=Collections.<String>emptySet();
+  JSONArray resFavorites=getFavoriteList(resElements,noTypes);
   result.put(JsonCntPage.favorites.name(),resFavorites);
-  JSONArray resRecent=getRecentList(resElements,types);
+  JSONArray resRecent=getRecentList(resElements,noTypes);
   result.put(JsonCntPage.recent.name(),resRecent);
   return result;
 }
