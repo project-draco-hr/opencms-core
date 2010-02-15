@@ -1,0 +1,32 @@
+{
+  Element propElement=null;
+  for (  Map.Entry<String,String> property : properties.entrySet()) {
+    String propName=property.getKey();
+    String propValue=property.getValue();
+    if (!propertiesConf.containsKey(propName) || (propValue == null)) {
+      continue;
+    }
+    if (propElement == null) {
+      propElement=parentElement.addElement(CmsXmlContentProperty.XmlNode.Properties.name());
+    }
+    propElement.addElement(CmsXmlContentProperty.XmlNode.Name.name()).addCDATA(propName);
+    Element valueElement=propElement.addElement(CmsXmlContentProperty.XmlNode.Value.name());
+    if (!CmsXmlContentProperty.PropType.isVfsList(propertiesConf.get(propName).getPropertyType())) {
+      valueElement.addElement(CmsXmlContentProperty.XmlNode.String.name()).addCDATA(propValue);
+    }
+ else {
+      Element filelistElem=valueElement.addElement(CmsXmlContentProperty.XmlNode.FileList.name());
+      for (      String strId : CmsStringUtil.splitAsList(propValue,CmsXmlContentProperty.PROP_SEPARATOR)) {
+        try {
+          Element fileValueElem=filelistElem.addElement(CmsXmlContentProperty.XmlNode.Uri.name());
+          CmsResource res=cms.readResource(new CmsUUID(strId));
+          CmsRelationType type=CmsRelationType.XML_WEAK;
+          CmsXmlVfsFileValue.fillResource(fileValueElem,res,type);
+        }
+ catch (        CmsException e) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+  }
+}
