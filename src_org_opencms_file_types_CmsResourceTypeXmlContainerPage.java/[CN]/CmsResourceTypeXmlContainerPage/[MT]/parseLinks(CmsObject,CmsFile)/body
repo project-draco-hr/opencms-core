@@ -18,13 +18,10 @@
     cms.getRequestContext().setRequestTime(requestTime);
   }
   Set<CmsLink> links=new HashSet<CmsLink>();
-  String schema=xmlContent.getContentDefinition().getSchemaLocation();
-  if (schema.startsWith(CmsXmlEntityResolver.OPENCMS_SCHEME)) {
-    schema=schema.substring(CmsXmlEntityResolver.OPENCMS_SCHEME.length() - 1);
+  CmsLink xsdLink=getXsdLink(cms,xmlContent);
+  if (xsdLink != null) {
+    links.add(xsdLink);
   }
-  CmsLink xsdLink=new CmsLink(null,CmsRelationType.XSD,schema,true);
-  xsdLink.checkConsistency(cms);
-  links.add(xsdLink);
   List<Locale> locales=xmlContent.getLocales();
   Iterator<Locale> i=locales.iterator();
   while (i.hasNext()) {
@@ -33,31 +30,13 @@
     Iterator<I_CmsXmlContentValue> j=values.iterator();
     while (j.hasNext()) {
       I_CmsXmlContentValue value=j.next();
-      if (value instanceof CmsXmlHtmlValue) {
-        CmsXmlHtmlValue htmlValue=(CmsXmlHtmlValue)value;
-        CmsLinkTable linkTable=htmlValue.getLinkTable();
-        Iterator<CmsLink> k=linkTable.iterator();
-        while (k.hasNext()) {
-          CmsLink link=k.next();
-          if (link.isInternal()) {
-            link.checkConsistency(cms);
-            links.add(link);
-          }
-        }
+      if (!(value instanceof CmsXmlVfsFileValue)) {
+        continue;
       }
- else       if (value instanceof CmsXmlVfsFileValue) {
-        CmsXmlVfsFileValue refValue=(CmsXmlVfsFileValue)value;
-        CmsLink link=refValue.getLink(cms);
-        if (link != null) {
-          links.add(link);
-        }
-      }
- else       if (value instanceof CmsXmlVarLinkValue) {
-        CmsXmlVarLinkValue refValue=(CmsXmlVarLinkValue)value;
-        CmsLink link=refValue.getLink(cms);
-        if ((link != null) && link.isInternal()) {
-          links.add(link);
-        }
+      CmsXmlVfsFileValue refValue=(CmsXmlVfsFileValue)value;
+      CmsLink link=refValue.getLink(cms);
+      if (link != null) {
+        links.add(link);
       }
     }
   }
