@@ -13,19 +13,25 @@
           mapping.addAttribute(A_SUFFIX,(String)mappings.get(j));
         }
       }
-      List properties=resType.getConfiguredDefaultProperties();
-      if ((properties != null) && (properties.size() > 0)) {
-        Element propertiesNode=resourceType.addElement(N_PROPERTIES);
-        Iterator p=properties.iterator();
-        while (p.hasNext()) {
-          CmsProperty property=(CmsProperty)p.next();
-          Element propertyNode=propertiesNode.addElement(N_PROPERTY);
-          propertyNode.addElement(N_NAME).addText(property.getName());
-          if (property.getStructureValue() != null) {
-            propertyNode.addElement(N_VALUE).addCDATA(property.getStructureValue());
-          }
-          if (property.getResourceValue() != null) {
-            propertyNode.addElement(N_VALUE).addAttribute(A_TYPE,CmsProperty.TYPE_SHARED).addCDATA(property.getResourceValue());
+      List<CmsProperty> properties=resType.getConfiguredDefaultProperties();
+      if (properties != null) {
+        if (resType instanceof CmsResourceTypeXmlSitemap) {
+          properties=new ArrayList<CmsProperty>(properties);
+          properties.remove(new CmsProperty(CmsPropertyDefinition.PROPERTY_TEMPLATE_ELEMENTS,null,null));
+        }
+        if (properties.size() > 0) {
+          Element propertiesNode=resourceType.addElement(N_PROPERTIES);
+          Iterator<CmsProperty> p=properties.iterator();
+          while (p.hasNext()) {
+            CmsProperty property=p.next();
+            Element propertyNode=propertiesNode.addElement(N_PROPERTY);
+            propertyNode.addElement(N_NAME).addText(property.getName());
+            if (property.getStructureValue() != null) {
+              propertyNode.addElement(N_VALUE).addCDATA(property.getStructureValue());
+            }
+            if (property.getResourceValue() != null) {
+              propertyNode.addElement(N_VALUE).addAttribute(A_TYPE,CmsProperty.TYPE_SHARED).addCDATA(property.getResourceValue());
+            }
           }
         }
       }
@@ -45,13 +51,17 @@
           }
         }
       }
-      Map prop=resType.getConfiguration();
+      Map<String,String> prop=resType.getConfiguration();
       if (prop != null) {
-        List sortedRuntimeProperties=new ArrayList(prop.keySet());
+        if ((resType instanceof CmsResourceTypeXmlContainerPage) || (resType instanceof CmsResourceTypeXmlSitemap)) {
+          prop=new HashMap<String,String>(prop);
+          prop.remove(CmsResourceTypeXmlContent.CONFIGURATION_SCHEMA);
+        }
+        List<String> sortedRuntimeProperties=new ArrayList<String>(prop.keySet());
         Collections.sort(sortedRuntimeProperties);
-        Iterator it=sortedRuntimeProperties.iterator();
+        Iterator<String> it=sortedRuntimeProperties.iterator();
         while (it.hasNext()) {
-          String key=(String)it.next();
+          String key=it.next();
           Object val=prop.get(key);
           resourceType.addElement(N_PARAM).addAttribute(A_NAME,key).addText(String.valueOf(val));
         }
