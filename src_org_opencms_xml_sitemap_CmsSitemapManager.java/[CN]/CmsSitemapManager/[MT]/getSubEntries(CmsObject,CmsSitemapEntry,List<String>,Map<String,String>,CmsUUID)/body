@@ -1,0 +1,28 @@
+{
+  List<CmsSitemapEntry> subEntries=entry.getSubEntries();
+  if (subEntries.isEmpty()) {
+    String subSitemapId=entry.getProperties().get(CmsSitemapManager.Property.sitemap.name());
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(subSitemapId)) {
+      CmsResource subSitemap=cms.readResource(new CmsUUID(subSitemapId));
+      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_SUBSITEMAP_2,logId,cms.getSitePath(subSitemap)).key());
+      CmsXmlSitemap sitemapXml=CmsXmlSitemapFactory.unmarshal(cms,subSitemap);
+      CmsSitemapBean sitemap=sitemapXml.getSitemap(cms,cms.getRequestContext().getLocale());
+      if (sitemap == null) {
+        return null;
+      }
+      properties.remove(CmsSitemapManager.Property.sitemap.name());
+      subEntries=sitemap.getSiteEntries();
+    }
+ else     if ((entryPaths.size() == 1) && CmsUUID.isValidUUID(entryPaths.get(0))) {
+      CmsUUID id=new CmsUUID(entryPaths.get(0));
+      CmsResource contentRes=cms.readResource(id);
+      String title=cms.readPropertyObject(contentRes,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(id.toString());
+      HashMap<String,String> entryProps=new HashMap<String,String>(entry.getProperties());
+      entryProps.put(Property.navigation.getName(),Boolean.FALSE.toString());
+      CmsSitemapEntry contentEntry=new CmsSitemapEntry(entry.getId(),entry.getOriginalUri(),entry.getResourceId(),id.toString(),title,entryProps,null,id);
+      LOG.debug(Messages.get().container(Messages.LOG_DEBUG_SITEMAP_FOUND_3,logId,new Integer(0),contentEntry.getRootPath()).key());
+      return Collections.singletonList(contentEntry);
+    }
+  }
+  return subEntries;
+}
