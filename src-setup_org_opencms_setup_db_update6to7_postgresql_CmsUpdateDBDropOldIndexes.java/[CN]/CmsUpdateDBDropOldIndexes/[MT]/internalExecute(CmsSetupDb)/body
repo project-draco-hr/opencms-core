@@ -1,0 +1,43 @@
+{
+  List<String> tablenames=CMS_TABLES_LIST;
+  for (Iterator<String> tableIterator=tablenames.iterator(); tableIterator.hasNext(); ) {
+    String tablename=tableIterator.next().toLowerCase();
+    System.out.println("dropping indexes for table " + tablename);
+    if (dbCon.hasTableOrColumn(tablename,null)) {
+      try {
+        List<String> constraints=getConstraints(dbCon,tablename);
+        Iterator<String> iter=constraints.iterator();
+        while (iter.hasNext()) {
+          String constraint=iter.next();
+          String dropConstraint=readQuery(QUERY_DROP_CONSTRAINT);
+          Map<String,String> replacer=new HashMap<String,String>();
+          replacer.put(REPLACEMENT_TABLENAME,tablename);
+          replacer.put(REPLACEMENT_INDEX_ORACLE,constraint);
+          dbCon.updateSqlStatement(dropConstraint,replacer,null);
+        }
+        List<String> indexes=getIndexes(dbCon,tablename);
+        iter=indexes.iterator();
+        while (iter.hasNext()) {
+          String index=iter.next();
+          String dropIndex=readQuery(QUERY_DROP_INDEX);
+          Map<String,String> replacerIndex=new HashMap<String,String>();
+          replacerIndex.put(REPLACEMENT_INDEX_ORACLE,index);
+          dbCon.updateSqlStatement(dropIndex,replacerIndex,null);
+        }
+      }
+ catch (      SQLException e) {
+        e.printStackTrace();
+      }
+    }
+  }
+  for (Iterator<String> tempIndexes=TEMP_INDEXES_LIST.iterator(); tempIndexes.hasNext(); ) {
+    try {
+      String createIndex=tempIndexes.next();
+      String creationQuery=readQuery(createIndex);
+      dbCon.updateSqlStatement(creationQuery,null,null);
+    }
+ catch (    SQLException e) {
+      e.printStackTrace();
+    }
+  }
+}

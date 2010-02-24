@@ -1,0 +1,62 @@
+{
+  System.out.println(new Exception().getStackTrace()[0].toString());
+  try {
+    if (dbCon.hasTableOrColumn(CMS_USERS_TABLE,USER_TYPE)) {
+      CmsUUID id=createWebusersGroup(dbCon);
+      addWebusersToGroup(dbCon,id);
+    }
+ else {
+      System.out.println("table " + CHECK_CMS_USERDATA + " already exists");
+    }
+  }
+ catch (  SQLException e) {
+    e.printStackTrace();
+  }
+  try {
+    if (!checkUserDataTable(dbCon)) {
+      createUserDataTable(dbCon);
+      String query=readQuery(QUERY_SELECT_USER_DATA);
+      CmsSetupDBWrapper db=null;
+      try {
+        db=dbCon.executeSqlStatement(query,null);
+        while (db.getResultSet().next()) {
+          String userID=(String)db.getResultSet().getObject(RESULTSET_USER_ID);
+          try {
+            byte[] blob=db.getResultSet().getBytes(RESULTSET_USER_INFO);
+            ByteArrayInputStream bin=new ByteArrayInputStream(blob);
+            ObjectInputStream oin=new ObjectInputStream(bin);
+            Map<String,Object> infos=CmsCollectionsGenericWrapper.map(oin.readObject());
+            if (infos == null) {
+              infos=new HashMap<String,Object>();
+            }
+            String userAddress=(String)db.getResultSet().getObject(USER_ADDRESS);
+            if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(userAddress)) {
+              infos.put(USER_ADDRESS,userAddress);
+            }
+            String userDescription=(String)db.getResultSet().getObject(USER_DESCRIPTION);
+            if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(userDescription)) {
+              infos.put(USER_DESCRIPTION,userDescription);
+            }
+            writeAdditionalUserInfo(dbCon,userID,infos);
+          }
+ catch (          Throwable e) {
+            e.printStackTrace();
+          }
+        }
+      }
+  finally {
+        if (db != null) {
+          db.close();
+        }
+      }
+      addUserDateCreated(dbCon);
+      removeUnnecessaryColumns(dbCon);
+    }
+ else {
+      System.out.println("table " + CHECK_CMS_USERDATA + " already exists");
+    }
+  }
+ catch (  SQLException e) {
+    e.printStackTrace();
+  }
+}

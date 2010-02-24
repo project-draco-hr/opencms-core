@@ -1,0 +1,57 @@
+{
+  Iterator<CmsSetupComponent> itGroups=new ArrayList<CmsSetupComponent>(CmsCollectionsGenericWrapper.<CmsSetupComponent>list(m_components.elementList())).iterator();
+  while (itGroups.hasNext()) {
+    CmsSetupComponent component=itGroups.next();
+    String errMsg="";
+    String warnMsg="";
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(component.getName())) {
+      errMsg+=Messages.get().container(Messages.ERR_COMPONENT_NAME_EMPTY_1,component.getId()).key();
+      errMsg+="\n";
+    }
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(component.getName())) {
+      warnMsg+=Messages.get().container(Messages.LOG_WARN_COMPONENT_DESC_EMPTY_1,component.getId()).key();
+      warnMsg+="\n";
+    }
+    if (component.getPosition() == DEFAULT_POSITION) {
+      warnMsg+=Messages.get().container(Messages.LOG_WARN_COMPONENT_POS_EMPTY_1,component.getId()).key();
+      warnMsg+="\n";
+    }
+    Iterator<String> itDeps=component.getDependencies().iterator();
+    while (itDeps.hasNext()) {
+      String dependency=itDeps.next();
+      if (m_components.getObject(dependency) == null) {
+        errMsg+=Messages.get().container(Messages.LOG_WARN_COMPONENT_DEPENDENCY_BROKEN_2,component.getId(),dependency).key();
+        errMsg+="\n";
+      }
+    }
+    boolean match=false;
+    Iterator<String> itModules=modules.iterator();
+    while (itModules.hasNext()) {
+      String module=itModules.next();
+      if (component.match(module)) {
+        match=true;
+        itModules.remove();
+      }
+    }
+    if (!match) {
+      errMsg+=Messages.get().container(Messages.ERR_COMPONENT_MODULES_EMPTY_1,component.getId()).key();
+      errMsg+="\n";
+    }
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(errMsg)) {
+      m_components.removeObject(component.getId());
+      if (LOG.isErrorEnabled()) {
+        LOG.error(errMsg);
+      }
+    }
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(warnMsg)) {
+      if (LOG.isWarnEnabled()) {
+        LOG.warn(warnMsg);
+      }
+    }
+  }
+  if (!modules.isEmpty()) {
+    if (LOG.isWarnEnabled()) {
+      LOG.warn(Messages.get().container(Messages.LOG_WARN_MODULES_LEFT_1,modules.toString()));
+    }
+  }
+}
