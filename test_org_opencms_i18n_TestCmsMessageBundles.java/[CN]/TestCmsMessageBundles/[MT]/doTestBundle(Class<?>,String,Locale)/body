@@ -1,0 +1,131 @@
+{
+  List keys=new ArrayList();
+  System.out.println("\nValidating all keys in bundle " + bundleName + " for locale "+ locale+ ":");
+  CmsMessages messages=getMessageBundle(bundleName,locale);
+  List errorMessages=new ArrayList();
+  Field[] fields=clazz.getDeclaredFields();
+  for (int i=0; i < fields.length; i++) {
+    Field field=fields[i];
+    if (!field.getType().equals(String.class) || !Modifier.isStatic(field.getModifiers())) {
+      continue;
+    }
+    String key=field.getName();
+    String value;
+    try {
+      value=(String)field.get(null);
+    }
+ catch (    IllegalAccessException e) {
+      continue;
+    }
+    System.out.println("Validating key '" + key + "': '"+ messages.key(key)+ "'");
+    if (!key.equals(value)) {
+      errorMessages.add("Key '" + key + "' has bad value '"+ value+ "'.");
+    }
+    String message=messages.key(key);
+    boolean isPresent=!CmsMessages.isUnknownKey(message);
+    boolean testKeyValue=false;
+    if (Locale.ENGLISH.equals(locale)) {
+      testKeyValue=true;
+    }
+ else {
+      boolean isAdditionalKey=!key.toUpperCase().equals(key);
+      testKeyValue=(isAdditionalKey || key.startsWith(KEY_PREFIX_ERR) || key.startsWith(KEY_PREFIX_GUI)|| key.startsWith(KEY_PREFIX_RPT));
+    }
+    if (testKeyValue && !isPresent) {
+      errorMessages.add("No message for '" + key + "' in bundle.");
+    }
+    if (key.length() < 7) {
+      errorMessages.add("Key '" + key + "' is too short (length must be at least 7).");
+    }
+    if (!key.equals(key.toUpperCase())) {
+      errorMessages.add("Key '" + key + "' must be all upper case.");
+    }
+    if ((key.charAt(key.length() - 2) != '_') || (!key.startsWith(KEY_PREFIX_ERR) && !key.startsWith(KEY_PREFIX_GUI) && !key.startsWith(KEY_PREFIX_INIT)&& !key.startsWith(KEY_PREFIX_LOG)&& !key.startsWith(KEY_PREFIX_RPT))) {
+      errorMessages.add("Key '" + key + "' must have the form {ERR|LOG|INIT|GUI|RPT}_KEYNAME_{0-9}.");
+      continue;
+    }
+    int argCount=0;
+    try {
+      argCount=Integer.valueOf(key.substring(key.length() - 1)).intValue();
+    }
+ catch (    Throwable e) {
+      errorMessages.add("Key '" + key + "' must end in the number of parameters.");
+      continue;
+    }
+    if (testKeyValue && isPresent) {
+      for (int j=0; j < argCount; j++) {
+        String arg="{" + j;
+        int pos=message.indexOf(arg);
+        if (pos < 0) {
+          errorMessages.add("Message '" + message + "' for key '"+ key+ "' misses argument {"+ j+ "}.");
+        }
+      }
+      for (int j=argCount; j < 10; j++) {
+        String arg="{" + j;
+        int pos=message.indexOf(arg);
+        if (pos >= 0) {
+          errorMessages.add("Message '" + message + "' for key '"+ key+ "' contains unused argument {"+ j+ "}.");
+        }
+      }
+    }
+    keys.add(key);
+  }
+  Enumeration bundleKeys=messages.getResourceBundle().getKeys();
+  while (bundleKeys.hasMoreElements()) {
+    String bundleKey=(String)bundleKeys.nextElement();
+    if (bundleKey.toUpperCase().equals(bundleKey)) {
+      if (!keys.contains(bundleKey)) {
+        errorMessages.add("Bundle contains unreferenced message '" + bundleKey + "'.");
+      }
+    }
+ else {
+      System.out.println("Additional key '" + bundleKey + "' in bundle.");
+    }
+  }
+  Locale defLocale=Locale.ENGLISH;
+  if (!defLocale.equals(locale)) {
+    ResourceBundle resBundle=messages.getResourceBundle();
+    ResourceBundle enResBundle=getMessageBundle(bundleName,defLocale).getResourceBundle();
+    bundleKeys=enResBundle.getKeys();
+    while (bundleKeys.hasMoreElements()) {
+      String bundleKey=(String)bundleKeys.nextElement();
+      if (!bundleKey.toUpperCase().equals(bundleKey)) {
+        String keyValue;
+        try {
+          keyValue=resBundle.getString(bundleKey);
+        }
+ catch (        MissingResourceException e) {
+          errorMessages.add("Additional key '" + bundleKey + "' missing.");
+          continue;
+        }
+        String enKeyValue=enResBundle.getString(bundleKey);
+        boolean[] args=new boolean[10];
+        for (int j=0; j < args.length; j++) {
+          String arg="{" + j;
+          int pos=enKeyValue.indexOf(arg);
+          args[j]=pos >= 0;
+        }
+        for (int j=0; j < args.length; j++) {
+          String arg="{" + j;
+          int pos=keyValue.indexOf(arg);
+          if ((pos < 0) && (args[j])) {
+            errorMessages.add("Additional message '" + keyValue + "' for key '"+ bundleKey+ "' misses argument {"+ j+ "} from master bundle.");
+          }
+ else           if ((pos >= 0) && (!args[j])) {
+            errorMessages.add("Additional message '" + keyValue + "' for key '"+ bundleKey+ "' contains argument {"+ j+ "} not used in master bundle.");
+          }
+        }
+      }
+    }
+  }
+  if (!errorMessages.isEmpty()) {
+    String msg="Errors for bundle '" + bundleName + "' and Locale '"+ locale+ "':";
+    Iterator it=errorMessages.iterator();
+    while (it.hasNext()) {
+      msg+="\n     - ";
+      msg+=it.next();
+    }
+    return msg + "\n";
+  }
+  return "";
+}
