@@ -1,0 +1,43 @@
+{
+  boolean online=getCmsObject().getRequestContext().currentProject().isOnlineProject();
+  if (online && (m_serPolicyOnline != null)) {
+    return m_serPolicyOnline;
+  }
+ else   if (!online && (m_serPolicyOffline != null)) {
+    return m_serPolicyOffline;
+  }
+  SerializationPolicy serializationPolicy=null;
+  InputStream is;
+  try {
+    is=new ByteArrayInputStream(getCmsObject().readFile(m_serializationPolicyPath).getContents());
+  }
+ catch (  CmsException ex) {
+    String message="ERROR: The serialization policy file '" + m_serializationPolicyPath + "' was not found; did you forget to include it in this deployment?";
+    this.log(message);
+    LOG.error(ex.getLocalizedMessage(),ex);
+    return null;
+  }
+  try {
+    serializationPolicy=SerializationPolicyLoader.loadFromStream(is,null);
+  }
+ catch (  ParseException e) {
+    this.log("ERROR: Failed to parse the policy file '" + m_serializationPolicyPath + "'",e);
+  }
+catch (  IOException e) {
+    this.log("ERROR: Could not read the policy file '" + m_serializationPolicyPath + "'",e);
+  }
+ finally {
+    try {
+      is.close();
+    }
+ catch (    IOException e) {
+    }
+  }
+  if (online) {
+    m_serPolicyOnline=serializationPolicy;
+  }
+ else {
+    m_serPolicyOffline=serializationPolicy;
+  }
+  return serializationPolicy;
+}
