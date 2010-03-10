@@ -1,19 +1,21 @@
 {
+  Map<String,CmsXmlSitemap> active=getActive(cms.getRequestContext().currentProject());
   String rootUri=cms.getRequestContext().addSiteRoot(uri);
-  CmsRelation bestMatch=null;
-  for (  CmsRelation relation : cms.readRelations(CmsRelationFilter.TARGETS.filterType(CmsRelationType.ENTRY_POINT))) {
-    if (CmsResource.isTemporaryFileName(relation.getSourcePath()) || CmsResource.isTemporaryFileName(relation.getTargetPath())) {
+  String localeUri=cms.getRequestContext().getLocale().toString() + rootUri;
+  Map.Entry<String,CmsXmlSitemap> bestMatch=null;
+  for (  Map.Entry<String,CmsXmlSitemap> entry : active.entrySet()) {
+    String key=entry.getKey();
+    if (!key.startsWith(localeUri)) {
       continue;
     }
-    if (!rootUri.startsWith(relation.getTargetPath())) {
-      continue;
-    }
-    if ((bestMatch == null) || (!findRoot && relation.getTargetPath().startsWith(bestMatch.getTargetPath()) && (relation.getTargetPath().length() != bestMatch.getTargetPath().length())) || (findRoot && bestMatch.getTargetPath().startsWith(relation.getTargetPath()))) {
-      bestMatch=relation;
+    if ((bestMatch == null) || (!findRoot && key.startsWith(bestMatch.getKey()) && (key.length() != bestMatch.getKey().length())) || (findRoot && bestMatch.getKey().startsWith(key))) {
+      if (cms.existsResource(entry.getValue().getFile().getStructureId())) {
+        bestMatch=entry;
+      }
     }
   }
   if (bestMatch == null) {
     return null;
   }
-  return CmsXmlSitemapFactory.unmarshal(cms,cms.readResource(bestMatch.getSourceId()));
+  return bestMatch.getValue();
 }
