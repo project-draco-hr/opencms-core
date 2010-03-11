@@ -1,59 +1,55 @@
 {
   super.onModuleLoad();
   RootPanel.get().add(new Label(Messages.get().key(Messages.GUI_LOADING_0)));
-  CmsRpcAction<CmsClientSitemapEntry> getSitemapAction=new CmsRpcAction<CmsClientSitemapEntry>(){
-    /** 
- * The sitemap service instance. 
- */
-    private I_CmsSitemapServiceAsync m_sitemapSvc;
+  CmsRpcAction<CmsClientSitemapEntry> getRootAction=new CmsRpcAction<CmsClientSitemapEntry>(){
     /** 
  * @see org.opencms.gwt.client.rpc.CmsRpcAction#execute()
  */
     @Override public void execute(){
-      start(0);
-      getSitemapService().getSitemap(this);
+      start(1000);
+      getSitemapService().getSitemapEntry("/demo_t3/",this);
     }
     /** 
  * @see org.opencms.gwt.client.rpc.CmsRpcAction#onResponse(java.lang.Object)
  */
-    @Override public void onResponse(    CmsClientSitemapEntry result){
+    @Override public void onResponse(    CmsClientSitemapEntry root){
+      root.setName("demo_t3");
       RootPanel.get().clear();
-      Tree tree=new Tree();
-      addEntry(tree,null,result);
+      CmsLazyTree<CmsSitemapTreeItem> tree=new CmsLazyTree<CmsSitemapTreeItem>(new A_CmsLazyOpenHandler<CmsSitemapTreeItem>(){
+        /** 
+ * @see org.opencms.gwt.client.ui.lazytree.I_CmsLazyOpenHandler#load(org.opencms.gwt.client.ui.lazytree.CmsLazyTreeItem)
+ */
+        public void load(        final CmsSitemapTreeItem target){
+          CmsRpcAction<CmsClientSitemapEntry[]> getChildrenAction=new CmsRpcAction<CmsClientSitemapEntry[]>(){
+            /** 
+ * @see org.opencms.gwt.client.rpc.CmsRpcAction#execute()
+ */
+            @Override public void execute(){
+              start(1000);
+              getSitemapService().getSitemapChildren(target.getEntry().getSitePath(),this);
+            }
+            /** 
+ * @see org.opencms.gwt.client.rpc.CmsRpcAction#onResponse(java.lang.Object)
+ */
+            @Override public void onResponse(            CmsClientSitemapEntry[] result){
+              target.removeItems();
+              for (              CmsClientSitemapEntry entry : result) {
+                target.addItem(entry);
+              }
+              target.setState(true);
+              stop();
+            }
+          }
+;
+          getChildrenAction.execute();
+        }
+      }
+);
+      tree.addItem(new CmsSitemapTreeItem(root));
       RootPanel.get().add(tree);
       stop();
     }
-    /** 
- * Adds recursively the given sitemap entry to the given tree widget.<p>
- * @param tree the tree
- * @param parent the parent node, initially <code>null</code>
- * @param entry the sitemap entry to add
- */
-    private void addEntry(    Tree tree,    TreeItem parent,    CmsClientSitemapEntry entry){
-      TreeItem treeItem;
-      if (parent == null) {
-        treeItem=tree.addItem(Messages.get().key(Messages.GUI_SITEMAP_0));
-      }
- else {
-        Anchor link=new Anchor(entry.getName(),CmsCoreProvider.get().link(entry.getSitePath()));
-        treeItem=parent.addItem(link);
-      }
-      treeItem.setState(true);
-      for (      CmsClientSitemapEntry entries : entry.getSubEntries()) {
-        addEntry(tree,treeItem,entries);
-      }
-    }
-    /** 
- * Returns the sitemap service instance.<p>
- * @return the sitemap service instance
- */
-    private I_CmsSitemapServiceAsync getSitemapService(){
-      if (m_sitemapSvc == null) {
-        m_sitemapSvc=GWT.create(I_CmsSitemapService.class);
-      }
-      return m_sitemapSvc;
-    }
   }
 ;
-  getSitemapAction.execute();
+  getRootAction.execute();
 }
