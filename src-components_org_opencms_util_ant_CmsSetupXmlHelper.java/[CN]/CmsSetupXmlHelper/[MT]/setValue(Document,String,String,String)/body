@@ -1,0 +1,68 @@
+{
+  int changes=0;
+  Iterator<Node> itNodes=document.selectNodes(xPath).iterator();
+  if (!itNodes.hasNext()) {
+    if (value == null) {
+      return 0;
+    }
+    Iterator<String> it=CmsStringUtil.splitAsList(xPath,"/",false).iterator();
+    Node currentNode=document;
+    while (it.hasNext()) {
+      String nodeName=it.next();
+      while ((nodeName.indexOf("='") > 0) && (nodeName.indexOf("']") < 0)) {
+        nodeName+="/" + it.next();
+      }
+      Node node=currentNode.selectSingleNode(nodeName);
+      if (node != null) {
+        currentNode=node;
+        if (!it.hasNext()) {
+          currentNode.setText(value);
+        }
+      }
+ else       if (currentNode.getNodeType() == Node.ELEMENT_NODE) {
+        Element elem=(Element)currentNode;
+        if (!nodeName.startsWith("@")) {
+          elem=handleNode(elem,nodeName);
+          if (!it.hasNext() && !CmsStringUtil.isEmptyOrWhitespaceOnly(value)) {
+            elem.setText(value);
+          }
+        }
+ else {
+          elem.addAttribute(nodeName.substring(1),value);
+        }
+        currentNode=elem;
+      }
+ else {
+        break;
+      }
+    }
+    if (nodeToInsert == null) {
+      return 1;
+    }
+    itNodes=document.selectNodes(xPath).iterator();
+  }
+  while (itNodes.hasNext()) {
+    Node node=itNodes.next();
+    if (nodeToInsert == null) {
+      if (value != null) {
+        node.setText(value);
+      }
+ else {
+        node.getParent().remove(node);
+      }
+    }
+ else {
+      Element parent=node.getParent();
+      Element elem=handleNode(parent,nodeToInsert);
+      if (value != null) {
+        elem.setText(value);
+      }
+      List<Node> list=parent.content();
+      list.remove(list.size() - 1);
+      int pos=list.indexOf(node);
+      list.add(pos + 1,elem);
+    }
+    changes++;
+  }
+  return changes;
+}

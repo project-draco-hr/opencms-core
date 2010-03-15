@@ -1,0 +1,44 @@
+{
+  String childrenPart=null;
+  String nodeName;
+  int pos=xpathName.indexOf("[");
+  if (pos > 0) {
+    childrenPart=xpathName.substring(pos + 1,xpathName.length() - 1);
+    nodeName=xpathName.substring(0,pos);
+  }
+ else {
+    nodeName=xpathName;
+  }
+  Element elem=parent.addElement(nodeName);
+  if (childrenPart != null) {
+    pos=childrenPart.indexOf("[");
+    if ((pos > 0) && (childrenPart.indexOf("]") > pos)) {
+      handleNode(elem,childrenPart);
+      return elem;
+    }
+    Map<String,String> children=CmsStringUtil.splitAsMap(childrenPart,"][","=");
+    for (    Map.Entry<String,String> child : children.entrySet()) {
+      String childName=child.getKey();
+      String childValue=child.getValue();
+      if (childValue.startsWith("'")) {
+        childValue=childValue.substring(1);
+      }
+      if (childValue.endsWith("'")) {
+        childValue=childValue.substring(0,childValue.length() - 1);
+      }
+      if (childName.startsWith("@")) {
+        elem.addAttribute(childName.substring(1),childValue);
+      }
+ else       if (childName.equals("text()")) {
+        elem.setText(childValue);
+      }
+ else       if (!childName.contains("(")) {
+        Element childElem=elem.addElement(childName);
+        if (!CmsStringUtil.isEmptyOrWhitespaceOnly(childValue)) {
+          childElem.addText(childValue);
+        }
+      }
+    }
+  }
+  return elem;
+}
