@@ -2,7 +2,7 @@
   if (!isStaticExportEnabled()) {
     return false;
   }
-  String cacheKey=resource.getRootPath();
+  String cacheKey=getCacheKey(cms.getRequestContext().getSiteRoot(),vfsName);
   Boolean exportResource=m_cacheExportLinks.get(cacheKey);
   if (exportResource != null) {
     return exportResource.booleanValue();
@@ -11,20 +11,21 @@
   try {
     CmsObject exportCms=OpenCms.initCmsObject(OpenCms.getDefaultUsers().getUserExport());
     exportCms.getRequestContext().setSiteRoot(cms.getRequestContext().getSiteRoot());
-    String exportValue=exportCms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_EXPORT,true).getValue();
+    CmsSitemapEntry entry=OpenCms.getSitemapManager().getEntryForUri(exportCms,vfsName);
+    String exportValue=exportCms.readPropertyObject(exportCms.readResource(entry.getResourceId()),CmsPropertyDefinition.PROPERTY_EXPORT,true).getValue();
     if (exportValue == null) {
       if (getExportPropertyDefault()) {
         result=true;
       }
  else {
-        result=isSuffixExportable(resource.getName());
+        result=isSuffixExportable(vfsName);
       }
     }
  else {
       result=Boolean.valueOf(exportValue).booleanValue();
     }
   }
- catch (  Exception e) {
+ catch (  CmsException e) {
     LOG.debug(e.getLocalizedMessage(),e);
   }
   m_cacheExportLinks.put(cacheKey,Boolean.valueOf(result));
