@@ -1,0 +1,34 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,request,getResponse());
+  Map<String,CmsContainerElement> result=new HashMap<String,CmsContainerElement>();
+  Set<String> ids=new HashSet<String>();
+  Iterator<String> it=clientIds.iterator();
+  while (it.hasNext()) {
+    String elemId=it.next();
+    if (ids.contains(elemId)) {
+      continue;
+    }
+    CmsContainerElementBean element=getCachedElement(elemId);
+    CmsContainerElement elementData=elemUtil.getElementData(element,types);
+    result.put(element.getClientId(),elementData);
+    if (elementData.isSubContainer()) {
+      CmsResource elementRes=cms.readResource(element.getElementId());
+      CmsXmlSubContainer xmlSubContainer=CmsXmlSubContainerFactory.unmarshal(cms,elementRes,getRequest());
+      CmsSubContainerBean subContainer=xmlSubContainer.getSubContainer(cms,cms.getRequestContext().getLocale());
+      for (      CmsContainerElementBean subElement : subContainer.getElements()) {
+        if (!ids.contains(subElement.getElementId())) {
+          String subId=subElement.getClientId();
+          if (ids.contains(subId)) {
+            continue;
+          }
+          CmsContainerElement subItemData=elemUtil.getElementData(subElement,types);
+          ids.add(subId);
+          result.put(subId,subItemData);
+        }
+      }
+    }
+    ids.add(elemId);
+  }
+  return result;
+}

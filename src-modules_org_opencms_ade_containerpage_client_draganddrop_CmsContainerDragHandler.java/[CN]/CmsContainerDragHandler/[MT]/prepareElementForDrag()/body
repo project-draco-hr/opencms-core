@@ -1,0 +1,52 @@
+{
+  m_targetInfos=new HashMap<I_CmsDragTargetContainer,DragInfo>();
+  m_placeholder=createPlaceholder(m_dragElement);
+  m_startInfo=new DragInfo(m_dragElement,m_placeholder,m_cursorOffsetLeft,m_cursorOffsetTop);
+  m_current=m_startInfo;
+  m_targetInfos.put(m_currentTarget,m_current);
+  prepareElement(m_current,m_currentTarget,false);
+  m_targets=new ArrayList<I_CmsDragTargetContainer>();
+  m_targets.add(m_currentTarget);
+  m_currentTarget.highlightContainer();
+  String clientId=((CmsDragContainerElement)m_dragElement).getClientId();
+  CmsContainerpageDataProvider.get().getElement(clientId,new I_CmsSimpleCallback<CmsContainerElement>(){
+    @Override public void execute(    CmsContainerElement arg){
+      if (arg != null) {
+        Iterator<Entry<String,CmsDragTargetContainer>> it=CmsContainerpageDataProvider.get().getContainerTargets().entrySet().iterator();
+        while (it.hasNext()) {
+          Entry<String,CmsDragTargetContainer> entry=it.next();
+          String containerType=CmsContainerpageDataProvider.get().getContainerType(entry.getKey());
+          if (arg.getContents().containsKey(containerType) && (entry.getValue() != getDragElement().getDragParent())) {
+            Element wrapperDiv=DOM.createDiv();
+            wrapperDiv.setInnerHTML(arg.getContents().get(containerType));
+            Element elementRoot=(Element)wrapperDiv.getFirstChildElement();
+            DOM.removeChild(wrapperDiv,elementRoot);
+            while ((elementRoot != null) && (elementRoot.getTagName().toLowerCase() == "script")) {
+              elementRoot=(Element)wrapperDiv.getFirstChildElement();
+              DOM.removeChild(wrapperDiv,elementRoot);
+            }
+            if (elementRoot == null) {
+              CmsContainerpageEditor.INSTANCE.getDebug().printLine("Element " + arg.toString() + " has no appropriate root element for container-type: "+ containerType);
+              continue;
+            }
+            CmsDragContainerElement dragElement=new CmsDragContainerElement(elementRoot,entry.getValue(),arg.getClientId());
+            entry.getValue().add(dragElement);
+            CmsContainerDragHandler.get().registerMouseHandler(dragElement);
+            int offsetLeft=dragElement.getOffsetWidth() - 20;
+            DragInfo info=new DragInfo(dragElement,createPlaceholder(dragElement),offsetLeft,20);
+            addTargetInfo(entry.getValue(),info);
+            prepareElement(info,entry.getValue(),true);
+            addDragTarget(entry.getValue());
+            entry.getValue().highlightContainer();
+            if (wrapperDiv.hasChildNodes()) {
+              CmsContainerpageEditor.INSTANCE.getDebug().printLine("Element " + arg.toString() + " has more than a single root element for container-type: "+ containerType);
+            }
+          }
+        }
+      }
+    }
+    @Override public void onError(    String message){
+    }
+  }
+);
+}
