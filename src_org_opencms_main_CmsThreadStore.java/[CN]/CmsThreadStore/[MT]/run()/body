@@ -1,87 +1,23 @@
 {
-  int m_minutesForSessionUpdate=0;
-  int minutesForPublishEngineCheck=0;
+  boolean checkPublishQueue=true;
+  int minutesForCheck=0;
   while (m_alive) {
     try {
-      sleep(60000);
+      sleep(ONE_MINUTE_IN_MILLIS);
     }
  catch (    InterruptedException e) {
     }
-    try {
-      Iterator<CmsUUID> i;
-      i=m_threads.keySet().iterator();
-      Set<CmsUUID> doomed=new HashSet<CmsUUID>();
-      while (i.hasNext()) {
-        CmsUUID key=i.next();
-        A_CmsReportThread thread=m_threads.get(key);
-        if (thread.isDoomed()) {
-          doomed.add(key);
-          if (LOG.isDebugEnabled()) {
-            LOG.debug(Messages.get().getBundle().key(Messages.LOG_THREADSTORE_DOOMED_2,thread.getName(),thread.getUUID()));
-          }
-        }
-      }
-      i=doomed.iterator();
-      while (i.hasNext()) {
-        m_threads.remove(i.next());
-      }
-      if (LOG.isDebugEnabled()) {
-        dumpThreads();
-      }
+    handleDoomedThreads();
+    minutesForCheck++;
+    if (minutesForCheck < UPDATE_MINUTES_INTERVAL) {
+      continue;
     }
- catch (    Throwable t) {
-      LOG.error(Messages.get().getBundle().key(Messages.LOG_THREADSTORE_CHECK_THREADS_ERROR_0),t);
-    }
-    m_minutesForSessionUpdate++;
-    if (m_minutesForSessionUpdate >= 5) {
-      m_minutesForSessionUpdate=0;
-      try {
-        CmsSessionManager sessionInfoManager=OpenCms.getSessionManager();
-        if (sessionInfoManager != null) {
-          sessionInfoManager.validateSessionInfos();
-        }
-      }
- catch (      Throwable t) {
-        LOG.error(Messages.get().getBundle().key(Messages.LOG_THREADSTORE_CHECK_SESSIONS_ERROR_0),t);
-      }
-      try {
-        m_securityManager.writeLocks();
-        m_securityManager.updateLog();
-      }
- catch (      Throwable t) {
-        if (LOG.isErrorEnabled()) {
-          LOG.error(org.opencms.lock.Messages.get().getBundle().key(org.opencms.lock.Messages.ERR_WRITE_LOCKS_0),t);
-        }
-      }
-    }
-    minutesForPublishEngineCheck++;
-    if (minutesForPublishEngineCheck >= 10) {
-      minutesForPublishEngineCheck=0;
-      try {
-        CmsPublishManager publishManager=OpenCms.getPublishManager();
-        if (publishManager == null) {
-          continue;
-        }
-        CmsPublishJobRunning publishJob=publishManager.getCurrentPublishJob();
-        if (publishJob != null) {
-          CmsUUID uid=publishJob.getThreadUUID();
-          if ((uid != null) && (!uid.isNullUUID())) {
-            A_CmsReportThread thread=m_threads.get(uid);
-            if (thread != null) {
-              if (CmsStringUtil.isEmptyOrWhitespaceOnly(thread.getReportUpdate())) {
-                if (LOG.isDebugEnabled()) {
-                  LOG.debug(Messages.get().getBundle().key(Messages.LOG_THREADSTORE_PUBLISH_THREAD_INTERRUPT_2,thread.getName(),thread.getUUID()));
-                }
-                thread.interrupt();
-                publishManager.checkCurrentPublishJobThread();
-              }
-            }
-          }
-        }
-      }
- catch (      Throwable t) {
-        LOG.error(Messages.get().getBundle().key(Messages.LOG_THREADSTORE_CHECK_PUBLISH_THREAD_ERROR_0),t);
-      }
+    minutesForCheck=0;
+    checkPublishQueue=!checkPublishQueue;
+    validateSessions();
+    persistData();
+    if (checkPublishQueue) {
+      checkPublishQueue();
     }
   }
 }

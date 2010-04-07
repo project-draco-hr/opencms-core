@@ -1,8 +1,9 @@
 {
-  unlockPublishList(publishJob);
-  if ((m_currentPublishThread != null) && (m_currentPublishThread.isAborted())) {
-    new Thread(this).start();
-    return;
+  try {
+    unlockPublishList(publishJob);
+  }
+ catch (  Throwable t) {
+    LOG.error(t.getLocalizedMessage(),t);
   }
   CmsDbContext dbc=m_dbContextFactory.getDbContext(publishJob.getCmsObject().getRequestContext());
   try {
@@ -25,15 +26,27 @@
     }
     dbc=null;
   }
-  m_listeners.fireFinish(new CmsPublishJobRunning(publishJob));
-  publishJob.finish();
+  try {
+    m_listeners.fireFinish(new CmsPublishJobRunning(publishJob));
+  }
+ catch (  Throwable t) {
+    LOG.error(t.getLocalizedMessage(),t);
+  }
+  try {
+    publishJob.finish();
+  }
+ catch (  Throwable t) {
+    LOG.error(t.getLocalizedMessage(),t);
+  }
   try {
     m_publishHistory.add(publishJob);
   }
  catch (  Throwable t) {
     LOG.error(t.getLocalizedMessage(),t);
   }
-  m_currentPublishThread=null;
+  if (Thread.currentThread() == m_currentPublishThread) {
+    m_currentPublishThread=null;
+  }
   OpenCms.getMemoryMonitor().flushCache(CmsMemoryMonitor.CacheType.PUBLISHED_RESOURCES);
-  new Thread(this).start();
+  checkCurrentPublishJobThread();
 }
