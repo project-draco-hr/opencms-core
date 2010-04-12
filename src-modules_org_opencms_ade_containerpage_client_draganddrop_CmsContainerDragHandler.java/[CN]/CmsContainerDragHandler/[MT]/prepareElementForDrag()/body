@@ -24,29 +24,18 @@
           Entry<String,CmsDragTargetContainer> entry=it.next();
           String containerType=CmsContainerpageDataProvider.get().getContainerType(entry.getKey());
           if (arg.getContents().containsKey(containerType) && (entry.getValue() != getDragElement().getDragParent())) {
-            Element wrapperDiv=DOM.createDiv();
-            wrapperDiv.setInnerHTML(arg.getContents().get(containerType));
-            Element elementRoot=(Element)wrapperDiv.getFirstChildElement();
-            DOM.removeChild(wrapperDiv,elementRoot);
-            while ((elementRoot != null) && (elementRoot.getTagName().toLowerCase() == "script")) {
-              elementRoot=(Element)wrapperDiv.getFirstChildElement();
-              DOM.removeChild(wrapperDiv,elementRoot);
+            try {
+              CmsDragContainerElement dragElement=CmsContainerpageDataProvider.get().getContainerpageUtil().createElement(arg,entry.getValue(),containerType);
+              entry.getValue().add(dragElement);
+              int offsetLeft=dragElement.getOffsetWidth() - 20;
+              DragInfo info=new DragInfo(dragElement,createPlaceholder(dragElement),offsetLeft,20);
+              addTargetInfo(entry.getValue(),info);
+              prepareElement(info,entry.getValue(),true);
+              addDragTarget(entry.getValue());
+              entry.getValue().highlightContainer();
             }
-            if (elementRoot == null) {
-              CmsDebugLog.getInstance().printLine("Element " + arg.toString() + " has no appropriate root element for container-type: "+ containerType);
+ catch (            Exception e) {
               continue;
-            }
-            CmsDragContainerElement dragElement=new CmsDragContainerElement(elementRoot,entry.getValue(),arg.getClientId());
-            entry.getValue().add(dragElement);
-            CmsContainerDragHandler.get().registerMouseHandler(dragElement);
-            int offsetLeft=dragElement.getOffsetWidth() - 20;
-            DragInfo info=new DragInfo(dragElement,createPlaceholder(dragElement),offsetLeft,20);
-            addTargetInfo(entry.getValue(),info);
-            prepareElement(info,entry.getValue(),true);
-            addDragTarget(entry.getValue());
-            entry.getValue().highlightContainer();
-            if (wrapperDiv.hasChildNodes()) {
-              CmsDebugLog.getInstance().printLine("Element " + arg.toString() + " has more than a single root element for container-type: "+ containerType);
             }
           }
         }
