@@ -1,10 +1,26 @@
 {
+  if (m_dragElement instanceof CmsDraggableListItemWidget) {
+    m_dragFromMenu=true;
+    CmsDragTargetMenu dragParent=new CmsDragTargetMenu();
+    dragParent.setWidth(m_dragElement.getElement().getOffsetWidth() + "px");
+    RootPanel.get().add(dragParent);
+    m_currentTarget=dragParent;
+    m_dragElement.setDragParent(dragParent);
+    m_placeholder=new SimplePanel();
+    dragParent.add((Widget)m_dragElement);
+    CmsContainerpageDataProvider.get().getContainerpageUtil().getClipboard().hideMenu();
+    Document.get().getBody().addClassName(CmsToolbarButton.ButtonData.MOVE.getIconClass());
+  }
+ else {
+    m_dragFromMenu=false;
+    m_placeholder=createPlaceholder(m_dragElement);
+  }
   m_targetInfos=new HashMap<I_CmsDragTargetContainer,DragInfo>();
-  m_placeholder=createPlaceholder(m_dragElement);
   m_startInfo=new DragInfo(m_dragElement,m_placeholder,m_cursorOffsetLeft,m_cursorOffsetTop);
   m_current=m_startInfo;
   m_targetInfos.put(m_currentTarget,m_current);
   prepareElement(m_current,m_currentTarget,false);
+  positionElement();
   m_targets=new ArrayList<I_CmsDragTargetContainer>();
   m_targets.add(m_currentTarget);
   m_currentTarget.getElement().addClassName(I_CmsLayoutBundle.INSTANCE.dragdropCss().currentTarget());
@@ -19,15 +35,19 @@
  */
     public void execute(    CmsContainerElement arg){
       if ((arg != null) && isDragging()) {
-        CmsContainerpageDataProvider.get().getContainerpageUtil().getClipboard().showDropzone(true);
-        I_CmsDragTargetContainer dropZone=CmsContainerpageDataProvider.get().getContainerpageUtil().getClipboard().getDropzone();
-        CmsMenuListItem menuItem=new CmsMenuListItem(arg,dropZone);
-        dropZone.add(menuItem);
-        DragInfo infoMenu=new DragInfo(menuItem,createPlaceholder(menuItem),menuItem.getOffsetWidth() - 20,20);
-        addTargetInfo(dropZone,infoMenu);
-        prepareElement(infoMenu,dropZone,true);
-        setDropZoneInfo(infoMenu);
-        getTargets().add(0,dropZone);
+        if (!isDragFromMenu()) {
+          CmsContainerpageDataProvider.get().getContainerpageUtil().getClipboard().showDropzone(true);
+          I_CmsDragTargetContainer dropZone=CmsContainerpageDataProvider.get().getContainerpageUtil().getClipboard().getDropzone();
+          CmsDraggableListItemWidget menuItem=new CmsDraggableListItemWidget(new CmsListInfoBean(arg.getTitle(),arg.getFile(),null),true);
+          menuItem.setClientId(arg.getClientId());
+          menuItem.setDragParent(dropZone);
+          dropZone.add(menuItem);
+          DragInfo infoMenu=new DragInfo(menuItem,createPlaceholder(menuItem),menuItem.getOffsetWidth() - 20,20);
+          addTargetInfo(dropZone,infoMenu);
+          prepareElement(infoMenu,dropZone,true);
+          setDropZoneInfo(infoMenu);
+          getTargets().add(0,dropZone);
+        }
         Iterator<Entry<String,CmsDragTargetContainer>> it=CmsContainerpageDataProvider.get().getContainerTargets().entrySet().iterator();
         while (it.hasNext()) {
           Entry<String,CmsDragTargetContainer> entry=it.next();
