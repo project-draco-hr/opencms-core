@@ -1,48 +1,50 @@
 {
   String path=((moveUndone || (offlineResource == null)) ? onlineResource.getRootPath() : offlineResource.getRootPath());
+  I_CmsUserDriver userDriver=getUserDriver(dbc);
+  I_CmsVfsDriver vfsDriver=getVfsDriver(dbc);
   if (onlineResource.isFolder()) {
     CmsFolder restoredFolder=new CmsFolder(onlineResource.getStructureId(),onlineResource.getResourceId(),path,onlineResource.getTypeId(),onlineResource.getFlags(),dbc.currentProject().getUuid(),newState,onlineResource.getDateCreated(),onlineResource.getUserCreated(),onlineResource.getDateLastModified(),onlineResource.getUserLastModified(),onlineResource.getDateReleased(),onlineResource.getDateExpired(),onlineResource.getVersion());
     restoredFolder.setDateLastModified(onlineResource.getDateLastModified());
-    m_vfsDriver.writeResource(dbc,dbc.currentProject().getUuid(),restoredFolder,NOTHING_CHANGED);
-    m_vfsDriver.deletePropertyObjects(dbc,dbc.currentProject().getUuid(),restoredFolder,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
-    List<CmsProperty> propertyInfos=m_vfsDriver.readPropertyObjects(dbc,onlineProject,onlineResource);
-    m_vfsDriver.writePropertyObjects(dbc,dbc.currentProject(),restoredFolder,propertyInfos);
-    m_userDriver.removeAccessControlEntries(dbc,dbc.currentProject(),onlineResource.getResourceId());
-    ListIterator<CmsAccessControlEntry> aceList=m_userDriver.readAccessControlEntries(dbc,onlineProject,onlineResource.getResourceId(),false).listIterator();
+    vfsDriver.writeResource(dbc,dbc.currentProject().getUuid(),restoredFolder,NOTHING_CHANGED);
+    vfsDriver.deletePropertyObjects(dbc,dbc.currentProject().getUuid(),restoredFolder,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+    List<CmsProperty> propertyInfos=vfsDriver.readPropertyObjects(dbc,onlineProject,onlineResource);
+    vfsDriver.writePropertyObjects(dbc,dbc.currentProject(),restoredFolder,propertyInfos);
+    userDriver.removeAccessControlEntries(dbc,dbc.currentProject(),onlineResource.getResourceId());
+    ListIterator<CmsAccessControlEntry> aceList=userDriver.readAccessControlEntries(dbc,onlineProject,onlineResource.getResourceId(),false).listIterator();
     while (aceList.hasNext()) {
       CmsAccessControlEntry ace=aceList.next();
-      m_userDriver.createAccessControlEntry(dbc,dbc.currentProject(),onlineResource.getResourceId(),ace.getPrincipal(),ace.getPermissions().getAllowedPermissions(),ace.getPermissions().getDeniedPermissions(),ace.getFlags());
+      userDriver.createAccessControlEntry(dbc,dbc.currentProject(),onlineResource.getResourceId(),ace.getPrincipal(),ace.getPermissions().getAllowedPermissions(),ace.getPermissions().getDeniedPermissions(),ace.getFlags());
     }
   }
  else {
-    byte[] onlineContent=m_vfsDriver.readContent(dbc,CmsProject.ONLINE_PROJECT_ID,onlineResource.getResourceId());
+    byte[] onlineContent=vfsDriver.readContent(dbc,CmsProject.ONLINE_PROJECT_ID,onlineResource.getResourceId());
     CmsFile restoredFile=new CmsFile(onlineResource.getStructureId(),onlineResource.getResourceId(),path,onlineResource.getTypeId(),onlineResource.getFlags(),dbc.currentProject().getUuid(),newState,onlineResource.getDateCreated(),onlineResource.getUserCreated(),onlineResource.getDateLastModified(),onlineResource.getUserLastModified(),onlineResource.getDateReleased(),onlineResource.getDateExpired(),0,onlineResource.getLength(),onlineResource.getDateContent(),onlineResource.getVersion(),onlineContent);
     restoredFile.setDateLastModified(onlineResource.getDateLastModified());
-    List<CmsProperty> properties=m_vfsDriver.readPropertyObjects(dbc,onlineProject,onlineResource);
+    List<CmsProperty> properties=vfsDriver.readPropertyObjects(dbc,onlineProject,onlineResource);
     if (offlineResource != null) {
-      m_vfsDriver.deletePropertyObjects(dbc,dbc.currentProject().getUuid(),onlineResource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+      vfsDriver.deletePropertyObjects(dbc,dbc.currentProject().getUuid(),onlineResource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
       deleteResource(dbc,offlineResource,CmsResource.DELETE_PRESERVE_SIBLINGS);
     }
     CmsResource res=createResource(dbc,restoredFile.getRootPath(),restoredFile,restoredFile.getContents(),properties,false);
     if (offlineResource != null) {
-      m_userDriver.removeAccessControlEntries(dbc,dbc.currentProject(),onlineResource.getResourceId());
+      userDriver.removeAccessControlEntries(dbc,dbc.currentProject(),onlineResource.getResourceId());
     }
-    ListIterator<CmsAccessControlEntry> aceList=m_userDriver.readAccessControlEntries(dbc,onlineProject,onlineResource.getResourceId(),false).listIterator();
+    ListIterator<CmsAccessControlEntry> aceList=userDriver.readAccessControlEntries(dbc,onlineProject,onlineResource.getResourceId(),false).listIterator();
     while (aceList.hasNext()) {
       CmsAccessControlEntry ace=aceList.next();
-      m_userDriver.createAccessControlEntry(dbc,dbc.currentProject(),res.getResourceId(),ace.getPrincipal(),ace.getPermissions().getAllowedPermissions(),ace.getPermissions().getDeniedPermissions(),ace.getFlags());
+      userDriver.createAccessControlEntry(dbc,dbc.currentProject(),res.getResourceId(),ace.getPrincipal(),ace.getPermissions().getAllowedPermissions(),ace.getPermissions().getDeniedPermissions(),ace.getFlags());
     }
     res.setState(newState);
     m_vfsDriver.writeResourceState(dbc,dbc.currentProject(),res,UPDATE_ALL,false);
   }
   if (offlineResource != null) {
-    m_vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),offlineResource,CmsRelationFilter.TARGETS);
+    vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),offlineResource,CmsRelationFilter.TARGETS);
   }
-  List<CmsRelation> relations=m_vfsDriver.readRelations(dbc,CmsProject.ONLINE_PROJECT_ID,onlineResource,CmsRelationFilter.TARGETS);
+  List<CmsRelation> relations=vfsDriver.readRelations(dbc,CmsProject.ONLINE_PROJECT_ID,onlineResource,CmsRelationFilter.TARGETS);
   Iterator<CmsRelation> itRelations=relations.iterator();
   while (itRelations.hasNext()) {
     CmsRelation relation=itRelations.next();
-    m_vfsDriver.createRelation(dbc,dbc.currentProject().getUuid(),relation);
+    vfsDriver.createRelation(dbc,dbc.currentProject().getUuid(),relation);
   }
   m_monitor.clearResourceCache();
   m_monitor.flushCache(CmsMemoryMonitor.CacheType.PROPERTY,CmsMemoryMonitor.CacheType.PROPERTY_LIST);

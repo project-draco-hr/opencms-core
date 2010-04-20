@@ -3,11 +3,20 @@
   PreparedStatement stmt=null;
   try {
     conn=m_sqlManager.getConnection(dbc);
-    if (needToUpdateContent) {
-      stmt=m_sqlManager.getPreparedStatement(conn,"C_ONLINE_CONTENTS_HISTORY");
-      stmt.setString(1,resourceId.toString());
-      stmt.executeUpdate();
-      m_sqlManager.closeAll(dbc,null,stmt,null);
+    boolean dbcHasProjectId=(dbc.getProjectId() != null) && !dbc.getProjectId().isNullUUID();
+    if (needToUpdateContent || dbcHasProjectId) {
+      if (dbcHasProjectId || !OpenCms.getSystemInfo().isHistoryEnabled()) {
+        stmt=m_sqlManager.getPreparedStatement(conn,"C_ONLINE_CONTENTS_DELETE");
+        stmt.setString(1,resourceId.toString());
+        stmt.executeUpdate();
+        m_sqlManager.closeAll(dbc,null,stmt,null);
+      }
+ else {
+        stmt=m_sqlManager.getPreparedStatement(conn,"C_ONLINE_CONTENTS_HISTORY");
+        stmt.setString(1,resourceId.toString());
+        stmt.executeUpdate();
+        m_sqlManager.closeAll(dbc,null,stmt,null);
+      }
       stmt=m_sqlManager.getPreparedStatement(conn,"C_ONLINE_CONTENTS_WRITE");
       stmt.setString(1,resourceId.toString());
       if (contents.length < 2000) {

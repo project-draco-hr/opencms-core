@@ -2,8 +2,12 @@
   CmsFile newFile=null;
   try {
     CmsUUID projectId=dbc.getProjectId();
-    dbc.setProjectId(CmsUUID.getNullUUID());
-    byte[] offlineContent=m_driverManager.getVfsDriver().readContent(dbc,offlineProject.getUuid(),offlineResource.getResourceId());
+    boolean dbcHasProjectId=(projectId != null) && !projectId.isNullUUID();
+    CmsUUID projectIdForReading=(!dbcHasProjectId ? offlineProject.getUuid() : CmsProject.ONLINE_PROJECT_ID);
+    if (!dbcHasProjectId) {
+      dbc.setProjectId(offlineProject.getUuid());
+    }
+    byte[] offlineContent=m_driverManager.getVfsDriver(dbc).readContent(dbc,projectIdForReading,offlineResource.getResourceId());
     CmsFile offlineFile=new CmsFile(offlineResource);
     offlineFile.setContents(offlineContent);
     dbc.setProjectId(projectId);
@@ -14,7 +18,7 @@
       createSibling=false;
     }
  else {
-      if (!m_driverManager.getVfsDriver().validateResourceIdExists(dbc,onlineProject.getUuid(),offlineFile.getResourceId())) {
+      if (!m_driverManager.getVfsDriver(dbc).validateResourceIdExists(dbc,onlineProject.getUuid(),offlineFile.getResourceId())) {
         createSibling=false;
       }
     }
@@ -22,19 +26,19 @@
     needToUpdateContent&=!alreadyPublished;
     if (createSibling) {
       if (!alreadyPublished) {
-        m_driverManager.getVfsDriver().createResource(dbc,onlineProject.getUuid(),newFile,null);
+        m_driverManager.getVfsDriver(dbc).createResource(dbc,onlineProject.getUuid(),newFile,null);
       }
  else {
-        m_driverManager.getVfsDriver().createSibling(dbc,onlineProject,offlineResource);
+        m_driverManager.getVfsDriver(dbc).createSibling(dbc,onlineProject,offlineResource);
       }
       newFile=new CmsFile(offlineResource);
       newFile.setContents(offlineContent);
     }
  else {
-      m_driverManager.getVfsDriver().publishResource(dbc,onlineProject,newFile,offlineFile);
+      m_driverManager.getVfsDriver(dbc).publishResource(dbc,onlineProject,newFile,offlineFile);
     }
-    m_driverManager.getVfsDriver().publishVersions(dbc,offlineResource,!alreadyPublished);
-    m_driverManager.getVfsDriver().createOnlineContent(dbc,offlineFile.getResourceId(),offlineFile.getContents(),publishTag,true,needToUpdateContent);
+    m_driverManager.getVfsDriver(dbc).publishVersions(dbc,offlineResource,!alreadyPublished);
+    m_driverManager.getVfsDriver(dbc).createOnlineContent(dbc,offlineFile.getResourceId(),offlineFile.getContents(),publishTag,true,needToUpdateContent);
     publishedResourceIds.add(offlineResource.getResourceId());
   }
  catch (  CmsDataAccessException e) {

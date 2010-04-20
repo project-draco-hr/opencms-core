@@ -35,7 +35,7 @@
   }
   boolean removeAce=true;
   if (resource.isFolder()) {
-    Iterator<CmsResource> childResources=m_vfsDriver.readChildResources(dbc,dbc.currentProject(),resource,true,true).iterator();
+    Iterator<CmsResource> childResources=getVfsDriver(dbc).readChildResources(dbc,dbc.currentProject(),resource,true,true).iterator();
     CmsUUID projectId=CmsProject.ONLINE_PROJECT_ID;
     if (dbc.currentProject().isOnlineProject()) {
       projectId=CmsUUID.getOpenCmsUUID();
@@ -49,7 +49,7 @@
       boolean error=!dbc.currentProject().isOnlineProject();
       if (!error) {
         try {
-          String originalPath=m_vfsDriver.readResource(dbc,projectId,errorRes.getRootPath(),true).getRootPath();
+          String originalPath=getVfsDriver(dbc).readResource(dbc,projectId,errorRes.getRootPath(),true).getRootPath();
           error=originalPath.equals(errorRes.getRootPath()) || originalPath.startsWith(resource.getRootPath());
         }
  catch (        CmsVfsResourceNotFoundException e) {
@@ -72,11 +72,11 @@
       allSiblingsRemoved=false;
     }
  else {
-      boolean existsOnline=(m_vfsDriver.validateStructureIdExists(dbc,CmsProject.ONLINE_PROJECT_ID,currentResource.getStructureId()) || !(currentResource.getState().equals(CmsResource.STATE_NEW)));
+      boolean existsOnline=(getVfsDriver(dbc).validateStructureIdExists(dbc,CmsProject.ONLINE_PROJECT_ID,currentResource.getStructureId()) || !(currentResource.getState().equals(CmsResource.STATE_NEW)));
       if (!existsOnline) {
         deleteAllProperties(dbc,currentResource.getRootPath());
         if (currentResource.isFolder()) {
-          m_vfsDriver.removeFolder(dbc,dbc.currentProject(),currentResource);
+          getVfsDriver(dbc).removeFolder(dbc,dbc.currentProject(),currentResource);
         }
  else {
           if (currentResource.isLabeled() && !labelResource(dbc,currentResource,null,2)) {
@@ -84,23 +84,23 @@
             flags&=~CmsResource.FLAG_LABELED;
             currentResource.setFlags(flags);
           }
-          m_vfsDriver.removeFile(dbc,dbc.currentProject().getUuid(),currentResource);
+          getVfsDriver(dbc).removeFile(dbc,dbc.currentProject().getUuid(),currentResource);
         }
         m_lockManager.removeDeletedResource(dbc,currentResource.getRootPath());
-        m_vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),currentResource,CmsRelationFilter.TARGETS);
+        getVfsDriver(dbc).deleteRelations(dbc,dbc.currentProject().getUuid(),currentResource,CmsRelationFilter.TARGETS);
       }
  else {
         removeAce=false;
         currentResource.setState(CmsResource.STATE_DELETED);
-        m_vfsDriver.writeResourceState(dbc,dbc.currentProject(),currentResource,UPDATE_STRUCTURE,false);
-        m_vfsDriver.writeLastModifiedProjectId(dbc,dbc.currentProject(),dbc.currentProject().getUuid(),currentResource);
+        getVfsDriver(dbc).writeResourceState(dbc,dbc.currentProject(),currentResource,UPDATE_STRUCTURE,false);
+        getVfsDriver(dbc).writeLastModifiedProjectId(dbc,dbc.currentProject(),dbc.currentProject().getUuid(),currentResource);
         log(dbc,new CmsLogEntry(dbc,currentResource.getStructureId(),CmsLogEntryType.RESOURCE_DELETED,new String[]{currentResource.getRootPath()}),false);
       }
     }
   }
   if ((resource.getSiblingCount() <= 1) || allSiblingsRemoved) {
     if (removeAce) {
-      m_userDriver.removeAccessControlEntries(dbc,dbc.currentProject(),resource.getResourceId());
+      getUserDriver(dbc).removeAccessControlEntries(dbc,dbc.currentProject(),resource.getResourceId());
     }
   }
   m_monitor.clearAccessControlListCache();

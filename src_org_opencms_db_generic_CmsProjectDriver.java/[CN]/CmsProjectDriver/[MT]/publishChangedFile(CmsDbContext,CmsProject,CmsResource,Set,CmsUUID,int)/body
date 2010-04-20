@@ -1,25 +1,25 @@
 {
   CmsResource onlineResource=null;
   boolean needToUpdateContent=true;
-  boolean existsOnline=m_driverManager.getVfsDriver().validateStructureIdExists(dbc,CmsProject.ONLINE_PROJECT_ID,offlineResource.getStructureId());
+  boolean existsOnline=m_driverManager.getVfsDriver(dbc).validateStructureIdExists(dbc,CmsProject.ONLINE_PROJECT_ID,offlineResource.getStructureId());
   CmsResourceState resourceState=existsOnline ? fixMovedResource(dbc,onlineProject,offlineResource,publishHistoryId,publishTag) : offlineResource.getState();
   try {
     int flags=offlineResource.getFlags();
     flags&=~CmsResource.FLAG_LABELED;
     offlineResource.setFlags(flags);
     if (existsOnline) {
-      onlineResource=m_driverManager.getVfsDriver().readResource(dbc,onlineProject.getUuid(),offlineResource.getStructureId(),false);
+      onlineResource=m_driverManager.getVfsDriver(dbc).readResource(dbc,onlineProject.getUuid(),offlineResource.getStructureId(),false);
       needToUpdateContent=(onlineResource.getDateContent() < offlineResource.getDateContent());
-      m_driverManager.getVfsDriver().deletePropertyObjects(dbc,onlineProject.getUuid(),onlineResource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+      m_driverManager.getVfsDriver(dbc).deletePropertyObjects(dbc,onlineProject.getUuid(),onlineResource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
       if (!onlineResource.getResourceId().equals(offlineResource.getResourceId())) {
-        List offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),onlineResource);
+        List offlineProperties=m_driverManager.getVfsDriver(dbc).readPropertyObjects(dbc,dbc.currentProject(),onlineResource);
         if (offlineProperties.size() > 0) {
           for (int i=0; i < offlineProperties.size(); i++) {
             CmsProperty property=(CmsProperty)offlineProperties.get(i);
             property.setStructureValue(null);
             property.setResourceValue(CmsProperty.DELETE_VALUE);
           }
-          m_driverManager.getVfsDriver().writePropertyObjects(dbc,dbc.currentProject(),onlineResource,offlineProperties);
+          m_driverManager.getVfsDriver(dbc).writePropertyObjects(dbc,dbc.currentProject(),onlineResource,offlineProperties);
         }
       }
     }
@@ -32,7 +32,7 @@
   }
   CmsFile newFile;
   try {
-    newFile=m_driverManager.getProjectDriver().publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineResource,publishedResourceIds,needToUpdateContent,publishTag);
+    newFile=m_driverManager.getProjectDriver(dbc).publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineResource,publishedResourceIds,needToUpdateContent,publishTag);
   }
  catch (  CmsDataAccessException e) {
     if (LOG.isErrorEnabled()) {
@@ -42,9 +42,9 @@
   }
   List offlineProperties;
   try {
-    offlineProperties=m_driverManager.getVfsDriver().readPropertyObjects(dbc,dbc.currentProject(),offlineResource);
+    offlineProperties=m_driverManager.getVfsDriver(dbc).readPropertyObjects(dbc,dbc.currentProject(),offlineResource);
     CmsProperty.setAutoCreatePropertyDefinitions(offlineProperties,true);
-    m_driverManager.getVfsDriver().writePropertyObjects(dbc,onlineProject,newFile,offlineProperties);
+    m_driverManager.getVfsDriver(dbc).writePropertyObjects(dbc,onlineProject,newFile,offlineProperties);
   }
  catch (  CmsDataAccessException e) {
     if (LOG.isErrorEnabled()) {
@@ -53,7 +53,7 @@
     throw e;
   }
   try {
-    m_driverManager.getUserDriver().publishAccessControlEntries(dbc,dbc.currentProject(),onlineProject,newFile.getResourceId(),offlineResource.getResourceId());
+    m_driverManager.getUserDriver(dbc).publishAccessControlEntries(dbc,dbc.currentProject(),onlineProject,newFile.getResourceId(),offlineResource.getResourceId());
   }
  catch (  CmsDataAccessException e) {
     if (LOG.isErrorEnabled()) {
@@ -64,5 +64,5 @@
   CmsFile offlineFile=new CmsFile(offlineResource);
   offlineFile.setContents(newFile.getContents());
   internalWriteHistory(dbc,offlineFile,resourceState,offlineProperties,publishHistoryId,publishTag);
-  m_driverManager.getVfsDriver().updateRelations(dbc,onlineProject,offlineResource);
+  m_driverManager.getVfsDriver(dbc).updateRelations(dbc,onlineProject,offlineResource);
 }

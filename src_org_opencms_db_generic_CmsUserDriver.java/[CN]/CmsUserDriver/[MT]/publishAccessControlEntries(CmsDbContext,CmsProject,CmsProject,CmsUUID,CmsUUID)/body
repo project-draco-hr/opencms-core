@@ -1,25 +1,10 @@
 {
-  PreparedStatement stmt=null;
-  Connection conn=null;
-  ResultSet res=null;
-  m_driverManager.getUserDriver().removeAccessControlEntries(dbc,onlineProject,onlineId);
-  try {
-    CmsUUID dbcProjectId=dbc.getProjectId();
-    dbc.setProjectId(CmsUUID.getNullUUID());
-    conn=m_sqlManager.getConnection(dbc);
-    stmt=m_sqlManager.getPreparedStatement(conn,offlineProject,"C_ACCESS_READ_ENTRIES_1");
-    stmt.setString(1,offlineId.toString());
-    res=stmt.executeQuery();
-    dbc.setProjectId(dbcProjectId);
-    while (res.next()) {
-      CmsAccessControlEntry ace=internalCreateAce(res,onlineId);
-      m_driverManager.getUserDriver().writeAccessControlEntry(dbc,onlineProject,ace);
-    }
-  }
- catch (  SQLException e) {
-    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
-  }
- finally {
-    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  m_driverManager.getUserDriver(dbc).removeAccessControlEntries(dbc,onlineProject,onlineId);
+  CmsUUID dbcProjectId=dbc.getProjectId();
+  dbc.setProjectId(CmsUUID.getNullUUID());
+  List<CmsAccessControlEntry> aces=m_driverManager.getUserDriver(dbc).readAccessControlEntries(dbc,offlineProject,offlineId,false);
+  dbc.setProjectId(dbcProjectId);
+  for (  CmsAccessControlEntry ace : aces) {
+    m_driverManager.getUserDriver(dbc).writeAccessControlEntry(dbc,onlineProject,ace);
   }
 }
