@@ -80,6 +80,14 @@
  catch (    JSONException e) {
       throw new JspException(e);
     }
+    CmsADESessionCache sessionCache=(CmsADESessionCache)((HttpServletRequest)req).getSession().getAttribute(CmsADESessionCache.SESSION_ATTR_ADE_CACHE);
+    if (sessionCache == null) {
+      sessionCache=new CmsADESessionCache(cms);
+      ((HttpServletRequest)req).getSession().setAttribute(CmsADESessionCache.SESSION_ATTR_ADE_CACHE,sessionCache);
+    }
+    for (    CmsContainerElementBean element : allElems) {
+      sessionCache.setCacheContainerElement(element.getClientId(),element);
+    }
   }
   int renderElems=allElems.size();
   if ((maxElements > 0) && (renderElems > maxElements)) {
@@ -97,6 +105,9 @@
       if (!subContainer.getTypes().contains(containerType)) {
         throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,resUri.getRootPath(),OpenCms.getResourceManager().getResourceType(resUri).getTypeName(),containerType));
       }
+      if (!isOnline) {
+        pageContext.getOut().print(getElementWrapperTagStart(cms,resUri,element,true));
+      }
       for (      CmsContainerElementBean subelement : subContainer.getElements()) {
         CmsResource subelementRes=cms.readResource(subelement.getElementId());
         String subelementUri=cms.getSitePath(subelementRes);
@@ -108,11 +119,20 @@
         subelement.setSitePath(subelementUri);
         CmsJspTagInclude.includeTagAction(pageContext,subelementFormatter,null,false,null,Collections.singletonMap(CmsADEManager.ATTR_CURRENT_ELEMENT,(Object)subelement),req,res);
       }
+      if (!isOnline) {
+        pageContext.getOut().print(getElementWrapperTagEnd());
+      }
     }
  else {
       String elementFormatter=cms.getSitePath(cms.readResource(element.getFormatterId()));
       element.setSitePath(cms.getSitePath(resUri));
+      if (!isOnline) {
+        pageContext.getOut().print(getElementWrapperTagStart(cms,resUri,element,false));
+      }
       CmsJspTagInclude.includeTagAction(pageContext,elementFormatter,null,false,null,Collections.singletonMap(CmsADEManager.ATTR_CURRENT_ELEMENT,(Object)element),req,res);
+      if (!isOnline) {
+        pageContext.getOut().print(getElementWrapperTagEnd());
+      }
     }
   }
   if (createTag) {
