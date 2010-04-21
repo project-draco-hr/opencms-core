@@ -1,0 +1,37 @@
+{
+  if (!isDirty()) {
+    startEdit();
+  }
+  if (!redo) {
+    m_undone.clear();
+    m_toolbar.getRedoButton().setEnabled(false);
+  }
+  m_changes.add(change);
+  if (change instanceof CmsSitemapChangeDelete) {
+    CmsSitemapChangeDelete changeDelete=(CmsSitemapChangeDelete)change;
+    CmsClientSitemapEntry deleteParent=getEntry(CmsResource.getParentFolder(changeDelete.getEntry().getSitePath()));
+    deleteParent.removeChild(changeDelete.getEntry().getPosition());
+  }
+ else   if (change instanceof CmsSitemapChangeEdit) {
+    CmsSitemapChangeEdit changeEdit=(CmsSitemapChangeEdit)change;
+    CmsClientSitemapEntry editEntry=getEntry(changeEdit.getOldEntry().getSitePath());
+    editEntry.setTitle(changeEdit.getNewEntry().getTitle());
+    editEntry.setVfsPath(changeEdit.getNewEntry().getVfsPath());
+    editEntry.setProperties(changeEdit.getNewEntry().getProperties());
+  }
+ else   if (change instanceof CmsSitemapChangeMove) {
+    CmsSitemapChangeMove changeMove=(CmsSitemapChangeMove)change;
+    CmsClientSitemapEntry sourceParent=getEntry(CmsResource.getParentFolder(changeMove.getSourcePath()));
+    CmsClientSitemapEntry moved=sourceParent.removeChild(changeMove.getSourcePosition());
+    CmsClientSitemapEntry destParent=getEntry(CmsResource.getParentFolder(changeMove.getDestinationPath()));
+    destParent.insertChild(moved,changeMove.getDestinationPosition());
+  }
+ else   if (change instanceof CmsSitemapChangeNew) {
+    CmsSitemapChangeNew changeNew=(CmsSitemapChangeNew)change;
+    CmsClientSitemapEntry newParent=getEntry(CmsResource.getParentFolder(changeNew.getEntry().getSitePath()));
+    newParent.addChild(changeNew.getEntry());
+  }
+  if (m_handler != null) {
+    m_handler.onChange(change);
+  }
+}
