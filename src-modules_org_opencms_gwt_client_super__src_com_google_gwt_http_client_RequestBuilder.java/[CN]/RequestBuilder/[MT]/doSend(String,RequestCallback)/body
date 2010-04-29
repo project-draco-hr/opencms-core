@@ -1,0 +1,58 @@
+{
+  XMLHttpRequest xmlHttpRequest=XMLHttpRequest.create();
+  try {
+    if ((user != null) && (password != null)) {
+      if (m_sync) {
+        xmlHttpRequest.openSync(httpMethod,url,user,password);
+      }
+ else {
+        xmlHttpRequest.open(httpMethod,url,user,password);
+      }
+    }
+ else     if (user != null) {
+      if (m_sync) {
+        xmlHttpRequest.openSync(httpMethod,url,user);
+      }
+ else {
+        xmlHttpRequest.open(httpMethod,url,user);
+      }
+    }
+ else {
+      if (m_sync) {
+        xmlHttpRequest.openSync(httpMethod,url);
+      }
+ else {
+        xmlHttpRequest.open(httpMethod,url);
+      }
+    }
+  }
+ catch (  JavaScriptException e) {
+    RequestPermissionException requestPermissionException=new RequestPermissionException(url);
+    requestPermissionException.initCause(new RequestException(e.getMessage()));
+    throw requestPermissionException;
+  }
+  setHeaders(xmlHttpRequest);
+  final Request request=new Request(xmlHttpRequest,timeoutMillis,callback);
+  if (!m_sync) {
+    xmlHttpRequest.setOnReadyStateChange(new ReadyStateChangeHandler(){
+      public void onReadyStateChange(      XMLHttpRequest xhr){
+        if (xhr.getReadyState() == XMLHttpRequest.DONE) {
+          xhr.clearOnReadyStateChange();
+          request.fireOnResponseReceived(callback);
+        }
+      }
+    }
+);
+  }
+  try {
+    xmlHttpRequest.send(requestData);
+  }
+ catch (  JavaScriptException e) {
+    throw new RequestException(e.getMessage());
+  }
+  if (m_sync) {
+    xmlHttpRequest.clearOnReadyStateChange();
+    request.fireOnResponseReceived(callback);
+  }
+  return request;
+}
