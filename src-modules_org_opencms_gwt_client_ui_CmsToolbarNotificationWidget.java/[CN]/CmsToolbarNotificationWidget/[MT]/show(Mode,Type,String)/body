@@ -1,11 +1,27 @@
 {
-  if (!canBeReplacedBy(mode,type)) {
-    return;
+  final Type oldType=m_type;
+  boolean needsRestoration=false;
+  if (mode != null) {
+    if ((m_mode != null) && m_mode.equals(Mode.STICKY)) {
+      needsRestoration=mode.equals(Mode.NORMAL);
+      needsRestoration|=((mode.equals(Mode.STICKY) && !canBeReplacedBy(type)));
+    }
+    hide(true);
   }
-  hide(true);
-  getElement().addClassName(classForType(type));
+  m_type=type;
+  final String stickyMessage;
+  if (mode == null) {
+    stickyMessage=null;
+  }
+ else   if (!needsRestoration) {
+    m_mode=mode;
+    stickyMessage=null;
+  }
+ else {
+    stickyMessage=m_message.getInnerHTML();
+  }
   m_message.setInnerHTML(message);
-  m_mode=mode;
+  getElement().addClassName(classForType(type));
   getElement().getStyle().setVisibility(Visibility.HIDDEN);
   setVisible(true);
   Scheduler.get().scheduleDeferred(new ScheduledCommand(){
@@ -19,13 +35,16 @@
     }
   }
 );
-  if (mode != Mode.FIXED) {
+  if ((mode != null) && ((mode != Mode.STICKY) || needsRestoration)) {
     m_timer=new Timer(){
       /** 
  * @see com.google.gwt.user.client.Timer#run()
  */
       @Override public void run(){
         hide();
+        if (stickyMessage != null) {
+          show(null,oldType,stickyMessage);
+        }
       }
     }
 ;
