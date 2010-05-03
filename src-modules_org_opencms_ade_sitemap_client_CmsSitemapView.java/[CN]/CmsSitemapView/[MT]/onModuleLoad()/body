@@ -20,21 +20,28 @@
   controller.setHandler(new CmsSitemapControllerHandler(toolbar,tree,factory));
   RootPanel.get().add(toolbar);
   RootPanel.get().add(new CmsToolbarPlaceHolder());
-  CmsHeader title=new CmsHeader(Messages.get().key(Messages.GUI_EDITOR_TITLE_0),CmsSitemapProvider.get().getUri());
+  CmsHeader title=new CmsHeader(Messages.get().key(Messages.GUI_EDITOR_TITLE_0),CmsCoreProvider.get().getUri());
   title.addStyleName(I_CmsLayoutBundle.INSTANCE.rootCss().pageCenter());
   RootPanel.get().add(title);
   final CmsPage page=new CmsPage();
   RootPanel.get().add(page);
   final Label loadingLabel=new Label(Messages.get().key(Messages.GUI_LOADING_0));
   page.add(loadingLabel);
-  controller.initialize(new Command(){
-    /** 
- * @see com.google.gwt.user.client.Command#execute()
- */
-    public void execute(){
-      page.remove(loadingLabel);
-      page.add(tree);
+  CmsClientSitemapEntry root=controller.getSitemapData().getRoot();
+  CmsSitemapTreeItem rootItem=factory.create(root);
+  rootItem.clearChildren();
+  for (  CmsClientSitemapEntry child : root.getChildren()) {
+    CmsSitemapTreeItem childItem=factory.create(child);
+    rootItem.addChild(childItem);
+    childItem.clearChildren();
+    for (    CmsClientSitemapEntry grandchild : child.getChildren()) {
+      childItem.addChild(factory.create(grandchild));
     }
+    childItem.onFinishLoading();
   }
-);
+  rootItem.onFinishLoading();
+  rootItem.setOpen(true);
+  tree.addItem(rootItem);
+  page.remove(loadingLabel);
+  page.add(tree);
 }
