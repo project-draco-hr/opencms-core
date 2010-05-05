@@ -1,5 +1,5 @@
 {
-  if (m_dragElement instanceof CmsDraggableListItemWidget) {
+  if (m_dragElement instanceof CmsDraggableListItemWidget<?>) {
     m_dragFromMenu=true;
     CmsDragTargetMenu dragParent=new CmsDragTargetMenu();
     dragParent.setWidth(m_dragElement.getElement().getOffsetWidth() + "px");
@@ -24,6 +24,7 @@
     DOM.setCapture(m_dragElement.getElement());
   }
  else {
+    m_currentTarget=m_dragElement.getDragParent();
     m_dragFromMenu=false;
     m_placeholder=createPlaceholder(m_dragElement);
   }
@@ -50,7 +51,7 @@
         if (!isDragFromMenu()) {
           m_editor.getClipboard().showDropzone(true);
           I_CmsDragTargetContainer dropZone=m_editor.getClipboard().getDropzone();
-          CmsDraggableListItemWidget menuItem=m_controller.getContainerpageUtil().createListItem(arg,dropZone);
+          CmsDraggableListItemWidget<I_CmsDragTargetContainer> menuItem=m_controller.getContainerpageUtil().createListItem(arg,dropZone);
           dropZone.add(menuItem);
           DragInfo infoMenu=new DragInfo(menuItem,createPlaceholder(menuItem),menuItem.getOffsetWidth() - 20,20);
           addTargetInfo(dropZone,infoMenu);
@@ -58,41 +59,72 @@
           setDropZoneInfo(infoMenu);
           getTargets().add(0,dropZone);
         }
-        CmsDebugLog.getInstance().printLine("Loaded content for " + arg.getContents().size() + " container types");
-        Iterator<Entry<String,CmsDragTargetContainer>> it=m_controller.getContainerTargets().entrySet().iterator();
-        while (it.hasNext()) {
-          Entry<String,CmsDragTargetContainer> entry=it.next();
-          String containerType=m_controller.getContainerType(entry.getKey());
-          if (arg.getContents().containsKey(containerType) && (entry.getValue() != getDragElement().getDragParent())) {
-            try {
-              CmsDragContainerElement dragElement;
-              if (arg.isSubContainer()) {
-                CmsDebugLog.getInstance().printLine("Generating sub-container elements.");
-                List<CmsContainerElement> subElements=new ArrayList<CmsContainerElement>();
-                Iterator<String> itSub=arg.getSubItems().iterator();
-                while (itSub.hasNext()) {
-                  CmsContainerElement element=m_controller.getCachedElement(itSub.next());
-                  if (element != null) {
-                    subElements.add(element);
-                  }
+        if (m_controller.isSubcontainerEditing()) {
+          if (isDragFromMenu()) {
+            String type=m_controller.getSubcontainerType();
+            if (arg.getContents().containsKey(type)) {
+              try {
+                CmsDragContainerElement dragElement;
+                if (arg.isSubContainer()) {
+                  CmsDebugLog.getInstance().printLine("Cannot drop sub-container into subcontainer");
                 }
-                dragElement=m_controller.getContainerpageUtil().createSubcontainerElement(arg,subElements,entry.getValue(),containerType);
-                CmsDebugLog.getInstance().printLine("Sub-container created.");
-              }
  else {
-                dragElement=m_controller.getContainerpageUtil().createElement(arg,entry.getValue(),containerType);
+                  dragElement=m_controller.getContainerpageUtil().createElement(arg,m_controller.getSubcontainer(),type);
+                  m_controller.getSubcontainer().add(dragElement);
+                  int offsetLeft=dragElement.getOffsetWidth() - 20;
+                  DragInfo info=new DragInfo(dragElement,createPlaceholder(dragElement),offsetLeft,20);
+                  addTargetInfo(m_controller.getSubcontainer(),info);
+                  prepareElement(info,m_controller.getSubcontainer(),true);
+                  addDragTarget(m_controller.getSubcontainer());
+                  m_controller.getSubcontainer().highlightContainer();
+                }
               }
-              entry.getValue().add(dragElement);
-              int offsetLeft=dragElement.getOffsetWidth() - 20;
-              DragInfo info=new DragInfo(dragElement,createPlaceholder(dragElement),offsetLeft,20);
-              addTargetInfo(entry.getValue(),info);
-              prepareElement(info,entry.getValue(),true);
-              addDragTarget(entry.getValue());
-              entry.getValue().highlightContainer();
+ catch (              Exception e) {
+                CmsDebugLog.getInstance().printLine(e.getMessage());
+              }
             }
- catch (            Exception e) {
-              CmsDebugLog.getInstance().printLine(e.getMessage());
-              continue;
+ else {
+              CmsDebugLog.getInstance().printLine("No content for type " + type);
+            }
+          }
+        }
+ else {
+          CmsDebugLog.getInstance().printLine("Loaded content for " + arg.getContents().size() + " container types");
+          Iterator<Entry<String,CmsDragTargetContainer>> it=m_controller.getContainerTargets().entrySet().iterator();
+          while (it.hasNext()) {
+            Entry<String,CmsDragTargetContainer> entry=it.next();
+            String containerType=m_controller.getContainerType(entry.getKey());
+            if (arg.getContents().containsKey(containerType) && (entry.getValue() != getDragElement().getDragParent())) {
+              try {
+                CmsDragContainerElement dragElement;
+                if (arg.isSubContainer()) {
+                  CmsDebugLog.getInstance().printLine("Generating sub-container elements.");
+                  List<CmsContainerElement> subElements=new ArrayList<CmsContainerElement>();
+                  Iterator<String> itSub=arg.getSubItems().iterator();
+                  while (itSub.hasNext()) {
+                    CmsContainerElement element=m_controller.getCachedElement(itSub.next());
+                    if (element != null) {
+                      subElements.add(element);
+                    }
+                  }
+                  dragElement=m_controller.getContainerpageUtil().createSubcontainerElement(arg,subElements,entry.getValue(),containerType);
+                  CmsDebugLog.getInstance().printLine("Sub-container created.");
+                }
+ else {
+                  dragElement=m_controller.getContainerpageUtil().createElement(arg,entry.getValue(),containerType);
+                }
+                entry.getValue().add(dragElement);
+                int offsetLeft=dragElement.getOffsetWidth() - 20;
+                DragInfo info=new DragInfo(dragElement,createPlaceholder(dragElement),offsetLeft,20);
+                addTargetInfo(entry.getValue(),info);
+                prepareElement(info,entry.getValue(),true);
+                addDragTarget(entry.getValue());
+                entry.getValue().highlightContainer();
+              }
+ catch (              Exception e) {
+                CmsDebugLog.getInstance().printLine(e.getMessage());
+                continue;
+              }
             }
           }
         }
