@@ -1,28 +1,26 @@
 {
-  String path=cms.getRequestContext().addSiteRoot(uri);
-  boolean online=cms.getRequestContext().currentProject().isOnlineProject();
-  CmsSitemapEntry uriEntry=m_cache.getUri(path,online);
-  if (uriEntry != null) {
-    return uriEntry;
+  CmsSitemapEntry entry=m_cache.getEntryByUri(cms,uri);
+  if (entry != null) {
+    cms.readResource(entry.getResourceId());
+    return entry;
   }
-  if (m_cache.getMissingUri(path,online) != null) {
-    try {
-      return new CmsSitemapEntry(cms,uri);
-    }
- catch (    CmsException e) {
-      return null;
-    }
+  String path=uri;
+  if (path.endsWith("/")) {
+    path=path.substring(0,path.length() - 1);
   }
-  uriEntry=getEntry(cms,uri,online);
-  if (uriEntry == null) {
-    m_cache.setMissingUri(path,online);
-    try {
-      return new CmsSitemapEntry(cms,uri);
-    }
- catch (    CmsException e) {
-      return null;
-    }
+  String detailId=CmsResource.getName(path);
+  if (!CmsUUID.isValidUUID(detailId)) {
+    return new CmsSitemapEntry(cms,uri);
   }
-  m_cache.setUri(path,uriEntry,online);
-  return uriEntry;
+  entry=m_cache.getEntryByUri(cms,CmsResource.getParentFolder(uri));
+  if (entry == null) {
+    return new CmsSitemapEntry(cms,uri);
+  }
+  CmsUUID id=new CmsUUID(detailId);
+  CmsResource contentRes=cms.readResource(id);
+  String title=cms.readPropertyObject(contentRes,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue(id.toString());
+  HashMap<String,String> entryProps=new HashMap<String,String>(entry.getProperties());
+  entryProps.put(Property.navigation.getName(),Boolean.FALSE.toString());
+  CmsSitemapEntry contentEntry=new CmsSitemapEntry(entry.getId(),entry.getOriginalUri(),entry.getResourceId(),id.toString(),title,entryProps,null,id);
+  return contentEntry;
 }

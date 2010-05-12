@@ -1,0 +1,30 @@
+{
+  boolean online=cms.getRequestContext().currentProject().isOnlineProject();
+  Map<String,String> defProps=online ? m_defPropsOnline : m_defPropsOffline;
+  if (defProps != null) {
+    return defProps;
+  }
+  List<CmsResource> sitemaps=new ArrayList<CmsResource>();
+  try {
+    CmsObject adminCms=OpenCms.initCmsObject(m_adminCms);
+    adminCms.getRequestContext().setCurrentProject(cms.getRequestContext().currentProject());
+    sitemaps=adminCms.readResources("/",CmsResourceFilter.requireType(OpenCms.getSitemapManager().getSitemapTypeId()),true);
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+  if (sitemaps.isEmpty()) {
+    defProps=new HashMap<String,String>();
+  }
+ else {
+    CmsResource resource=sitemaps.get(0);
+    defProps=CmsXmlContentPropertyHelper.mergeDefaults(cms,resource,Collections.<String,String>emptyMap());
+  }
+  if (online) {
+    m_defPropsOnline=new HashMap<String,String>(defProps);
+  }
+ else {
+    m_defPropsOffline=new HashMap<String,String>(defProps);
+  }
+  return defProps;
+}
