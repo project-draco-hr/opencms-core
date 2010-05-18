@@ -4,45 +4,43 @@
   I_CmsLayoutBundle.INSTANCE.pageCss().ensureInjected();
   I_CmsImageBundle.INSTANCE.buttonCss().ensureInjected();
   RootPanel.getBodyElement().addClassName(I_CmsLayoutBundle.INSTANCE.rootCss().root());
-  final CmsSitemapController controller=new CmsSitemapController();
-  final CmsSitemapTreeItemFactory factory=new CmsSitemapTreeItemFactory(controller);
-  final CmsLazyTree<CmsSitemapTreeItem> tree=new CmsLazyTree<CmsSitemapTreeItem>(new A_CmsDeepLazyOpenHandler<CmsSitemapTreeItem>(){
-    /** 
- * @see org.opencms.gwt.client.ui.tree.I_CmsLazyOpenHandler#load(org.opencms.gwt.client.ui.tree.CmsLazyTreeItem)
- */
-    public void load(    final CmsSitemapTreeItem target){
-      controller.getChildren(target.getSitePath());
-    }
-  }
-);
-  final CmsSitemapToolbar toolbar=new CmsSitemapToolbar(controller);
-  toolbar.setHandler(new CmsSitemapToolbarHandler(controller));
-  controller.setHandler(new CmsSitemapControllerHandler(toolbar,tree,factory));
-  RootPanel.get().add(toolbar);
+  m_controller=new CmsSitemapController(this);
+  m_toolbar=new CmsSitemapToolbar(m_controller);
+  m_toolbar.setHandler(new CmsSitemapToolbarHandler(m_controller));
+  RootPanel.get().add(m_toolbar);
   RootPanel.get().add(new CmsToolbarPlaceHolder());
   CmsHeader title=new CmsHeader(Messages.get().key(Messages.GUI_EDITOR_TITLE_0),CmsCoreProvider.get().getUri());
   title.addStyleName(I_CmsLayoutBundle.INSTANCE.rootCss().pageCenter());
   RootPanel.get().add(title);
   final CmsPage page=new CmsPage();
   RootPanel.get().add(page);
-  final Label loadingLabel=new Label(Messages.get().key(Messages.GUI_LOADING_0));
+  final Label loadingLabel=new Label(org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_LOADING_0));
   page.add(loadingLabel);
-  CmsClientSitemapEntry root=controller.getData().getRoot();
-  CmsSitemapTreeItem rootItem=factory.create(root);
+  CmsClientSitemapEntry root=m_controller.getData().getRoot();
+  CmsSitemapTreeItem rootItem=create(root);
   rootItem.clearChildren();
-  for (  CmsClientSitemapEntry child : root.getChildren()) {
-    CmsSitemapTreeItem childItem=factory.create(child);
+  for (  CmsClientSitemapEntry child : root.getSubEntries()) {
+    CmsSitemapTreeItem childItem=create(child);
     rootItem.addChild(childItem);
     childItem.clearChildren();
-    for (    CmsClientSitemapEntry grandchild : child.getChildren()) {
-      childItem.addChild(factory.create(grandchild));
+    for (    CmsClientSitemapEntry grandchild : child.getSubEntries()) {
+      childItem.addChild(create(grandchild));
     }
     childItem.onFinishLoading();
   }
   rootItem.onFinishLoading();
   rootItem.setOpen(true);
-  tree.addItem(rootItem);
-  tree.truncate(TM_SITEMAP,920);
+  m_tree=new CmsLazyTree<CmsSitemapTreeItem>(new A_CmsDeepLazyOpenHandler<CmsSitemapTreeItem>(){
+    /** 
+ * @see org.opencms.gwt.client.ui.tree.I_CmsLazyOpenHandler#load(org.opencms.gwt.client.ui.tree.CmsLazyTreeItem)
+ */
+    public void load(    final CmsSitemapTreeItem target){
+      m_controller.getChildren(target.getSitePath());
+    }
+  }
+);
+  m_tree.addItem(rootItem);
+  m_tree.truncate(TM_SITEMAP,920);
   page.remove(loadingLabel);
-  page.add(tree);
+  page.add(m_tree);
 }

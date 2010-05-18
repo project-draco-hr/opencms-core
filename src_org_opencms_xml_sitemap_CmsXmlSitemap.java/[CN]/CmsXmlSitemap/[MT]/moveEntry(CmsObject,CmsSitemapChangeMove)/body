@@ -1,0 +1,38 @@
+{
+  Element entryElement=getElement(cms,change.getSourcePath());
+  if (entryElement == null) {
+    String sitemapPath=(getFile() == null) ? null : cms.getSitePath(getFile());
+    throw new CmsSitemapEntryNotFoundException(change.getSourcePath(),sitemapPath);
+  }
+  String srcParentPath=CmsResource.getParentFolder(change.getSourcePath());
+  String destParentPath=CmsResource.getParentFolder(change.getDestinationPath());
+  Element newParent=getElement(cms,destParentPath);
+  if (newParent == null) {
+    String sitemapPath=(getFile() == null) ? null : cms.getSitePath(getFile());
+    throw new CmsSitemapEntryNotFoundException(destParentPath,sitemapPath);
+  }
+  if (!srcParentPath.equals(destParentPath)) {
+    entryElement.detach();
+    entryElement.setParent(newParent);
+    List<Element> siblings=CmsCollectionsGenericWrapper.list(newParent.elements());
+    siblings.add(change.getDestinationPosition(),entryElement);
+  }
+ else {
+    List<Element> siblings=CmsCollectionsGenericWrapper.list(newParent.elements());
+    if (siblings.indexOf(entryElement) != change.getDestinationPosition()) {
+      siblings.remove(entryElement);
+      siblings.add(change.getDestinationPosition(),entryElement);
+    }
+  }
+  String srcName=CmsResource.getName(change.getSourcePath());
+  String destName=CmsResource.getName(change.getDestinationPath());
+  if (!srcName.equals(destName)) {
+    Element nameElement=entryElement.element(XmlNode.Name.name());
+    nameElement.clearContent();
+    if (destName.endsWith("/")) {
+      destName=destName.substring(0,destName.length() - 1);
+    }
+    nameElement.addCDATA(destName);
+  }
+  return getSubTreePaths(cms.getRequestContext().addSiteRoot(destParentPath),entryElement);
+}
