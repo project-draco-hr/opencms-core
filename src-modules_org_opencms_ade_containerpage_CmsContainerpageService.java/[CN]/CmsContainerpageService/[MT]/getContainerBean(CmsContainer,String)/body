@@ -1,0 +1,26 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsADESessionCache cache=getSessionCache();
+  List<CmsContainerElementBean> elements=new ArrayList<CmsContainerElementBean>();
+  for (  CmsContainerElement elementData : container.getElements()) {
+    try {
+      if (elementData.isNew()) {
+        elementData=createNewElement(containerpageUri,elementData.getClientId(),elementData.getNewType());
+      }
+      CmsContainerElementBean element=cache.getCacheContainerElement(elementData.getClientId());
+      CmsResource resource=cms.readResource(element.getElementId());
+      I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(resource);
+      String formatterUri=resType.getFormatterForContainerType(cms,resource,container.getType());
+      boolean hasValidFormatter=CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatterUri);
+      if (hasValidFormatter) {
+        CmsResource formatter=cms.readResource(formatterUri);
+        elements.add(new CmsContainerElementBean(element.getElementId(),formatter.getStructureId(),element.getProperties()));
+      }
+    }
+ catch (    Exception e) {
+      log(e.getLocalizedMessage(),e);
+    }
+  }
+  CmsContainerBean containerBean=new CmsContainerBean(container.getName(),container.getType(),-1,elements);
+  return containerBean;
+}
