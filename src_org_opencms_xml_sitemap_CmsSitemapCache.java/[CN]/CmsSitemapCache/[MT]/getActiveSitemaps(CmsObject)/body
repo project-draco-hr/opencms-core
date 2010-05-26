@@ -2,17 +2,17 @@
   CmsObject adminCms=OpenCms.initCmsObject(m_adminCms);
   adminCms.getRequestContext().setCurrentProject(cms.getRequestContext().currentProject());
   boolean online=adminCms.getRequestContext().currentProject().isOnlineProject();
-  Map<String,CmsXmlSitemap> active=online ? m_activeOnline : m_activeOffline;
+  Map<String,String> active=online ? m_activeOnline : m_activeOffline;
   if (active != null) {
     return active;
   }
   long t=System.currentTimeMillis();
   if (online) {
-    m_activeOnline=Collections.synchronizedMap(new HashMap<String,CmsXmlSitemap>());
+    m_activeOnline=Collections.synchronizedMap(new HashMap<String,String>());
     OpenCms.getMemoryMonitor().register(CmsSitemapCache.class.getName() + ".sitemapActiveOnline",m_activeOnline);
   }
  else {
-    m_activeOffline=Collections.synchronizedMap(new HashMap<String,CmsXmlSitemap>());
+    m_activeOffline=Collections.synchronizedMap(new HashMap<String,String>());
     OpenCms.getMemoryMonitor().register(CmsSitemapCache.class.getName() + ".sitemapActiveOffline",m_activeOffline);
   }
   active=online ? m_activeOnline : m_activeOffline;
@@ -24,33 +24,27 @@
     m_byIdOffline.clear();
     m_byUriOffline.clear();
   }
-  Map<String,CmsSitemapEntry> byPath=online ? m_byUriOnline : m_byUriOffline;
-  List<CmsResource> sitemaps=adminCms.readResources("/",CmsResourceFilter.DEFAULT_FILES.addRequireType(OpenCms.getSitemapManager().getSitemapTypeId()).addExcludeFlags(CmsResource.FLAG_TEMPFILE));
-  for (  CmsResource resource : sitemaps) {
-    if (CmsResource.isTemporaryFileName(resource.getName())) {
-      continue;
+  List<CmsResource> entryPoints=adminCms.readResourcesWithProperty("/",CmsPropertyDefinition.PROPERTY_ADE_SITEMAP,null,CmsResourceFilter.IGNORE_EXPIRATION.addRequireFolder());
+  for (  CmsResource entryPoint : entryPoints) {
+    String sitemapPath=cms.readPropertyObject(entryPoint,CmsPropertyDefinition.PROPERTY_ADE_SITEMAP,false).getValue();
+    CmsFile sitemapFile;
+    try {
+      adminCms.getRequestContext().setSiteRoot(cms.getRequestContext().getSiteRoot());
+      sitemapFile=cms.readFile(sitemapPath);
     }
-    CmsXmlSitemap xmlSitemap=CmsXmlSitemapFactory.unmarshal(adminCms,resource);
-    Locale entryPointLocale=xmlSitemap.getLocales().get(0);
-    CmsSitemapBean sitemap=xmlSitemap.getSitemap(adminCms,entryPointLocale);
-    active.put(sitemap.getEntryPoint(),xmlSitemap);
-    CmsSitemapEntry rootEntry=sitemap.getSiteEntries().get(0);
-    String parentPath=CmsResource.getParentFolder(rootEntry.getRootPath());
-    if (byPath.containsKey(entryPointLocale.toString() + parentPath)) {
-      for (      Locale locale : xmlSitemap.getLocales()) {
-        CmsSitemapEntry parentEntry=byPath.get(locale.toString() + parentPath);
-        parentEntry.setSubEntries(new ArrayList<CmsSitemapEntry>());
-      }
-      continue;
+  finally {
+      adminCms.getRequestContext().setSiteRoot("");
     }
+    CmsXmlSitemap xmlSitemap=CmsXmlSitemapFactory.unmarshal(adminCms,sitemapFile);
     for (    Locale locale : xmlSitemap.getLocales()) {
-      CmsSitemapBean locSitemap=xmlSitemap.getSitemap(adminCms,entryPointLocale);
+      active.put(locale.toString() + entryPoint.getRootPath(),sitemapFile.getRootPath());
+      CmsSitemapBean locSitemap=xmlSitemap.getSitemap(adminCms,locale);
       CmsSitemapEntry startEntry=locSitemap.getSiteEntries().get(0);
       if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(startEntry.getName())) {
         startEntry.removeName();
       }
       Map<String,String> properties=new HashMap<String,String>();
-      visitEntry(adminCms,locale,startEntry,properties,0,online);
+      visitEntry(adminCms,active,startEntry,locale,entryPoint.getRootPath(),0,properties,online);
     }
   }
   LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEBUG_CACHE_SITEMAP_2,new Boolean(online),new Long(System.currentTimeMillis() - t)));
