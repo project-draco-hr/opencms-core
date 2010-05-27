@@ -14,30 +14,18 @@
   if (folderEntry.isVfs()) {
     return super.getNavigationForFolder(folder);
   }
-  List<CmsSitemapEntry> entries=folderEntry.getSubEntries();
-  if (entries.isEmpty()) {
-    String subsitemap=folderEntry.getProperties().get(CmsSitemapManager.Property.sitemap.getName());
-    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(subsitemap)) {
-      try {
-        entries=CmsXmlSitemapFactory.unmarshal(m_cms,m_cms.readResource(new CmsUUID(subsitemap))).getSitemap(m_cms,m_cms.getRequestContext().getLocale()).getSiteEntries();
-      }
- catch (      CmsException e) {
-        LOG.error(e.getLocalizedMessage(),e);
-      }
-    }
-  }
-  for (  CmsSitemapEntry entry : entries) {
-    try {
-      m_cms.readResource(entry.getResourceId());
-      String entryName=folderEntry.getSitePath(m_cms) + entry.getName() + "/";
-      CmsJspNavElement element=getNavigationForResource(entryName);
+  try {
+    List<CmsSitemapEntry> entries=OpenCms.getSitemapManager().getSubEntries(m_cms,folderEntry.getSitePath(m_cms));
+    for (    CmsSitemapEntry entry : entries) {
+      CmsJspNavElement element=getNavigationForSiteEntry(entry);
       if ((element != null) && element.isInNavigation()) {
         result.add(element);
       }
     }
- catch (    Exception e) {
-      LOG.debug(e.getLocalizedMessage(),e);
-    }
+  }
+ catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    return Collections.<CmsJspNavElement>emptyList();
   }
   Collections.sort(result);
   return result;
