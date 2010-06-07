@@ -1,0 +1,46 @@
+{
+  super();
+  m_styleVar=new CmsStyleVariable(this);
+  m_leafStyleVar=new CmsStyleVariable(this);
+  m_opener=createOpener();
+  addDecoration(m_opener,showOpeners ? OPENER_WIDTH : 0,true);
+  m_children=new CmsDnDList<CmsDnDTreeItem>();
+  m_children.addListDropHandler(new I_CmsDnDListDropHandler(){
+    /** 
+ * @see org.opencms.gwt.client.ui.I_CmsDnDListDropHandler#onDrop(org.opencms.gwt.client.ui.CmsDnDListDropEvent)
+ */
+    @SuppressWarnings("unchecked") public void onDrop(    CmsDnDListDropEvent dropEvent){
+      CmsDnDListItem destItem=dropEvent.getDestList().getItem(dropEvent.getDestPath());
+      if (!(destItem instanceof CmsDnDTreeItem)) {
+        return;
+      }
+      CmsDnDTreeItem destTreeItem=(CmsDnDTreeItem)destItem;
+      CmsDnDTreeItem oldParent=destTreeItem.getParentItem();
+      destTreeItem.setParentItem(null);
+      destTreeItem.setTree(null);
+      oldParent.onChangeChildren();
+      destTreeItem.setParentItem(CmsDnDTreeItem.this);
+      destTreeItem.setTree(getTree());
+      onChangeChildren();
+      CmsDnDListItem srcItem=dropEvent.getSrcList().getItem(dropEvent.getSrcPath());
+      if (!(srcItem instanceof CmsDnDTreeItem)) {
+        getTree().fireDropEvent(new CmsDnDTreeDropEvent(dropEvent.getSrcList(),dropEvent.getSrcPath(),getTree(),destTreeItem.getPath()));
+        return;
+      }
+      CmsDnDTreeItem srcTreeItem=(CmsDnDTreeItem)srcItem;
+      CmsDnDList<? extends CmsDnDListItem> srcList=dropEvent.getSrcList();
+      String srcPath=dropEvent.getSrcPath();
+      if (srcTreeItem.getTree() != null) {
+        srcList=srcTreeItem.getTree();
+        srcPath=srcTreeItem.getPath();
+      }
+      getTree().fireDropEvent(new CmsDnDTreeDropEvent((CmsDnDList<CmsDnDListItem>)srcList,srcPath,getTree(),destTreeItem.getPath()));
+    }
+  }
+);
+  m_children.setStyleName(CSS.listTreeItemChildren());
+  m_panel.add(m_children);
+  onChangeChildren();
+  m_open=true;
+  setOpen(false);
+}
