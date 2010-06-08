@@ -1,0 +1,78 @@
+{
+  Iterator<Widget> it=m_currentTarget.iterator();
+  while (it.hasNext()) {
+    Widget child=it.next();
+    Element element=child.getElement();
+    String positioning=element.getStyle().getPosition();
+    if ((positioning.equals(Position.ABSOLUTE.getCssName()) || positioning.equals(Position.FIXED.getCssName())) || !child.isVisible() || (m_placeholder == child)) {
+      continue;
+    }
+    int left=m_currentEvent.getRelativeX(element);
+    if ((left <= 0) || (left >= element.getOffsetWidth())) {
+      continue;
+    }
+    int top=m_currentEvent.getRelativeY(element);
+    int height=element.getOffsetHeight();
+    if ((top <= 0) || (top >= height)) {
+      continue;
+    }
+    int index=m_currentTarget.getWidgetIndex(child);
+    boolean isTree=child instanceof CmsDnDTreeItem;
+    if (!isTree) {
+      if (top < height / 2) {
+        if (m_currentTarget.getWidgetIndex(m_placeholder) != index) {
+          m_currentTarget.insert(m_placeholder,index);
+          targetSortChangeAction();
+        }
+      }
+ else {
+        if (m_currentTarget.getWidgetIndex(m_placeholder) != index + 1) {
+          m_currentTarget.insert(m_placeholder,index + 1);
+          targetSortChangeAction();
+        }
+      }
+      return;
+    }
+    CmsDnDTreeItem item=(CmsDnDTreeItem)child;
+    height=item.getListItemWidget().getElement().getOffsetHeight();
+    if ((top <= 0) || (top >= height)) {
+      continue;
+    }
+    if (top < height / 3) {
+      if (m_currentTarget.getWidgetIndex(m_placeholder) != index) {
+        m_currentTarget.insert(m_placeholder,index);
+        targetSortChangeAction();
+      }
+    }
+ else     if (top > 2 * height / 3) {
+      if ((item.getChildCount() == 0) || !item.isOpen()) {
+        if (m_currentTarget.getWidgetIndex(m_placeholder) != index + 1) {
+          m_currentTarget.insert(m_placeholder,index + 1);
+          targetSortChangeAction();
+        }
+      }
+ else {
+        if (m_currentTarget != null) {
+          elementLeaveTargetAction();
+        }
+        CmsDnDList<? extends CmsDnDListItem> list=item.m_children;
+        m_currentTarget=(CmsDnDList<CmsDnDListItem>)list;
+        elementEnterTargetAction();
+        if (m_currentTarget.getWidgetIndex(m_placeholder) != 0) {
+          m_currentTarget.insert(m_placeholder,0);
+          targetSortChangeAction();
+        }
+      }
+    }
+ else {
+      if (m_overItem != child) {
+        targetSortChangeAction();
+        m_placeholder.setVisible(false);
+        m_overItem=item;
+        m_overItem.onDragOverIn();
+      }
+    }
+    return;
+  }
+  resetItemOver();
+}
