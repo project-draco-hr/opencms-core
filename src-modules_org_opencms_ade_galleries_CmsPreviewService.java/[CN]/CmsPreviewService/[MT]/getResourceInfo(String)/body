@@ -1,0 +1,38 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsResourceInfoBean resInfo=new CmsResourceInfoBean();
+  try {
+    CmsSitemapEntry sitemapEntry=OpenCms.getSitemapManager().getEntryForUri(cms,resourcePath);
+    CmsResource resource=cms.readResource(sitemapEntry.getResourceId());
+    I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(resource.getTypeId());
+    resInfo.setTitle(resource.getName());
+    resInfo.setDescription(CmsWorkplaceMessages.getResourceTypeName(OpenCms.getWorkplaceManager().getWorkplaceLocale(cms),type.getTypeName()));
+    resInfo.setResourcePath(resourcePath);
+    resInfo.setSize(resource.getLength() / 1024 + " kb");
+    CmsExplorerTypeSettings setting=OpenCms.getWorkplaceManager().getExplorerTypeSetting(type.getTypeName());
+    List<String> properties=setting.getProperties();
+    String reference=setting.getReference();
+    while ((properties.size() == 0) && !CmsStringUtil.isEmptyOrWhitespaceOnly(reference)) {
+      setting=OpenCms.getWorkplaceManager().getExplorerTypeSetting(reference);
+      properties=setting.getProperties();
+      reference=setting.getReference();
+    }
+    Map<String,String> props=new LinkedHashMap<String,String>();
+    Iterator<String> propIt=properties.iterator();
+    while (propIt.hasNext()) {
+      String propertyName=propIt.next();
+      CmsProperty property=getCmsObject().readPropertyObject(resource,propertyName,false);
+      if (!property.isNullProperty()) {
+        props.put(property.getName(),property.getValue());
+      }
+ else {
+        props.put(propertyName,null);
+      }
+    }
+    resInfo.setProperties(props);
+  }
+ catch (  CmsException e) {
+    error(e);
+  }
+  return resInfo;
+}

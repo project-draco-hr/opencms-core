@@ -1,0 +1,52 @@
+{
+  CmsResource resource;
+  CmsObject cms=getCmsObject();
+  try {
+    resource=cms.readResource(resourcePath);
+    if (properties != null) {
+      for (      Entry<String,String> entry : properties.entrySet()) {
+        String propertyName=entry.getKey();
+        String propertyValue=entry.getValue();
+        if (CmsStringUtil.isEmptyOrWhitespaceOnly(propertyValue)) {
+          propertyValue="";
+        }
+        try {
+          CmsProperty currentProperty=cms.readPropertyObject(resource,propertyName,false);
+          if (currentProperty.isNullProperty()) {
+            currentProperty=new CmsProperty();
+            currentProperty.setName(propertyName);
+            if (OpenCms.getWorkplaceManager().isDefaultPropertiesOnStructure()) {
+              currentProperty.setStructureValue(propertyValue);
+              currentProperty.setResourceValue(null);
+            }
+ else {
+              currentProperty.setStructureValue(null);
+              currentProperty.setResourceValue(propertyValue);
+            }
+          }
+ else           if (currentProperty.getStructureValue() != null) {
+            currentProperty.setStructureValue(propertyValue);
+            currentProperty.setResourceValue(null);
+          }
+ else {
+            currentProperty.setStructureValue(null);
+            currentProperty.setResourceValue(propertyValue);
+          }
+          CmsLock lock=getCmsObject().getLock(resource);
+          if (lock.isUnlocked()) {
+            cms.lockResource(resourcePath);
+          }
+          cms.writePropertyObject(resourcePath,currentProperty);
+          cms.unlockResource(resourcePath);
+        }
+ catch (        CmsException e) {
+          log(e.getLocalizedMessage());
+        }
+      }
+    }
+  }
+ catch (  CmsException e1) {
+    error(e1);
+  }
+  return getResourceInfo(resourcePath);
+}
