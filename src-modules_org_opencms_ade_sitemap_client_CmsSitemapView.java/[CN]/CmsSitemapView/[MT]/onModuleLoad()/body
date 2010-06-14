@@ -11,6 +11,7 @@
   m_toolbar=new CmsSitemapToolbar(m_controller);
   RootPanel.get().add(m_toolbar);
   RootPanel.get().add(new CmsToolbarPlaceHolder());
+  m_hoverbar=new CmsSitemapHoverbar(m_controller);
   CmsHeader title=new CmsHeader(Messages.get().key(Messages.GUI_EDITOR_TITLE_0),CmsCoreProvider.get().getUri());
   title.addStyleName(I_CmsLayoutBundle.INSTANCE.rootCss().pageCenter());
   RootPanel.get().add(title);
@@ -41,19 +42,46 @@
     }
   }
 );
-  m_tree.addTreeDropHandler(this);
-  m_tree.setDnDEnabled(true);
+  if (m_controller.isEditable()) {
+    m_tree.addTreeDropHandler(this);
+    m_tree.setDnDEnabled(true);
+  }
   m_tree.truncate(TM_SITEMAP,920);
   m_tree.setAnimationEnabled(true);
   m_tree.addItem(rootItem);
-  m_tree.enableDropTarget(false);
-  m_tree.getDnDHandler().setStatusHandler(this);
-  m_tree.getDnDHandler().setCollisionHandler(this);
+  if (m_controller.isEditable()) {
+    m_tree.enableDropTarget(false);
+    m_tree.getDnDHandler().setStatusHandler(this);
+    m_tree.getDnDHandler().setCollisionHandler(this);
+  }
   page.remove(loadingLabel);
   page.add(m_tree);
   Event.addNativePreviewHandler(this);
   Window.addWindowClosingHandler(this);
   if (!m_controller.isEditable()) {
     CmsNotification.get().sendSticky(CmsNotification.Type.WARNING,Messages.get().key(Messages.GUI_NO_EDIT_NOTIFICATION_1,m_controller.getData().getNoEditReason()));
+    return;
   }
+  m_hoverbar.addAttachHandler(new I_CmsHoverbarAttachHandler(){
+    /** 
+ * @see org.opencms.ade.sitemap.client.hoverbar.I_CmsHoverbarAttachHandler#onAttach(org.opencms.ade.sitemap.client.hoverbar.CmsHoverbarAttachEvent)
+ */
+    public void onAttach(    CmsHoverbarAttachEvent event){
+      m_tree.getDnDHandler().registerMouseHandler(getTreeItem(m_hoverbar.getSitePath()));
+    }
+  }
+);
+  m_hoverbar.addDetachHandler(new I_CmsHoverbarDetachHandler(){
+    /** 
+ * @see org.opencms.ade.sitemap.client.hoverbar.I_CmsHoverbarDetachHandler#onDetach(org.opencms.ade.sitemap.client.hoverbar.CmsHoverbarDetachEvent)
+ */
+    public void onDetach(    CmsHoverbarDetachEvent event){
+      CmsSitemapTreeItem treeItem=getTreeItem(m_hoverbar.getSitePath());
+      if (treeItem == null) {
+        treeItem=getTreeItem(CmsResource.getParentFolder(m_hoverbar.getSitePath()) + CmsDnDListItem.DRAGGED_PLACEHOLDER_ID + "/");
+      }
+      treeItem.removeDndMouseHandlers();
+    }
+  }
+);
 }
