@@ -3,7 +3,7 @@
   m_initialValues.put(formField.getId(),initialValue);
   String description=formField.getDescription();
   String labelText=formField.getLabel();
-  I_CmsFormWidget widget=formField.getWidget();
+  final I_CmsFormWidget widget=formField.getWidget();
   if (widget instanceof HasValueChangeHandlers) {
     ((HasValueChangeHandlers<String>)widget).addValueChangeHandler(new ValueChangeHandler<String>(){
       /** 
@@ -11,7 +11,38 @@
  */
       public void onValueChange(      ValueChangeEvent<String> event){
         formField.setValidationStatus(I_CmsFormField.ValidationStatus.unknown);
-        validateField(formField);
+        if (!m_pressedEnter) {
+          validateField(formField);
+        }
+ else {
+          validateAndSubmit();
+        }
+      }
+    }
+);
+  }
+  if (widget instanceof HasKeyPressHandlers) {
+    ((HasKeyPressHandlers)widget).addKeyPressHandler(new KeyPressHandler(){
+      /** 
+ * @see com.google.gwt.event.dom.client.KeyPressHandler#onKeyPress(com.google.gwt.event.dom.client.KeyPressEvent)
+ */
+      public void onKeyPress(      KeyPressEvent event){
+        int keyCode=event.getNativeEvent().getKeyCode();
+        if (keyCode == KeyCodes.KEY_ENTER) {
+          m_pressedEnter=true;
+          if (widget instanceof I_CmsHasBlur) {
+            ((I_CmsHasBlur)widget).blur();
+          }
+          Scheduler.get().scheduleDeferred(new ScheduledCommand(){
+            /** 
+ * @see com.google.gwt.core.client.Scheduler.ScheduledCommand#execute()
+ */
+            public void execute(){
+              m_pressedEnter=false;
+            }
+          }
+);
+        }
       }
     }
 );
