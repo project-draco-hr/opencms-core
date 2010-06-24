@@ -1,7 +1,9 @@
 {
   super.onModuleLoad();
+  m_instance=this;
   I_CmsLayoutBundle.INSTANCE.rootCss().ensureInjected();
   I_CmsLayoutBundle.INSTANCE.pageCss().ensureInjected();
+  I_CmsLayoutBundle.INSTANCE.clipboardCss().ensureInjected();
   I_CmsLayoutBundle.INSTANCE.sitemapItemCss().ensureInjected();
   I_CmsImageBundle.INSTANCE.buttonCss().ensureInjected();
   RootPanel.getBodyElement().addClassName(I_CmsLayoutBundle.INSTANCE.rootCss().root());
@@ -23,7 +25,7 @@
   CmsSitemapTreeItem rootItem=createSitemapItem(root);
   rootItem.onFinishLoading();
   rootItem.setOpen(true);
-  m_tree=new CmsDnDLazyTree<CmsSitemapTreeItem>(new A_CmsDnDDeepLazyOpenHandler<CmsSitemapTreeItem>(){
+  m_tree=new CmsLazyTree<CmsSitemapTreeItem>(new A_CmsDeepLazyOpenHandler<CmsSitemapTreeItem>(){
     /** 
  * @see org.opencms.gwt.client.ui.tree.I_CmsLazyOpenHandler#load(org.opencms.gwt.client.ui.tree.CmsLazyTreeItem)
  */
@@ -33,17 +35,13 @@
   }
 );
   if (m_controller.isEditable()) {
-    m_tree.addTreeDropHandler(this);
     m_tree.setDnDEnabled(true);
+    m_tree.getDnDManager().addDropHandler(this);
+    m_tree.setDropEnabled(false);
   }
   m_tree.truncate(TM_SITEMAP,920);
   m_tree.setAnimationEnabled(true);
   m_tree.addItem(rootItem);
-  if (m_controller.isEditable()) {
-    m_tree.enableDropTarget(false);
-    m_tree.getDnDHandler().setStatusHandler(this);
-    m_tree.getDnDHandler().setCollisionHandler(this);
-  }
   page.remove(loadingLabel);
   page.add(m_tree);
   Event.addNativePreviewHandler(this);
@@ -52,28 +50,6 @@
     CmsNotification.get().sendSticky(CmsNotification.Type.WARNING,Messages.get().key(Messages.GUI_NO_EDIT_NOTIFICATION_1,m_controller.getData().getNoEditReason()));
     return;
   }
-  m_hoverbar.addAttachHandler(new I_CmsHoverbarAttachHandler(){
-    /** 
- * @see org.opencms.ade.sitemap.client.hoverbar.I_CmsHoverbarAttachHandler#onAttach(org.opencms.ade.sitemap.client.hoverbar.CmsHoverbarAttachEvent)
- */
-    public void onAttach(    CmsHoverbarAttachEvent event){
-      m_tree.getDnDHandler().registerMouseHandler(getTreeItem(m_hoverbar.getSitePath()));
-    }
-  }
-);
-  m_hoverbar.addDetachHandler(new I_CmsHoverbarDetachHandler(){
-    /** 
- * @see org.opencms.ade.sitemap.client.hoverbar.I_CmsHoverbarDetachHandler#onDetach(org.opencms.ade.sitemap.client.hoverbar.CmsHoverbarDetachEvent)
- */
-    public void onDetach(    CmsHoverbarDetachEvent event){
-      CmsSitemapTreeItem treeItem=getTreeItem(m_hoverbar.getSitePath());
-      if (treeItem == null) {
-        treeItem=getTreeItem(CmsResource.getParentFolder(m_hoverbar.getSitePath()) + CmsDnDListItem.DRAGGED_PLACEHOLDER_ID + "/");
-      }
-      treeItem.removeDndMouseHandlers();
-    }
-  }
-);
   String openPath=m_controller.getData().getOpenPath();
   if (openPath != null) {
     openItemsOnPath(openPath);

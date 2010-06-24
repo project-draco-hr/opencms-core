@@ -1,0 +1,42 @@
+{
+  if (!(e.getTarget() instanceof CmsTree<?>)) {
+    if (e.getTarget() instanceof CmsList<?>) {
+      super.beforeDrop(e,callback);
+      return;
+    }
+    callback.onSuccess(e);
+    return;
+  }
+  CmsTree<?> tree=(CmsTree<?>)e.getTarget();
+  String destPath=e.getPosition().getInfo() + e.getPosition().getName() + "/";
+  Object item=tree.getItemByPath(destPath);
+  if (item == null) {
+    callback.onSuccess(e);
+    return;
+  }
+  I_CmsDraggable draggable=e.getDraggable();
+  if (draggable instanceof CmsTreeItem) {
+    CmsTreeItem src=(CmsTreeItem)draggable;
+    if ((src.getTree() == e.getTarget()) && destPath.equals(src.getPath())) {
+      callback.onSuccess(e);
+      return;
+    }
+  }
+  CmsSitemapController controller=CmsSitemapView.getInstance().getController();
+  (new CmsSitemapEntryEditor(new CmsDnDEntryHandler(controller,controller.getEntry(getPath()),destPath,new AsyncCallback<String>(){
+    /** 
+ * @see com.google.gwt.user.client.rpc.AsyncCallback#onFailure(java.lang.Throwable)
+ */
+    public void onFailure(    Throwable caught){
+      callback.onFailure(null);
+    }
+    /** 
+ * @see com.google.gwt.user.client.rpc.AsyncCallback#onSuccess(java.lang.Object)
+ */
+    public void onSuccess(    String newName){
+      e.getPosition().setName(newName);
+      callback.onSuccess(e);
+    }
+  }
+))).startAndValidate();
+}

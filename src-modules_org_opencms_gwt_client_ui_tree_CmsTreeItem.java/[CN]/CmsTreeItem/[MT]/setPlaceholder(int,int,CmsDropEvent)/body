@@ -1,0 +1,112 @@
+{
+  Element itemElement=getListItemWidget().getElement();
+  int left=CmsDomUtil.getRelativeX(x,itemElement);
+  if ((left <= 0) || (left >= itemElement.getOffsetWidth())) {
+    return null;
+  }
+  int top=CmsDomUtil.getRelativeY(y,itemElement);
+  int height=itemElement.getOffsetHeight();
+  if (top <= 0) {
+    return null;
+  }
+  int index;
+  String path;
+  boolean isParentDndEnabled;
+  if (getParentItem() == null) {
+    index=getTree().getItemPosition(this);
+    path="/";
+    isParentDndEnabled=getTree().isDropEnabled();
+  }
+ else {
+    index=getParentItem().getItemPosition(this);
+    path=getParentItem().getPath();
+    isParentDndEnabled=getParentItem().isDropEnabled();
+  }
+  Element parentElement=getElement().getParentElement();
+  I_CmsDraggable draggable=event.getDraggable();
+  boolean checkPos=((event.getTarget() == this.getTree()) && (event.getPosition() != null));
+  if (draggable == this) {
+    if (checkPos && (event.getPosition().getPosition() == index) && path.equals(event.getPosition().getInfo())) {
+      return null;
+    }
+    Element newPlaceholder=draggable.getPlaceHolder(getTree());
+    getTree().setPlaceholder(newPlaceholder);
+    parentElement.insertBefore(newPlaceholder,getElement());
+    CmsDropPosition pos=new CmsDropPosition(null,index,path,newPlaceholder);
+    return pos;
+  }
+ else   if (top < height / 3) {
+    if (!isParentDndEnabled) {
+      return null;
+    }
+    if (checkPos && (event.getPosition().getPosition() == index) && path.equals(event.getPosition().getInfo())) {
+      return null;
+    }
+    Element newPlaceholder=draggable.getPlaceHolder(getTree());
+    getTree().setPlaceholder(newPlaceholder);
+    parentElement.insertBefore(newPlaceholder,getElement());
+    CmsDropPosition pos=new CmsDropPosition(null,index,path,newPlaceholder);
+    return pos;
+  }
+ else   if ((top > 2 * height / 3) && (top < height)) {
+    if ((getChildCount() == 0) || !isOpen()) {
+      if (!isParentDndEnabled) {
+        return null;
+      }
+      if (checkPos && (event.getPosition().getPosition() == index + 1) && path.equals(event.getPosition().getInfo())) {
+        return null;
+      }
+      Element newPlaceholder=draggable.getPlaceHolder(getTree());
+      getTree().setPlaceholder(newPlaceholder);
+      parentElement.insertAfter(newPlaceholder,getElement());
+      CmsDropPosition pos=new CmsDropPosition(null,index + 1,path,newPlaceholder);
+      return pos;
+    }
+ else {
+      if (!isDropEnabled()) {
+        return null;
+      }
+      if (checkPos && (event.getPosition().getPosition() == 0) && getPath().equals(event.getPosition().getInfo())) {
+        return null;
+      }
+      Element newPlaceholder=draggable.getPlaceHolder(getTree());
+      getTree().setPlaceholder(newPlaceholder);
+      m_children.getElement().insertBefore(newPlaceholder,m_children.getElement().getFirstChild());
+      CmsDropPosition pos=new CmsDropPosition(null,0,getPath(),newPlaceholder);
+      return pos;
+    }
+  }
+ else   if (top < height) {
+    if (!isDropEnabled()) {
+      return null;
+    }
+    if (checkPos && (event.getPosition().getPosition() == getChildCount()) && getPath().equals(event.getPosition().getInfo())) {
+      return null;
+    }
+    getTree().setPlaceholder(this);
+    CmsDropPosition pos=new CmsDropPosition(null,getChildCount(),getPath(),getElement());
+    return pos;
+  }
+ else   if (isOpen()) {
+    for (int childIndex=0; childIndex < getChildCount(); childIndex++) {
+      CmsTreeItem child=getChild(childIndex);
+      Element childElement=child.getElement();
+      String positioning=childElement.getStyle().getPosition();
+      if ((positioning.equals(Position.ABSOLUTE.getCssName()) || positioning.equals(Position.FIXED.getCssName())) || !child.isVisible()) {
+        continue;
+      }
+      int childLeft=CmsDomUtil.getRelativeX(x,childElement);
+      if ((childLeft <= 0) || (childLeft >= childElement.getOffsetWidth())) {
+        continue;
+      }
+      int childTop=CmsDomUtil.getRelativeY(y,childElement);
+      int childHeight=childElement.getOffsetHeight();
+      if ((childTop <= 0) || (childTop >= childHeight)) {
+        continue;
+      }
+      return child.setPlaceholder(x,y,event);
+    }
+    return null;
+  }
+  return null;
+}
