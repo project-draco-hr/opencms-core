@@ -5,7 +5,7 @@
     boolean nested=CmsStringUtil.isNotEmpty(pathPrefix);
     boolean useTabs=false;
     boolean tabOpened=false;
-    int currentTabIndex=0;
+    StringBuffer selectedTabScript=new StringBuffer(64);
     boolean collapseLabel=false;
     boolean firstElement=true;
     if (!nested && showErrors && (getValidationHandler().hasErrors())) {
@@ -96,14 +96,8 @@
             tabCurrentlyOpened=true;
             collapseLabel=checkTab.isCollapsed();
             m_currentTab=checkTab;
-            currentTabIndex=tabIndex;
+            m_currentTabIndex=tabIndex;
             break;
-          }
-        }
-        if (CmsStringUtil.isNotEmpty(getParamElementName())) {
-          String elemName=CmsXmlUtils.getFirstXpathElement(getParamElementName());
-          if ((m_currentTab != null) && (elemName.equals(m_currentTab.getStartName()) || (!CmsXmlUtils.isDeepXpath(getParamElementName()) && type.getName().equals(elemName)))) {
-            result.append("<script type=\"text/javascript\">\n\txmlSelectedTab = ").append(currentTabIndex).append(";\n</script>\n");
           }
         }
       }
@@ -129,6 +123,11 @@
       for (int j=0; j < elementCount; j++) {
         I_CmsXmlContentValue value=elementSequence.getValue(j);
         String key=value.getPath();
+        if ((m_currentTab != null) && CmsStringUtil.isNotEmpty(getParamElementName())) {
+          if (key.startsWith(getParamElementName()) && getParamElementIndex().equals(String.valueOf(value.getIndex()))) {
+            selectedTabScript.append("<script type=\"text/javascript\">\n\txmlSelectedTab = ").append(m_currentTabIndex).append(";\n</script>\n");
+          }
+        }
         if (showErrors && getValidationHandler().hasErrors(getElementLocale()) && getValidationHandler().getErrors(getElementLocale()).containsKey(key)) {
           if (collapseLabel) {
             result.append("<tr><td class=\"xmlTdError\"><img src=\"");
@@ -231,6 +230,9 @@
         result.append("\txmlErrorTabs[xmlErrorTabs.length] = \"").append(checkTab.getStartName()).append("\";\n");
       }
       result.append("</script>\n");
+    }
+    if (selectedTabScript.length() > 0) {
+      result.append(selectedTabScript);
     }
   }
  catch (  Throwable t) {
