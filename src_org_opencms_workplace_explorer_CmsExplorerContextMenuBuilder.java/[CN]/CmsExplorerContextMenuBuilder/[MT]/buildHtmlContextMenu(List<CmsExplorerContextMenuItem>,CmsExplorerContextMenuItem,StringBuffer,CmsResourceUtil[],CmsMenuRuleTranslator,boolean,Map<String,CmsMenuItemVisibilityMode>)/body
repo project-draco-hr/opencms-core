@@ -1,0 +1,175 @@
+{
+  boolean insertSeparator=false;
+  boolean firstEntryWritten=false;
+  menu.append("\n<ul");
+  if (parent != null) {
+    menu.append(" id=\"");
+    menu.append(parent.getKey().hashCode());
+    menu.append("\"");
+  }
+  menu.append(">");
+  for (  CmsExplorerContextMenuItem item : contextMenuEntries) {
+    StringBuffer parentIdsBuffer=new StringBuffer(64);
+    CmsExplorerContextMenuItem pItem=item;
+    boolean isFirst=true;
+    while (pItem.isSubItem()) {
+      if (isFirst) {
+        parentIdsBuffer.append("'");
+        isFirst=false;
+      }
+ else {
+        parentIdsBuffer.append(",");
+      }
+      parentIdsBuffer.append(pItem.getParent().getKey().hashCode());
+      pItem=pItem.getParent();
+    }
+    if (!isFirst) {
+      parentIdsBuffer.append("'");
+    }
+    String parentIds=parentIdsBuffer.toString();
+    if (item.isParentItem()) {
+      CmsMenuItemVisibilityMode mode=CmsMenuItemVisibilityMode.VISIBILITY_INVISIBLE;
+      String itemRuleName=item.getRule();
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(itemRuleName)) {
+        CmsMenuRule rule=OpenCms.getWorkplaceManager().getMenuRule(itemRuleName);
+        if (rule != null) {
+          I_CmsMenuItemRule itemRule=rule.getMatchingRule(getCms(),resUtil);
+          if (itemRule != null) {
+            List<I_CmsMenuItemRule> itemRules=new ArrayList<I_CmsMenuItemRule>(item.getSubItems().size());
+            getSubItemRules(item,itemRules,resUtil);
+            I_CmsMenuItemRule[] itemRulesArray=new I_CmsMenuItemRule[itemRules.size()];
+            mode=itemRule.getVisibility(getCms(),resUtil,itemRules.toArray(itemRulesArray));
+          }
+        }
+      }
+      if (!mode.isInVisible()) {
+        if (insertSeparator) {
+          menu.append(HTML_SEPARATOR);
+          insertSeparator=false;
+        }
+        menu.append("\n<li><a class=\"x\" href=\"javascript:var ocm=1;\" onmouseover=\"window.status='';top.oSubC('");
+        menu.append(item.getKey().hashCode());
+        menu.append("'");
+        if (CmsStringUtil.isNotEmpty(parentIds)) {
+          menu.append(",");
+          menu.append(parentIds);
+        }
+        menu.append(");return true;\">");
+        menu.append(key(item.getKey()));
+        menu.append("</a>");
+        buildHtmlContextMenu(item.getSubItems(),item,menu,resUtil,menuRuleTranslator,isSingleSelection,storedModes);
+        menu.append("</li>");
+        firstEntryWritten=true;
+      }
+    }
+ else     if (CmsExplorerContextMenuItem.TYPE_ENTRY.equals(item.getType())) {
+      String itemName=key(item.getKey());
+      String itemLink=" ";
+      if (item.getUri().startsWith("/")) {
+        itemLink=getJsp().link(item.getUri());
+      }
+ else {
+        itemLink=getJsp().link(CmsWorkplace.PATH_WORKPLACE + item.getUri());
+      }
+      String itemTarget=item.getTarget();
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(itemTarget)) {
+        itemTarget="";
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getParamActtarget()) && (item.getUri() != null) && item.getUri().startsWith("views/admin/admin-main.jsp")) {
+          itemTarget=getParamActtarget();
+        }
+      }
+      CmsMenuRule customMenuRule=null;
+      String itemRuleName=item.getRule();
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(itemRuleName)) {
+        if (isSingleSelection) {
+          if (menuRuleTranslator.hasMenuRule(item.getRules())) {
+            itemRuleName=menuRuleTranslator.getMenuRuleName(item.getRules());
+            item.setRule(itemRuleName);
+          }
+ else {
+            customMenuRule=menuRuleTranslator.createMenuRule(item.getRules());
+            itemRuleName=customMenuRule.getName();
+          }
+        }
+ else {
+          itemRuleName=CmsMirMultiStandard.RULE_NAME;
+          if (!storedModes.containsKey(itemRuleName)) {
+            storedModes.put(itemRuleName,new CmsMirMultiStandard().getVisibility(getCms(),resUtil));
+          }
+        }
+      }
+      CmsMenuItemVisibilityMode mode=storedModes.get(itemRuleName);
+      if (mode == null) {
+        CmsMenuRule rule;
+        if (customMenuRule != null) {
+          rule=customMenuRule;
+        }
+ else {
+          rule=OpenCms.getWorkplaceManager().getMenuRule(itemRuleName);
+        }
+        if (rule != null) {
+          I_CmsMenuItemRule itemRule=rule.getMatchingRule(getCms(),resUtil);
+          if (itemRule != null) {
+            mode=itemRule.getVisibility(getCms(),resUtil);
+            storedModes.put(item.getRule(),mode);
+          }
+        }
+      }
+      if (mode != null) {
+        if (mode.isActive()) {
+          if (insertSeparator) {
+            menu.append(HTML_SEPARATOR);
+            insertSeparator=false;
+          }
+          StringBuffer link=new StringBuffer(128);
+          if (isSingleSelection) {
+            link.append(" href=\"javascript:top.submitSingleAction('");
+            link.append(itemLink);
+            link.append("', '");
+            link.append(itemTarget);
+            link.append("');\"");
+          }
+ else {
+            link.append(" href=\"javascript:top.submitMultiAction('");
+            link.append(itemLink);
+            link.append("');\"");
+          }
+          menu.append("\n<li><a ");
+          menu.append(link);
+          menu.append(" onmouseover=\"window.status='';top.cSubC(");
+          menu.append(parentIds);
+          menu.append(");return true;\"");
+          menu.append(">");
+          menu.append(itemName);
+          menu.append("</a></li>");
+          firstEntryWritten=true;
+        }
+ else         if (mode.isInActive()) {
+          if (insertSeparator) {
+            menu.append(HTML_SEPARATOR);
+            insertSeparator=false;
+          }
+          menu.append("\n<li>");
+          menu.append("<a ");
+          menu.append(" onmouseover=\"window.status='';top.cSubC(");
+          menu.append(parentIds);
+          menu.append(");return true;\"");
+          if (CmsStringUtil.isNotEmpty(mode.getMessageKey())) {
+            menu.append(" title=\"");
+            menu.append(getMessages().key(CmsEncoder.escapeXml(mode.getMessageKey())));
+            menu.append("\"");
+          }
+          menu.append(" class=\"ina\" href=\"javascript:var ocm=1;\">").append(itemName).append("</a>");
+          menu.append("</li>");
+          firstEntryWritten=true;
+        }
+      }
+    }
+ else {
+      if (firstEntryWritten) {
+        insertSeparator=true;
+      }
+    }
+  }
+  menu.append("\n</ul>");
+}

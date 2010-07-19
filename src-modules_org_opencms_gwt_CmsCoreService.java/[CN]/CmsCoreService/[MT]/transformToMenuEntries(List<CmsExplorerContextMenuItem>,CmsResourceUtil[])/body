@@ -1,0 +1,46 @@
+{
+  List<CmsContextMenuEntryBean> result=new ArrayList<CmsContextMenuEntryBean>();
+  CmsMessages messages=OpenCms.getWorkplaceManager().getMessages(getCmsObject().getRequestContext().getLocale());
+  for (  CmsExplorerContextMenuItem item : items) {
+    CmsContextMenuEntryBean bean=new CmsContextMenuEntryBean();
+    if (!CmsExplorerContextMenuItem.TYPE_SEPARATOR.equals(item.getType())) {
+      if (item.getKey() != null) {
+        bean.setLabel(messages.key(item.getKey()));
+      }
+      CmsMenuItemVisibilityMode mode=CmsMenuItemVisibilityMode.VISIBILITY_INVISIBLE;
+      String itemRuleName=item.getRule();
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(itemRuleName)) {
+        CmsMenuRule rule=OpenCms.getWorkplaceManager().getMenuRule(itemRuleName);
+        if (rule != null) {
+          I_CmsMenuItemRule itemRule=rule.getMatchingRule(getCmsObject(),resUtil);
+          mode=itemRule.getVisibility(getCmsObject(),resUtil);
+        }
+      }
+      bean.setVisible(!mode.isInVisible());
+      bean.setActive(mode.isActive());
+      if (CmsStringUtil.isNotEmpty(mode.getMessageKey())) {
+        bean.setReason(messages.key(CmsEncoder.escapeXml(mode.getMessageKey())));
+      }
+      String jspPath=item.getUri();
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(jspPath)) {
+        if (item.getUri().startsWith("/")) {
+          jspPath=OpenCms.getLinkManager().substituteLink(getCmsObject(),item.getUri());
+        }
+ else {
+          jspPath=OpenCms.getLinkManager().substituteLink(getCmsObject(),CmsWorkplace.PATH_WORKPLACE + item.getUri());
+        }
+      }
+      bean.setJspPath(jspPath);
+    }
+    if (item.isParentItem()) {
+      List<CmsContextMenuEntryBean> subMenu=transformToMenuEntries(item.getSubItems(),resUtil);
+      bean.setSubMenu(subMenu);
+    }
+    if (CmsExplorerContextMenuItem.TYPE_SEPARATOR.equals(item.getType())) {
+      bean.setVisible(true);
+      bean.setSeparator(true);
+    }
+    result.add(bean);
+  }
+  return result;
+}
