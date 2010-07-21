@@ -13,13 +13,28 @@
         CmsMenuRule rule=OpenCms.getWorkplaceManager().getMenuRule(itemRuleName);
         if (rule != null) {
           I_CmsMenuItemRule itemRule=rule.getMatchingRule(getCmsObject(),resUtil);
-          mode=itemRule.getVisibility(getCmsObject(),resUtil);
+          if (itemRule != null) {
+            if (item.isParentItem()) {
+              List<I_CmsMenuItemRule> itemRules=new ArrayList<I_CmsMenuItemRule>(item.getSubItems().size());
+              getSubItemRules(item,itemRules,resUtil);
+              I_CmsMenuItemRule[] itemRulesArray=new I_CmsMenuItemRule[itemRules.size()];
+              mode=itemRule.getVisibility(getCmsObject(),resUtil,itemRules.toArray(itemRulesArray));
+            }
+ else {
+              mode=itemRule.getVisibility(getCmsObject(),resUtil);
+            }
+          }
         }
       }
       bean.setVisible(!mode.isInVisible());
-      bean.setActive(mode.isActive());
-      if (CmsStringUtil.isNotEmpty(mode.getMessageKey())) {
-        bean.setReason(messages.key(CmsEncoder.escapeXml(mode.getMessageKey())));
+      if (item.isParentItem()) {
+        bean.setActive(true);
+      }
+ else {
+        bean.setActive(mode.isActive());
+        if (CmsStringUtil.isNotEmpty(mode.getMessageKey())) {
+          bean.setReason(messages.key(CmsEncoder.escapeXml(mode.getMessageKey())));
+        }
       }
       String jspPath=item.getUri();
       if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(jspPath)) {
@@ -31,10 +46,19 @@
         }
       }
       bean.setJspPath(jspPath);
+      String imagePath=item.getIcon();
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(imagePath)) {
+        if (item.getIcon().startsWith("/")) {
+          imagePath=OpenCms.getLinkManager().substituteLink(getCmsObject(),item.getIcon());
+        }
+ else {
+          imagePath=OpenCms.getLinkManager().substituteLink(getCmsObject(),CmsWorkplace.PATH_WORKPLACE + item.getIcon());
+        }
+      }
+      bean.setImagePath(imagePath);
     }
     if (item.isParentItem()) {
-      List<CmsContextMenuEntryBean> subMenu=transformToMenuEntries(item.getSubItems(),resUtil);
-      bean.setSubMenu(subMenu);
+      bean.setSubMenu(transformToMenuEntries(item.getSubItems(),resUtil));
     }
     if (CmsExplorerContextMenuItem.TYPE_SEPARATOR.equals(item.getType())) {
       bean.setVisible(true);
