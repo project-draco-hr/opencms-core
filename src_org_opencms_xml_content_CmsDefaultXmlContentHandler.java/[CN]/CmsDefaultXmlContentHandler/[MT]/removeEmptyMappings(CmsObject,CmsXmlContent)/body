@@ -36,6 +36,34 @@
           rootCms.writePropertyObject(filename,new CmsProperty(property,CmsProperty.DELETE_VALUE,null));
         }
       }
+ else       if (mapping.startsWith(MAPTO_PERMISSION)) {
+        for (int i=0; i < siblings.size(); i++) {
+          String filename=siblings.get(i).getRootPath();
+          Locale locale=OpenCms.getLocaleManager().getDefaultLocale(rootCms,filename);
+          if (!content.hasLocale(locale)) {
+            continue;
+          }
+          if (content.hasValue(path,locale)) {
+            continue;
+          }
+          List<CmsAccessControlEntry> aces=rootCms.getAccessControlEntries(filename,false);
+          for (Iterator<CmsAccessControlEntry> j=aces.iterator(); j.hasNext(); ) {
+            CmsAccessControlEntry ace=j.next();
+            if (ace.getPrincipal().equals(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID)) {
+              rootCms.rmacc(filename,CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_NAME,CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID.toString());
+            }
+ else {
+              I_CmsPrincipal principal=CmsPrincipal.readPrincipal(rootCms,ace.getPrincipal());
+              if (principal.isGroup()) {
+                rootCms.rmacc(filename,I_CmsPrincipal.PRINCIPAL_GROUP,principal.getName());
+              }
+ else               if (principal.isUser()) {
+                rootCms.rmacc(filename,I_CmsPrincipal.PRINCIPAL_USER,principal.getName());
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

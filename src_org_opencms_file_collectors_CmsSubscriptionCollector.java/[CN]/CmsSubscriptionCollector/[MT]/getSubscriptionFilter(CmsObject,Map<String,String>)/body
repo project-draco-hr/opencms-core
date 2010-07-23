@@ -1,0 +1,34 @@
+{
+  CmsSubscriptionFilter filter=new CmsSubscriptionFilter();
+  initVisitedByFilter(filter,cms,params,false);
+  if (params.containsKey(PARAM_KEY_MODE)) {
+    String modeName=params.get(PARAM_KEY_MODE);
+    filter.setMode(CmsSubscriptionReadMode.modeForName(modeName));
+  }
+  if (params.containsKey(PARAM_KEY_GROUPS)) {
+    List<String> groupNames=CmsStringUtil.splitAsList(params.get(PARAM_KEY_GROUPS),',',true);
+    for (Iterator<String> i=groupNames.iterator(); i.hasNext(); ) {
+      String groupName=i.next();
+      try {
+        CmsGroup group=cms.readGroup(groupName);
+        filter.addGroup(group);
+      }
+ catch (      CmsException e) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_COLLECTOR_PARAM_INVALID_1,PARAM_KEY_GROUPS + "=" + params.get(PARAM_KEY_GROUPS)));
+        throw e;
+      }
+    }
+  }
+  boolean includeUserGroups=Boolean.valueOf(params.get(PARAM_KEY_INCLUDEGROUPS)).booleanValue();
+  if (filter.getGroups().isEmpty() && includeUserGroups) {
+    String userName=null;
+    if (filter.getUser() != null) {
+      userName=filter.getUser().getName();
+    }
+ else {
+      userName=cms.getRequestContext().currentUser().getName();
+    }
+    filter.setGroups(cms.getGroupsOfUser(userName,false));
+  }
+  return filter;
+}

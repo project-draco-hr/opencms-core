@@ -1,0 +1,80 @@
+{
+  Map<String,String> params=getParameters(param);
+  String foldername="/";
+  if (params.containsKey(PARAM_KEY_RESOURCE)) {
+    foldername=CmsResource.getFolderPath(params.get(PARAM_KEY_RESOURCE));
+  }
+  long dateFrom=0L;
+  long dateTo=Long.MAX_VALUE;
+  if (params.containsKey(PARAM_KEY_DATEFROM)) {
+    try {
+      dateFrom=Long.parseLong(params.get(PARAM_KEY_DATEFROM));
+    }
+ catch (    NumberFormatException e) {
+      LOG.error(Messages.get().getBundle().key(Messages.ERR_COLLECTOR_PARAM_INVALID_1,PARAM_KEY_DATEFROM + "=" + params.get(PARAM_KEY_DATEFROM)));
+      throw e;
+    }
+  }
+  if (params.containsKey(PARAM_KEY_DATETO)) {
+    try {
+      dateTo=Long.parseLong(params.get(PARAM_KEY_DATETO));
+    }
+ catch (    NumberFormatException e) {
+      LOG.error(Messages.get().getBundle().key(Messages.ERR_COLLECTOR_PARAM_INVALID_1,PARAM_KEY_DATETO + "=" + params.get(PARAM_KEY_DATETO)));
+      throw e;
+    }
+  }
+  CmsResourceFilter filter=CmsResourceFilter.DEFAULT_FILES.addExcludeFlags(CmsResource.FLAG_TEMPFILE).addRequireLastModifiedAfter(dateFrom).addRequireLastModifiedBefore(dateTo);
+  if (params.containsKey(PARAM_KEY_EXCLUDETYPE)) {
+    String excludeType=params.get(PARAM_KEY_EXCLUDETYPE);
+    int typeId=-1;
+    try {
+      I_CmsResourceType resourceType=OpenCms.getResourceManager().getResourceType(excludeType);
+      typeId=resourceType.getTypeId();
+    }
+ catch (    CmsLoaderException e1) {
+      try {
+        int typeInt=Integer.parseInt(excludeType);
+        I_CmsResourceType resourceType=OpenCms.getResourceManager().getResourceType(typeInt);
+        typeId=resourceType.getTypeId();
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().getBundle().key(Messages.LOG_RESTYPE_INTID_2,resourceType.getTypeName(),new Integer(resourceType.getTypeId())));
+        }
+      }
+ catch (      NumberFormatException e2) {
+        throw new CmsRuntimeException(Messages.get().container(Messages.ERR_COLLECTOR_PARAM_INVALID_1,PARAM_KEY_EXCLUDETYPE + "=" + params.get(PARAM_KEY_EXCLUDETYPE)),e2);
+      }
+catch (      CmsLoaderException e2) {
+        throw new CmsRuntimeException(Messages.get().container(Messages.ERR_UNKNOWN_RESTYPE_1,excludeType),e2);
+      }
+    }
+    if (typeId != -1) {
+      filter=filter.addExcludeType(typeId);
+    }
+  }
+  List<CmsResource> result=cms.readResources(foldername,filter,tree);
+  String sortBy=CmsDateResourceComparator.DATE_ATTRIBUTES_LIST.get(1);
+  if (params.containsKey(PARAM_KEY_SORTBY)) {
+    sortBy=params.get(PARAM_KEY_SORTBY);
+  }
+  List<String> dateIdentifiers=new ArrayList<String>(1);
+  dateIdentifiers.add(sortBy);
+  CmsDateResourceComparator comparator=new CmsDateResourceComparator(cms,dateIdentifiers,asc);
+  Collections.sort(result,comparator);
+  int count=-1;
+  if (params.containsKey(PARAM_KEY_COUNT)) {
+    try {
+      count=Integer.parseInt(params.get(PARAM_KEY_COUNT));
+    }
+ catch (    NumberFormatException e) {
+      LOG.error(Messages.get().getBundle().key(Messages.ERR_COLLECTOR_PARAM_INVALID_1,PARAM_KEY_COUNT + "=" + params.get(PARAM_KEY_COUNT)));
+      throw e;
+    }
+  }
+  if (count > 0) {
+    return shrinkToFit(result,count);
+  }
+ else {
+    return result;
+  }
+}

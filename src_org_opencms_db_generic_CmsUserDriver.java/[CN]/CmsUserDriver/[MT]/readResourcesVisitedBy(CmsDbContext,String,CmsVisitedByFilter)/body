@@ -1,0 +1,47 @@
+{
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  ResultSet res=null;
+  CmsResource currentResource=null;
+  StringBuffer conditions=new StringBuffer(256);
+  List<String> params=new ArrayList<String>(1);
+  List<CmsResource> resources=new ArrayList<CmsResource>();
+  try {
+    conn=m_sqlManager.getConnection(poolName);
+    if (CmsStringUtil.isNotEmpty(filter.getParentPath())) {
+      CmsResource parent=m_driverManager.getVfsDriver(dbc).readResource(dbc,dbc.currentProject().getUuid(),filter.getParentPath(),false);
+      conditions.append(BEGIN_INCLUDE_CONDITION);
+      if (filter.isIncludeSubFolders()) {
+        conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_RESOURCES_SELECT_BY_PATH_PREFIX"));
+        params.add(CmsFileUtil.addTrailingSeparator(CmsVfsDriver.escapeDbWildcard(filter.getParentPath())) + "%");
+      }
+ else {
+        conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_RESOURCES_SELECT_BY_PARENT_UUID"));
+        params.add(parent.getStructureId().toString());
+      }
+      conditions.append(END_CONDITION);
+    }
+    String query=m_sqlManager.readQuery(dbc.currentProject(),"C_VISITED_USER_READ_4");
+    query=CmsStringUtil.substitute(query,"%(CONDITIONS)",conditions.toString());
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,query);
+    stmt.setString(1,filter.getUser().getId().toString());
+    stmt.setInt(2,CmsLogEntryType.USER_RESOURCE_VISITED.getId());
+    stmt.setLong(3,filter.getFromDate());
+    stmt.setLong(4,filter.getToDate());
+    for (int i=0; i < params.size(); i++) {
+      stmt.setString(i + 5,params.get(i));
+    }
+    res=stmt.executeQuery();
+    while (res.next()) {
+      currentResource=m_driverManager.getVfsDriver(dbc).createFile(res,dbc.currentProject().getUuid(),false);
+      resources.add(currentResource);
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  return resources;
+}

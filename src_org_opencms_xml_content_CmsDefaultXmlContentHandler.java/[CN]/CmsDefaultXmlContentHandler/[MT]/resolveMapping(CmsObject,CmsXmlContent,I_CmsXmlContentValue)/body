@@ -34,7 +34,71 @@
           rootCms.changeLock(filename);
         }
         String stringValue=value.getStringValue(rootCms);
-        if (mapping.startsWith(MAPTO_PROPERTY_LIST) && (value.getIndex() == 0)) {
+        if (mapping.startsWith(MAPTO_PERMISSION) && (value.getIndex() == 0)) {
+          String permissionMappings=mapping.substring(MAPTO_PERMISSION.length());
+          String mainMapping=permissionMappings;
+          Map<String,String> permissionsToSet=new HashMap<String,String>();
+          int sepIndex=permissionMappings.indexOf('|');
+          if (sepIndex != -1) {
+            mainMapping=permissionMappings.substring(0,sepIndex);
+            permissionMappings=permissionMappings.substring(sepIndex + 1);
+            permissionsToSet=CmsStringUtil.splitAsMap(permissionMappings,"|",":");
+          }
+          String principalType=I_CmsPrincipal.PRINCIPAL_GROUP;
+          String permissionString=mainMapping;
+          sepIndex=mainMapping.indexOf(':');
+          if (sepIndex != -1) {
+            principalType=mainMapping.substring(0,sepIndex);
+            permissionString=mainMapping.substring(sepIndex + 1);
+          }
+          if (permissionString.toLowerCase().indexOf('o') == -1) {
+            permissionString+="+o";
+          }
+          List<CmsAccessControlEntry> aces=rootCms.getAccessControlEntries(filename,false);
+          for (Iterator<CmsAccessControlEntry> j=aces.iterator(); j.hasNext(); ) {
+            CmsAccessControlEntry ace=j.next();
+            if (ace.getPrincipal().equals(CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID)) {
+              rootCms.rmacc(filename,CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_NAME,CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_ID.toString());
+            }
+ else {
+              I_CmsPrincipal principal=CmsPrincipal.readPrincipal(rootCms,ace.getPrincipal());
+              if (principal.isGroup()) {
+                rootCms.rmacc(filename,I_CmsPrincipal.PRINCIPAL_GROUP,principal.getName());
+              }
+ else               if (principal.isUser()) {
+                rootCms.rmacc(filename,I_CmsPrincipal.PRINCIPAL_USER,principal.getName());
+              }
+            }
+          }
+          for (Iterator<Map.Entry<String,String>> j=permissionsToSet.entrySet().iterator(); j.hasNext(); ) {
+            Map.Entry<String,String> entry=j.next();
+            sepIndex=entry.getKey().indexOf('.');
+            if (sepIndex != -1) {
+              String type=entry.getKey().substring(0,sepIndex);
+              String name=entry.getKey().substring(sepIndex + 1);
+              String permissions=entry.getValue();
+              if (permissions.toLowerCase().indexOf('o') == -1) {
+                permissions+="+o";
+              }
+              try {
+                rootCms.chacc(filename,type,name,permissions);
+              }
+ catch (              CmsException e) {
+                LOG.error(e);
+              }
+            }
+          }
+          String path=CmsXmlUtils.removeXpathIndex(value.getPath());
+          List<I_CmsXmlContentValue> values=content.getValues(path,locale);
+          Iterator<I_CmsXmlContentValue> j=values.iterator();
+          while (j.hasNext()) {
+            I_CmsXmlContentValue val=j.next();
+            String principalName=val.getStringValue(rootCms);
+            rootCms.chacc(filename,principalType,principalName,permissionString);
+          }
+          i=0;
+        }
+ else         if (mapping.startsWith(MAPTO_PROPERTY_LIST) && (value.getIndex() == 0)) {
           boolean mapToShared;
           int prefixLength;
           if (mapping.startsWith(MAPTO_PROPERTY_LIST_SHARED)) {

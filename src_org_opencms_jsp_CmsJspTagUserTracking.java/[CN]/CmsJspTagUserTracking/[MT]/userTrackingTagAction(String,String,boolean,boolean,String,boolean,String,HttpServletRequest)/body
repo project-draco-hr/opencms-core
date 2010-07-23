@@ -1,0 +1,72 @@
+{
+  String result="";
+  CmsFlexController controller=CmsFlexController.getController(req);
+  CmsObject cms=controller.getCmsObject();
+  CmsUser user=null;
+  CmsGroup group=null;
+  int actionIndex=TRACK_ACTIONS_LIST.indexOf(action);
+  try {
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(groupName)) {
+      group=cms.readGroup(groupName);
+    }
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(userName)) {
+      user=cms.readUser(userName);
+    }
+ else     if (currentUser) {
+      user=cms.getRequestContext().currentUser();
+    }
+    if ((group == null) && (user == null) && (actionIndex != 4)) {
+      user=cms.getRequestContext().currentUser();
+    }
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(fileName)) {
+      fileName=cms.getRequestContext().getUri();
+    }
+switch (actionIndex) {
+case 1:
+      if (group != null) {
+        OpenCms.getSubscriptionManager().subscribeResourceFor(cms,group,fileName);
+      }
+    if (user != null) {
+      OpenCms.getSubscriptionManager().subscribeResourceFor(cms,user,fileName);
+    }
+  removeSessionAttributes(new String[]{SESSION_PREFIX_SUBSCRIBED},req);
+break;
+case 2:
+if (group != null) {
+OpenCms.getSubscriptionManager().unsubscribeResourceFor(cms,group,fileName);
+}
+if (user != null) {
+OpenCms.getSubscriptionManager().unsubscribeResourceFor(cms,user,fileName);
+}
+removeSessionAttributes(new String[]{SESSION_PREFIX_SUBSCRIBED},req);
+break;
+case 3:
+result=String.valueOf(isResourceVisited(cms,fileName,subFolder,user,req));
+break;
+case 4:
+List<CmsGroup> groups=new ArrayList<CmsGroup>();
+if ((group == null) && includeGroups) {
+if (user != null) {
+groups.addAll(cms.getGroupsOfUser(user.getName(),false));
+}
+ else {
+groups.addAll(cms.getGroupsOfUser(cms.getRequestContext().currentUser().getName(),false));
+}
+}
+ else if (group != null) {
+groups.add(group);
+}
+result=String.valueOf(isResourceSubscribed(cms,fileName,subFolder,user,groups,req));
+break;
+case 0:
+default :
+OpenCms.getSubscriptionManager().markResourceAsVisitedBy(cms,fileName,user);
+removeSessionAttributes(new String[]{SESSION_PREFIX_SUBSCRIBED,SESSION_PREFIX_VISITED},req);
+}
+}
+ catch (CmsException e) {
+Throwable t=controller.setThrowable(e,cms.getRequestContext().getUri());
+throw new JspException(t);
+}
+return result;
+}

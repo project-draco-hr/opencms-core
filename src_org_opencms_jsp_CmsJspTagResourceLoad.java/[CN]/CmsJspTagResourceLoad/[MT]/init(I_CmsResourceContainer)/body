@@ -1,0 +1,62 @@
+{
+  int pageAttribCount=0;
+  pageAttribCount+=CmsStringUtil.isNotEmpty(m_pageSize) ? 1 : 0;
+  pageAttribCount+=CmsStringUtil.isNotEmpty(m_pageIndex) ? 1 : 0;
+  if ((pageAttribCount > 0) && (pageAttribCount < 2)) {
+    throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_TAG_RESOURCELOAD_INDEX_SIZE_0));
+  }
+  I_CmsResourceContainer usedContainer;
+  if (container == null) {
+    usedContainer=this;
+    if (CmsStringUtil.isEmpty(m_collector)) {
+      throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_TAG_RESOURCELOAD_MISSING_COLLECTOR_0));
+    }
+    if (CmsStringUtil.isEmpty(m_param)) {
+      throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_TAG_RESOURCELOAD_MISSING_PARAM_0));
+    }
+  }
+ else {
+    usedContainer=container;
+  }
+  m_controller=CmsFlexController.getController(pageContext.getRequest());
+  m_cms=m_controller.getCmsObject();
+  String resourcename=getResourceName(m_cms,usedContainer);
+  CmsMacroResolver resolver=CmsMacroResolver.newInstance().setCmsObject(m_cms).setJspPageContext(pageContext).setResourceName(resourcename).setKeepEmptyMacros(true);
+  if (container == null) {
+    m_collectorName=resolver.resolveMacros(getCollector());
+    m_collectorParam=resolver.resolveMacros(getParam());
+    m_collectorResult=null;
+  }
+ else {
+    m_collectorName=usedContainer.getCollectorName();
+    m_collectorParam=usedContainer.getCollectorParam();
+    m_collectorResult=usedContainer.getCollectorResult();
+  }
+  try {
+    I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(m_collectorName);
+    if (collector == null) {
+      throw new CmsException(Messages.get().container(Messages.ERR_COLLECTOR_NOT_FOUND_1,m_collectorName));
+    }
+    if (m_collectorResult == null) {
+      m_collectorResult=collector.getResults(m_cms,m_collectorName,m_collectorParam);
+    }
+    m_contentInfoBean=new CmsContentInfoBean();
+    m_contentInfoBean.setPageSizeAsString(resolver.resolveMacros(m_pageSize));
+    m_contentInfoBean.setPageIndexAsString(resolver.resolveMacros(m_pageIndex));
+    m_contentInfoBean.setPageNavLengthAsString(resolver.resolveMacros(m_pageNavLength));
+    m_contentInfoBean.setResultSize(m_collectorResult.size());
+    m_contentInfoBean.initResultIndex();
+    if (!isPreloader()) {
+      m_collectorResult=CmsJspTagResourceLoad.limitCollectorResult(m_contentInfoBean,m_collectorResult);
+      m_contentInfoBean.initPageNavIndexes();
+    }
+ else     if (isScopeVarSet()) {
+      CmsJspResourceLoadBean bean=new CmsJspResourceLoadBean(m_cms,m_collectorResult);
+      storeAttribute(bean);
+    }
+  }
+ catch (  CmsException e) {
+    m_controller.setThrowable(e,m_cms.getRequestContext().getUri());
+    throw new JspException(e);
+  }
+}

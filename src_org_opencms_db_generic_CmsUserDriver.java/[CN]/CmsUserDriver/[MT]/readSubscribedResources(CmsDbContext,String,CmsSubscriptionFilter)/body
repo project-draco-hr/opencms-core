@@ -1,0 +1,115 @@
+{
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  ResultSet res=null;
+  CmsResource currentResource=null;
+  List<CmsResource> resources=new ArrayList<CmsResource>();
+  String queryBuf=m_sqlManager.readQuery(dbc.currentProject(),"C_SUBSCRIPTION_FILTER_READ");
+  StringBuffer conditions=new StringBuffer(256);
+  List<String> params=new ArrayList<String>();
+  boolean userDefined=filter.getUser() != null;
+  boolean groupsDefined=!filter.getGroups().isEmpty();
+  if (!groupsDefined && !userDefined) {
+    filter.setUser(dbc.currentUser());
+    userDefined=true;
+  }
+  if (!filter.getMode().isAll() && (filter.getUser() == null)) {
+    filter.setMode(CmsSubscriptionReadMode.ALL);
+  }
+  List<String> principalIds=new ArrayList<String>();
+  if (userDefined) {
+    principalIds.add(filter.getUser().getId().toString());
+  }
+  if (groupsDefined) {
+    Iterator<CmsGroup> it=filter.getGroups().iterator();
+    while (it.hasNext()) {
+      principalIds.add(it.next().getId().toString());
+    }
+  }
+  if (principalIds.size() == 1) {
+    conditions.append(BEGIN_CONDITION);
+    conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_SUBSCRIPTION_FILTER_PRINCIPAL_SINGLE"));
+    params.add(principalIds.get(0));
+    conditions.append(END_CONDITION);
+  }
+ else {
+    conditions.append(BEGIN_CONDITION);
+    conditions.append(m_sqlManager.readQuery("C_SUBSCRIPTION_FILTER_PRINCIPALS"));
+    conditions.append(BEGIN_CONDITION);
+    Iterator<String> it=principalIds.iterator();
+    while (it.hasNext()) {
+      params.add(it.next());
+      conditions.append("?");
+      if (it.hasNext()) {
+        conditions.append(", ");
+      }
+    }
+    conditions.append(END_CONDITION);
+    conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_SUBSCRIPTION_FILTER_PRINCIPALS_END"));
+    conditions.append(END_CONDITION);
+  }
+  if (CmsStringUtil.isNotEmpty(filter.getParentPath())) {
+    CmsResource parent=m_driverManager.getVfsDriver(dbc).readResource(dbc,dbc.currentProject().getUuid(),filter.getParentPath(),false);
+    conditions.append(BEGIN_INCLUDE_CONDITION);
+    if (filter.isIncludeSubFolders()) {
+      conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_RESOURCES_SELECT_BY_PATH_PREFIX"));
+      params.add(CmsFileUtil.addTrailingSeparator(CmsVfsDriver.escapeDbWildcard(filter.getParentPath())) + "%");
+    }
+ else {
+      conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_RESOURCES_SELECT_BY_PARENT_UUID"));
+      params.add(parent.getStructureId().toString());
+    }
+    conditions.append(END_CONDITION);
+  }
+  if ((filter.getFromDate() > 0) || (filter.getToDate() < Long.MAX_VALUE)) {
+    conditions.append(BEGIN_INCLUDE_CONDITION);
+    conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_SUBSCRIPTION_FILTER_RESOURCES_DATE_MODIFIED"));
+    params.add(String.valueOf(filter.getFromDate()));
+    params.add(String.valueOf(filter.getToDate()));
+    conditions.append(END_CONDITION);
+  }
+  try {
+    conn=m_sqlManager.getConnection(poolName);
+    queryBuf=CmsStringUtil.substitute(queryBuf,"%(CONDITIONS)",conditions.toString());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(queryBuf.toString());
+    }
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,queryBuf);
+    for (int i=0; i < params.size(); i++) {
+      stmt.setString(i + 1,params.get(i));
+    }
+    res=stmt.executeQuery();
+    while (res.next()) {
+      currentResource=m_driverManager.getVfsDriver(dbc).createFile(res,dbc.currentProject().getUuid(),false);
+      resources.add(currentResource);
+    }
+    if (!filter.getMode().isAll()) {
+      List<CmsResource> result=new ArrayList<CmsResource>(resources.size());
+      for (Iterator<CmsResource> i=resources.iterator(); i.hasNext(); ) {
+        CmsResource resource=i.next();
+        long visitedDate=0;
+        try {
+          visitedDate=m_driverManager.getDateLastVisitedBy(dbc,poolName,filter.getUser(),resource);
+        }
+ catch (        CmsException e) {
+          throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_0),e);
+        }
+        if (filter.getMode().isUnVisited() && (visitedDate >= resource.getDateLastModified())) {
+          continue;
+        }
+        if (filter.getMode().isVisited() && (resource.getDateLastModified() > visitedDate)) {
+          continue;
+        }
+        result.add(resource);
+      }
+      resources=result;
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  return resources;
+}
