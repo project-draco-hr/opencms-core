@@ -1,0 +1,27 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    StringBuffer queryBuf=new StringBuffer(256);
+    queryBuf.append(m_sqlManager.readQuery("C_LOG_DELETE_ENTRIES"));
+    CmsPair<String,List<I_CmsPreparedStatementParameter>> conditionsAndParams=prepareLogConditions(filter);
+    queryBuf.append(conditionsAndParams.getFirst());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(queryBuf.toString());
+    }
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,queryBuf.toString());
+    List<I_CmsPreparedStatementParameter> params=conditionsAndParams.getSecond();
+    for (int i=0; i < params.size(); i++) {
+      I_CmsPreparedStatementParameter param=conditionsAndParams.getSecond().get(i);
+      param.insertIntoStatement(stmt,i + 1);
+    }
+    stmt.executeUpdate();
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,null);
+  }
+}
