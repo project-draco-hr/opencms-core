@@ -1,0 +1,38 @@
+{
+  List<CmsVisitEntry> entries=new ArrayList<CmsVisitEntry>();
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  ResultSet res=null;
+  try {
+    if (CmsStringUtil.isNotEmpty(poolName)) {
+      conn=m_sqlManager.getConnection(poolName);
+    }
+ else {
+      conn=m_sqlManager.getConnection(dbc);
+    }
+    StringBuffer queryBuf=new StringBuffer(256);
+    queryBuf.append(m_sqlManager.readQuery("C_VISIT_READ_ENTRIES"));
+    CmsPair<String,List<I_CmsPreparedStatementParameter>> conditionsAndParameters=prepareVisitConditions(filter);
+    List<I_CmsPreparedStatementParameter> params=conditionsAndParameters.getSecond();
+    queryBuf.append(conditionsAndParameters.getFirst());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(queryBuf.toString());
+    }
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,queryBuf.toString());
+    for (int i=0; i < params.size(); i++) {
+      I_CmsPreparedStatementParameter param=params.get(i);
+      param.insertIntoStatement(stmt,i + 1);
+    }
+    res=stmt.executeQuery();
+    while (res.next()) {
+      entries.add(internalReadVisitEntry(res));
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  return entries;
+}

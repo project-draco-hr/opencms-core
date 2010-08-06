@@ -6,7 +6,7 @@
   List<CmsResource> resources=new ArrayList<CmsResource>();
   String queryBuf=m_sqlManager.readQuery(dbc.currentProject(),"C_SUBSCRIPTION_FILTER_READ");
   StringBuffer conditions=new StringBuffer(256);
-  List<String> params=new ArrayList<String>();
+  List<I_CmsPreparedStatementParameter> params=new ArrayList<I_CmsPreparedStatementParameter>();
   boolean userDefined=filter.getUser() != null;
   boolean groupsDefined=!filter.getGroups().isEmpty();
   if (!groupsDefined && !userDefined) {
@@ -29,7 +29,7 @@
   if (principalIds.size() == 1) {
     conditions.append(BEGIN_CONDITION);
     conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_SUBSCRIPTION_FILTER_PRINCIPAL_SINGLE"));
-    params.add(principalIds.get(0));
+    params.add(new CmsPreparedStatementStringParameter(principalIds.get(0)));
     conditions.append(END_CONDITION);
   }
  else {
@@ -38,7 +38,7 @@
     conditions.append(BEGIN_CONDITION);
     Iterator<String> it=principalIds.iterator();
     while (it.hasNext()) {
-      params.add(it.next());
+      params.add(new CmsPreparedStatementStringParameter(it.next()));
       conditions.append("?");
       if (it.hasNext()) {
         conditions.append(", ");
@@ -53,19 +53,19 @@
     conditions.append(BEGIN_INCLUDE_CONDITION);
     if (filter.isIncludeSubFolders()) {
       conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_RESOURCES_SELECT_BY_PATH_PREFIX"));
-      params.add(CmsFileUtil.addTrailingSeparator(CmsVfsDriver.escapeDbWildcard(filter.getParentPath())) + "%");
+      params.add(new CmsPreparedStatementStringParameter(CmsFileUtil.addTrailingSeparator(CmsVfsDriver.escapeDbWildcard(filter.getParentPath())) + "%"));
     }
  else {
       conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_RESOURCES_SELECT_BY_PARENT_UUID"));
-      params.add(parent.getStructureId().toString());
+      params.add(new CmsPreparedStatementStringParameter(parent.getStructureId().toString()));
     }
     conditions.append(END_CONDITION);
   }
   if ((filter.getFromDate() > 0) || (filter.getToDate() < Long.MAX_VALUE)) {
     conditions.append(BEGIN_INCLUDE_CONDITION);
     conditions.append(m_sqlManager.readQuery(dbc.currentProject(),"C_SUBSCRIPTION_FILTER_RESOURCES_DATE_MODIFIED"));
-    params.add(String.valueOf(filter.getFromDate()));
-    params.add(String.valueOf(filter.getToDate()));
+    params.add(new CmsPreparedStatementLongParameter(filter.getFromDate()));
+    params.add(new CmsPreparedStatementLongParameter(filter.getToDate()));
     conditions.append(END_CONDITION);
   }
   try {
@@ -76,7 +76,8 @@
     }
     stmt=m_sqlManager.getPreparedStatementForSql(conn,queryBuf);
     for (int i=0; i < params.size(); i++) {
-      stmt.setString(i + 1,params.get(i));
+      I_CmsPreparedStatementParameter param=params.get(i);
+      param.insertIntoStatement(stmt,i + 1);
     }
     res=stmt.executeQuery();
     while (res.next()) {
