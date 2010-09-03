@@ -1,7 +1,48 @@
 {
   String rfsName=vfsName;
+  String path=vfsName;
+  if (path.endsWith("/")) {
+    path=path.substring(0,path.length() - 1);
+  }
+  String detailId=CmsResource.getName(path);
+  if (CmsUUID.isValidUUID(detailId)) {
+    CmsUUID id=new CmsUUID(detailId);
+    try {
+      CmsResource contentRes=cms.readResource(id);
+      String rootPath=contentRes.getRootPath();
+      vfsName=cms.getRequestContext().removeSiteRoot(rootPath);
+    }
+ catch (    CmsException e) {
+      LOG.error("Ressource with id: " + id + " not found",e);
+    }
+  }
+ else {
+    try {
+      CmsResource contentRes=cms.readResource(vfsName);
+      String detailViewProp=cms.readPropertyObject(contentRes,CmsPropertyDefinition.PROPERTY_ADE_SITEMAP_DETAILVIEW,true).getValue("");
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(detailViewProp)) {
+        if (OpenCms.getDefaultUsers().getUserExport().equals(cms.getRequestContext().currentUser().getName())) {
+          rfsName=OpenCms.getSiteManager().getSiteRoot(contentRes.getRootPath()) + detailViewProp;
+        }
+ else {
+          rfsName=detailViewProp;
+        }
+        if (!rfsName.endsWith("/")) {
+          rfsName+="/";
+        }
+        rfsName+=contentRes.getStructureId().toString();
+        rfsName+="/";
+      }
+    }
+ catch (    CmsException e) {
+      LOG.error("Ressource with path: " + vfsName + " not found",e);
+    }
+  }
   try {
-    CmsProperty exportNameProperty=cms.readPropertyObject(CmsResource.getFolderPath(rfsName),CmsPropertyDefinition.PROPERTY_EXPORTNAME,true);
+    CmsSitemapEntry sitemapEntry=OpenCms.getSitemapManager().getEntryForUri(cms,vfsName);
+    CmsUUID structureId=sitemapEntry.getStructureId();
+    CmsResource ressource=cms.readResource(structureId);
+    CmsProperty exportNameProperty=cms.readPropertyObject(ressource,CmsPropertyDefinition.PROPERTY_EXPORTNAME,true);
     if (exportNameProperty.isNullProperty()) {
       rfsName=cms.getRequestContext().addSiteRoot(rfsName);
     }
