@@ -1,37 +1,11 @@
 {
-  Locale currentLocale=cms.getRequestContext().getLocale();
-  Locale defaultLocale=CmsLocaleManager.getDefaultLocale();
-  Locale locale=null;
-  if (content.hasLocale(currentLocale)) {
-    locale=currentLocale;
+  Locale locale=getLocale(cms,content);
+  List<I_CmsXmlContentValue> typeValues=content.getValues(N_ADE_TYPE,locale);
+  for (  I_CmsXmlContentValue xmlType : typeValues) {
+    parseType(cms,xmlType,locale);
   }
- else   if (content.hasLocale(defaultLocale)) {
-    locale=defaultLocale;
-  }
- else {
-    List<Locale> locales=content.getLocales();
-    if (locales.size() == 0) {
-      throw new CmsException(Messages.get().container(Messages.ERR_NO_TYPE_CONFIG_1,content.getFile().getRootPath()));
-    }
-    locale=locales.get(0);
-  }
-  Iterator<I_CmsXmlContentValue> itTypes=content.getValues(N_ADE_TYPE,locale).iterator();
-  while (itTypes.hasNext()) {
-    I_CmsXmlContentValue xmlType=itTypes.next();
-    String typePath=xmlType.getPath();
-    String source=content.getValue(CmsXmlUtils.concatXpath(typePath,N_SOURCE),locale).getStringValue(cms);
-    String folder=content.getValue(CmsXmlUtils.concatXpath(typePath,CmsXmlUtils.concatXpath(N_DESTINATION,N_FOLDER)),locale).getStringValue(cms);
-    String pattern=content.getValue(CmsXmlUtils.concatXpath(typePath,CmsXmlUtils.concatXpath(N_DESTINATION,N_PATTERN)),locale).getStringValue(cms);
-    CmsConfigurationItem configItem=new CmsConfigurationItem(source,folder,pattern);
-    CmsResource resource=cms.readResource(source);
-    String type=getTypeName(resource.getTypeId());
-    m_configuration.put(type,configItem);
-    CmsResource folderRes=cms.readResource(folder);
-    CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(OpenCms.getResourceManager().getResourceType(resource).getTypeName());
-    boolean editable=settings.isEditable(cms,folderRes);
-    boolean controlPermission=settings.getAccess().getPermissions(cms,folderRes).requiresControlPermission();
-    if (editable && controlPermission) {
-      m_newElements.add(resource);
-    }
+  List<I_CmsXmlContentValue> fieldValues=content.getValues(N_ADE_FIELD,locale);
+  for (  I_CmsXmlContentValue xmlField : fieldValues) {
+    parseField(cms,xmlField,locale);
   }
 }
