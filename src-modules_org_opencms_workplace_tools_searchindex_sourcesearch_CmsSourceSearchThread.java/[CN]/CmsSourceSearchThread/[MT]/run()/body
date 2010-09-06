@@ -1,0 +1,52 @@
+{
+  I_CmsReport report=getReport();
+  boolean isError=false;
+  report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_BEGIN_SEARCH_THREAD_0),I_CmsReport.FORMAT_HEADLINE);
+  report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_PARAMETERS_0),I_CmsReport.FORMAT_HEADLINE);
+  if (!m_settings.getPaths().isEmpty()) {
+    Iterator<String> iter=m_settings.getPaths().iterator();
+    while (iter.hasNext()) {
+      String path=iter.next();
+      report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_PARAMETERS_RESOURCE_PATH_1,path),I_CmsReport.FORMAT_NOTE);
+    }
+  }
+ else {
+    isError=true;
+    report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_PARAMETERS_EMPTY_RESOURCE_PATHS_0),I_CmsReport.FORMAT_ERROR);
+  }
+  if (!m_settings.getSearchpattern().isEmpty()) {
+    report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_PARAMETERS_SEARCHPATTERN_1,CmsStringUtil.escapeHtml(m_settings.getSearchpattern())),I_CmsReport.FORMAT_NOTE);
+  }
+ else {
+    isError=true;
+    report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_PARAMETERS_EMPTY_SEARCHPATTERN_0),I_CmsReport.FORMAT_ERROR);
+  }
+  report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_PARAMETERS_REPLACEPATTERN_1,CmsStringUtil.escapeHtml(m_settings.getReplacepattern())),I_CmsReport.FORMAT_NOTE);
+  report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_PARAMETERS_PROJECT_1,m_settings.getProject()),I_CmsReport.FORMAT_NOTE);
+  boolean replace=false;
+  if (CmsStringUtil.isEmpty(m_settings.getReplacepattern())) {
+    report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_PARAMETERS_EMPTY_REPLACEPATTERN_0),I_CmsReport.FORMAT_NOTE);
+  }
+ else {
+    replace=true;
+    report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_PARAMETERS_NOTEMPTY_REPLACEPATTERN_0),I_CmsReport.FORMAT_NOTE);
+  }
+  CmsObject cmsObject=getCms();
+  if (replace && !m_settings.getProject().equals(cmsObject.getRequestContext().currentProject().getName())) {
+    try {
+      cmsObject=OpenCms.initCmsObject(getCms());
+      CmsProject cmsProject=getCms().readProject(m_settings.getProject());
+      cmsObject.getRequestContext().setCurrentProject(cmsProject);
+    }
+ catch (    CmsException e) {
+      report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_WRONG_ENVIRONMENT_REPLACING_0),I_CmsReport.FORMAT_NOTE);
+      replace=false;
+    }
+  }
+  if (!isError && searchResources(report,replace,cmsObject)) {
+    m_session.setAttribute(CmsSourceSearchSettings.ATTRIBUTE_NAME_SOURCESEARCH_RESULT_LIST,m_matchedResources);
+  }
+ else {
+  }
+  report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_END_SEARCH_THREAD_0),I_CmsReport.FORMAT_HEADLINE);
+}
