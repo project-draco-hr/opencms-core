@@ -25,11 +25,53 @@
         return;
       }
       String oldTitle=m_entry.getTitle();
+      final Set<String> otherUrlNames=new HashSet<String>();
+      if (!m_entry.isRoot()) {
+        String parentPath=CmsResource.getParentFolder(m_entry.getSitePath());
+        CmsClientSitemapEntry parent=CmsSitemapView.getInstance().getController().getEntry(parentPath);
+        for (        CmsClientSitemapEntry sibling : parent.getSubEntries()) {
+          if (sibling != m_entry) {
+            otherUrlNames.add(sibling.getName());
+          }
+        }
+      }
       if (!oldTitle.equals(text)) {
-        CmsClientSitemapEntry newEntry=new CmsClientSitemapEntry(m_entry);
-        newEntry.setTitle(text);
-        CmsClientSitemapChangeEdit edit=new CmsClientSitemapChangeEdit(m_entry,newEntry);
-        CmsSitemapView.getInstance().getController().addChange(edit,false);
+        if (m_entry.isNew()) {
+          CmsRpcAction<String> action=new CmsRpcAction<String>(){
+            /** 
+ * @see org.opencms.gwt.client.rpc.CmsRpcAction#execute()
+ */
+            @Override public void execute(){
+              start(0);
+              CmsCoreProvider.getService().translateUrlName(text,this);
+            }
+            /** 
+ * @see org.opencms.gwt.client.rpc.CmsRpcAction#onResponse(java.lang.Object)
+ */
+            @Override protected void onResponse(            String result){
+              stop(false);
+              int counter=0;
+              String newUrlName=result;
+              while (otherUrlNames.contains(newUrlName)) {
+                counter+=1;
+                newUrlName=result + "_" + counter;
+              }
+              CmsClientSitemapEntry newEntry=new CmsClientSitemapEntry(m_entry);
+              newEntry.setTitle(text);
+              newEntry.setName(newUrlName);
+              CmsSitemapController controller=CmsSitemapView.getInstance().getController();
+              controller.editAndChangeName(m_entry,text,newUrlName,m_entry.getVfsPath(),m_entry.getProperties(),false);
+            }
+          }
+;
+          action.execute();
+        }
+ else {
+          CmsClientSitemapEntry newEntry=new CmsClientSitemapEntry(m_entry);
+          newEntry.setTitle(text);
+          CmsClientSitemapChangeEdit edit=new CmsClientSitemapChangeEdit(m_entry,newEntry);
+          CmsSitemapView.getInstance().getController().addChange(edit,false);
+        }
       }
       titleLabel.setVisible(true);
     }
