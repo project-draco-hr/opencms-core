@@ -1,16 +1,22 @@
 {
   String source=getSubValueAsString(cms,xmlType,locale,N_SOURCE);
   String folder=getSubValueAsString(cms,xmlType,locale,CmsXmlUtils.concatXpath(N_DESTINATION,N_FOLDER));
+  cms.getRequestContext().addSiteRoot(folder);
   String pattern=getSubValueAsString(cms,xmlType,locale,CmsXmlUtils.concatXpath(N_DESTINATION,N_PATTERN));
-  CmsConfigurationItem configItem=new CmsConfigurationItem(source,folder,pattern);
   CmsResource resource=cms.readResource(source);
   String type=getTypeName(resource.getTypeId());
-  m_configuration.put(type,configItem);
-  CmsResource folderRes=cms.readResource(folder);
-  CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(OpenCms.getResourceManager().getResourceType(resource).getTypeName());
-  boolean editable=settings.isEditable(cms,folderRes);
-  boolean controlPermission=settings.getAccess().getPermissions(cms,folderRes).requiresControlPermission();
-  if (editable && controlPermission) {
-    m_newElements.add(resource);
+  CmsConfigurationItem configItem=new CmsConfigurationItem(cms.readResource(source),cms.readResource(folder),pattern);
+  List<I_CmsXmlContentValue> fmtValues=getSubValues(xmlType,locale,N_FORMATTER);
+  List<CmsFormatterConfigBean> formatterConfigBeans=new ArrayList<CmsFormatterConfigBean>();
+  for (  I_CmsXmlContentValue fmtValue : fmtValues) {
+    String jsp=getSubValueAsString(cms,fmtValue,locale,N_JSP);
+    String width=getSubValueAsString(cms,fmtValue,locale,N_WIDTH);
+    String fmtType=getSubValueAsString(cms,fmtValue,locale,N_TYPE);
+    formatterConfigBeans.add(new CmsFormatterConfigBean(jsp,fmtType,width));
   }
+  if (!formatterConfigBeans.isEmpty()) {
+    CmsPair<Map<String,String>,Map<Integer,String>> formatterMaps=CmsFormatterUtil.getFormatterMapsFromConfigBeans(formatterConfigBeans,xmlType.getDocument().getFile().getRootPath());
+    m_formatterConfiguration.put(type,formatterMaps);
+  }
+  m_configuration.put(type,configItem);
 }
