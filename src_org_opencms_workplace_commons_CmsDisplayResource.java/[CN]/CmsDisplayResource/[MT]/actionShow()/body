@@ -35,6 +35,13 @@
         throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_RESOURCE_DELETED_2,resourceStr,getCms().getRequestContext().currentProject().getName()));
       }
       autoTimeWarp(resource);
+      if (CmsResourceTypeXmlContainerPage.isContainerPage(resource)) {
+        List<CmsInternalSitemapEntry> entries=OpenCms.getSitemapManager().getEntriesForStructureId(getJsp().getCmsObject(),resource.getStructureId());
+        if (!entries.isEmpty()) {
+          CmsInternalSitemapEntry entry=entries.get(0);
+          resourceStr=entry.getRootPath();
+        }
+      }
       String url=getJsp().link(resourceStr);
       if ((url.indexOf("://") < 0) && getCms().getRequestContext().currentProject().isOnlineProject()) {
         String site=getCms().getRequestContext().getSiteRoot();
@@ -52,34 +59,6 @@
         }
  else {
           url=OpenCms.getSiteManager().getSiteForSiteRoot(site).getUrl() + url;
-        }
-        try {
-          CmsStaticExportManager manager=OpenCms.getStaticExportManager();
-          HttpURLConnection.setFollowRedirects(false);
-          URL exportUrl=new URL(manager.getExportUrl() + manager.getRfsName(getCms(),resourceStr));
-          HttpURLConnection urlcon=(HttpURLConnection)exportUrl.openConnection();
-          urlcon.setRequestMethod("GET");
-          urlcon.setRequestProperty(CmsRequestUtil.HEADER_OPENCMS_EXPORT,Boolean.TRUE.toString());
-          if (manager.getAcceptLanguageHeader() != null) {
-            urlcon.setRequestProperty(CmsRequestUtil.HEADER_ACCEPT_LANGUAGE,manager.getAcceptLanguageHeader());
-          }
- else {
-            urlcon.setRequestProperty(CmsRequestUtil.HEADER_ACCEPT_LANGUAGE,manager.getDefaultAcceptLanguageHeader());
-          }
-          if (manager.getAcceptCharsetHeader() != null) {
-            urlcon.setRequestProperty(CmsRequestUtil.HEADER_ACCEPT_CHARSET,manager.getAcceptCharsetHeader());
-          }
- else {
-            urlcon.setRequestProperty(CmsRequestUtil.HEADER_ACCEPT_CHARSET,manager.getDefaultAcceptCharsetHeader());
-          }
-          urlcon.connect();
-          urlcon.getResponseCode();
-          urlcon.disconnect();
-        }
- catch (        Exception e) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug(e.getLocalizedMessage(),e);
-          }
         }
       }
       getJsp().getResponse().sendRedirect(url);

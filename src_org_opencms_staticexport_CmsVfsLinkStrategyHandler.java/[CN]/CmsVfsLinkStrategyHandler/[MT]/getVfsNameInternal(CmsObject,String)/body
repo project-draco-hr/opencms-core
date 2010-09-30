@@ -1,0 +1,57 @@
+{
+  String storedSiteRoot=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.getRequestContext().setSiteRoot("/");
+    String path=rfsName;
+    path=path.substring(0,path.lastIndexOf('/'));
+    Map<String,String> exportnameResources=OpenCms.getStaticExportManager().getExportnames();
+    while (true) {
+      String expName=exportnameResources.get(path + '/');
+      if (expName == null) {
+        if (path.length() == 0) {
+          break;
+        }
+        path=path.substring(0,path.lastIndexOf('/'));
+        continue;
+      }
+      String vfsName=expName + rfsName.substring(path.length() + 1);
+      try {
+        return OpenCms.getStaticExportManager().readResource(cms,vfsName);
+      }
+ catch (      CmsVfsResourceNotFoundException e) {
+        if (path.length() == 0) {
+          break;
+        }
+        path=path.substring(0,path.lastIndexOf('/'));
+        continue;
+      }
+catch (      CmsException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+        break;
+      }
+    }
+    try {
+      return OpenCms.getStaticExportManager().readResource(cms,rfsName);
+    }
+ catch (    Throwable t) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.ERR_EXPORT_FILE_FAILED_1,new String[]{rfsName}),t);
+      }
+    }
+    int extPos=rfsName.lastIndexOf('.');
+    if (extPos >= 0) {
+      String cutName=rfsName.substring(0,extPos);
+      int pos=cutName.lastIndexOf('.');
+      if (pos >= 0) {
+        String extension=cutName.substring(pos).toLowerCase();
+        if (".jsp".equals(extension)) {
+          return getVfsNameInternal(cms,cutName);
+        }
+      }
+    }
+    return null;
+  }
+  finally {
+    cms.getRequestContext().setSiteRoot(storedSiteRoot);
+  }
+}

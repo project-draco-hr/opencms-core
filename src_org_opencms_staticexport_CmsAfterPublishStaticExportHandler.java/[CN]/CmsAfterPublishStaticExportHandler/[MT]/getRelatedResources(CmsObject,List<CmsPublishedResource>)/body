@@ -1,0 +1,50 @@
+{
+  String storedSiteRoot=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.getRequestContext().setSiteRoot("/");
+    if (publishedResources == null) {
+      return getAllResources(cms);
+    }
+ else {
+      Map<String,CmsPublishedResource> resourceMap=new HashMap<String,CmsPublishedResource>();
+      Iterator<CmsPublishedResource> itPubRes=publishedResources.iterator();
+      while (itPubRes.hasNext()) {
+        CmsPublishedResource pubResource=itPubRes.next();
+        if (cms.existsResource(pubResource.getRootPath())) {
+          CmsResource vfsResource=cms.readResource(pubResource.getRootPath());
+          if (!vfsResource.isInternal()) {
+            Iterator<CmsPublishedResource> itSiblings=getSiblings(cms,pubResource).iterator();
+            while (itSiblings.hasNext()) {
+              CmsPublishedResource sibling=itSiblings.next();
+              resourceMap.put(sibling.getRootPath(),sibling);
+            }
+          }
+        }
+ else {
+          resourceMap.put(pubResource.getRootPath(),pubResource);
+        }
+        boolean match=false;
+        Iterator<CmsStaticExportExportRule> itExportRules=OpenCms.getStaticExportManager().getExportRules().iterator();
+        while (itExportRules.hasNext()) {
+          CmsStaticExportExportRule rule=itExportRules.next();
+          Set<CmsPublishedResource> relatedResources=rule.getRelatedResources(cms,pubResource);
+          if (relatedResources != null) {
+            Iterator<CmsPublishedResource> itRelatedRes=relatedResources.iterator();
+            while (itRelatedRes.hasNext()) {
+              CmsPublishedResource relatedRes=itRelatedRes.next();
+              resourceMap.put(relatedRes.getRootPath(),relatedRes);
+            }
+            match=true;
+          }
+        }
+        if (!match) {
+          return getAllResources(cms);
+        }
+      }
+      return new ArrayList<CmsPublishedResource>(resourceMap.values());
+    }
+  }
+  finally {
+    cms.getRequestContext().setSiteRoot(storedSiteRoot);
+  }
+}

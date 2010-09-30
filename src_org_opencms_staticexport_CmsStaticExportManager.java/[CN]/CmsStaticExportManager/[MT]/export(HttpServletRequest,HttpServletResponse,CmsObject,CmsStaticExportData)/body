@@ -19,6 +19,9 @@
   }
   CmsContextInfo contextInfo=new CmsContextInfo(cms.getRequestContext().currentUser(),cms.getRequestContext().currentProject(),vfsName,siteRoot,i18nInfo.getLocale(),i18nInfo.getEncoding(),remoteAddr,CmsContextInfo.CURRENT_TIME,cms.getRequestContext().getOuFqn());
   CmsObject exportCms=OpenCms.initCmsObject(null,contextInfo);
+  if (!isExportLink(exportCms,exportCms.getRequestContext().removeSiteRoot(data.getVfsName()))) {
+    return HttpServletResponse.SC_SEE_OTHER;
+  }
   boolean exportOnDemand=((req != null) && (res != null));
   CmsStaticExportResponseWrapper wrapRes=null;
   if (res != null) {
@@ -28,16 +31,20 @@
     LOG.debug(Messages.get().getBundle().key(Messages.LOG_SE_RESOURCE_START_1,data));
   }
   CmsFile file;
-  if (resource.isFile() && !CmsResource.isFolder(rfsName)) {
-    file=exportCms.readFile(vfsName);
+  if (resource.isFile()) {
+    if (CmsResource.isFolder(rfsName)) {
+      file=exportCms.readFile(OpenCms.initResource(exportCms,vfsName,req,wrapRes));
+      vfsName=exportCms.getSitePath(file);
+      rfsName+="index.html";
+    }
+ else {
+      file=exportCms.readFile(vfsName);
+    }
   }
  else {
     file=exportCms.readFile(OpenCms.initResource(exportCms,vfsName,req,wrapRes));
     vfsName=exportCms.getSitePath(file);
     rfsName+=EXPORT_DEFAULT_FILE;
-  }
-  if (!isExportLink(exportCms,exportCms.getSitePath(file))) {
-    return HttpServletResponse.SC_SEE_OTHER;
   }
   I_CmsResourceLoader loader=OpenCms.getResourceManager().getLoader(file);
   if ((loader == null) || (!loader.isStaticExportEnabled())) {

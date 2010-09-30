@@ -1,0 +1,51 @@
+{
+  String resPath=cms.getRequestContext().removeSiteRoot(res.getRootPath());
+  List<String> siblings=getSiblingsList(cms,resPath);
+  Iterator<String> itSibs=siblings.iterator();
+  while (itSibs.hasNext()) {
+    String vfsName=itSibs.next();
+    String rfsName=OpenCms.getStaticExportManager().getRfsName(cms,vfsName);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_CHECKING_STATIC_EXPORT_2,vfsName,rfsName));
+    }
+    if (rfsName.startsWith(OpenCms.getStaticExportManager().getRfsPrefix(vfsName)) && (!scrubbedFiles.contains(rfsName)) && (!scrubbedFolders.contains(CmsResource.getFolderPath(rfsName)))) {
+      if (res.isFolder()) {
+        if (res.getState().isDeleted()) {
+          String exportFolderName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName) + rfsName.substring(OpenCms.getStaticExportManager().getRfsPrefix(vfsName).length()));
+          try {
+            File exportFolder=new File(exportFolderName);
+            if (exportFolder.exists() && exportFolder.canWrite()) {
+              CmsFileUtil.purgeDirectory(exportFolder);
+              if (LOG.isInfoEnabled()) {
+                LOG.info(Messages.get().getBundle().key(Messages.LOG_FOLDER_DELETED_1,exportFolderName));
+              }
+              scrubbedFolders.add(rfsName);
+              continue;
+            }
+          }
+ catch (          Throwable t) {
+            if (LOG.isWarnEnabled()) {
+              LOG.warn(Messages.get().getBundle().key(Messages.LOG_FOLDER_DELETION_FAILED_2,vfsName,exportFolderName));
+            }
+          }
+        }
+        rfsName+=CmsStaticExportManager.EXPORT_DEFAULT_FILE;
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_FOLDER_1,rfsName));
+        }
+      }
+      String rfsExportFileName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName) + rfsName.substring(OpenCms.getStaticExportManager().getRfsPrefix(vfsName).length()));
+      List<File> fileList=getRelatedFilesToPurge(rfsExportFileName,vfsName);
+      Iterator<File> iter=fileList.iterator();
+      while (iter.hasNext()) {
+        File file=iter.next();
+        purgeFile(file.getAbsolutePath(),vfsName);
+        rfsName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getRfsPrefix(vfsName) + "/" + file.getAbsolutePath().substring(OpenCms.getStaticExportManager().getExportPath(vfsName).length()));
+        rfsName=CmsStringUtil.substitute(rfsName,new String(new char[]{File.separatorChar}),"/");
+        scrubbedFiles.add(rfsName);
+      }
+      purgeFile(rfsExportFileName,vfsName);
+      scrubbedFiles.add(rfsName);
+    }
+  }
+}

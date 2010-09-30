@@ -1,0 +1,50 @@
+{
+  publishedResources=new ArrayList<CmsPublishedResource>(publishedResources);
+  Set<String> pubResources=new HashSet<String>(publishedResources.size());
+  for (  CmsPublishedResource pubRes : publishedResources) {
+    pubResources.add(pubRes.getRootPath());
+  }
+  boolean modified=true;
+  while (modified) {
+    modified=false;
+    Iterator<CmsPublishedResource> itPrePubRes=new ArrayList<CmsPublishedResource>(publishedResources).iterator();
+    while (itPrePubRes.hasNext()) {
+      CmsPublishedResource res=itPrePubRes.next();
+      if (res.getMovedState() != CmsPublishedResource.STATE_MOVED_DESTINATION) {
+        continue;
+      }
+      List<CmsRelation> relations=null;
+      try {
+        relations=cms.getRelationsForResource(cms.getRequestContext().removeSiteRoot(res.getRootPath()),CmsRelationFilter.SOURCES);
+      }
+ catch (      CmsException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+      }
+      if ((relations == null) || relations.isEmpty()) {
+        continue;
+      }
+      Iterator<CmsRelation> itRelations=relations.iterator();
+      while (itRelations.hasNext()) {
+        CmsRelation relation=itRelations.next();
+        CmsPublishedResource source=null;
+        try {
+          source=new CmsPublishedResource(relation.getSource(cms,CmsResourceFilter.ALL));
+        }
+ catch (        CmsException e) {
+          if (LOG.isWarnEnabled()) {
+            LOG.warn(e.getLocalizedMessage());
+          }
+        }
+        if ((source == null) || pubResources.contains(source.getRootPath())) {
+          continue;
+        }
+        modified=true;
+        pubResources.add(source.getRootPath());
+        publishedResources.add(source);
+      }
+    }
+  }
+  return publishedResources;
+}

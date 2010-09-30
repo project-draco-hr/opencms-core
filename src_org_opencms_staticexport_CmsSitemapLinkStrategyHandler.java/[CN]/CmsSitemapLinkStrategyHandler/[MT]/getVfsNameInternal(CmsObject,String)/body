@@ -1,0 +1,57 @@
+{
+  String storedSiteRoot=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.getRequestContext().setSiteRoot("/");
+    Map<String,String> exportnameResources=OpenCms.getStaticExportManager().getExportnames();
+    for (    String key : exportnameResources.keySet()) {
+      if (rfsName.startsWith(key)) {
+        String folderName=exportnameResources.get(key);
+        String vfsPart=rfsName.substring(key.length());
+        String vfsName=null;
+        if (!CmsResource.isFolder(folderName) && cms.existsResource(folderName)) {
+          CmsResource res=cms.readResource(folderName);
+          if (CmsResourceTypeXmlSitemap.isSitemap(res)) {
+            vfsName=OpenCms.getSiteManager().getSiteRoot(res.getRootPath()) + "/" + vfsPart;
+          }
+        }
+ else {
+          vfsName=folderName + vfsPart;
+        }
+        try {
+          if (vfsName != null) {
+            return OpenCms.getStaticExportManager().readResource(cms,vfsName);
+          }
+        }
+ catch (        CmsException e1) {
+          continue;
+        }
+      }
+    }
+    try {
+      return OpenCms.getStaticExportManager().readResource(cms,rfsName);
+    }
+ catch (    Throwable t) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.ERR_EXPORT_FILE_FAILED_1,new String[]{rfsName}),t);
+      }
+    }
+    int extPos=rfsName.lastIndexOf('.');
+    if (extPos >= 0) {
+      String cutName=rfsName.substring(0,extPos);
+      int pos=cutName.lastIndexOf('.');
+      if (pos >= 0) {
+        String extension=cutName.substring(pos).toLowerCase();
+        if (".jsp".equals(extension)) {
+          return getVfsNameInternal(cms,cutName);
+        }
+      }
+    }
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+ finally {
+    cms.getRequestContext().setSiteRoot(storedSiteRoot);
+  }
+  return null;
+}
