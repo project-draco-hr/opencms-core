@@ -1,0 +1,53 @@
+{
+  if (handler.getDraggable() instanceof CmsContainerPageElement) {
+    CmsList<CmsListItem> dropzone=m_controller.getHandler().getDropzone();
+    m_controller.getHandler().showDropzone(true);
+    CmsListItem temp=m_controller.getContainerpageUtil().createListItem(elementData);
+    Element placeholder=(Element)temp.getPlaceholder(dropzone);
+    Element helper=(Element)temp.getDragHelper(dropzone);
+    m_dragInfos.put(dropzone,new DragInfo(helper,placeholder,helper.getOffsetWidth() - 15,handler.getCursorOffsetY()));
+    handler.addTarget(dropzone);
+    helper.getStyle().setDisplay(Display.NONE);
+  }
+  for (  String cId : elementData.getContents().keySet()) {
+    CmsDebugLog.getInstance().printLine(cId);
+  }
+  for (  CmsContainerPageContainer container : m_controller.getContainerTargets().values()) {
+    if ((container != m_initialDropTarget) && elementData.getContents().containsKey(container.getContainerId())) {
+      Element helper=null;
+      Element placeholder=null;
+      if (elementData.isSubContainer()) {
+        helper=DOM.createDiv();
+        String content="";
+        for (        String subId : elementData.getSubItems()) {
+          CmsContainerElementData subData=m_controller.getCachedElement(subId);
+          if ((subData != null) && subData.getContents().containsKey(container.getContainerId())) {
+            content+=subData.getContents().get(container.getContainerId());
+          }
+        }
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(content)) {
+          helper.setInnerHTML(content);
+          placeholder=CmsDomUtil.clone(helper);
+        }
+      }
+ else {
+        try {
+          String htmlContent=elementData.getContents().get(container.getContainerId());
+          helper=CmsDomUtil.createElement(htmlContent);
+          placeholder=CmsDomUtil.createElement(htmlContent);
+          placeholder.addClassName(I_CmsLayoutBundle.INSTANCE.dragdropCss().dragPlaceholder());
+        }
+ catch (        Exception e) {
+          CmsDebugLog.getInstance().printLine(e.getMessage());
+        }
+      }
+      if (helper != null) {
+        prepareDragInfo(helper,placeholder,container,handler);
+        container.highlightContainer();
+      }
+    }
+ else {
+      CmsDebugLog.getInstance().printLine("No content for container: " + container.getContainerId());
+    }
+  }
+}
