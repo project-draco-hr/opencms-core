@@ -31,20 +31,34 @@
     }
     try {
       int status=-1;
-      List<CmsInternalSitemapEntry> entries=new ArrayList<CmsInternalSitemapEntry>();
+      CmsResource res=data.getResource();
       try {
-        CmsResource res=cms.readResource(data.getVfsName());
-        entries=OpenCms.getSitemapManager().getEntriesForStructureId(cms,res.getStructureId());
-        for (        CmsInternalSitemapEntry entry : entries) {
-          status=exportSitemapResource(entry,data,cookies);
+        CmsSitemapEntry sitemapEntry=OpenCms.getSitemapManager().getEntryForUri(cms,data.getVfsName());
+        if (sitemapEntry.isSitemap()) {
+          status=exportSitemapResource(sitemapEntry,data,cookies);
+        }
+ else {
+          if (CmsResourceTypeXmlContainerPage.isContainerPage(res)) {
+            if (CmsSwitchLinkStrategyHandler.isSitemapInUse(cms,data.getVfsName(),false)) {
+              List<CmsInternalSitemapEntry> entries=OpenCms.getSitemapManager().getEntriesForStructureId(cms,res.getStructureId());
+              for (              CmsSitemapEntry entry : entries) {
+                status=exportSitemapResource(entry,data,cookies);
+              }
+              if (entries.isEmpty()) {
+                status=HttpServletResponse.SC_SEE_OTHER;
+              }
+            }
+ else {
+              status=exportTemplateResource(data,cookies);
+            }
+          }
+ else {
+            status=exportTemplateResource(data,cookies);
+          }
         }
       }
- catch (      CmsException e1) {
-      }
- finally {
-        if (entries.isEmpty()) {
-          status=exportTemplateResource(data,cookies);
-        }
+ catch (      CmsException e) {
+        status=HttpServletResponse.SC_NOT_FOUND;
       }
       if (status == HttpServletResponse.SC_OK) {
         report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);

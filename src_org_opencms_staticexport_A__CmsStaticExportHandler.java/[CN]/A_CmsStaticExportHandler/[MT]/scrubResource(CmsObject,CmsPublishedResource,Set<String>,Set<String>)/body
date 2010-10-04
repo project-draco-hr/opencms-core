@@ -1,9 +1,7 @@
 {
   String resPath=cms.getRequestContext().removeSiteRoot(res.getRootPath());
   List<String> siblings=getSiblingsList(cms,resPath);
-  Iterator<String> itSibs=siblings.iterator();
-  while (itSibs.hasNext()) {
-    String vfsName=itSibs.next();
+  for (  String vfsName : siblings) {
     String rfsName=OpenCms.getStaticExportManager().getRfsName(cms,vfsName);
     if (LOG.isDebugEnabled()) {
       LOG.debug(Messages.get().getBundle().key(Messages.LOG_CHECKING_STATIC_EXPORT_2,vfsName,rfsName));
@@ -29,21 +27,16 @@
             }
           }
         }
-        rfsName+=CmsStaticExportManager.EXPORT_DEFAULT_FILE;
-        if (LOG.isDebugEnabled()) {
-          LOG.debug(Messages.get().getBundle().key(Messages.LOG_FOLDER_1,rfsName));
-        }
+      }
+      rfsName=OpenCms.getStaticExportManager().addDefaultFileNameToFolder(rfsName,res.isFolder());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_RFSNAME_1,rfsName));
       }
       String rfsExportFileName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName) + rfsName.substring(OpenCms.getStaticExportManager().getRfsPrefix(vfsName).length()));
-      List<File> fileList=getRelatedFilesToPurge(rfsExportFileName,vfsName);
-      Iterator<File> iter=fileList.iterator();
-      while (iter.hasNext()) {
-        File file=iter.next();
-        purgeFile(file.getAbsolutePath(),vfsName);
-        rfsName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getRfsPrefix(vfsName) + "/" + file.getAbsolutePath().substring(OpenCms.getStaticExportManager().getExportPath(vfsName).length()));
-        rfsName=CmsStringUtil.substitute(rfsName,new String(new char[]{File.separatorChar}),"/");
-        scrubbedFiles.add(rfsName);
-      }
+      List<File> relFilesToPurge=getRelatedFilesToPurge(rfsExportFileName,vfsName);
+      purgeFiles(relFilesToPurge,vfsName,scrubbedFiles);
+      List<File> relSitemapFiles=getRelatedSitemapFiles(cms,res,vfsName);
+      purgeFiles(relSitemapFiles,vfsName,scrubbedFiles);
       purgeFile(rfsExportFileName,vfsName);
       scrubbedFiles.add(rfsName);
     }

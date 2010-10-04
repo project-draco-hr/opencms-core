@@ -3,29 +3,44 @@
   try {
     if (!vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
       CmsSitemapEntry sitemapEntry=OpenCms.getSitemapManager().getEntryForUri(cms,vfsName);
-      if (sitemapEntry != null) {
-        String exportname=null;
-        if (sitemapEntry.isSitemap()) {
-          exportname=OpenCms.getSitemapManager().getExportnameForSiteMapEntry(cms,sitemapEntry);
-        }
- else {
-          CmsSitemapEntry sitemapEntryOfOriUri=OpenCms.getSitemapManager().getEntryForUri(cms,cms.getRequestContext().getOriginalUri());
-          exportname=OpenCms.getSitemapManager().getExportnameForSiteMapEntry(cms,sitemapEntryOfOriUri);
-        }
-        if (exportname != null) {
-          String storedSiteRoot=cms.getRequestContext().getSiteRoot();
-          try {
-            String siteRoot=OpenCms.getSiteManager().getSiteRoot(sitemapEntry.getRootPath());
-            if (siteRoot != null) {
-              cms.getRequestContext().setSiteRoot(siteRoot);
+      if (sitemapEntry.isVfs()) {
+        String sitemapUri=null;
+        CmsResource res=cms.readResource(vfsName);
+        if (CmsResourceTypeXmlContent.isXmlContent(res)) {
+          String detailViewProp=null;
+          detailViewProp=cms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_ADE_SITEMAP_DETAILVIEW,true).getValue("");
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(detailViewProp)) {
+            sitemapUri=detailViewProp;
+            if (!sitemapUri.endsWith("/")) {
+              rfsName+="/";
             }
-            rfsName="/" + exportname + sitemapEntry.getSitePath(cms);
+            sitemapUri+=res.getStructureId().toString();
+            sitemapUri+="/";
           }
-  finally {
-            cms.getRequestContext().setSiteRoot(storedSiteRoot);
-          }
+        }
+        if (sitemapUri != null) {
+          sitemapUri=OpenCms.getSiteManager().getSiteRoot(res.getRootPath()) + sitemapUri;
+          sitemapEntry=OpenCms.getSitemapManager().getEntryForUri(cms,sitemapUri);
+          vfsName=sitemapEntry.getRootPath();
         }
       }
+      String exportname=OpenCms.getSitemapManager().getExportnameForSiteRoot(cms,OpenCms.getSiteManager().getSiteRoot(sitemapEntry.getRootPath()));
+      if (exportname != null) {
+        String storedSiteRoot=cms.getRequestContext().getSiteRoot();
+        try {
+          String siteRoot=OpenCms.getSiteManager().getSiteRoot(sitemapEntry.getRootPath());
+          if (siteRoot != null) {
+            cms.getRequestContext().setSiteRoot(siteRoot);
+          }
+          rfsName="/" + exportname + sitemapEntry.getSitePath(cms);
+        }
+  finally {
+          cms.getRequestContext().setSiteRoot(storedSiteRoot);
+        }
+      }
+    }
+ else {
+      rfsName=getRfsNameWithExportName(cms,vfsName);
     }
     String extension=CmsFileUtil.getExtension(rfsName);
     boolean isJsp=extension.equals(".jsp");
