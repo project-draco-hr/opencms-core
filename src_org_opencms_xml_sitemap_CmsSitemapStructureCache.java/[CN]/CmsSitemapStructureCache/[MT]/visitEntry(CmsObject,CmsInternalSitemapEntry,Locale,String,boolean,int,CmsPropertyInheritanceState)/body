@@ -1,0 +1,33 @@
+{
+  entry.setEntryPoint(entryPoint);
+  propertyState=propertyState.update(entry.getNewProperties(),entry.getRootPath());
+  String currentEntryPoint=entryPoint;
+  entry.setRuntimeInfo(currentEntryPoint,entryPos,propertyState.getInheritedProperties());
+  entry.setRootEntry(isRootEntry);
+  Map<CmsUUID,CmsInternalSitemapEntry> byId=m_byId;
+  Map<String,CmsInternalSitemapEntry> byPath=m_byUri;
+  byId.put(entry.getId(),entry);
+  byPath.put(locale.toString() + entry.getRootPath(),entry);
+  m_pathSet.add(entry.getRootPath());
+  CmsUUID structureId=entry.getStructureId();
+  addEntryForStructureId(structureId,locale,entry);
+  List<CmsInternalSitemapEntry> subEntries=getSubEntries(cms,locale,entry);
+  CmsSimplePropertyValue sitemapProp=entry.getNewProperties().get(CmsSitemapManager.Property.sitemap.name());
+  String sitemapUuid=sitemapProp == null ? null : sitemapProp.getOwnValue();
+  try {
+    if (sitemapUuid != null) {
+      CmsResource sitemapResource=internalReadResource(cms,sitemapUuid);
+      addActiveSitemap(locale,entry.getRootPath(),sitemapResource.getRootPath());
+      currentEntryPoint=entry.getRootPath();
+    }
+  }
+ catch (  CmsException e) {
+    LOG.error("Can't read sub-sitemap: ");
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+  int size=subEntries.size();
+  for (int position=0; position < size; position++) {
+    CmsInternalSitemapEntry subEntry=subEntries.get(position);
+    visitEntry(cms,subEntry,locale,currentEntryPoint,false,position,propertyState);
+  }
+}
