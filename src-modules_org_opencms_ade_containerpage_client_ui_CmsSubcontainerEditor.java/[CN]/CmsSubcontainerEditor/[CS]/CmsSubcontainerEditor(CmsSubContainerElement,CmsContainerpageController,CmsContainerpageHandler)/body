@@ -1,11 +1,25 @@
 {
   m_controller=controller;
   m_editorWidget=uiBinder.createAndBindUi(this);
+  initWidget(m_editorWidget);
   m_editorId=HTMLPanel.createUniqueId();
   m_editorWidget.getElement().setId(m_editorId);
   m_subContainer=subContainer;
+  m_backUpElements=new ArrayList<CmsContainerPageElement>();
+  Iterator<Widget> it=m_subContainer.iterator();
+  while (it.hasNext()) {
+    Widget w=it.next();
+    if (w instanceof CmsContainerPageElement) {
+      m_backUpElements.add((CmsContainerPageElement)w);
+    }
+  }
+  m_parentContainer=(CmsContainerPageContainer)m_subContainer.getParentTarget();
   CmsPositionBean position=CmsPositionBean.generatePositionInfo(m_subContainer);
-  m_placeholder=createPlaceholder(m_subContainer.getElement());
+  m_editingPlaceholder=createPlaceholder(m_subContainer.getElement());
+  m_editingPlaceholder.removeClassName(I_CmsLayoutBundle.INSTANCE.dragdropCss().emptySubContainer());
+  m_subContainer.setEditingPlaceholder(m_editingPlaceholder);
+  m_indexPosition=m_parentContainer.getWidgetIndex(m_subContainer);
+  m_parentContainer.getElement().insertBefore(m_editingPlaceholder,m_subContainer.getElement());
   m_editorWidget.add(m_subContainer,m_editorId);
   Style style=m_subContainer.getElement().getStyle();
   style.setPosition(Position.ABSOLUTE);
@@ -18,9 +32,16 @@
   m_subContainer.getElementOptionBar().removeStyleName(I_CmsToolbarButtonLayoutBundle.INSTANCE.toolbarButtonCss().cmsHovering());
   m_saveButton.setTitle("Save");
   m_saveButton.setText("Save");
+  m_saveButton.disable("loading ...");
   m_cancelButton.setTitle("Cancel");
   m_cancelButton.setText("Cancel");
-  m_controller.startEditingSubcontainer(subContainer);
   RootPanel.get().addStyleName(I_CmsLayoutBundle.INSTANCE.containerpageCss().subcontainerEditing());
-  initWidget(m_editorWidget);
+  m_controller.getElements(getElementIds(),new I_CmsSimpleCallback<Map<String,CmsContainerElementData>>(){
+    public void execute(    Map<String,CmsContainerElementData> arg){
+      setSubContainerData(arg);
+    }
+    public void onError(    String message){
+    }
+  }
+);
 }
