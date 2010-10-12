@@ -4,6 +4,7 @@
   String script=null;
   String servletMapping=null;
   String defaultWebApp=null;
+  String additional=null;
   if (args.length > 4) {
     wrongUsage=true;
   }
@@ -22,6 +23,9 @@
  else       if (arg.startsWith(SHELL_PARAM_DEFAULT_WEB_APP)) {
         defaultWebApp=arg.substring(SHELL_PARAM_DEFAULT_WEB_APP.length());
       }
+ else       if (arg.startsWith(SHELL_PARAM_ADDITIONAL_COMMANDS)) {
+        additional=arg.substring(SHELL_PARAM_ADDITIONAL_COMMANDS.length());
+      }
  else {
         System.out.println(Messages.get().getBundle().key(Messages.GUI_SHELL_WRONG_USAGE_0));
         wrongUsage=true;
@@ -32,6 +36,18 @@
     System.out.println(Messages.get().getBundle().key(Messages.GUI_SHELL_USAGE_1,CmsShell.class.getName()));
   }
  else {
+    I_CmsShellCommands additionalCommands=null;
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(additional)) {
+      try {
+        Class<?> commandClass=Class.forName(additional);
+        additionalCommands=(I_CmsShellCommands)commandClass.newInstance();
+      }
+ catch (      Exception e) {
+        System.out.println(Messages.get().getBundle().key(Messages.GUI_SHELL_ERR_ADDITIONAL_COMMANDS_1,additional));
+        e.printStackTrace();
+        return;
+      }
+    }
     FileInputStream stream=null;
     if (script != null) {
       try {
@@ -44,7 +60,7 @@
     if (stream == null) {
       stream=new FileInputStream(FileDescriptor.in);
     }
-    CmsShell shell=new CmsShell(webInfPath,servletMapping,defaultWebApp,"${user}@${project}:${siteroot}|${uri}>",null);
+    CmsShell shell=new CmsShell(webInfPath,servletMapping,defaultWebApp,"${user}@${project}:${siteroot}|${uri}>",additionalCommands);
     shell.start(stream);
   }
 }
