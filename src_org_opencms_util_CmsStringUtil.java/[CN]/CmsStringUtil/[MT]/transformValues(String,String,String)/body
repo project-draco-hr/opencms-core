@@ -1,0 +1,136 @@
+{
+  if (!oldFormat.contains(CmsStringUtil.PLACEHOLDER_START) || !oldFormat.contains(CmsStringUtil.PLACEHOLDER_END) || !newFormat.contains(CmsStringUtil.PLACEHOLDER_START)|| !newFormat.contains(CmsStringUtil.PLACEHOLDER_END)) {
+    return newFormat;
+  }
+  ArrayList<Integer> oldValues=new ArrayList<Integer>();
+  ArrayList<Integer> newValues=new ArrayList<Integer>();
+  int oldNumber=0;
+  try {
+    int counter=0;
+    Pattern pattern=Pattern.compile("\\{\\.\\*\\}");
+    Matcher matcher=pattern.matcher(oldFormat);
+    while (matcher.find()) {
+      counter+=1;
+    }
+    oldValues=new ArrayList<Integer>(counter);
+    matcher=pattern.matcher(oldFormat);
+    while (matcher.find()) {
+      int start=matcher.start() + 1;
+      oldValues.add(oldNumber,new Integer(start));
+      oldNumber+=1;
+    }
+  }
+ catch (  PatternSyntaxException e) {
+  }
+  int newNumber=0;
+  try {
+    int counter=0;
+    Pattern pattern=Pattern.compile("\\{\\}");
+    Matcher matcher=pattern.matcher(newFormat);
+    while (matcher.find()) {
+      counter+=1;
+    }
+    newValues=new ArrayList<Integer>(counter);
+    matcher=pattern.matcher(newFormat);
+    while (matcher.find()) {
+      int start=matcher.start() + 1;
+      newValues.add(newNumber,new Integer(start));
+      newNumber+=1;
+    }
+  }
+ catch (  PatternSyntaxException e) {
+  }
+  if (oldNumber != newNumber) {
+    return newFormat;
+  }
+  ArrayList<String> oldBetween=new ArrayList<String>(oldNumber + 1);
+  ArrayList<String> newBetween=new ArrayList<String>(newNumber + 1);
+  int counter=0;
+  Iterator<Integer> iter=oldValues.iterator();
+  while (iter.hasNext()) {
+    int start=iter.next().intValue();
+    if (counter == 0) {
+      if (start == 1) {
+        oldBetween.add(counter,"");
+      }
+ else {
+        String part=oldFormat.substring(0,start - 1);
+        oldBetween.add(counter,part);
+      }
+    }
+ else {
+      int lastStart=oldValues.get(counter - 1).intValue();
+      String part=oldFormat.substring(lastStart + 3,start - 1);
+      oldBetween.add(counter,part);
+    }
+    counter+=1;
+  }
+  int lastElstart=oldValues.get(counter - 1).intValue();
+  if ((lastElstart + 2) == (oldFormat.length() - 1)) {
+    oldBetween.add(counter,"");
+  }
+ else {
+    String part=oldFormat.substring(lastElstart + 3);
+    oldBetween.add(counter,part);
+  }
+  counter=0;
+  iter=newValues.iterator();
+  while (iter.hasNext()) {
+    int start=iter.next().intValue();
+    if (counter == 0) {
+      if (start == 1) {
+        newBetween.add(counter,"");
+      }
+ else {
+        String part=newFormat.substring(0,start - 1);
+        newBetween.add(counter,part);
+      }
+    }
+ else {
+      int lastStart=newValues.get(counter - 1).intValue();
+      String part=newFormat.substring(lastStart + 1,start - 1);
+      newBetween.add(counter,part);
+    }
+    counter+=1;
+  }
+  lastElstart=newValues.get(counter - 1).intValue();
+  if ((lastElstart + 2) == (newFormat.length() - 1)) {
+    newBetween.add(counter,"");
+  }
+ else {
+    String part=newFormat.substring(lastElstart + 1);
+    newBetween.add(counter,part);
+  }
+  ArrayList<String> placeHolders=new ArrayList<String>(oldNumber);
+  String tmpValue=value;
+  for (int placeCounter=0; placeCounter < oldBetween.size() - 1; placeCounter++) {
+    String content=oldBetween.get(placeCounter);
+    String nextContent=oldBetween.get(placeCounter + 1);
+    int contPos=0;
+    int nextContPos=0;
+    if ((placeCounter == 0) && CmsStringUtil.isEmpty(content)) {
+      contPos=0;
+    }
+ else {
+      contPos=tmpValue.indexOf(content);
+    }
+    if (((placeCounter + 1) == (oldBetween.size() - 1)) && CmsStringUtil.isEmpty(nextContent)) {
+      nextContPos=tmpValue.length();
+    }
+ else {
+      nextContPos=tmpValue.indexOf(nextContent);
+    }
+    if ((contPos < 0) || (nextContPos < 0)) {
+      return value;
+    }
+    String placeContent=tmpValue.substring(contPos + content.length(),nextContPos);
+    placeHolders.add(placeCounter,placeContent);
+    tmpValue=tmpValue.substring(nextContPos);
+  }
+  String newValue="";
+  for (int buildCounter=0; buildCounter < newNumber; buildCounter++) {
+    newValue=newValue + newBetween.get(buildCounter) + placeHolders.get(buildCounter);
+  }
+  newValue=newValue + newBetween.get(newNumber);
+  return newValue;
+}
