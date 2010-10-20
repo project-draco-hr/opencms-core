@@ -5,55 +5,61 @@
     return exportResource.booleanValue();
   }
   boolean result=false;
-  try {
-    CmsObject exportCms=OpenCms.initCmsObject(OpenCms.getDefaultUsers().getUserExport());
-    exportCms.getRequestContext().setSiteRoot(cms.getRequestContext().getSiteRoot());
-    CmsSitemapEntry entry=null;
+  CmsSite currentSite=OpenCms.getSiteManager().getSite(vfsName,cms.getRequestContext().getSiteRoot());
+  if (currentSite.isExclusiveUrl() && isSecureLink(cms,vfsName)) {
+    result=false;
+  }
+ else {
     try {
-      entry=OpenCms.getSitemapManager().getEntryForUri(exportCms,vfsName);
-    }
- catch (    Exception e) {
-      LOG.debug(e.getLocalizedMessage(),e);
-    }
-    String path=vfsName;
-    if (path.endsWith("/")) {
-      path=path.substring(0,path.length() - 1);
-    }
-    String detailId="";
-    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(path)) {
-      detailId=CmsResource.getName(path);
-    }
-    if ((entry != null) && entry.isSitemap()) {
-      Map<String,String> props=entry.getProperties(true);
-      if ((props.get(CmsPropertyDefinition.PROPERTY_EXPORT) != null) && props.get(CmsPropertyDefinition.PROPERTY_EXPORT).equals(CmsStringUtil.TRUE)) {
-        result=true;
+      CmsObject exportCms=OpenCms.initCmsObject(OpenCms.getDefaultUsers().getUserExport());
+      exportCms.getRequestContext().setSiteRoot(cms.getRequestContext().getSiteRoot());
+      CmsSitemapEntry entry=null;
+      try {
+        entry=OpenCms.getSitemapManager().getEntryForUri(exportCms,vfsName);
       }
-    }
- else {
-      String exportValue;
-      CmsResource res;
-      if (CmsUUID.isValidUUID(detailId)) {
-        res=exportCms.readResource(new CmsUUID(detailId));
+ catch (      Exception e) {
+        LOG.debug(e.getLocalizedMessage(),e);
       }
- else {
-        res=exportCms.readResource(vfsName);
+      String path=vfsName;
+      if (path.endsWith("/")) {
+        path=path.substring(0,path.length() - 1);
       }
-      exportValue=exportCms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_EXPORT,true).getValue();
-      if (exportValue == null) {
-        if (OpenCms.getStaticExportManager().getExportPropertyDefault()) {
+      String detailId="";
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(path)) {
+        detailId=CmsResource.getName(path);
+      }
+      if ((entry != null) && entry.isSitemap()) {
+        Map<String,String> props=entry.getProperties(true);
+        if ((props.get(CmsPropertyDefinition.PROPERTY_EXPORT) != null) && props.get(CmsPropertyDefinition.PROPERTY_EXPORT).equals(CmsStringUtil.TRUE)) {
           result=true;
         }
+      }
  else {
-          result=OpenCms.getStaticExportManager().isSuffixExportable(vfsName);
+        String exportValue;
+        CmsResource res;
+        if (CmsUUID.isValidUUID(detailId)) {
+          res=exportCms.readResource(new CmsUUID(detailId));
+        }
+ else {
+          res=exportCms.readResource(vfsName);
+        }
+        exportValue=exportCms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_EXPORT,true).getValue();
+        if (exportValue == null) {
+          if (OpenCms.getStaticExportManager().getExportPropertyDefault()) {
+            result=true;
+          }
+ else {
+            result=OpenCms.getStaticExportManager().isSuffixExportable(vfsName);
+          }
+        }
+ else {
+          result=Boolean.valueOf(exportValue).booleanValue();
         }
       }
- else {
-        result=Boolean.valueOf(exportValue).booleanValue();
-      }
     }
-  }
- catch (  CmsException e) {
-    LOG.debug(e.getLocalizedMessage(),e);
+ catch (    CmsException e) {
+      LOG.debug(e.getLocalizedMessage(),e);
+    }
   }
   OpenCms.getStaticExportManager().getCacheExportLinks().put(cacheKey,Boolean.valueOf(result));
   return result;

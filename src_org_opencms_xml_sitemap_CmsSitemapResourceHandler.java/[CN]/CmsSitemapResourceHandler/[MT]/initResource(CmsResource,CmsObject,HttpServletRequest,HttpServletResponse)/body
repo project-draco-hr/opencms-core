@@ -11,6 +11,42 @@
       return resource;
     }
     resource=cms.readResource(entry.getStructureId());
+    if (resource != null) {
+      cms.getRequestContext().setUri(cms.getSitePath(resource));
+      if (resource.isInternal()) {
+        throw new CmsException(Messages.get().container(org.opencms.main.Messages.ERR_READ_INTERNAL_RESOURCE_1,cms.getRequestContext().getUri()));
+      }
+      if (cms.getRequestContext().currentProject().isOnlineProject()) {
+        String secureProp=entry.getProperties(true).get(CmsPropertyDefinition.PROPERTY_SECURE);
+        boolean secure=Boolean.valueOf(secureProp).booleanValue();
+        if (secure) {
+          CmsSite site=OpenCms.getSiteManager().getCurrentSite(cms);
+          String secureUrl=null;
+          try {
+            secureUrl=site.getSecureUrl();
+          }
+ catch (          Exception e) {
+            LOG.error(Messages.get().getBundle().key(org.opencms.main.Messages.ERR_SECURE_SITE_NOT_CONFIGURED_1,resource.getRootPath()),e);
+            throw new CmsException(Messages.get().container(org.opencms.main.Messages.ERR_SECURE_SITE_NOT_CONFIGURED_1,resource.getRootPath()),e);
+          }
+          boolean usingSec=req.getRequestURL().toString().toUpperCase().startsWith(secureUrl.toUpperCase());
+          if (site.isExclusiveUrl() && !usingSec) {
+            if (site.isExclusiveError()) {
+              throw new CmsVfsResourceNotFoundException(Messages.get().container(org.opencms.main.Messages.ERR_REQUEST_SECURE_RESOURCE_0));
+            }
+ else {
+              String target=OpenCms.getLinkManager().getOnlineLink(cms,entry.getRootPath());
+              try {
+                res.sendRedirect(target);
+                return null;
+              }
+ catch (              Exception e) {
+              }
+            }
+          }
+        }
+      }
+    }
     if (req != null) {
       req.setAttribute(CmsSitemapManager.ATTR_SITEMAP_ENTRY,entry);
     }
