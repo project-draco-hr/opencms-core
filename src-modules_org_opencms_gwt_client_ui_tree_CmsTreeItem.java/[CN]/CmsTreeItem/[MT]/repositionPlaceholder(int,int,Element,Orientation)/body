@@ -1,0 +1,69 @@
+{
+  I_CmsDraggable draggable=null;
+  if (getTree().getDnDHandler() != null) {
+    draggable=getTree().getDnDHandler().getDraggable();
+  }
+  Element itemElement=getListItemWidget().getElement();
+  int top=CmsDomUtil.getRelativeY(y,itemElement);
+  int height=itemElement.getOffsetHeight();
+  int index;
+  String parentPath;
+  boolean isParentDndEnabled;
+  CmsTreeItem parentItem=getParentItem();
+  if (parentItem == null) {
+    index=getTree().getItemPosition(this);
+    parentPath="/";
+    isParentDndEnabled=getTree().isRootDropEnabled();
+  }
+ else {
+    index=parentItem.getItemPosition(this);
+    parentPath=getParentItem().getPath();
+    isParentDndEnabled=getParentItem().isDropEnabled();
+  }
+  if (top < height) {
+    int diff=x - getListItemWidget().getAbsoluteLeft();
+    if ((draggable != this) && (diff > 0) && (diff < 32)) {
+      getTree().setOpenTimer(this);
+      m_children.getElement().insertBefore(placeholder,m_children.getElement().getFirstChild());
+      getTree().setPlaceholderPath(getPath());
+      return 0;
+    }
+    getTree().cancelOpenTimer();
+    if (!isParentDndEnabled) {
+      return getTree().getPlaceholderIndex();
+    }
+    if ((index > 0) && (parentItem != null)) {
+      CmsTreeItem previousSibling=parentItem.getChild(index - 1);
+      if (previousSibling.isOpen()) {
+        return CmsTreeItem.getLastOpenedItem(previousSibling).insertPlaceholderAsLastChild(placeholder);
+      }
+    }
+    getElement().getParentElement().insertBefore(placeholder,getElement());
+    getTree().setPlaceholderPath(parentPath);
+    return index;
+  }
+ else   if ((draggable != this) && isOpen()) {
+    getTree().cancelOpenTimer();
+    for (int childIndex=0; childIndex < getChildCount(); childIndex++) {
+      CmsTreeItem child=getChild(childIndex);
+      Element childElement=child.getElement();
+      boolean over=false;
+switch (orientation) {
+case HORIZONTAL:
+        over=CmsDomUtil.checkPositionInside(childElement,x,-1);
+      break;
+case VERTICAL:
+    over=CmsDomUtil.checkPositionInside(childElement,-1,y);
+  break;
+case ALL:
+default :
+over=CmsDomUtil.checkPositionInside(childElement,x,y);
+}
+if (over) {
+return child.repositionPlaceholder(x,y,placeholder,orientation);
+}
+}
+}
+getTree().cancelOpenTimer();
+return getTree().getPlaceholderIndex();
+}
