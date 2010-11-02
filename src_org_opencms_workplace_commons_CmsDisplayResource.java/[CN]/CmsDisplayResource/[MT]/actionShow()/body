@@ -1,70 +1,25 @@
 {
-  String resourceStr=getParamResource();
   if (CmsStringUtil.isNotEmpty(getParamVersion())) {
-    byte[] result=getHistoricalResourceContent(getCms(),resourceStr,getParamVersion());
-    if (result != null) {
-      String contentType=OpenCms.getResourceManager().getMimeType(resourceStr,getCms().getRequestContext().getEncoding());
-      HttpServletResponse res=getJsp().getResponse();
-      HttpServletRequest req=getJsp().getRequest();
-      res.setHeader(CmsRequestUtil.HEADER_CONTENT_DISPOSITION,new StringBuffer("attachment; filename=\"").append(resourceStr).append("\"").toString());
-      res.setContentLength(result.length);
-      CmsFlexController controller=CmsFlexController.getController(req);
-      res=controller.getTopResponse();
-      res.setContentType(contentType);
-      try {
-        res.getOutputStream().write(result);
-        res.getOutputStream().flush();
-      }
- catch (      IOException e) {
-        if (LOG.isInfoEnabled()) {
-          LOG.info(e.getLocalizedMessage());
-        }
-        return;
-      }
-    }
+    showHistoricVersion();
   }
  else {
-    CmsResource resource=null;
-    try {
-      resource=getCms().readResource(resourceStr,CmsResourceFilter.ALL);
+    String resourceStr=getParamResource();
+    CmsResource resource=readResource(resourceStr);
+    if (isDeleted(resource)) {
+      throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_RESOURCE_DELETED_2,resourceStr,getCms().getRequestContext().currentProject().getName()));
     }
- catch (    CmsVfsResourceNotFoundException e) {
-    }
-    if (resource != null) {
-      if (resource.getState().isDeleted()) {
-        throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_RESOURCE_DELETED_2,resourceStr,getCms().getRequestContext().currentProject().getName()));
+    autoTimeWarp(resource);
+    if (CmsResourceTypeXmlContainerPage.isContainerPage(resource)) {
+      List<CmsInternalSitemapEntry> entries=OpenCms.getSitemapManager().getEntriesForStructureId(getJsp().getCmsObject(),resource.getStructureId());
+      if (!entries.isEmpty()) {
+        CmsInternalSitemapEntry entry=entries.get(0);
+        resourceStr=entry.getRootPath();
       }
-      autoTimeWarp(resource);
-      if (CmsResourceTypeXmlContainerPage.isContainerPage(resource)) {
-        List<CmsInternalSitemapEntry> entries=OpenCms.getSitemapManager().getEntriesForStructureId(getJsp().getCmsObject(),resource.getStructureId());
-        if (!entries.isEmpty()) {
-          CmsInternalSitemapEntry entry=entries.get(0);
-          resourceStr=entry.getRootPath();
-        }
-      }
-      String url=getJsp().link(resourceStr);
-      if ((url.indexOf("://") < 0) && getCms().getRequestContext().currentProject().isOnlineProject()) {
-        String site=getCms().getRequestContext().getSiteRoot();
-        if (CmsStringUtil.isEmptyOrWhitespaceOnly(site)) {
-          site=OpenCms.getSiteManager().getDefaultUri();
-          if (CmsStringUtil.isEmptyOrWhitespaceOnly(site)) {
-            url=OpenCms.getSiteManager().getWorkplaceServer() + url;
-          }
- else           if (OpenCms.getSiteManager().getSiteForSiteRoot(site) == null) {
-            url=OpenCms.getSiteManager().getWorkplaceServer() + url;
-          }
- else {
-            url=OpenCms.getSiteManager().getSiteForSiteRoot(site).getUrl() + url;
-          }
-        }
- else {
-          url=OpenCms.getSiteManager().getSiteForSiteRoot(site).getUrl() + url;
-        }
-      }
-      getJsp().getResponse().sendRedirect(url);
     }
- else {
-      throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_RESOURCE_DOES_NOT_EXIST_3,resourceStr,getCms().getRequestContext().currentProject().getName(),getCms().getRequestContext().getSiteRoot()));
+    String url=getJsp().link(resourceStr);
+    if ((url.indexOf("://") < 0) && getCms().getRequestContext().currentProject().isOnlineProject()) {
+      url=prependSiteRoot(url);
     }
+    getJsp().getResponse().sendRedirect(url);
   }
 }
