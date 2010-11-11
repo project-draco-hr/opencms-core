@@ -10,6 +10,21 @@
     try {
       CmsResource res=cms.readResource(m_structureId,CmsResourceFilter.ALL);
       rootPath=res.getRootPath();
+      if (res.isFile()) {
+        try {
+          CmsProperty detailViewProp=cms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_ADE_SITEMAP_DETAILVIEW,true);
+          if (!detailViewProp.isNullProperty()) {
+            String detailView=detailViewProp.getValue();
+            String urlName=cms.readNewestUrlNameForId(res.getStructureId());
+            if (urlName == null) {
+              urlName=res.getStructureId().toString();
+            }
+            rootPath=cms.getRequestContext().addSiteRoot(CmsStringUtil.joinPaths(detailView,urlName));
+          }
+        }
+ catch (        CmsException e) {
+        }
+      }
     }
  catch (    CmsException e) {
       CmsSitemapEntry entry=OpenCms.getSitemapManager().getEntryForId(cms,m_structureId);
@@ -41,7 +56,13 @@
         throw new CmsVfsResourceNotFoundException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_READ_RESOURCE_1,m_target));
       }
       String rootPath=entry.getRootPath();
-      CmsUUID id=entry.getId();
+      CmsUUID id;
+      if (entry.getContentId() != null) {
+        id=entry.getContentId();
+      }
+ else {
+        id=entry.getStructureId();
+      }
       if (!id.equals(m_structureId)) {
         if (LOG.isDebugEnabled()) {
           LOG.debug(Messages.get().getBundle().key(Messages.LOG_BROKEN_LINK_UPDATED_BY_NAME_3,m_target,m_structureId,id));
