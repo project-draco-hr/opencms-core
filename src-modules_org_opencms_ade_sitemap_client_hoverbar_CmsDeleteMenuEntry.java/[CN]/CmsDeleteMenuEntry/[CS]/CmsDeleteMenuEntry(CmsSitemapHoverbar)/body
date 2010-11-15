@@ -1,0 +1,74 @@
+{
+  super(hoverbar);
+  setImageClass(I_CmsImageBundle.INSTANCE.contextMenuIcons().delete());
+  setLabel(Messages.get().key(Messages.GUI_HOVERBAR_DELETE_0));
+  setActive(true);
+  setCommand(new Command(){
+    /** 
+ * @see com.google.gwt.user.client.Command#execute()
+ */
+    public void execute(){
+      final String sitePath=getHoverbar().getSitePath();
+      final CmsSitemapController controller=getHoverbar().getController();
+      CmsPair<List<CmsClientSitemapEntry>,List<CmsClientSitemapEntry>> openAndClosed=CmsSitemapView.getInstance().getOpenAndClosedDescendants(sitePath);
+      List<CmsClientSitemapEntry> openEntries=openAndClosed.getFirst();
+      List<CmsClientSitemapEntry> closedEntries=openAndClosed.getSecond();
+      List<CmsUUID> open=getIds(openEntries);
+      List<CmsUUID> closed=getIds(closedEntries);
+      controller.getBrokenLinks(open,closed,new AsyncCallback<List<CmsSitemapBrokenLinkBean>>(){
+        /** 
+ * @see com.google.gwt.user.client.rpc.AsyncCallback#onFailure(java.lang.Throwable)
+ */
+        public void onFailure(        Throwable caught){
+        }
+        /** 
+ * @see com.google.gwt.user.client.rpc.AsyncCallback#onSuccess(java.lang.Object)
+ */
+        public void onSuccess(        List<CmsSitemapBrokenLinkBean> result){
+          if (result.size() > 0) {
+            I_CmsConfirmDialogHandler handler=new I_CmsConfirmDialogHandler(){
+              /** 
+ * @see org.opencms.gwt.client.ui.I_CmsCloseDialogHandler#onClose()
+ */
+              public void onClose(){
+              }
+              /** 
+ * @see org.opencms.gwt.client.ui.I_CmsConfirmDialogHandler#onOk()
+ */
+              public void onOk(){
+                controller.delete(sitePath);
+              }
+            }
+;
+            CmsLinkWarningDialog dialog=new CmsLinkWarningDialog(handler,result);
+            dialog.center();
+          }
+ else {
+            if (controller.getEntry(sitePath).getSubEntries().isEmpty()) {
+              controller.delete(sitePath);
+              return;
+            }
+            CmsConfirmDialog dialog=new CmsConfirmDialog(Messages.get().key(Messages.GUI_DIALOG_DELETE_TITLE_0),Messages.get().key(Messages.GUI_DIALOG_DELETE_TEXT_0));
+            dialog.setHandler(new I_CmsConfirmDialogHandler(){
+              /** 
+ * @see org.opencms.gwt.client.ui.I_CmsCloseDialogHandler#onClose()
+ */
+              public void onClose(){
+              }
+              /** 
+ * @see org.opencms.gwt.client.ui.I_CmsConfirmDialogHandler#onOk()
+ */
+              public void onOk(){
+                controller.delete(sitePath);
+              }
+            }
+);
+            dialog.center();
+          }
+        }
+      }
+);
+    }
+  }
+);
+}
