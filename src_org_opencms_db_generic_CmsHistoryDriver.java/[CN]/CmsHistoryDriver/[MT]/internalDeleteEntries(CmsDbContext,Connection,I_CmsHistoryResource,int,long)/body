@@ -1,0 +1,109 @@
+{
+  PreparedStatement stmt=null;
+  ResultSet res=null;
+  try {
+    int maxVersion=-1;
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_STRUCTURE_HISTORY_MAXVER");
+    stmt.setString(1,resource.getStructureId().toString());
+    res=stmt.executeQuery();
+    if (res.next()) {
+      maxVersion=res.getInt(1);
+      while (res.next()) {
+      }
+    }
+ else {
+      m_sqlManager.closeAll(dbc,null,stmt,res);
+      internalCleanup(dbc,conn,resource);
+      return 0;
+    }
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+    if (time >= 0) {
+      int maxVersionByTime=-1;
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_STRUCTURE_HISTORY_MAXVER_BYTIME");
+      stmt.setString(1,resource.getStructureId().toString());
+      stmt.setLong(2,time);
+      res=stmt.executeQuery();
+      if (res.next()) {
+        maxVersionByTime=res.getInt(1);
+        while (res.next()) {
+        }
+      }
+      m_sqlManager.closeAll(dbc,null,stmt,res);
+      if (maxVersionByTime > 0) {
+        if (versionsToKeep < 0) {
+          versionsToKeep=(maxVersion - maxVersionByTime);
+        }
+ else {
+          versionsToKeep=Math.min(versionsToKeep,(maxVersion - maxVersionByTime));
+        }
+      }
+    }
+    if (maxVersion - versionsToKeep <= 0) {
+      return 0;
+    }
+    int minStrPublishTagToKeep=-1;
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_HISTORY_READ_MAXTAG_FOR_VERSION");
+    stmt.setString(1,resource.getStructureId().toString());
+    stmt.setInt(2,1 + maxVersion - versionsToKeep);
+    res=stmt.executeQuery();
+    if (res.next()) {
+      minStrPublishTagToKeep=res.getInt(1);
+      while (res.next()) {
+      }
+    }
+ else {
+      m_sqlManager.closeAll(dbc,null,stmt,res);
+      internalCleanup(dbc,conn,resource);
+      return 0;
+    }
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+    if (minStrPublishTagToKeep < 1) {
+      internalCleanup(dbc,conn,resource);
+      return 0;
+    }
+    minStrPublishTagToKeep++;
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_HISTORY_DELETE");
+    stmt.setString(1,resource.getStructureId().toString());
+    stmt.setInt(2,minStrPublishTagToKeep);
+    stmt.executeUpdate();
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_STRUCTURE_HISTORY_DELETE");
+    stmt.setString(1,resource.getStructureId().toString());
+    stmt.setInt(2,minStrPublishTagToKeep);
+    int structureVersions=stmt.executeUpdate();
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+    int minResPublishTagToKeep=-1;
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_HISTORY_READ_MIN_USED_TAG");
+    stmt.setString(1,resource.getResourceId().toString());
+    res=stmt.executeQuery();
+    if (res.next()) {
+      minResPublishTagToKeep=res.getInt(1);
+      while (res.next()) {
+      }
+    }
+ else {
+      m_sqlManager.closeAll(dbc,null,stmt,res);
+      internalCleanup(dbc,conn,resource);
+      return structureVersions;
+    }
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_HISTORY_DELETE");
+    stmt.setString(1,resource.getResourceId().toString());
+    stmt.setInt(2,minResPublishTagToKeep);
+    int resourceVersions=stmt.executeUpdate();
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_CONTENT_HISTORY_DELETE");
+    stmt.setString(1,resource.getResourceId().toString());
+    stmt.setInt(2,minResPublishTagToKeep);
+    stmt.executeUpdate();
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+    internalCleanup(dbc,conn,resource);
+    return Math.max(structureVersions,resourceVersions);
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,null,stmt,res);
+  }
+}

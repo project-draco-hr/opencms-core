@@ -2,8 +2,8 @@
   Connection conn=null;
   PreparedStatement stmt=null;
   ResultSet res=null;
-  List result=new ArrayList();
-  I_CmsVfsDriver vfsDriver=m_driverManager.getVfsDriver(dbc);
+  List<I_CmsHistoryResource> result=new ArrayList<I_CmsHistoryResource>();
+  List<I_CmsHistoryResource> tmpHistRes=new ArrayList<I_CmsHistoryResource>();
   try {
     conn=m_sqlManager.getConnection(dbc);
     if (userId == null) {
@@ -18,11 +18,7 @@
     }
     res=stmt.executeQuery();
     while (res.next()) {
-      I_CmsHistoryResource histRes=internalCreateResource(res);
-      if (vfsDriver.validateStructureIdExists(dbc,dbc.currentProject().getUuid(),histRes.getStructureId())) {
-        continue;
-      }
-      result.add(histRes);
+      tmpHistRes.add(internalCreateResource(res));
     }
   }
  catch (  SQLException e) {
@@ -30,6 +26,13 @@
   }
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  I_CmsVfsDriver vfsDriver=m_driverManager.getVfsDriver(dbc);
+  for (  I_CmsHistoryResource histRes : tmpHistRes) {
+    if (vfsDriver.validateStructureIdExists(dbc,dbc.currentProject().getUuid(),histRes.getStructureId())) {
+      continue;
+    }
+    result.add(histRes);
   }
   if (!result.isEmpty() || (dbc.getRequestContext() == null) || (dbc.getRequestContext().getAttribute("ATTR_RESOURCE_NAME") == null)) {
     return result;
@@ -49,12 +52,9 @@
       stmt.setString(3,userId.toString());
     }
     res=stmt.executeQuery();
+    tmpHistRes.clear();
     while (res.next()) {
-      I_CmsHistoryResource histRes=internalCreateResource(res);
-      if (vfsDriver.validateStructureIdExists(dbc,dbc.currentProject().getUuid(),histRes.getStructureId())) {
-        continue;
-      }
-      result.add(histRes);
+      tmpHistRes.add(internalCreateResource(res));
     }
   }
  catch (  SQLException e) {
@@ -62,6 +62,12 @@
   }
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  for (  I_CmsHistoryResource histRes : tmpHistRes) {
+    if (vfsDriver.validateStructureIdExists(dbc,dbc.currentProject().getUuid(),histRes.getStructureId())) {
+      continue;
+    }
+    result.add(histRes);
   }
   return result;
 }

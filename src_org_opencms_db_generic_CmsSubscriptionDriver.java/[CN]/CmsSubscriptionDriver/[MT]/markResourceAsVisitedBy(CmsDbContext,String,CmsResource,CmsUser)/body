@@ -12,6 +12,7 @@
     Connection conn=null;
     ResultSet res=null;
     int count=0;
+    List<Long> dates=new ArrayList<Long>();
     try {
       conn=m_sqlManager.getConnection(poolName);
       stmt=m_sqlManager.getPreparedStatement(conn,dbc.currentProject(),"C_VISITED_USER_COUNT_1");
@@ -32,13 +33,8 @@
         stmt.setString(1,user.getId().toString());
         stmt.setInt(2,count - maxCount);
         res=stmt.executeQuery();
-        long deleteDate=0;
         while (res.next()) {
-          deleteDate=res.getLong(1);
-        }
-        if (deleteDate > 0) {
-          filter=CmsVisitEntryFilter.ALL.filterUser(user.getId()).filterTo(deleteDate);
-          deleteVisits(dbc,OpenCms.getSubscriptionManager().getPoolName(),filter);
+          dates.add(Long.valueOf(res.getLong(1)));
         }
       }
     }
@@ -47,6 +43,14 @@
     }
  finally {
       m_sqlManager.closeAll(dbc,conn,stmt,res);
+    }
+    long deleteDate=0;
+    for (    Long date : dates) {
+      deleteDate=date.longValue();
+      if (deleteDate > 0) {
+        filter=CmsVisitEntryFilter.ALL.filterUser(user.getId()).filterTo(deleteDate);
+        deleteVisits(dbc,OpenCms.getSubscriptionManager().getPoolName(),filter);
+      }
     }
   }
 }

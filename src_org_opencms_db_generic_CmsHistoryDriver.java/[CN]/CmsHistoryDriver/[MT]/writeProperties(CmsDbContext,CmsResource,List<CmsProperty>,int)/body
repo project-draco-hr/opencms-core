@@ -1,11 +1,9 @@
 {
   Connection conn=null;
   PreparedStatement stmt=null;
+  Map<CmsProperty,CmsPropertyDefinition> propDefs=new HashMap<CmsProperty,CmsPropertyDefinition>();
   try {
-    conn=m_sqlManager.getConnection(dbc);
-    Iterator dummy=properties.iterator();
-    while (dummy.hasNext()) {
-      CmsProperty property=(CmsProperty)dummy.next();
+    for (    CmsProperty property : properties) {
       CmsPropertyDefinition propDef=null;
       try {
         propDef=readPropertyDefinition(dbc,property.getName());
@@ -13,12 +11,24 @@
  catch (      CmsDbEntryNotFoundException e) {
         propDef=createPropertyDefinition(dbc,property.getName(),CmsPropertyDefinition.TYPE_NORMAL);
       }
+      propDefs.put(property,propDef);
+    }
+  }
+ catch (  CmsDataAccessException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,null);
+  }
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    for (    Map.Entry<CmsProperty,CmsPropertyDefinition> entry : propDefs.entrySet()) {
       for (int i=0; i < 2; i++) {
         int mappingType;
         String value;
         CmsUUID id;
         if (i == 0) {
-          value=property.getStructureValue();
+          value=entry.getKey().getStructureValue();
           mappingType=CmsProperty.STRUCTURE_RECORD_MAPPING;
           id=resource.getStructureId();
           if (CmsStringUtil.isEmpty(value)) {
@@ -26,7 +36,7 @@
           }
         }
  else {
-          value=property.getResourceValue();
+          value=entry.getKey().getResourceValue();
           mappingType=CmsProperty.RESOURCE_RECORD_MAPPING;
           id=resource.getResourceId();
           if (CmsStringUtil.isEmpty(value)) {
@@ -35,7 +45,7 @@
         }
         stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_HISTORY_CREATE");
         stmt.setString(1,resource.getStructureId().toString());
-        stmt.setString(2,propDef.getId().toString());
+        stmt.setString(2,entry.getValue().getId().toString());
         stmt.setString(3,id.toString());
         stmt.setInt(4,mappingType);
         stmt.setString(5,m_sqlManager.validateEmpty(value));

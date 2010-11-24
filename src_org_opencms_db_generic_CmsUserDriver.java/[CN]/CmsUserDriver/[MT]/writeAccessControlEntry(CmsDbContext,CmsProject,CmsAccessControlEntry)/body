@@ -2,28 +2,43 @@
   PreparedStatement stmt=null;
   Connection conn=null;
   ResultSet res=null;
+  CmsAccessControlEntry ace=null;
   try {
     conn=m_sqlManager.getConnection(dbc);
     stmt=m_sqlManager.getPreparedStatement(conn,project,"C_ACCESS_READ_ENTRY_2");
     stmt.setString(1,acEntry.getResource().toString());
     stmt.setString(2,acEntry.getPrincipal().toString());
     res=stmt.executeQuery();
-    if (!res.next()) {
-      m_driverManager.getUserDriver(dbc).createAccessControlEntry(dbc,project,acEntry.getResource(),acEntry.getPrincipal(),acEntry.getAllowedPermissions(),acEntry.getDeniedPermissions(),acEntry.getFlags());
-      return;
+    if (res.next()) {
+      ace=internalCreateAce(res);
     }
-    stmt=m_sqlManager.getPreparedStatement(conn,project,"C_ACCESS_UPDATE_5");
-    stmt.setInt(1,acEntry.getAllowedPermissions());
-    stmt.setInt(2,acEntry.getDeniedPermissions());
-    stmt.setInt(3,acEntry.getFlags());
-    stmt.setString(4,acEntry.getResource().toString());
-    stmt.setString(5,acEntry.getPrincipal().toString());
-    stmt.executeUpdate();
   }
  catch (  SQLException e) {
     throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
   }
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  if (ace == null) {
+    m_driverManager.getUserDriver(dbc).createAccessControlEntry(dbc,project,acEntry.getResource(),acEntry.getPrincipal(),acEntry.getAllowedPermissions(),acEntry.getDeniedPermissions(),acEntry.getFlags());
+    return;
+  }
+ else {
+    try {
+      conn=m_sqlManager.getConnection(dbc);
+      stmt=m_sqlManager.getPreparedStatement(conn,project,"C_ACCESS_UPDATE_5");
+      stmt.setInt(1,acEntry.getAllowedPermissions());
+      stmt.setInt(2,acEntry.getDeniedPermissions());
+      stmt.setInt(3,acEntry.getFlags());
+      stmt.setString(4,acEntry.getResource().toString());
+      stmt.setString(5,acEntry.getPrincipal().toString());
+      stmt.executeUpdate();
+    }
+ catch (    SQLException e) {
+      throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+    }
+ finally {
+      m_sqlManager.closeAll(dbc,conn,stmt,null);
+    }
   }
 }

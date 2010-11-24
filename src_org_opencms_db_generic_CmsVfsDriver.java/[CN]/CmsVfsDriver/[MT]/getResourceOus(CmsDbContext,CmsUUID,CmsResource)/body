@@ -7,6 +7,7 @@
   Connection conn=null;
   PreparedStatement stmt=null;
   ResultSet res=null;
+  List<CmsRelation> rels=new ArrayList<CmsRelation>();
   try {
     conn=m_sqlManager.getConnection(dbc);
     stmt=m_sqlManager.getPreparedStatementForSql(conn,m_sqlManager.readQuery(projectId,"C_READ_RESOURCE_OUS"));
@@ -14,23 +15,24 @@
     stmt.setString(2,resName);
     res=stmt.executeQuery();
     while (res.next()) {
-      CmsRelation rel=internalReadRelation(res);
-      try {
-        ous.add(m_driverManager.readOrganizationalUnit(dbc,rel.getSourcePath().substring(CmsUserDriver.ORGUNIT_BASE_FOLDER.length())));
-      }
- catch (      CmsException e) {
-        if (LOG.isErrorEnabled()) {
-          LOG.error(e.getLocalizedMessage(),e);
-        }
-      }
+      rels.add(internalReadRelation(res));
     }
-    m_sqlManager.closeAll(dbc,null,stmt,res);
   }
  catch (  SQLException e) {
     throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
   }
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+  for (  CmsRelation rel : rels) {
+    try {
+      ous.add(m_driverManager.readOrganizationalUnit(dbc,rel.getSourcePath().substring(CmsUserDriver.ORGUNIT_BASE_FOLDER.length())));
+    }
+ catch (    CmsException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+    }
   }
   return ous;
 }

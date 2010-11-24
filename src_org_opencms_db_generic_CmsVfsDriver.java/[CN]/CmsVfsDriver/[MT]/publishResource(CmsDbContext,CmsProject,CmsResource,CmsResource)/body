@@ -5,8 +5,9 @@
   int resourceSize=offlineResource.getLength();
   String resourcePath=CmsFileUtil.removeTrailingSeparator(offlineResource.getRootPath());
   try {
-    conn=m_sqlManager.getConnection(dbc);
+    int sibCount=countSiblings(dbc,onlineProject.getUuid(),onlineResource.getResourceId());
     boolean resourceExists=validateResourceIdExists(dbc,onlineProject.getUuid(),offlineResource.getResourceId());
+    conn=m_sqlManager.getConnection(dbc);
     if (resourceExists) {
       stmt=m_sqlManager.getPreparedStatement(conn,onlineProject,"C_RESOURCES_UPDATE_RESOURCES");
       stmt.setInt(1,offlineResource.getTypeId());
@@ -17,10 +18,10 @@
       stmt.setInt(6,resourceSize);
       stmt.setLong(7,offlineResource.getDateContent());
       stmt.setString(8,offlineResource.getProjectLastModified().toString());
-      stmt.setInt(9,countSiblings(dbc,onlineProject.getUuid(),onlineResource.getResourceId()));
+      stmt.setInt(9,sibCount);
       stmt.setString(10,offlineResource.getResourceId().toString());
       stmt.executeUpdate();
-      m_sqlManager.closeAll(dbc,null,stmt,null);
+      m_sqlManager.closeAll(dbc,conn,stmt,null);
     }
  else {
       stmt=m_sqlManager.getPreparedStatement(conn,onlineProject,"C_RESOURCES_WRITE");
@@ -38,10 +39,12 @@
       stmt.setInt(12,1);
       stmt.setInt(13,1);
       stmt.executeUpdate();
-      m_sqlManager.closeAll(dbc,null,stmt,null);
+      m_sqlManager.closeAll(dbc,conn,stmt,null);
     }
     String parentId=internalReadParentId(dbc,onlineProject.getUuid(),resourcePath);
-    if (validateStructureIdExists(dbc,onlineProject.getUuid(),offlineResource.getStructureId())) {
+    boolean structureExists=validateStructureIdExists(dbc,onlineProject.getUuid(),offlineResource.getStructureId());
+    conn=m_sqlManager.getConnection(dbc);
+    if (structureExists) {
       stmt=m_sqlManager.getPreparedStatement(conn,onlineProject,"C_RESOURCES_UPDATE_STRUCTURE");
       stmt.setString(1,offlineResource.getResourceId().toString());
       stmt.setString(2,resourcePath);

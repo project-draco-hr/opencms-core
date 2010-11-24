@@ -1,8 +1,9 @@
 {
-  List projects=new ArrayList();
+  List<CmsHistoryProject> projects=new ArrayList<CmsHistoryProject>();
   ResultSet res=null;
   PreparedStatement stmt=null;
   Connection conn=null;
+  Map<Integer,CmsHistoryProject> tmpProjects=new HashMap<Integer,CmsHistoryProject>();
   try {
     conn=m_sqlManager.getConnection(dbc);
     stmt=m_sqlManager.getPreparedStatement(conn,"C_PROJECTS_HISTORY_READ_ALL");
@@ -10,8 +11,7 @@
     int i=0;
     int max=300;
     while (res.next() && (i < max)) {
-      List resources=readProjectResources(dbc,res.getInt("PUBLISH_TAG"));
-      projects.add(internalCreateProject(res,resources));
+      tmpProjects.put(Integer.valueOf(res.getInt("PUBLISH_TAG")),internalCreateProject(res,null));
       i++;
     }
   }
@@ -21,5 +21,10 @@
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
   }
-  return (projects);
+  for (  Map.Entry<Integer,CmsHistoryProject> entry : tmpProjects.entrySet()) {
+    List<String> resources=readProjectResources(dbc,entry.getKey().intValue());
+    entry.getValue().setProjectResources(resources);
+    projects.add(entry.getValue());
+  }
+  return projects;
 }

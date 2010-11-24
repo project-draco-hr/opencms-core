@@ -74,9 +74,10 @@
     stmt.setString(7,parentId);
     stmt.setInt(8,newStrVersion);
     stmt.executeUpdate();
-    m_sqlManager.closeAll(dbc,null,stmt,null);
+    m_sqlManager.closeAll(dbc,conn,stmt,null);
     if (!validateResourceIdExists(dbc,projectId,resource.getResourceId())) {
       try {
+        conn=m_sqlManager.getConnection(dbc);
         stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_RESOURCES_WRITE");
         stmt.setString(1,resource.getResourceId().toString());
         stmt.setInt(2,resource.getTypeId());
@@ -94,7 +95,7 @@
         stmt.executeUpdate();
       }
   finally {
-        m_sqlManager.closeAll(dbc,null,stmt,null);
+        m_sqlManager.closeAll(dbc,conn,stmt,null);
       }
       if (resource.isFile() && (content != null)) {
         createContent(dbc,projectId,resource.getResourceId(),content);
@@ -108,6 +109,8 @@
           projLastMod=resource.getProjectLastModified();
           state=CmsResource.STATE_UNCHANGED;
         }
+        int sibCount=countSiblings(dbc,projectId,resource.getResourceId());
+        conn=m_sqlManager.getConnection(dbc);
         stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_RESOURCES_UPDATE_RESOURCES");
         stmt.setInt(1,resource.getTypeId());
         stmt.setInt(2,resource.getFlags());
@@ -117,18 +120,20 @@
         stmt.setInt(6,resource.getLength());
         stmt.setLong(7,resource.getDateContent());
         stmt.setString(8,projLastMod.toString());
-        stmt.setInt(9,countSiblings(dbc,projectId,resource.getResourceId()));
+        stmt.setInt(9,sibCount);
         stmt.setString(10,resource.getResourceId().toString());
         stmt.executeUpdate();
-        m_sqlManager.closeAll(dbc,null,stmt,null);
+        m_sqlManager.closeAll(dbc,conn,stmt,null);
       }
       if (resource.isFile()) {
         if (content != null) {
           writeContent(dbc,resource.getResourceId(),content);
         }
  else         if (resource.getState().isKeep()) {
+          int sibCount=countSiblings(dbc,projectId,resource.getResourceId());
+          conn=m_sqlManager.getConnection(dbc);
           stmt=m_sqlManager.getPreparedStatement(conn,projectId,"C_RESOURCES_UPDATE_SIBLING_COUNT");
-          stmt.setInt(1,countSiblings(dbc,projectId,resource.getResourceId()));
+          stmt.setInt(1,sibCount);
           stmt.setString(2,resource.getResourceId().toString());
           stmt.executeUpdate();
           m_sqlManager.closeAll(dbc,null,stmt,null);
@@ -136,7 +141,7 @@
           stmt.setInt(1,resource.getFlags());
           stmt.setString(2,resource.getResourceId().toString());
           stmt.executeUpdate();
-          m_sqlManager.closeAll(dbc,null,stmt,null);
+          m_sqlManager.closeAll(dbc,conn,stmt,null);
         }
       }
     }

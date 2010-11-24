@@ -2,9 +2,8 @@
   Connection conn=null;
   PreparedStatement stmt=null;
   try {
-    conn=m_sqlManager.getConnection(dbc);
-    int sibCount=resource.getSiblingCount();
     boolean valResource=internalValidateResource(dbc,resource,publishTag);
+    int sibCount=resource.getSiblingCount();
     if (resource.getState().isDeleted()) {
       if (resource instanceof CmsFile) {
         if (!valResource) {
@@ -18,9 +17,15 @@
       }
       m_driverManager.getVfsDriver(dbc).publishVersions(dbc,resource,!valResource);
     }
-    Map versions=m_driverManager.getVfsDriver(dbc).readVersions(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getResourceId(),resource.getStructureId());
-    int structureVersion=((Integer)versions.get("structure")).intValue();
-    int resourceVersion=((Integer)versions.get("resource")).intValue();
+    Map<String,Integer> versions=m_driverManager.getVfsDriver(dbc).readVersions(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getResourceId(),resource.getStructureId());
+    int structureVersion=(versions.get("structure")).intValue();
+    int resourceVersion=(versions.get("resource")).intValue();
+    CmsUUID parentId=CmsUUID.getNullUUID();
+    CmsFolder parent=m_driverManager.getVfsDriver(dbc).readParentFolder(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getStructureId());
+    if (parent != null) {
+      parentId=parent.getStructureId();
+    }
+    conn=m_sqlManager.getConnection(dbc);
     if (!valResource) {
       stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_HISTORY_WRITE");
       stmt.setString(1,resource.getResourceId().toString());
@@ -39,11 +44,6 @@
       stmt.setInt(14,publishTag);
       stmt.executeUpdate();
       m_sqlManager.closeAll(dbc,null,stmt,null);
-    }
-    CmsUUID parentId=CmsUUID.getNullUUID();
-    CmsFolder parent=m_driverManager.getVfsDriver(dbc).readParentFolder(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getStructureId());
-    if (parent != null) {
-      parentId=parent.getStructureId();
     }
     stmt=m_sqlManager.getPreparedStatement(conn,"C_STRUCTURE_HISTORY_WRITE");
     stmt.setString(1,resource.getStructureId().toString());

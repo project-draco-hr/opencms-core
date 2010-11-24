@@ -1,16 +1,15 @@
 {
-  List projects=new ArrayList();
+  List<CmsHistoryProject> projects=new ArrayList<CmsHistoryProject>();
   ResultSet res=null;
   PreparedStatement stmt=null;
   Connection conn=null;
+  Map<Integer,CmsHistoryProject> tmpProjects=new HashMap<Integer,CmsHistoryProject>();
   try {
-    I_CmsHistoryDriver historyDriver=m_driverManager.getHistoryDriver(dbc);
     conn=m_sqlManager.getConnection(dbc);
     stmt=m_sqlManager.getPreparedStatement(conn,"C_MSSQL_PROJECTS_READLAST_HISTORY");
     res=stmt.executeQuery();
     while (res.next()) {
-      List resources=historyDriver.readProjectResources(dbc,res.getInt("PUBLISH_TAG"));
-      projects.add(internalCreateProject(res,resources));
+      tmpProjects.put(Integer.valueOf(res.getInt("PUBLISH_TAG")),internalCreateProject(res,null));
     }
   }
  catch (  SQLException e) {
@@ -19,5 +18,11 @@
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
   }
-  return (projects);
+  I_CmsHistoryDriver historyDriver=m_driverManager.getHistoryDriver(dbc);
+  for (  Map.Entry<Integer,CmsHistoryProject> entry : tmpProjects.entrySet()) {
+    List<String> resources=historyDriver.readProjectResources(dbc,entry.getKey().intValue());
+    entry.getValue().setProjectResources(resources);
+    projects.add(entry.getValue());
+  }
+  return projects;
 }
