@@ -1,0 +1,30 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  ResultSet res=null;
+  Map<CmsUUID,Integer> tmpSubResources=new HashMap<CmsUUID,Integer>();
+  boolean isFolderAndNoVersionLeft=resource.getRootPath().endsWith("/") && (readLastVersion(dbc,resource.getStructureId()) == 0);
+  if (isFolderAndNoVersionLeft) {
+    try {
+      conn=m_sqlManager.getConnection(dbc);
+      stmt=m_sqlManager.getPreparedStatement(conn,"C_STRUCTURE_HISTORY_READ_SUBRESOURCES");
+      stmt.setString(1,resource.getStructureId().toString());
+      res=stmt.executeQuery();
+      while (res.next()) {
+        CmsUUID structureId=new CmsUUID(res.getString(1));
+        int version=res.getInt(2);
+        tmpSubResources.put(structureId,Integer.valueOf(version));
+      }
+    }
+ catch (    SQLException e) {
+      throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+    }
+ finally {
+      m_sqlManager.closeAll(dbc,conn,stmt,res);
+    }
+  }
+  for (  Map.Entry<CmsUUID,Integer> entry : tmpSubResources.entrySet()) {
+    I_CmsHistoryResource histResource=readResource(dbc,entry.getKey(),entry.getValue().intValue());
+    deleteEntries(dbc,histResource,0,-1);
+  }
+}

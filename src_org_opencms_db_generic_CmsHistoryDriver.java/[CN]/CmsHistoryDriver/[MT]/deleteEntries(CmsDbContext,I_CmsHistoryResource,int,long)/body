@@ -14,13 +14,14 @@
       }
     }
  else {
-      m_sqlManager.closeAll(dbc,null,stmt,res);
-      internalCleanup(dbc,conn,resource);
+      m_sqlManager.closeAll(dbc,conn,stmt,res);
+      internalCleanup(dbc,resource);
       return 0;
     }
-    m_sqlManager.closeAll(dbc,null,stmt,res);
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
     if (time >= 0) {
       int maxVersionByTime=-1;
+      conn=m_sqlManager.getConnection(dbc);
       stmt=m_sqlManager.getPreparedStatement(conn,"C_STRUCTURE_HISTORY_MAXVER_BYTIME");
       stmt.setString(1,resource.getStructureId().toString());
       stmt.setLong(2,time);
@@ -30,7 +31,7 @@
         while (res.next()) {
         }
       }
-      m_sqlManager.closeAll(dbc,null,stmt,res);
+      m_sqlManager.closeAll(dbc,conn,stmt,res);
       if (maxVersionByTime > 0) {
         if (versionsToKeep < 0) {
           versionsToKeep=(maxVersion - maxVersionByTime);
@@ -41,10 +42,11 @@
       }
     }
     if (maxVersion - versionsToKeep <= 0) {
-      internalCleanup(dbc,conn,resource);
+      internalCleanup(dbc,resource);
       return 0;
     }
     int minStrPublishTagToKeep=-1;
+    conn=m_sqlManager.getConnection(dbc);
     stmt=m_sqlManager.getPreparedStatement(conn,"C_HISTORY_READ_MAXTAG_FOR_VERSION");
     stmt.setString(1,resource.getStructureId().toString());
     stmt.setInt(2,1 + maxVersion - versionsToKeep);
@@ -55,16 +57,17 @@
       }
     }
  else {
-      m_sqlManager.closeAll(dbc,null,stmt,res);
-      internalCleanup(dbc,conn,resource);
+      m_sqlManager.closeAll(dbc,conn,stmt,res);
+      internalCleanup(dbc,resource);
       return 0;
     }
-    m_sqlManager.closeAll(dbc,null,stmt,res);
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
     if (minStrPublishTagToKeep < 1) {
-      internalCleanup(dbc,conn,resource);
+      internalCleanup(dbc,resource);
       return 0;
     }
     minStrPublishTagToKeep++;
+    conn=m_sqlManager.getConnection(dbc);
     stmt=m_sqlManager.getPreparedStatement(conn,"C_PROPERTIES_HISTORY_DELETE");
     stmt.setString(1,resource.getStructureId().toString());
     stmt.setInt(2,minStrPublishTagToKeep);
@@ -85,11 +88,12 @@
       }
     }
  else {
-      m_sqlManager.closeAll(dbc,null,stmt,res);
-      internalCleanup(dbc,conn,resource);
+      m_sqlManager.closeAll(dbc,conn,stmt,res);
+      internalCleanup(dbc,resource);
       return structureVersions;
     }
-    m_sqlManager.closeAll(dbc,null,stmt,res);
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+    conn=m_sqlManager.getConnection(dbc);
     stmt=m_sqlManager.getPreparedStatement(conn,"C_RESOURCES_HISTORY_DELETE");
     stmt.setString(1,resource.getResourceId().toString());
     stmt.setInt(2,minResPublishTagToKeep);
@@ -99,8 +103,8 @@
     stmt.setString(1,resource.getResourceId().toString());
     stmt.setInt(2,minResPublishTagToKeep);
     stmt.executeUpdate();
-    m_sqlManager.closeAll(dbc,null,stmt,res);
-    internalCleanup(dbc,conn,resource);
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+    internalCleanup(dbc,resource);
     return Math.max(structureVersions,resourceVersions);
   }
  catch (  SQLException e) {
