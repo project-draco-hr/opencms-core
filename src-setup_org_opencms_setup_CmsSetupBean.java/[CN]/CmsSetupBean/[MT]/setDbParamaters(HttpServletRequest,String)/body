@@ -1,6 +1,12 @@
 {
   String conStr=request.getParameter("dbCreateConStr");
   m_provider=provider;
+  if (getFullDatabaseKey().toLowerCase().endsWith(JPA_PROVIDER) || JPA_PROVIDER.equalsIgnoreCase(m_provider)) {
+    m_driverType=DRIVER_TYPE_JPA;
+  }
+ else {
+    m_driverType=DRIVER_TYPE_SQL;
+  }
   boolean isFormSubmitted=((request.getParameter("submit") != null) && (conStr != null));
   if (conStr == null) {
     conStr="";
@@ -25,6 +31,12 @@
       createTables="";
     }
     if (isFormSubmitted) {
+      if (m_driverType == DRIVER_TYPE_JPA) {
+        if (isJpaSupported(m_databaseKey) && !isSqlSupported(m_databaseKey)) {
+          String driverName=request.getParameter("jdbcDriver");
+          setDbDriver(driverName);
+        }
+      }
       if (provider.equals(POSTGRESQL_PROVIDER)) {
         setDb(database);
         String templateDb=request.getParameter("templateDb");
@@ -51,6 +63,13 @@
           conStr+=";";
         }
         conStr+="libraries='" + database + "'";
+      }
+ else       if (isJpaSupported(m_databaseKey) && !isSqlSupported(m_databaseKey)) {
+        conStr=request.getParameter("dbCreateConStr") + getDbProperty(m_databaseKey + "." + "separator") + request.getParameter("db");
+        setDbProperty(getDatabase() + ".constr",conStr + getDbProperty(getDatabase() + ".newDb"));
+        setDbWorkConStr(conStr);
+        boolean createTbls="true".equalsIgnoreCase(request.getParameter("createTables")) ? true : false;
+        request.getSession().setAttribute("createTables",Boolean.valueOf(createTbls));
       }
       setDbWorkConStr(conStr);
       if (provider.equals(POSTGRESQL_PROVIDER)) {
@@ -110,7 +129,7 @@
       if (provider.equals(ORACLE_PROVIDER) || provider.equals(POSTGRESQL_PROVIDER) || provider.equals(MAXDB_PROVIDER)) {
         setDbWorkUser(dbName);
       }
- else {
+ else       if (dbName != null) {
         setDb(dbName);
       }
     }

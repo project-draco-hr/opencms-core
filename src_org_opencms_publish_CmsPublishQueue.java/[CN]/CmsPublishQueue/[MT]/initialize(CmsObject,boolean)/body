@@ -4,11 +4,14 @@
     OpenCms.getMemoryMonitor().flushCache(CmsMemoryMonitor.CacheType.PUBLISH_QUEUE);
     if (revive) {
       CmsDbContext dbc=m_publishEngine.getDbContext(null);
-      List<CmsPublishJobInfoBean> publishJobs;
+      List<CmsPublishJobInfoBean> publishJobs=null;
       try {
         publishJobs=driverManager.readPublishJobs(dbc,0L,0L);
       }
-  finally {
+ catch (      Exception e) {
+        dbc.rollback();
+      }
+ finally {
         dbc.clear();
         dbc=null;
       }
@@ -22,6 +25,7 @@
             OpenCms.getMemoryMonitor().cachePublishJob(job);
           }
  catch (          CmsException exc) {
+            dbc.rollback();
             if (LOG.isErrorEnabled()) {
               LOG.error(Messages.get().getBundle().key(Messages.ERR_PUBLISH_JOB_INVALID_1,job.getPublishHistoryId()),exc);
             }
@@ -39,7 +43,11 @@
             m_publishEngine.getPublishHistory().add(job);
           }
  catch (          CmsException exc) {
+            dbc.rollback();
             LOG.error(exc.getLocalizedMessage(),exc);
+          }
+ finally {
+            dbc.clear();
           }
         }
       }

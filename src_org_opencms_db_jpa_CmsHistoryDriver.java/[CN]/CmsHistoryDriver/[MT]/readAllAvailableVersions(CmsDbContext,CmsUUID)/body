@@ -1,0 +1,87 @@
+{
+  List<I_CmsHistoryResource> result=new ArrayList<I_CmsHistoryResource>();
+  Query q=null;
+  try {
+    List<I_CmsHistoryResource> historyResources=new ArrayList<I_CmsHistoryResource>();
+    q=m_sqlManager.createQuery(dbc,C_RESOURCES_HISTORY_READ_ALL_VERSIONS);
+    q.setParameter(1,structureId.toString());
+    @SuppressWarnings("unchecked") List<Object[]> res=q.getResultList();
+    for (    Object[] o : res) {
+      historyResources.add(internalCreateResource(o));
+    }
+    res=null;
+    if (!historyResources.isEmpty()) {
+      I_CmsHistoryResource histRes=historyResources.get(0);
+      q=m_sqlManager.createQuery(dbc,C_RESOURCES_HISTORY_READ_NEW_VERSIONS);
+      q.setParameter(1,histRes.getResourceId().toString());
+      q.setParameter(2,Integer.valueOf(histRes.getPublishTag()));
+      @SuppressWarnings("unchecked") List<CmsDAOHistoryResources> lResources=q.getResultList();
+      I_CmsHistoryResource lastHistRes=histRes;
+      for (      CmsDAOHistoryResources hr : lResources) {
+        int resVersion=hr.getResourceVersion();
+        if (resVersion == lastHistRes.getResourceVersion()) {
+          continue;
+        }
+        I_CmsHistoryResource newHistRes=internalMergeResource(histRes,hr,0);
+        result.add(0,newHistRes);
+        lastHistRes=newHistRes;
+      }
+    }
+    for (int i=0; i < historyResources.size(); i++) {
+      I_CmsHistoryResource histRes=historyResources.get(i);
+      result.add(histRes);
+      if (i < historyResources.size() - 1) {
+        I_CmsHistoryResource histRes2=historyResources.get(i + 1);
+        q=m_sqlManager.createQuery(dbc,C_RESOURCES_HISTORY_READ_BTW_VERSIONS);
+        q.setParameter(1,histRes.getResourceId().toString());
+        q.setParameter(2,Integer.valueOf(histRes2.getPublishTag()));
+        q.setParameter(3,Integer.valueOf(histRes.getPublishTag()));
+        @SuppressWarnings("unchecked") List<CmsDAOHistoryResources> lResources=q.getResultList();
+        int pos=result.size();
+        I_CmsHistoryResource lastHistRes=histRes2;
+        for (        CmsDAOHistoryResources hr : lResources) {
+          int resVersion=hr.getResourceVersion();
+          if (resVersion == lastHistRes.getResourceVersion()) {
+            continue;
+          }
+          I_CmsHistoryResource newHistRes=internalMergeResource(histRes2,hr,0);
+          result.add(pos,newHistRes);
+          lastHistRes=newHistRes;
+        }
+        lResources=null;
+      }
+    }
+    if (!result.isEmpty()) {
+      I_CmsHistoryResource histRes=result.get(result.size() - 1);
+      if (histRes.getVersion() > 1) {
+        q=m_sqlManager.createQuery(dbc,C_RESOURCES_HISTORY_READ_OLD_VERSIONS);
+        q.setParameter(1,String.valueOf(histRes.getResourceId()));
+        q.setParameter(2,Integer.valueOf(histRes.getPublishTag()));
+        @SuppressWarnings("unchecked") List<CmsDAOHistoryResources> lResources=q.getResultList();
+        int offset=(histRes.getStructureVersion() > 0 ? 1 : 0);
+        I_CmsHistoryResource lastHistRes=histRes;
+        for (        CmsDAOHistoryResources hr : lResources) {
+          I_CmsHistoryResource newHistRes=internalMergeResource(histRes,hr,offset);
+          if (newHistRes.getResourceVersion() != lastHistRes.getResourceVersion()) {
+            if (offset == 1) {
+              if (histRes != lastHistRes) {
+                result.add(lastHistRes);
+              }
+            }
+ else {
+              result.add(newHistRes);
+            }
+          }
+          lastHistRes=newHistRes;
+        }
+        if ((offset == 1) && (lastHistRes != histRes)) {
+          result.add(lastHistRes);
+        }
+      }
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  return result;
+}

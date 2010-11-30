@@ -1,0 +1,32 @@
+{
+  List<CmsPublishedResource> publishedResources=new ArrayList<CmsPublishedResource>();
+  try {
+    Query q=m_sqlManager.createQuery(dbc,C_SELECT_PUBLISHED_RESOURCES);
+    q.setParameter(1,publishHistoryId.toString());
+    @SuppressWarnings("unchecked") List<CmsDAOPublishHistory> res=q.getResultList();
+    for (    CmsDAOPublishHistory ph : res) {
+      CmsUUID structureId=new CmsUUID(ph.getStructureId());
+      CmsUUID resourceId=new CmsUUID(ph.getResourceId());
+      String rootPath=ph.getResourcePath();
+      int resourceState=ph.getResourceState();
+      int resourceType=ph.getResourceType();
+      int siblingCount=ph.getSiblingCount();
+      int publishTag=ph.getPublishTag();
+      CmsResourceState state;
+      if (resourceState == CmsPublishedResource.STATE_MOVED_SOURCE.getState()) {
+        state=CmsPublishedResource.STATE_MOVED_SOURCE;
+      }
+ else       if (resourceState == CmsPublishedResource.STATE_MOVED_DESTINATION.getState()) {
+        state=CmsPublishedResource.STATE_MOVED_DESTINATION;
+      }
+ else {
+        state=CmsResourceState.valueOf(resourceState);
+      }
+      publishedResources.add(new CmsPublishedResource(structureId,resourceId,publishTag,rootPath,resourceType,structureId.isNullUUID() ? false : CmsFolder.isFolderType(resourceType),state,siblingCount));
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  return publishedResources;
+}

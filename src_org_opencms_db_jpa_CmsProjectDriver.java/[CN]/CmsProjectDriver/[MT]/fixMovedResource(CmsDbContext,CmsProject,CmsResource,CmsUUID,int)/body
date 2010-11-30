@@ -1,0 +1,23 @@
+{
+  CmsResource onlineResource;
+  try {
+    onlineResource=m_driverManager.getVfsDriver(dbc).readResource(dbc,onlineProject.getUuid(),offlineResource.getStructureId(),true);
+    if (onlineResource.getRootPath().equals(offlineResource.getRootPath())) {
+      return offlineResource.getState();
+    }
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+    return offlineResource.getState();
+  }
+  m_driverManager.getVfsDriver(dbc).moveResource(dbc,onlineProject.getUuid(),onlineResource,offlineResource.getRootPath());
+  try {
+    m_driverManager.getProjectDriver(dbc).writePublishHistory(dbc,publishHistoryId,new CmsPublishedResource(onlineResource,publishTag,CmsPublishedResource.STATE_MOVED_SOURCE));
+  }
+ catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_WRITING_PUBLISHING_HISTORY_1,onlineResource.getRootPath()),e);
+    }
+    throw e;
+  }
+  return offlineResource.getState().isDeleted() ? CmsResource.STATE_DELETED : CmsPublishedResource.STATE_MOVED_DESTINATION;
+}

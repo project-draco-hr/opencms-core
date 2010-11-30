@@ -1,0 +1,39 @@
+{
+  CmsUUID projectId=((dbc.getProjectId() == null) || dbc.getProjectId().isNullUUID()) ? project.getUuid() : dbc.getProjectId();
+  String propertyValue=null;
+  int mappingType=-1;
+  CmsProperty property=null;
+  int resultSize=0;
+  try {
+    Query q=m_sqlManager.createQuery(dbc,projectId,C_PROPERTIES_READ);
+    q.setParameter(1,key);
+    q.setParameter(2,resource.getStructureId().toString());
+    q.setParameter(3,resource.getResourceId().toString());
+    @SuppressWarnings("unchecked") List<I_CmsDAOProperties> res=q.getResultList();
+    for (    I_CmsDAOProperties o : res) {
+      if (resultSize >= 2) {
+        throw new CmsDbConsistencyException(Messages.get().container(Messages.ERR_TOO_MANY_PROPERTIES_3,key,resource.getRootPath(),new Integer(resultSize)));
+      }
+      if (property == null) {
+        property=new CmsProperty();
+        property.setName(key);
+      }
+      propertyValue=o.getPropertyValue();
+      mappingType=o.getPropertyMappingType();
+      if (mappingType == CmsProperty.STRUCTURE_RECORD_MAPPING) {
+        property.setStructureValue(propertyValue);
+      }
+ else       if (mappingType == CmsProperty.RESOURCE_RECORD_MAPPING) {
+        property.setResourceValue(propertyValue);
+      }
+ else {
+        throw new CmsDbConsistencyException(Messages.get().container(Messages.ERR_UNKNOWN_PROPERTY_VALUE_MAPPING_3,resource.getRootPath(),new Integer(mappingType),key));
+      }
+      resultSize++;
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  return (property != null) ? property : CmsProperty.getNullProperty();
+}

@@ -1,0 +1,26 @@
+{
+  CmsResource resource=null;
+  path=CmsFileUtil.removeTrailingSeparator(path);
+  boolean endsWithSlash=path.endsWith("/");
+  try {
+    Query q=m_sqlManager.createQuery(dbc,projectId,C_RESOURCES_READ);
+    q.setParameter(1,path);
+    try {
+      Object[] o=(Object[])q.getSingleResult();
+      resource=createResource(o,projectId);
+      if (endsWithSlash && resource.isFile()) {
+        throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_READ_RESOURCE_1,dbc.removeSiteRoot(path + "/")));
+      }
+    }
+ catch (    NoResultException e) {
+      throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_READ_RESOURCE_1,dbc.removeSiteRoot(path)));
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  if ((resource != null) && resource.getState().isDeleted() && !includeDeleted) {
+    throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_READ_DELETED_RESOURCE_1,dbc.removeSiteRoot(resource.getRootPath())));
+  }
+  return resource;
+}

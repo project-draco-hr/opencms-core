@@ -1,51 +1,64 @@
 {
-  String databaseKey=null;
-  FileInputStream input=null;
-  String configPath=null;
-  Properties databaseProperties=null;
-  File databaseSetupFolder=null;
-  File[] childResources=null;
-  File childResource=null;
-  File setupFile=null;
-  boolean hasMissingSetupFiles=false;
   m_databaseKeys=new ArrayList<String>();
   m_databaseProperties=new HashMap<String,Properties>();
+  FileInputStream input=null;
+  File childResource=null;
+  List<String> databaseKeys=new ArrayList<String>();
+  Map<String,Properties> databaseProperties=new HashMap<String,Properties>();
   try {
-    databaseSetupFolder=new File(m_webAppRfsPath + FOLDER_SETUP + FOLDER_DATABASE);
-    if (databaseSetupFolder.exists()) {
-      childResources=databaseSetupFolder.listFiles();
-      if (childResources != null) {
-        for (int i=0; i < childResources.length; i++) {
-          childResource=childResources[i];
-          hasMissingSetupFiles=false;
-          if (childResource.exists() && childResource.isDirectory() && childResource.canRead()) {
-            for (int j=0; j < REQUIRED_DB_SETUP_FILES.length; j++) {
-              setupFile=new File(childResource.getPath() + File.separatorChar + REQUIRED_DB_SETUP_FILES[j]);
-              if (!setupFile.exists() || !setupFile.isFile() || !setupFile.canRead()) {
-                hasMissingSetupFiles=true;
-                System.err.println("[" + getClass().getName() + "] missing or unreadable database setup file: "+ setupFile.getPath());
-                break;
-              }
-              if (!hasMissingSetupFiles) {
-                m_databaseKeys.add(childResource.getName().trim());
-              }
-            }
-          }
+    File databaseSetupFolder=new File(m_webAppRfsPath + FOLDER_SETUP + FOLDER_DATABASE);
+    File[] childResources=databaseSetupFolder.listFiles();
+    if (childResources != null) {
+      for (int i=0; i < childResources.length; i++) {
+        childResource=childResources[i];
+        if (childResource.exists() && childResource.isDirectory() && childResource.canRead()) {
+          databaseKeys.add(childResource.getName().trim());
         }
       }
-      for (int i=0; i < m_databaseKeys.size(); i++) {
-        databaseKey=m_databaseKeys.get(i);
-        configPath=m_webAppRfsPath + "setup" + File.separatorChar+ "database"+ File.separatorChar+ databaseKey+ File.separatorChar+ "database.properties";
+    }
+    if (databaseSetupFolder.exists()) {
+      for (      String key : databaseKeys) {
+        String configPath=m_webAppRfsPath + "setup" + File.separatorChar+ "database"+ File.separatorChar+ key+ File.separatorChar+ "database.properties";
         try {
           input=new FileInputStream(new File(configPath));
-          databaseProperties=new Properties();
-          databaseProperties.load(input);
-          m_databaseProperties.put(databaseKey,databaseProperties);
+          Properties databaseProps=new Properties();
+          databaseProps.load(input);
+          databaseProperties.put(key,databaseProps);
         }
  catch (        Exception e) {
           System.err.println(e.toString());
           e.printStackTrace(System.err);
           continue;
+        }
+      }
+    }
+    if (childResources != null) {
+      for (int i=0; i < childResources.length; i++) {
+        childResource=childResources[i];
+        if (childResource.exists() && childResource.isDirectory() && childResource.canRead()) {
+          String dataBasekey=childResource.getName().trim();
+          Properties props=databaseProperties.get(dataBasekey);
+          boolean supportsJPA=Boolean.valueOf(props.getProperty(dataBasekey + "." + PROPKEY_JPA_SUPPORTED)).booleanValue();
+          boolean supportsSQL=Boolean.valueOf(props.getProperty(dataBasekey + "." + PROPKEY_SQL_SUPPORTED)).booleanValue();
+          boolean isAS400orDB2=dataBasekey.equalsIgnoreCase(AS400_PROVIDER) || dataBasekey.equalsIgnoreCase(DB2_PROVIDER);
+          if (isAS400orDB2) {
+            if (checkFilesExists(REQUIRED_DB2_DB_SETUP_FILES,childResource)) {
+              m_databaseKeys.add(childResource.getName().trim());
+              m_databaseProperties.put(dataBasekey,props);
+            }
+          }
+ else           if (supportsSQL) {
+            if (checkFilesExists(REQUIRED_SQL_DB_SETUP_FILES,childResource)) {
+              m_databaseKeys.add(childResource.getName().trim());
+              m_databaseProperties.put(dataBasekey,props);
+            }
+          }
+ else           if (supportsJPA && !supportsSQL) {
+            if (checkFilesExists(REQUIRED_JPA_DB_SETUP_FILES,childResource)) {
+              m_databaseKeys.add(childResource.getName().trim());
+              m_databaseProperties.put(dataBasekey,props);
+            }
+          }
         }
       }
     }

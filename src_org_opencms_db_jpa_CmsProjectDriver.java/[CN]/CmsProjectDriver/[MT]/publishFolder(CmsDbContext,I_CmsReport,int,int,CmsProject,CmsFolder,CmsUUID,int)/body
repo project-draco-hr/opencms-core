@@ -1,0 +1,104 @@
+{
+  try {
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,String.valueOf(m),String.valueOf(n)),I_CmsReport.FORMAT_NOTE);
+    report.print(Messages.get().container(Messages.RPT_PUBLISH_FOLDER_0),I_CmsReport.FORMAT_NOTE);
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,dbc.removeSiteRoot(offlineFolder.getRootPath())));
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    CmsResourceState resourceState=fixMovedResource(dbc,onlineProject,offlineFolder,publishHistoryId,publishTag);
+    CmsResource onlineFolder=null;
+    if (offlineFolder.getState().isNew()) {
+      try {
+        CmsResource newFolder=(CmsFolder)offlineFolder.clone();
+        newFolder.setState(CmsResource.STATE_UNCHANGED);
+        onlineFolder=m_driverManager.getVfsDriver(dbc).createResource(dbc,onlineProject.getUuid(),newFolder,null);
+        m_driverManager.getVfsDriver(dbc).publishResource(dbc,onlineProject,onlineFolder,offlineFolder);
+        m_driverManager.getVfsDriver().publishVersions(dbc,offlineFolder,true);
+      }
+ catch (      CmsVfsResourceAlreadyExistsException e) {
+        if (!offlineFolder.getRootPath().equals("/") && !offlineFolder.getRootPath().equals("/system/") && LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().getBundle().key(Messages.LOG_WARN_FOLDER_WRONG_STATE_CN_1,offlineFolder.getRootPath()));
+        }
+        try {
+          onlineFolder=m_driverManager.getVfsDriver(dbc).readFolder(dbc,onlineProject.getUuid(),offlineFolder.getRootPath());
+          m_driverManager.getVfsDriver(dbc).publishResource(dbc,onlineProject,onlineFolder,offlineFolder);
+          m_driverManager.getVfsDriver(dbc).publishVersions(dbc,offlineFolder,true);
+        }
+ catch (        CmsDataAccessException e1) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(Messages.get().getBundle().key(Messages.LOG_READING_RESOURCE_1,offlineFolder.getRootPath()),e);
+          }
+          throw e1;
+        }
+      }
+catch (      CmsDataAccessException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_RESOURCE_1,offlineFolder.getRootPath()),e);
+        }
+        throw e;
+      }
+    }
+ else     if (offlineFolder.getState().isChanged()) {
+      try {
+        onlineFolder=m_driverManager.getVfsDriver(dbc).readFolder(dbc,onlineProject.getUuid(),offlineFolder.getStructureId());
+      }
+ catch (      CmsVfsResourceNotFoundException e) {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().getBundle().key(Messages.LOG_WARN_FOLDER_WRONG_STATE_NC_1,offlineFolder.getRootPath()));
+        }
+        try {
+          onlineFolder=m_driverManager.getVfsDriver(dbc).createResource(dbc,onlineProject.getUuid(),offlineFolder,null);
+          internalResetResourceState(dbc,onlineFolder);
+        }
+ catch (        CmsDataAccessException e1) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_RESOURCE_1,offlineFolder.getRootPath()),e);
+          }
+          throw e1;
+        }
+      }
+      try {
+        m_driverManager.getVfsDriver(dbc).publishResource(dbc,onlineProject,onlineFolder,offlineFolder);
+        m_driverManager.getVfsDriver(dbc).publishVersions(dbc,offlineFolder,true);
+      }
+ catch (      CmsDataAccessException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_RESOURCE_1,offlineFolder.getRootPath()),e);
+        }
+        throw e;
+      }
+    }
+    if (onlineFolder != null) {
+      try {
+        m_driverManager.getUserDriver(dbc).publishAccessControlEntries(dbc,dbc.currentProject(),onlineProject,offlineFolder.getResourceId(),onlineFolder.getResourceId());
+      }
+ catch (      CmsDataAccessException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_ACL_1,offlineFolder.getRootPath()),e);
+        }
+        throw e;
+      }
+    }
+    List<CmsProperty> offlineProperties=null;
+    try {
+      m_driverManager.getVfsDriver(dbc).deletePropertyObjects(dbc,onlineProject.getUuid(),onlineFolder,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+      offlineProperties=m_driverManager.getVfsDriver(dbc).readPropertyObjects(dbc,dbc.currentProject(),offlineFolder);
+      CmsProperty.setAutoCreatePropertyDefinitions(offlineProperties,true);
+      m_driverManager.getVfsDriver(dbc).writePropertyObjects(dbc,onlineProject,onlineFolder,offlineProperties);
+    }
+ catch (    CmsDataAccessException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_PROPERTIES_1,offlineFolder.getRootPath()),e);
+      }
+      throw e;
+    }
+    internalWriteHistory(dbc,offlineFolder,resourceState,offlineProperties,publishHistoryId,publishTag);
+    m_driverManager.getVfsDriver(dbc).updateRelations(dbc,onlineProject,offlineFolder);
+    report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_FOLDER_3,String.valueOf(m),String.valueOf(n),offlineFolder.getRootPath()));
+    }
+  }
+  finally {
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.<String,Object>singletonMap(I_CmsEventListener.KEY_RESOURCE,offlineFolder)));
+  }
+}

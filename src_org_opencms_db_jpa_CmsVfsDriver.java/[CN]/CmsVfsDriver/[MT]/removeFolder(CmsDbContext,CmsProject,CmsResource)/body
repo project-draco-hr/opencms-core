@@ -1,0 +1,44 @@
+{
+  if ((dbc.getRequestContext() != null) && (dbc.getRequestContext().getAttribute(REQ_ATTR_CHECK_PERMISSIONS) != null)) {
+    checkWritePermissionsInFolder(dbc,resource);
+    return;
+  }
+  Iterator<CmsResource> childResources=readChildResources(dbc,currentProject,resource,true,true).iterator();
+  CmsUUID projectId=CmsProject.ONLINE_PROJECT_ID;
+  if (currentProject.isOnlineProject()) {
+    projectId=CmsUUID.getOpenCmsUUID();
+  }
+  StringBuffer errorResNames=new StringBuffer(128);
+  while (childResources.hasNext()) {
+    CmsResource errorRes=childResources.next();
+    boolean error=!currentProject.isOnlineProject();
+    if (!error) {
+      try {
+        String originalPath=m_driverManager.getVfsDriver().readResource(dbc,projectId,errorRes.getRootPath(),true).getRootPath();
+        error=originalPath.equals(errorRes.getRootPath()) || originalPath.startsWith(resource.getRootPath());
+      }
+ catch (      CmsVfsResourceNotFoundException e) {
+      }
+    }
+    if (error) {
+      if (errorResNames.length() != 0) {
+        errorResNames.append(", ");
+      }
+      errorResNames.append("[" + dbc.removeSiteRoot(errorRes.getRootPath()) + "]");
+    }
+  }
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(errorResNames.toString())) {
+    throw new CmsVfsException(Messages.get().container(Messages.ERR_DELETE_NONEMTY_FOLDER_2,dbc.removeSiteRoot(resource.getRootPath()),errorResNames.toString()));
+  }
+  internalRemoveFolder(dbc,currentProject,resource);
+  String deletedResourceRootPath=resource.getRootPath();
+  if (dbc.getRequestContext() != null) {
+    dbc.getRequestContext().setAttribute(CmsProjectDriver.DBC_ATTR_READ_PROJECT_FOR_RESOURCE,Boolean.TRUE);
+    I_CmsProjectDriver projectDriver=m_driverManager.getProjectDriver(dbc);
+    Iterator<CmsProject> itProjects=projectDriver.readProjects(dbc,deletedResourceRootPath).iterator();
+    while (itProjects.hasNext()) {
+      CmsProject project=itProjects.next();
+      projectDriver.deleteProjectResource(dbc,project.getUuid(),deletedResourceRootPath);
+    }
+  }
+}

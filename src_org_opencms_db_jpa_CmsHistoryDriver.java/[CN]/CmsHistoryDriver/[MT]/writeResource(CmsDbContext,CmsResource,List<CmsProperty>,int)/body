@@ -1,0 +1,61 @@
+{
+  try {
+    int sibCount=resource.getSiblingCount();
+    boolean valResource=internalValidateResource(dbc,resource,publishTag);
+    if (resource.getState().isDeleted()) {
+      if (resource instanceof CmsFile) {
+        if (!valResource) {
+          if (sibCount < 2) {
+            m_driverManager.getVfsDriver(dbc).createOnlineContent(dbc,resource.getResourceId(),((CmsFile)resource).getContents(),publishTag,false,true);
+          }
+ else {
+            m_driverManager.getVfsDriver(dbc).createOnlineContent(dbc,resource.getResourceId(),((CmsFile)resource).getContents(),publishTag,true,false);
+          }
+        }
+      }
+      m_driverManager.getVfsDriver(dbc).publishVersions(dbc,resource,!valResource);
+    }
+    Map<String,Integer> versions=m_driverManager.getVfsDriver(dbc).readVersions(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getResourceId(),resource.getStructureId());
+    int structureVersion=CmsDataTypeUtil.numberToInt(versions.get("structure"));
+    int resourceVersion=CmsDataTypeUtil.numberToInt(versions.get("resource"));
+    if (!valResource) {
+      CmsDAOHistoryResources hs=new CmsDAOHistoryResources();
+      hs.setResourceId(resource.getResourceId().toString());
+      hs.setResourceType(resource.getTypeId());
+      hs.setResourceFlags(resource.getFlags());
+      hs.setDateCreated(resource.getDateCreated());
+      hs.setUserCreated(resource.getUserCreated().toString());
+      hs.setDateLastModified(resource.getDateLastModified());
+      hs.setUserLastModified(resource.getUserLastModified().toString());
+      hs.setResourceState(resource.getState().getState());
+      hs.setResourceSize(resource.getLength());
+      hs.setDateContent(resource.getDateContent());
+      hs.setProjectLastModified(dbc.currentProject().getUuid().toString());
+      hs.setSiblingCount(resource.getSiblingCount());
+      hs.setResourceVersion(resourceVersion);
+      hs.setPublishTag(publishTag);
+      m_sqlManager.persist(dbc,hs);
+    }
+    CmsUUID parentId=CmsUUID.getNullUUID();
+    CmsFolder parent=m_driverManager.getVfsDriver(dbc).readParentFolder(dbc,CmsProject.ONLINE_PROJECT_ID,resource.getStructureId());
+    if (parent != null) {
+      parentId=parent.getStructureId();
+    }
+    CmsDAOHistoryStructure hstr=new CmsDAOHistoryStructure();
+    hstr.setStructureId(resource.getStructureId().toString());
+    hstr.setResourceId(resource.getResourceId().toString());
+    hstr.setResourcePath(resource.getRootPath());
+    hstr.setStructureState(resource.getState().getState());
+    hstr.setDateReleased(resource.getDateReleased());
+    hstr.setDateExpired(resource.getDateExpired());
+    hstr.setStructureVersion(structureVersion);
+    hstr.setParentId(parentId.toString());
+    hstr.setPublishTag(publishTag);
+    hstr.setVersion(resource.getVersion());
+    m_sqlManager.persist(dbc,hstr);
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  writeProperties(dbc,resource,properties,publishTag);
+}

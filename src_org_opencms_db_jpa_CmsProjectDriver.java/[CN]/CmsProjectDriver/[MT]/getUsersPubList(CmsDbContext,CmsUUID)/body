@@ -1,0 +1,37 @@
+{
+  List<CmsResource> result=null;
+  try {
+    Query q=m_sqlManager.createNativeQuery(dbc,dbc.currentProject().getUuid(),C_LOG_READ_PUBLISH_LIST_2);
+    q.setParameter(1,userId.toString());
+    q.setParameter(2,userId.toString());
+    @SuppressWarnings("unchecked") List<Object[]> res=q.getResultList();
+    result=new ArrayList<CmsResource>();
+    Class<?> structureClass;
+    Class<?> resourcesClass;
+    Object[] obj=new Object[3];
+    if (CmsProject.ONLINE_PROJECT_ID.equals(dbc.currentProject().getUuid())) {
+      structureClass=CmsDAOOnlineStructure.class;
+      resourcesClass=CmsDAOOnlineResources.class;
+    }
+ else {
+      structureClass=CmsDAOOfflineStructure.class;
+      resourcesClass=CmsDAOOfflineResources.class;
+    }
+    for (    Object[] objArray : res) {
+      obj[0]=m_sqlManager.find(dbc,resourcesClass,objArray[0]);
+      obj[1]=m_sqlManager.find(dbc,structureClass,objArray[1]);
+      obj[2]=((I_CmsDAOResources)obj[0]).getProjectLastModified();
+      CmsResource resource=((CmsVfsDriver)m_driverManager.getVfsDriver(dbc)).createResource(obj,dbc.currentProject().getUuid());
+      long date=((Number)objArray[2]).longValue();
+      resource.setDateLastModified(date);
+      result.add(resource);
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+  return result;
+}

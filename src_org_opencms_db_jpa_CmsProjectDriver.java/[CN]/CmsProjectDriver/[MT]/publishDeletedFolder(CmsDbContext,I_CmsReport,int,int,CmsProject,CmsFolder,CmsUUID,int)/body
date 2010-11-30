@@ -1,0 +1,87 @@
+{
+  try {
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_2,String.valueOf(m),String.valueOf(n)),I_CmsReport.FORMAT_NOTE);
+    report.print(Messages.get().container(Messages.RPT_DELETE_FOLDER_0),I_CmsReport.FORMAT_NOTE);
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,dbc.removeSiteRoot(currentFolder.getRootPath())));
+    report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+    CmsResourceState folderState=fixMovedResource(dbc,onlineProject,currentFolder,publishHistoryId,publishTag);
+    CmsFolder onlineFolder=m_driverManager.readFolder(dbc,currentFolder.getRootPath(),CmsResourceFilter.ALL);
+    List<CmsResource> movedFiles=null;
+    I_CmsVfsDriver vfsDriver=m_driverManager.getVfsDriver(dbc);
+    movedFiles=vfsDriver.readResourceTree(dbc,onlineProject.getUuid(),currentFolder.getRootPath(),CmsDriverManager.READ_IGNORE_TYPE,null,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READ_IGNORE_TIME,CmsDriverManager.READMODE_ONLY_FILES);
+    for (Iterator<CmsResource> it=movedFiles.iterator(); it.hasNext(); ) {
+      CmsResource delFile=it.next();
+      try {
+        CmsResource offlineResource=vfsDriver.readResource(dbc,dbc.currentProject().getUuid(),delFile.getStructureId(),true);
+        CmsFile offlineFile=new CmsFile(offlineResource);
+        offlineFile.setContents(vfsDriver.readContent(dbc,dbc.currentProject().getUuid(),offlineFile.getResourceId()));
+        internalWriteHistory(dbc,offlineFile,CmsResource.STATE_DELETED,null,publishHistoryId,publishTag);
+        vfsDriver.deletePropertyObjects(dbc,onlineProject.getUuid(),delFile,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+        vfsDriver.removeFile(dbc,onlineProject.getUuid(),delFile);
+        m_sqlManager.getEntityManager(dbc).getTransaction().commit();
+        m_sqlManager.getEntityManager(dbc).getTransaction().begin();
+      }
+ catch (      CmsDataAccessException e) {
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(Messages.get().getBundle().key(Messages.LOG_REMOVING_RESOURCE_1,delFile.getName()),e);
+        }
+      }
+    }
+    internalWriteHistory(dbc,currentFolder,folderState,null,publishHistoryId,publishTag);
+    try {
+      vfsDriver.deletePropertyObjects(dbc,onlineProject.getUuid(),onlineFolder,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+      vfsDriver.deletePropertyObjects(dbc,dbc.currentProject().getUuid(),currentFolder,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+    }
+ catch (    CmsDataAccessException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_DELETING_PROPERTIES_1,currentFolder.getRootPath()),e);
+      }
+      throw e;
+    }
+    try {
+      vfsDriver.removeFolder(dbc,dbc.currentProject(),currentFolder);
+      vfsDriver.removeFolder(dbc,onlineProject,currentFolder);
+    }
+ catch (    CmsDataAccessException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_REMOVING_RESOURCE_1,currentFolder.getRootPath()),e);
+      }
+      throw e;
+    }
+    try {
+      m_driverManager.getUserDriver(dbc).removeAccessControlEntries(dbc,onlineProject,onlineFolder.getResourceId());
+      m_driverManager.getUserDriver(dbc).removeAccessControlEntries(dbc,dbc.currentProject(),currentFolder.getResourceId());
+    }
+ catch (    CmsDataAccessException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_REMOVING_ACL_1,currentFolder.getRootPath()),e);
+      }
+      throw e;
+    }
+    try {
+      vfsDriver.deleteRelations(dbc,onlineProject.getUuid(),onlineFolder,CmsRelationFilter.TARGETS);
+      vfsDriver.deleteRelations(dbc,dbc.currentProject().getUuid(),currentFolder,CmsRelationFilter.TARGETS);
+    }
+ catch (    CmsDataAccessException e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_REMOVING_RELATIONS_1,currentFolder.getRootPath()),e);
+      }
+      throw e;
+    }
+    String deletedResourceRootPath=currentFolder.getRootPath();
+    Iterator<CmsProject> itProjects=readProjectsForResource(dbc,deletedResourceRootPath).iterator();
+    while (itProjects.hasNext()) {
+      CmsProject project=itProjects.next();
+      deleteProjectResource(dbc,project.getUuid(),deletedResourceRootPath);
+    }
+    report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+    if (LOG.isDebugEnabled()) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEL_FOLDER_3,currentFolder.getRootPath(),String.valueOf(m),String.valueOf(n)));
+      }
+    }
+  }
+  finally {
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.<String,Object>singletonMap(I_CmsEventListener.KEY_RESOURCE,currentFolder)));
+  }
+}

@@ -1,0 +1,42 @@
+{
+  List<CmsResource> result=new ArrayList<CmsResource>();
+  StringBuffer conditions=new StringBuffer();
+  List params=new ArrayList(5);
+  prepareProjectCondition(projectId,mode,conditions,params);
+  prepareResourceCondition(projectId,mode,conditions);
+  prepareTypesCondition(projectId,types,mode,conditions,params);
+  prepareTimeRangeCondition(projectId,lastModifiedAfter,lastModifiedBefore,conditions,params);
+  prepareReleasedTimeRangeCondition(projectId,releasedAfter,releasedBefore,conditions,params);
+  prepareExpiredTimeRangeCondition(projectId,expiredAfter,expiredBefore,conditions,params);
+  preparePathCondition(projectId,parentPath,mode,conditions,params);
+  prepareStateCondition(projectId,state,mode,conditions,params);
+  List<Object[]> res=null;
+  try {
+    StringBuffer queryBuf=new StringBuffer(256);
+    queryBuf.append(m_sqlManager.readQuery(projectId,C_RESOURCES_READ_TREE));
+    queryBuf.append(conditions);
+    queryBuf.append(" ");
+    queryBuf.append(m_sqlManager.readQuery(projectId,C_RESOURCES_ORDER_BY_PATH));
+    Query q=m_sqlManager.createQueryFromJPQL(dbc,queryBuf.toString());
+    for (int i=0; i < params.size(); i++) {
+      if (params.get(i) instanceof Integer) {
+        q.setParameter(i + 1,((Integer)params.get(i)).intValue());
+      }
+ else       if (params.get(i) instanceof Long) {
+        q.setParameter(i + 1,((Long)params.get(i)).longValue());
+      }
+ else {
+        q.setParameter(i + 1,params.get(i));
+      }
+    }
+    res=q.getResultList();
+    for (    Object[] obj : res) {
+      CmsResource resource=createResource(obj,projectId);
+      result.add(resource);
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,C_RESOURCES_READ_TREE),e);
+  }
+  return result;
+}

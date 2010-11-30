@@ -1,0 +1,132 @@
+{
+  int publishedFolderCount=0;
+  int deletedFolderCount=0;
+  int publishedFileCount=0;
+  Set<CmsUUID> publishedContentIds=new HashSet<CmsUUID>();
+  Set<CmsUUID> publishedIds=new HashSet<CmsUUID>();
+  try {
+    if (OpenCms.getSystemInfo().isHistoryEnabled()) {
+      try {
+        m_driverManager.getHistoryDriver(dbc).writeProject(dbc,publishTag,System.currentTimeMillis());
+        dbc.pop();
+      }
+ catch (      Throwable t) {
+        dbc.report(report,Messages.get().container(Messages.ERR_WRITING_HISTORY_OF_PROJECT_1,dbc.currentProject().getName()),t);
+      }
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_START_PUBLISHING_PROJECT_2,dbc.currentProject().getName(),dbc.currentUser().getName()));
+    }
+    publishedFolderCount=0;
+    int foldersSize=publishList.getFolderList().size();
+    if (foldersSize > 0) {
+      report.println(Messages.get().container(Messages.RPT_PUBLISH_FOLDERS_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+    }
+    Iterator<CmsResource> itFolders=publishList.getFolderList().iterator();
+    I_CmsProjectDriver projectDriver=m_driverManager.getProjectDriver(dbc);
+    I_CmsHistoryDriver historyDriver=m_driverManager.getHistoryDriver(dbc);
+    while (itFolders.hasNext()) {
+      CmsResource currentFolder=itFolders.next();
+      try {
+        if (currentFolder.getState().isNew() || currentFolder.getState().isChanged()) {
+          projectDriver.publishFolder(dbc,report,++publishedFolderCount,foldersSize,onlineProject,new CmsFolder(currentFolder),publishList.getPublishHistoryId(),publishTag);
+          dbc.pop();
+          publishedIds.add(currentFolder.getStructureId());
+          CmsLogEntryType type=currentFolder.getState().isNew() ? CmsLogEntryType.RESOURCE_PUBLISHED_NEW : CmsLogEntryType.RESOURCE_PUBLISHED_MODIFIED;
+          m_driverManager.log(dbc,new CmsLogEntry(dbc,currentFolder.getStructureId(),type,new String[]{currentFolder.getRootPath()}),true);
+          historyDriver.deleteEntries(dbc,new CmsHistoryFile(currentFolder),OpenCms.getSystemInfo().getHistoryVersions(),-1);
+          internalResetResourceState(dbc,currentFolder);
+          m_driverManager.unlockResource(dbc,currentFolder,true,true);
+        }
+ else {
+          report.print(Messages.get().container(Messages.RPT_PUBLISH_FOLDER_0),I_CmsReport.FORMAT_NOTE);
+          report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,dbc.removeSiteRoot(currentFolder.getRootPath())));
+          report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+          report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_FAILED_0),I_CmsReport.FORMAT_ERROR);
+          if (LOG.isErrorEnabled()) {
+            LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_FILE_3,String.valueOf(++publishedFolderCount),String.valueOf(foldersSize),currentFolder));
+          }
+        }
+        dbc.pop();
+      }
+ catch (      Throwable t) {
+        dbc.report(report,Messages.get().container(Messages.ERR_ERROR_PUBLISHING_FOLDER_1,currentFolder.getRootPath()),t);
+      }
+    }
+    if (foldersSize > 0) {
+      report.println(Messages.get().container(Messages.RPT_PUBLISH_FOLDERS_END_0),I_CmsReport.FORMAT_HEADLINE);
+    }
+    publishedFileCount=0;
+    int filesSize=publishList.getFileList().size();
+    if (filesSize > 0) {
+      report.println(Messages.get().container(Messages.RPT_PUBLISH_FILES_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+    }
+    Iterator<CmsResource> itFiles=publishList.getFileList().iterator();
+    while (itFiles.hasNext()) {
+      CmsResource currentResource=itFiles.next();
+      try {
+        projectDriver.publishFile(dbc,report,++publishedFileCount,filesSize,onlineProject,currentResource,publishedContentIds,publishList.getPublishHistoryId(),publishTag);
+        CmsResourceState state=currentResource.getState();
+        if (!state.isDeleted()) {
+          internalResetResourceState(dbc,currentResource);
+        }
+        m_driverManager.unlockResource(dbc,currentResource,true,true);
+        CmsLogEntryType type=state.isNew() ? CmsLogEntryType.RESOURCE_PUBLISHED_NEW : (state.isDeleted() ? CmsLogEntryType.RESOURCE_PUBLISHED_DELETED : CmsLogEntryType.RESOURCE_PUBLISHED_MODIFIED);
+        m_driverManager.log(dbc,new CmsLogEntry(dbc,currentResource.getStructureId(),type,new String[]{currentResource.getRootPath()}),true);
+        publishedIds.add(currentResource.getStructureId());
+        dbc.pop();
+      }
+ catch (      Throwable t) {
+        dbc.report(report,Messages.get().container(Messages.ERR_ERROR_PUBLISHING_FILE_1,currentResource.getRootPath()),t);
+      }
+    }
+    if (filesSize > 0) {
+      report.println(Messages.get().container(Messages.RPT_PUBLISH_FILES_END_0),I_CmsReport.FORMAT_HEADLINE);
+    }
+    List<CmsResource> deletedFolders=publishList.getDeletedFolderList();
+    if (deletedFolders.isEmpty()) {
+      return;
+    }
+    deletedFolderCount=0;
+    int deletedFoldersSize=deletedFolders.size();
+    if (deletedFoldersSize > 0) {
+      report.println(Messages.get().container(Messages.RPT_DELETE_FOLDERS_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+    }
+    Iterator<CmsResource> itDeletedFolders=deletedFolders.iterator();
+    while (itDeletedFolders.hasNext()) {
+      CmsResource currentFolder=itDeletedFolders.next();
+      try {
+        projectDriver.publishDeletedFolder(dbc,report,++deletedFolderCount,deletedFoldersSize,onlineProject,new CmsFolder(currentFolder),publishList.getPublishHistoryId(),publishTag);
+        dbc.pop();
+        m_driverManager.getHistoryDriver(dbc).deleteEntries(dbc,new CmsHistoryFile(currentFolder),OpenCms.getSystemInfo().getHistoryVersionsAfterDeletion(),-1);
+        publishedIds.add(currentFolder.getStructureId());
+        m_driverManager.unlockResource(dbc,currentFolder,true,true);
+        m_driverManager.log(dbc,new CmsLogEntry(dbc,currentFolder.getStructureId(),CmsLogEntryType.RESOURCE_PUBLISHED_DELETED,new String[]{currentFolder.getRootPath()}),true);
+        dbc.pop();
+      }
+ catch (      Throwable t) {
+        dbc.report(report,Messages.get().container(Messages.ERR_ERROR_PUBLISHING_DELETED_FOLDER_1,currentFolder.getRootPath()),t);
+      }
+    }
+    if (deletedFoldersSize > 0) {
+      report.println(Messages.get().container(Messages.RPT_DELETE_FOLDERS_END_0),I_CmsReport.FORMAT_HEADLINE);
+    }
+  }
+ catch (  OutOfMemoryError o) {
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_CLEAR_CACHES,Collections.<String,Object>emptyMap()));
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_OUT_OF_MEMORY_0);
+    if (LOG.isErrorEnabled()) {
+      LOG.error(message.key(),o);
+    }
+    throw new CmsDataAccessException(message,o);
+  }
+ finally {
+    m_driverManager.getVfsDriver(dbc).publishVersions(dbc,null,false);
+    Object[] msgArgs=new Object[]{String.valueOf(publishedFileCount),String.valueOf(publishedFolderCount),String.valueOf(deletedFolderCount),report.formatRuntime()};
+    CmsMessageContainer message=Messages.get().container(Messages.RPT_PUBLISH_STAT_4,msgArgs);
+    if (LOG.isInfoEnabled()) {
+      LOG.info(message.key());
+    }
+    report.println(message);
+  }
+}

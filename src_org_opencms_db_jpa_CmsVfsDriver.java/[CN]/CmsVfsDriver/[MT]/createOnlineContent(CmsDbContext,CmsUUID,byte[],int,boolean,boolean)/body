@@ -1,0 +1,46 @@
+{
+  try {
+    boolean dbcHasProjectId=(dbc.getProjectId() != null) && !dbc.getProjectId().isNullUUID();
+    if (needToUpdateContent || dbcHasProjectId) {
+      if (dbcHasProjectId || !OpenCms.getSystemInfo().isHistoryEnabled()) {
+        Query q=m_sqlManager.createQuery(dbc,"C_ONLINE_CONTENTS_DELETE");
+        q.setParameter(1,resourceId.toString());
+        q.executeUpdate();
+      }
+ else {
+        Query q=m_sqlManager.createQuery(dbc,"C_ONLINE_CONTENTS_HISTORY");
+        q.setParameter(1,resourceId.toString());
+        @SuppressWarnings("unchecked") List<CmsDAOContents> res=q.getResultList();
+        for (        CmsDAOContents c : res) {
+          c.setOnlineFlag(0);
+        }
+      }
+      CmsDAOContents c=new CmsDAOContents();
+      c.setResourceId(resourceId.toString());
+      c.setFileContent(contents);
+      c.setPublishTagFrom(publishTag);
+      c.setPublishTagTo(publishTag);
+      c.setOnlineFlag(keepOnline ? 1 : 0);
+      m_sqlManager.persist(dbc,c);
+    }
+ else {
+      Query q=m_sqlManager.createQuery(dbc,C_HISTORY_CONTENTS_UPDATE);
+      q.setParameter(1,resourceId.toString());
+      @SuppressWarnings("unchecked") List<CmsDAOContents> res=q.getResultList();
+      for (      CmsDAOContents c : res) {
+        c.setPublishTagTo(publishTag);
+      }
+      if (!keepOnline) {
+        q=m_sqlManager.createQuery(dbc,C_ONLINE_CONTENTS_HISTORY);
+        q.setParameter(1,resourceId.toString());
+        @SuppressWarnings("unchecked") List<CmsDAOContents> res1=q.getResultList();
+        for (        CmsDAOContents c : res1) {
+          c.setOnlineFlag(0);
+        }
+      }
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+}

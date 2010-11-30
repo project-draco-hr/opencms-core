@@ -1,0 +1,54 @@
+{
+  CmsResourceState resourceState=fixMovedResource(dbc,onlineProject,offlineResource,publishHistoryId,publishTag);
+  CmsFile newFile;
+  try {
+    int flags=offlineResource.getFlags();
+    flags&=~CmsResource.FLAG_LABELED;
+    offlineResource.setFlags(flags);
+    newFile=m_driverManager.getProjectDriver(dbc).publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineResource,publishedContentIds,true,publishTag);
+  }
+ catch (  CmsVfsResourceAlreadyExistsException e) {
+    try {
+      m_driverManager.getVfsDriver(dbc).removeFile(dbc,onlineProject.getUuid(),offlineResource);
+      publishedContentIds.remove(offlineResource.getResourceId());
+      newFile=m_driverManager.getProjectDriver(dbc).publishFileContent(dbc,dbc.currentProject(),onlineProject,offlineResource,publishedContentIds,true,publishTag);
+    }
+ catch (    CmsDataAccessException e1) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_RESOURCE_1,offlineResource.getRootPath()),e);
+      }
+      throw e1;
+    }
+  }
+catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_RESOURCE_1,offlineResource.getRootPath()),e);
+    }
+    throw e;
+  }
+  List<CmsProperty> offlineProperties;
+  try {
+    offlineProperties=m_driverManager.getVfsDriver(dbc).readPropertyObjects(dbc,dbc.currentProject(),offlineResource);
+    CmsProperty.setAutoCreatePropertyDefinitions(offlineProperties,true);
+    m_driverManager.getVfsDriver(dbc).writePropertyObjects(dbc,onlineProject,newFile,offlineProperties);
+  }
+ catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_PROPERTIES_1,newFile.getRootPath()),e);
+    }
+    throw e;
+  }
+  try {
+    m_driverManager.getUserDriver(dbc).publishAccessControlEntries(dbc,dbc.currentProject(),onlineProject,offlineResource.getResourceId(),newFile.getResourceId());
+  }
+ catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_ACL_1,newFile.getRootPath()),e);
+    }
+    throw e;
+  }
+  CmsFile offlineFile=new CmsFile(offlineResource);
+  offlineFile.setContents(newFile.getContents());
+  internalWriteHistory(dbc,offlineFile,resourceState,offlineProperties,publishHistoryId,publishTag);
+  m_driverManager.getVfsDriver(dbc).updateRelations(dbc,onlineProject,offlineResource);
+}

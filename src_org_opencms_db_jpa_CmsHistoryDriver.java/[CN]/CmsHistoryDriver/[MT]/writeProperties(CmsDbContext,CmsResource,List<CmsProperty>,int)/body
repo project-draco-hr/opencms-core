@@ -1,0 +1,48 @@
+{
+  CmsDAOHistoryProperties hp;
+  try {
+    Iterator<CmsProperty> dummy=properties.iterator();
+    while (dummy.hasNext()) {
+      CmsProperty property=dummy.next();
+      CmsPropertyDefinition propDef=null;
+      try {
+        propDef=readPropertyDefinition(dbc,property.getName());
+      }
+ catch (      CmsDbEntryNotFoundException e) {
+        propDef=createPropertyDefinition(dbc,property.getName(),CmsPropertyDefinition.TYPE_NORMAL);
+      }
+      for (int i=0; i < 2; i++) {
+        int mappingType;
+        String value;
+        CmsUUID id;
+        if (i == 0) {
+          value=property.getStructureValue();
+          mappingType=CmsProperty.STRUCTURE_RECORD_MAPPING;
+          id=resource.getStructureId();
+          if (CmsStringUtil.isEmpty(value)) {
+            continue;
+          }
+        }
+ else {
+          value=property.getResourceValue();
+          mappingType=CmsProperty.RESOURCE_RECORD_MAPPING;
+          id=resource.getResourceId();
+          if (CmsStringUtil.isEmpty(value)) {
+            break;
+          }
+        }
+        hp=new CmsDAOHistoryProperties();
+        hp.setStructureId(resource.getStructureId().toString());
+        hp.setPropertyDefId(propDef.getId().toString());
+        hp.setPropertyMappingId(id.toString());
+        hp.setPropertyMappingType(mappingType);
+        hp.setPropertyValue(m_sqlManager.validateEmpty(value));
+        hp.setPublishTag(publishTag);
+        m_sqlManager.persist(dbc,hp);
+      }
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+}

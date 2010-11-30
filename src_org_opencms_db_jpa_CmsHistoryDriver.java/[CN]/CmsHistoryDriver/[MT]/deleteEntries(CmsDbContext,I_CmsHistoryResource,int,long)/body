@@ -1,0 +1,100 @@
+{
+  try {
+    int maxVersion=-1;
+    Query q=m_sqlManager.createQuery(dbc,C_STRUCTURE_HISTORY_MAXVER);
+    q.setParameter(1,resource.getStructureId().toString());
+    try {
+      maxVersion=CmsDataTypeUtil.numberToInt((Number)q.getSingleResult());
+    }
+ catch (    NoResultException e) {
+      internalCleanup(dbc,resource);
+      return 0;
+    }
+    if (time >= 0) {
+      int maxVersionByTime=-1;
+      q=m_sqlManager.createQuery(dbc,C_STRUCTURE_HISTORY_MAXVER_BYTIME);
+      q.setParameter(1,resource.getStructureId().toString());
+      q.setParameter(2,Long.valueOf(time));
+      try {
+        maxVersionByTime=CmsDataTypeUtil.numberToInt((Number)q.getSingleResult());
+      }
+ catch (      NoResultException e) {
+      }
+      if (maxVersionByTime > 0) {
+        if (versionsToKeep < 0) {
+          versionsToKeep=(maxVersion - maxVersionByTime);
+        }
+ else {
+          versionsToKeep=Math.min(versionsToKeep,(maxVersion - maxVersionByTime));
+        }
+      }
+    }
+    if (maxVersion - versionsToKeep <= 0) {
+      internalCleanup(dbc,resource);
+      return 0;
+    }
+    int minStrPublishTagToKeep=-1;
+    q=m_sqlManager.createQuery(dbc,C_HISTORY_READ_MAXTAG_FOR_VERSION);
+    q.setParameter(1,resource.getStructureId().toString());
+    q.setParameter(2,Integer.valueOf(1 + maxVersion - versionsToKeep));
+    try {
+      minStrPublishTagToKeep=CmsDataTypeUtil.numberToInt((Number)q.getSingleResult());
+    }
+ catch (    NoResultException e) {
+      internalCleanup(dbc,resource);
+      return 0;
+    }
+    if (minStrPublishTagToKeep < 1) {
+      internalCleanup(dbc,resource);
+      return 0;
+    }
+    minStrPublishTagToKeep++;
+    q=m_sqlManager.createQuery(dbc,C_PROPERTIES_HISTORY_DELETE);
+    q.setParameter(1,resource.getStructureId().toString());
+    q.setParameter(2,Integer.valueOf(minStrPublishTagToKeep));
+    @SuppressWarnings("unchecked") List<CmsDAOHistoryProperties> hisProps=q.getResultList();
+    for (    CmsDAOHistoryProperties hp : hisProps) {
+      m_sqlManager.remove(dbc,hp);
+    }
+    q=m_sqlManager.createQuery(dbc,C_STRUCTURE_HISTORY_DELETE);
+    q.setParameter(1,resource.getStructureId().toString());
+    q.setParameter(2,Integer.valueOf(minStrPublishTagToKeep));
+    @SuppressWarnings("unchecked") List<CmsDAOHistoryStructure> structureEntries=q.getResultList();
+    int structureVersions=0;
+    for (    CmsDAOHistoryStructure hs : structureEntries) {
+      m_sqlManager.remove(dbc,hs);
+      structureVersions++;
+    }
+    int minResPublishTagToKeep=-1;
+    q=m_sqlManager.createQuery(dbc,C_HISTORY_READ_MIN_USED_TAG);
+    q.setParameter(1,resource.getResourceId().toString());
+    try {
+      minResPublishTagToKeep=CmsDataTypeUtil.numberToInt((Number)q.getSingleResult());
+    }
+ catch (    NoResultException e) {
+      internalCleanup(dbc,resource);
+      return structureVersions;
+    }
+    q=m_sqlManager.createQuery(dbc,C_RESOURCES_HISTORY_DELETE);
+    q.setParameter(1,resource.getResourceId().toString());
+    q.setParameter(2,Integer.valueOf(minResPublishTagToKeep));
+    int resourceVersions=0;
+    @SuppressWarnings("unchecked") List<CmsDAOHistoryResources> resourceEntries=q.getResultList();
+    for (    CmsDAOHistoryResources hr : resourceEntries) {
+      m_sqlManager.remove(dbc,hr);
+      resourceVersions++;
+    }
+    q=m_sqlManager.createQuery(dbc,C_CONTENT_HISTORY_DELETE);
+    q.setParameter(1,resource.getResourceId().toString());
+    q.setParameter(2,Integer.valueOf(minResPublishTagToKeep));
+    @SuppressWarnings("unchecked") List<CmsDAOContents> contentEntries=q.getResultList();
+    for (    CmsDAOContents c : contentEntries) {
+      m_sqlManager.remove(dbc,c);
+    }
+    internalCleanup(dbc,resource);
+    return Math.max(structureVersions,resourceVersions);
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE),e);
+  }
+}

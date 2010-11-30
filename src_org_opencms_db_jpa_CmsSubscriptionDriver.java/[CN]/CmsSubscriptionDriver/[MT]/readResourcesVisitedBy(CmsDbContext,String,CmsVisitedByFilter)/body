@@ -1,0 +1,39 @@
+{
+  CmsResource currentResource=null;
+  StringBuffer conditions=new StringBuffer(256);
+  List<String> params=new ArrayList<String>(1);
+  List<CmsResource> resources=new ArrayList<CmsResource>();
+  try {
+    if (CmsStringUtil.isNotEmpty(filter.getParentPath())) {
+      CmsResource parent=m_driverManager.getVfsDriver(dbc).readResource(dbc,dbc.currentProject().getUuid(),filter.getParentPath(),false);
+      conditions.append(BEGIN_INCLUDE_CONDITION);
+      if (filter.isIncludeSubFolders()) {
+        conditions.append(m_sqlManager.readQuery(dbc.currentProject(),C_RESOURCES_SELECT_BY_PATH_PREFIX));
+        params.add(CmsFileUtil.addTrailingSeparator(CmsVfsDriver.escapeDbWildcard(filter.getParentPath())) + "%");
+      }
+ else {
+        conditions.append(m_sqlManager.readQuery(dbc.currentProject(),C_RESOURCES_SELECT_BY_PARENT_UUID));
+        params.add(parent.getStructureId().toString());
+      }
+      conditions.append(END_CONDITION);
+    }
+    String query=m_sqlManager.readQuery(dbc.currentProject(),C_VISITED_USER_READ_4);
+    query=CmsStringUtil.substitute(query,"%(CONDITIONS)",conditions.toString());
+    Query q=m_sqlManager.createQueryFromJPQL(dbc,query);
+    q.setParameter(1,filter.getUser().getId().toString());
+    q.setParameter(2,Long.valueOf(filter.getFromDate()));
+    q.setParameter(3,Long.valueOf(filter.getToDate()));
+    for (int i=0; i < params.size(); i++) {
+      q.setParameter(i + 4,params.get(i));
+    }
+    @SuppressWarnings("unchecked") List<Object[]> res=q.getResultList();
+    for (    Object[] obj : res) {
+      currentResource=((CmsVfsDriver)m_driverManager.getVfsDriver(dbc)).createFile(obj,dbc.currentProject().getUuid(),false);
+      resources.add(currentResource);
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,C_VISITED_USER_READ_4),e);
+  }
+  return resources;
+}

@@ -1,0 +1,42 @@
+{
+  Map<String,CmsProperty> propertyMap=new HashMap<String,CmsProperty>();
+  try {
+    int pubTag=-1;
+    Query q=m_sqlManager.createQuery(dbc,C_PROPERTIES_HISTORY_READ_PUBTAG);
+    q.setParameter(1,String.valueOf(resource.getStructureId()));
+    q.setParameter(2,Integer.valueOf(resource.getPublishTag()));
+    try {
+      pubTag=CmsDataTypeUtil.numberToInt((Number)q.getSingleResult());
+    }
+ catch (    NoResultException e) {
+    }
+    if (pubTag > 0) {
+      q=m_sqlManager.createQuery(dbc,C_PROPERTIES_HISTORY_READALL_STR);
+      q.setParameter(1,resource.getStructureId().toString());
+      q.setParameter(2,Integer.valueOf(pubTag));
+      @SuppressWarnings("unchecked") List<Object[]> res=q.getResultList();
+      for (      Object[] o : res) {
+        String propertyKey=(String)o[0];
+        String propertyValue=(String)o[1];
+        int mappingType=CmsDataTypeUtil.numberToInt((Number)o[2]);
+        internalAddToPropMap(propertyMap,resource,propertyKey,propertyValue,mappingType);
+      }
+    }
+    if (pubTag != resource.getPublishTag()) {
+      q=m_sqlManager.createQuery(dbc,C_PROPERTIES_HISTORY_READALL_RES);
+      q.setParameter(1,resource.getStructureId().toString());
+      q.setParameter(2,Integer.valueOf(resource.getPublishTag()));
+      @SuppressWarnings("unchecked") List<Object[]> res=q.getResultList();
+      for (      Object[] o : res) {
+        String propertyKey=(String)o[0];
+        String propertyValue=(String)o[1];
+        int mappingType=CmsDataTypeUtil.numberToInt((Number)o[2]);
+        internalAddToPropMap(propertyMap,resource,propertyKey,propertyValue,mappingType);
+      }
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  return new ArrayList<CmsProperty>(propertyMap.values());
+}

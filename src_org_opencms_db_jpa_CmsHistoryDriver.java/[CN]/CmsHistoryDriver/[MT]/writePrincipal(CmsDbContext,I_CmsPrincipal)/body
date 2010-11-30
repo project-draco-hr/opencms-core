@@ -1,0 +1,33 @@
+{
+  try {
+    readPrincipal(dbc,principal.getId());
+    return;
+  }
+ catch (  CmsDbEntryNotFoundException e) {
+  }
+  try {
+    CmsDAOHistoryPrincipals hp=new CmsDAOHistoryPrincipals();
+    hp.setPrincipalId(principal.getId().toString());
+    hp.setPrincipalName(principal.getSimpleName());
+    String desc=principal.getDescription();
+    desc=CmsStringUtil.isEmptyOrWhitespaceOnly(desc) ? "-" : desc;
+    hp.setPrincipalDescription(desc);
+    hp.setPrincipalOu(CmsOrganizationalUnit.SEPARATOR + principal.getOuFqn());
+    if (principal instanceof CmsUser) {
+      String email=((CmsUser)principal).getEmail();
+      email=CmsStringUtil.isEmptyOrWhitespaceOnly(email) ? "-" : email;
+      hp.setPrincipalEmail(email);
+      hp.setPrincipalType(I_CmsPrincipal.PRINCIPAL_USER);
+    }
+ else {
+      hp.setPrincipalEmail("-");
+      hp.setPrincipalType(I_CmsPrincipal.PRINCIPAL_GROUP);
+    }
+    hp.setPrincipalUserDeleted(dbc.currentUser().getId().toString());
+    hp.setPrincipalDateDeleted(System.currentTimeMillis());
+    m_sqlManager.persist(dbc,hp);
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+}

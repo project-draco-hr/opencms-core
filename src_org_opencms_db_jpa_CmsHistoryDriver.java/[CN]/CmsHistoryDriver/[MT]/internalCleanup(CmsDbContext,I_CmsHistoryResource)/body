@@ -1,0 +1,24 @@
+{
+  boolean isFolder=resource.getRootPath().endsWith("/");
+  List<I_CmsHistoryResource> subResources=new ArrayList<I_CmsHistoryResource>();
+  if (isFolder) {
+    if (readLastVersion(dbc,resource.getStructureId()) == 0) {
+      try {
+        Query q=m_sqlManager.createQuery(dbc,C_STRUCTURE_HISTORY_READ_SUBRESOURCES);
+        q.setParameter(1,resource.getStructureId().toString());
+        @SuppressWarnings("unchecked") List<Object[]> res=q.getResultList();
+        for (        Object[] obj : res) {
+          CmsUUID structureId=new CmsUUID((String)obj[0]);
+          int version=CmsDataTypeUtil.numberToInt((Integer)obj[1]);
+          subResources.add(readResource(dbc,structureId,version));
+        }
+      }
+ catch (      PersistenceException e) {
+        throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,Messages.ERR_JPA_PERSITENCE),e);
+      }
+    }
+  }
+  for (  I_CmsHistoryResource histResource : subResources) {
+    deleteEntries(dbc,histResource,0,-1);
+  }
+}

@@ -1,0 +1,26 @@
+{
+  List<CmsLogEntry> entries=new ArrayList<CmsLogEntry>();
+  try {
+    StringBuffer queryBuf=new StringBuffer(256);
+    queryBuf.append(m_sqlManager.readQuery(C_LOG_READ_ENTRIES));
+    CmsPair<String,List<I_CmsQueryParameter>> conditionsAndParameters=prepareLogConditions(filter);
+    List<I_CmsQueryParameter> params=conditionsAndParameters.getSecond();
+    queryBuf.append(conditionsAndParameters.getFirst());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(queryBuf.toString());
+    }
+    Query q=m_sqlManager.createQueryFromJPQL(dbc,queryBuf.toString());
+    for (int i=0; i < params.size(); i++) {
+      I_CmsQueryParameter param=params.get(i);
+      param.insertIntoQuery(q,i + 1);
+    }
+    @SuppressWarnings("unchecked") List<CmsDAOLog> res=q.getResultList();
+    for (    CmsDAOLog log : res) {
+      entries.add(internalReadLogEntry(log));
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,C_LOG_READ_ENTRIES),e);
+  }
+  return entries;
+}

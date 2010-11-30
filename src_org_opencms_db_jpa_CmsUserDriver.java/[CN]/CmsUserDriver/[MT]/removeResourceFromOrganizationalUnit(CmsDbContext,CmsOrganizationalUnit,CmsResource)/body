@@ -1,0 +1,34 @@
+{
+  if (orgUnit.getParentFqn() == null) {
+    throw new CmsDataAccessException(org.opencms.security.Messages.get().container(org.opencms.security.Messages.ERR_ORGUNIT_ROOT_EDITION_0));
+  }
+  try {
+    CmsResource ouResource=m_driverManager.readResource(dbc,ORGUNIT_BASE_FOLDER + orgUnit.getName(),CmsResourceFilter.ALL);
+    List<String> vfsPaths=new ArrayList<String>(internalResourcesForOrgUnit(dbc,ouResource));
+    if (!vfsPaths.contains(resource.getRootPath())) {
+      throw new CmsDataAccessException(Messages.get().container(Messages.ERR_ORGUNIT_DOESNOT_CONTAINS_RESOURCE_2,orgUnit.getName(),dbc.removeSiteRoot(resource.getRootPath())));
+    }
+    if ((vfsPaths.size() == 1) && !orgUnit.hasFlagWebuser()) {
+      throw new CmsDataAccessException(Messages.get().container(Messages.ERR_ORGUNIT_REMOVE_LAST_RESOURCE_2,orgUnit.getName(),dbc.removeSiteRoot(resource.getRootPath())));
+    }
+    CmsRelationFilter filter=CmsRelationFilter.TARGETS.filterPath(resource.getRootPath());
+    m_driverManager.getVfsDriver(dbc).deleteRelations(dbc,dbc.currentProject().getUuid(),ouResource,filter);
+    m_driverManager.getVfsDriver(dbc).deleteRelations(dbc,CmsProject.ONLINE_PROJECT_ID,ouResource,filter);
+    try {
+      CmsProject project=m_driverManager.readProject(dbc,orgUnit.getProjectId());
+      m_driverManager.getProjectDriver(dbc).deleteProjectResource(dbc,orgUnit.getProjectId(),resource.getRootPath());
+      OpenCms.fireCmsEvent(I_CmsEventListener.EVENT_PROJECT_MODIFIED,Collections.<String,Object>singletonMap("project",project));
+    }
+ catch (    CmsDbEntryNotFoundException e) {
+    }
+ finally {
+      Map<String,Object> data=new HashMap<String,Object>(2);
+      data.put(I_CmsEventListener.KEY_RESOURCE,ouResource);
+      data.put(I_CmsEventListener.KEY_CHANGE,new Integer(CmsDriverManager.CHANGED_RESOURCE));
+      OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_MODIFIED,data));
+    }
+  }
+ catch (  CmsException e) {
+    throw new CmsDataAccessException(e.getMessageContainer(),e);
+  }
+}

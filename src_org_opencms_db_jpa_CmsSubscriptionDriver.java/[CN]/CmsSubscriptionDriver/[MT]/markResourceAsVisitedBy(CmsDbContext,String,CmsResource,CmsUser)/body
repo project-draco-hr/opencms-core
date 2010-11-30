@@ -1,0 +1,36 @@
+{
+  boolean entryExists=false;
+  CmsVisitEntryFilter filter=CmsVisitEntryFilter.ALL.filterResource(resource.getStructureId()).filterUser(user.getId());
+  if (readVisits(dbc,OpenCms.getSubscriptionManager().getPoolName(),filter).size() > 0) {
+    entryExists=true;
+    deleteVisits(dbc,OpenCms.getSubscriptionManager().getPoolName(),filter);
+  }
+  CmsVisitEntry entry=new CmsVisitEntry(user.getId(),System.currentTimeMillis(),resource.getStructureId());
+  addVisit(dbc,poolName,entry);
+  if (!entryExists) {
+    int count=0;
+    try {
+      Query q=m_sqlManager.createQuery(dbc,dbc.currentProject(),C_VISITED_USER_COUNT_1);
+      q.setParameter(1,user.getId().toString());
+      count=((Number)q.getSingleResult()).intValue();
+      int maxCount=OpenCms.getSubscriptionManager().getMaxVisitedCount();
+      if (count > maxCount) {
+        q=m_sqlManager.createQuery(dbc,dbc.currentProject(),C_VISITED_USER_DELETE_GETDATE_2);
+        q.setParameter(1,user.getId().toString());
+        q.setMaxResults(count - maxCount);
+        @SuppressWarnings("unchecked") List<Number> res=q.getResultList();
+        long deleteDate=0;
+        for (        Number n : res) {
+          deleteDate=n.longValue();
+        }
+        if (deleteDate > 0) {
+          filter=CmsVisitEntryFilter.ALL.filterUser(user.getId()).filterTo(deleteDate);
+          deleteVisits(dbc,OpenCms.getSubscriptionManager().getPoolName(),filter);
+        }
+      }
+    }
+ catch (    PersistenceException e) {
+      throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,C_VISITED_USER_DELETE_GETDATE_2),e);
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  if (!project.getUuid().equals(CmsProject.ONLINE_PROJECT_ID)) {
+    return;
+  }
+  CmsResource existingSibling=null;
+  CmsUUID newStructureId=resource.getStructureId();
+  try {
+    existingSibling=readResource(dbc,project.getUuid(),resource.getRootPath(),true);
+    if (existingSibling.getState().isDeleted()) {
+      newStructureId=existingSibling.getStructureId();
+      List<CmsResource> modifiedResources=readSiblings(dbc,project.getUuid(),existingSibling,false);
+      int propertyDeleteOption=(existingSibling.getSiblingCount() > 1) ? CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_VALUES : CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES;
+      deletePropertyObjects(dbc,project.getUuid(),existingSibling,propertyDeleteOption);
+      removeFile(dbc,project.getUuid(),existingSibling);
+      OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCES_MODIFIED,Collections.<String,Object>singletonMap(I_CmsEventListener.KEY_RESOURCES,modifiedResources)));
+      OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.<String,Object>singletonMap(I_CmsEventListener.KEY_RESOURCE,existingSibling)));
+    }
+ else {
+      throw new CmsVfsResourceAlreadyExistsException(Messages.get().container(Messages.ERR_RESOURCE_WITH_NAME_ALREADY_EXISTS_1,dbc.removeSiteRoot(resource.getRootPath())));
+    }
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+  }
+  if (!validateResourceIdExists(dbc,project.getUuid(),resource.getResourceId())) {
+    throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_CREATE_SIBLING_FILE_NOT_FOUND_1,dbc.removeSiteRoot(resource.getRootPath())));
+  }
+  try {
+    int lastVersion=m_driverManager.getHistoryDriver(dbc).readLastVersion(dbc,newStructureId);
+    int newStrVersion=0;
+    if (lastVersion > 0) {
+      I_CmsHistoryResource histRes=m_driverManager.getHistoryDriver(dbc).readResource(dbc,newStructureId,lastVersion);
+      newStrVersion=histRes.getStructureVersion();
+    }
+    String parentId=internalReadParentId(dbc,project.getUuid(),resource.getRootPath());
+    I_CmsDAOStructure s=CmsProject.isOnlineProject(project.getUuid()) ? new CmsDAOOnlineStructure() : new CmsDAOOfflineStructure();
+    s.setStructureId(newStructureId.toString());
+    s.setResourceId(resource.getResourceId().toString());
+    s.setResourcePath(resource.getRootPath());
+    s.setStructureState(CmsResource.STATE_UNCHANGED.getState());
+    s.setDateReleased(resource.getDateReleased());
+    s.setDateExpired(resource.getDateExpired());
+    s.setParentId(parentId);
+    s.setStructureVersion(newStrVersion);
+    m_sqlManager.persist(dbc,s);
+    Query q=m_sqlManager.createQuery(dbc,project,C_RESOURCES_UPDATE_SIBLING_COUNT);
+    q.setParameter(1,resource.getResourceId().toString());
+    @SuppressWarnings("unchecked") List<I_CmsDAOResources> res=q.getResultList();
+    for (    I_CmsDAOResources r : res) {
+      r.setSiblingCount(countSiblings(dbc,project.getUuid(),resource.getResourceId()));
+    }
+    q=m_sqlManager.createQuery(dbc,project,C_RESOURCES_UPDATE_RESOURCE_PROJECT);
+    q.setParameter(1,resource.getResourceId().toString());
+    @SuppressWarnings("unchecked") List<I_CmsDAOResources> resr=q.getResultList();
+    for (    I_CmsDAOResources r : resr) {
+      r.setResourceFlags(resource.getFlags());
+      r.setProjectLastModified(resource.getProjectLastModified().toString());
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  repairBrokenRelations(dbc,project.getUuid(),resource.getStructureId(),resource.getRootPath());
+}

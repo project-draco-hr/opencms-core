@@ -1,0 +1,64 @@
+{
+  if (resource == null) {
+    m_resOp.clear();
+    return;
+  }
+  if (!dbc.getProjectId().isNullUUID() || dbc.currentProject().isOnlineProject()) {
+    return;
+  }
+  if (firstSibling) {
+    m_resOp.remove(resource.getResourceId());
+  }
+  boolean resOp=false;
+  CmsResourceState resState=internalReadResourceState(dbc,dbc.currentProject().getUuid(),resource);
+  CmsResourceState strState=internalReadStructureState(dbc,dbc.currentProject().getUuid(),resource);
+  if (!resState.isUnchanged()) {
+    if (strState.isDeleted()) {
+      resOp=(resState.isDeleted() || (resource.getSiblingCount() == 1) || (countSiblings(dbc,dbc.currentProject().getUuid(),resource.getResourceId()) == 1));
+    }
+ else {
+      resOp=true;
+    }
+  }
+  if (!firstSibling) {
+    if (resOp) {
+      return;
+    }
+    if (m_resOp.contains(resource.getResourceId())) {
+      return;
+    }
+  }
+  Map<String,Integer> versions=readVersions(dbc,dbc.currentProject().getUuid(),resource.getResourceId(),resource.getStructureId());
+  int strVersion=versions.get("structure").intValue();
+  int resVersion=versions.get("resource").intValue();
+  if (resOp) {
+    if (resource.getSiblingCount() > 1) {
+      m_resOp.add(resource.getResourceId());
+    }
+    resVersion++;
+  }
+  if (!resOp) {
+    strVersion++;
+  }
+  try {
+    if (resOp) {
+      Query q=m_sqlManager.createQuery(dbc,CmsProject.ONLINE_PROJECT_ID,C_RESOURCES_UPDATE_RESOURCE_VERSION);
+      q.setParameter(1,resource.getResourceId().toString());
+      @SuppressWarnings("unchecked") List<I_CmsDAOResources> res=q.getResultList();
+      for (      I_CmsDAOResources r : res) {
+        r.setResourceVersion(resVersion);
+      }
+    }
+    if (!resOp || strState.isNew()) {
+      Query q=m_sqlManager.createQuery(dbc,CmsProject.ONLINE_PROJECT_ID,C_RESOURCES_UPDATE_STRUCTURE_VERSION);
+      q.setParameter(1,resource.getStructureId().toString());
+      @SuppressWarnings("unchecked") List<I_CmsDAOStructure> res=q.getResultList();
+      for (      I_CmsDAOStructure s : res) {
+        s.setStructureVersion(strVersion);
+      }
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+}

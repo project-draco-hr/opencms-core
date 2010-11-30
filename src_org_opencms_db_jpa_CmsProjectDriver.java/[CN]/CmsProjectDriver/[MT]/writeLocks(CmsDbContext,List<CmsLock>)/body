@@ -1,0 +1,49 @@
+{
+  CmsDAOResourceLocks rl;
+  try {
+    Query q=m_sqlManager.createQuery(dbc,C_RESOURCE_LOCKS_DELETEALL);
+    @SuppressWarnings("unchecked") List<CmsDAOResourceLocks> res=q.getResultList();
+    int deleted=0;
+    for (    CmsDAOResourceLocks r : res) {
+      m_sqlManager.remove(dbc,r);
+      deleted++;
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DBG_CLEAR_LOCKS_1,new Integer(deleted)));
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("SQL :" + "Inserting rows in the CMS_RESOURCE_LOCKS table.");
+    }
+    Iterator<CmsLock> i=locks.iterator();
+    int count=0;
+    while (i.hasNext()) {
+      CmsLock lock=i.next();
+      CmsLock sysLock=lock.getSystemLock();
+      if (sysLock.isPersistent()) {
+        rl=new CmsDAOResourceLocks();
+        rl.setResourcePath(sysLock.getResourceName());
+        rl.setUserId(sysLock.getUserId().toString());
+        rl.setProjectId(sysLock.getProjectId().toString());
+        rl.setLockType(sysLock.getType().hashCode());
+        m_sqlManager.persist(dbc,rl);
+        count++;
+      }
+      CmsLock editLock=lock.getEditionLock();
+      if (editLock.isPersistent()) {
+        rl=new CmsDAOResourceLocks();
+        rl.setResourcePath(editLock.getResourceName());
+        rl.setUserId(editLock.getUserId().toString());
+        rl.setProjectId(editLock.getProjectId().toString());
+        rl.setLockType(editLock.getType().hashCode());
+        m_sqlManager.persist(dbc,rl);
+        count++;
+      }
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DBG_WRITE_LOCKS_1,new Integer(count)));
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+}

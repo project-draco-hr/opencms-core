@@ -1,0 +1,56 @@
+{
+  int siblingCount=0;
+  try {
+    Query q=m_sqlManager.createQuery(dbc,projectId,C_STRUCTURE_DELETE_BY_STRUCTUREID);
+    q.setParameter(1,resource.getStructureId().toString());
+    @SuppressWarnings("unchecked") List<I_CmsDAOStructure> res=q.getResultList();
+    for (    I_CmsDAOStructure ps : res) {
+      m_sqlManager.remove(dbc,ps);
+    }
+    siblingCount=countSiblings(dbc,projectId,resource.getResourceId());
+    if (siblingCount > 0) {
+      q=m_sqlManager.createQuery(dbc,projectId,C_RESOURCES_UPDATE_SIBLING_COUNT);
+      q.setParameter(1,resource.getResourceId().toString());
+      @SuppressWarnings("unchecked") List<I_CmsDAOResources> ress=q.getResultList();
+      for (      I_CmsDAOResources r : ress) {
+        r.setSiblingCount(siblingCount);
+      }
+      q=m_sqlManager.createQuery(dbc,projectId,C_RESOURCES_UPDATE_FLAGS);
+      q.setParameter(1,resource.getResourceId().toString());
+      @SuppressWarnings("unchecked") List<I_CmsDAOResources> resf=q.getResultList();
+      for (      I_CmsDAOResources r : resf) {
+        r.setResourceFlags(resource.getFlags());
+      }
+    }
+ else {
+      q=m_sqlManager.createQuery(dbc,projectId,C_RESOURCES_DELETE_BY_RESOURCEID);
+      q.setParameter(1,resource.getResourceId().toString());
+      @SuppressWarnings("unchecked") List<I_CmsDAOResources> res1=q.getResultList();
+      for (      I_CmsDAOResources pr : res1) {
+        m_sqlManager.remove(dbc,pr);
+      }
+      boolean dbcHasProjectId=(dbc.getProjectId() != null) && !dbc.getProjectId().isNullUUID();
+      if (projectId.equals(CmsProject.ONLINE_PROJECT_ID)) {
+        q=m_sqlManager.createQuery(dbc,C_ONLINE_CONTENTS_HISTORY);
+        q.setParameter(1,resource.getResourceId().toString());
+        @SuppressWarnings("unchecked") List<CmsDAOContents> res2=q.getResultList();
+        for (        CmsDAOContents c : res2) {
+          c.setOnlineFlag(0);
+        }
+      }
+ else       if (dbcHasProjectId) {
+        q=m_sqlManager.createQuery(dbc,C_ONLINE_CONTENTS_DELETE);
+        q.setParameter(1,resource.getResourceId().toString());
+        q.executeUpdate();
+      }
+ else {
+        q=m_sqlManager.createQuery(dbc,C_OFFLINE_FILE_CONTENT_DELETE);
+        q.setParameter(1,resource.getResourceId().toString());
+        q.executeUpdate();
+      }
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+}

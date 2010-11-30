@@ -1,0 +1,57 @@
+{
+  List<I_CmsHistoryResource> result=new ArrayList<I_CmsHistoryResource>();
+  Query q=null;
+  I_CmsVfsDriver vfsDriver=m_driverManager.getVfsDriver(dbc);
+  try {
+    if (userId == null) {
+      q=m_sqlManager.createQuery(dbc,C_RESOURCES_HISTORY_READ_DELETED);
+    }
+ else {
+      q=m_sqlManager.createQuery(dbc,C_RESOURCES_HISTORY_READ_DELETED_RESTRICTED);
+    }
+    q.setParameter(1,structureId.toString());
+    if (userId != null) {
+      q.setParameter(2,userId.toString());
+    }
+    @SuppressWarnings("unchecked") List<Object[]> res=q.getResultList();
+    for (    Object[] o : res) {
+      I_CmsHistoryResource histRes=internalCreateResource(o);
+      if (vfsDriver.validateStructureIdExists(dbc,dbc.currentProject().getUuid(),histRes.getStructureId())) {
+        continue;
+      }
+      result.add(histRes);
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  if (!result.isEmpty() || (dbc.getRequestContext() == null) || (dbc.getRequestContext().getAttribute("ATTR_RESOURCE_NAME") == null)) {
+    return result;
+  }
+  try {
+    if (userId == null) {
+      q=m_sqlManager.createQuery(dbc,C_RESOURCES_HISTORY_READ_DELETED_NAME);
+    }
+ else {
+      q=m_sqlManager.createQuery(dbc,C_RESOURCES_HISTORY_READ_DELETED_NAME_RESTRICTED);
+    }
+    String path=dbc.getRequestContext().getAttribute("ATTR_RESOURCE_NAME").toString();
+    q.setParameter(1,CmsVfsDriver.escapeDbWildcard(path + '%'));
+    q.setParameter(2,path);
+    if (userId != null) {
+      q.setParameter(3,userId.toString());
+    }
+    @SuppressWarnings("unchecked") List<Object[]> res=q.getResultList();
+    for (    Object[] o : res) {
+      I_CmsHistoryResource histRes=internalCreateResource(o);
+      if (vfsDriver.validateStructureIdExists(dbc,dbc.currentProject().getUuid(),histRes.getStructureId())) {
+        continue;
+      }
+      result.add(histRes);
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  return result;
+}

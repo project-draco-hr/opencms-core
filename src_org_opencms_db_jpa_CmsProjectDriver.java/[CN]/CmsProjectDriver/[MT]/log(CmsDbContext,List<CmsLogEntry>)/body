@@ -1,0 +1,34 @@
+{
+  try {
+    EntityManager em=m_sqlManager.getEntityManager(dbc);
+    em.getTransaction().commit();
+    CmsDAOLog daoLog;
+    for (    CmsLogEntry logEntry : logEntries) {
+      em.getTransaction().begin();
+      daoLog=new CmsDAOLog();
+      daoLog.setUserId(logEntry.getUserId().toString());
+      daoLog.setLogDate(logEntry.getDate());
+      daoLog.setStructureId(logEntry.getStructureId() == null ? null : logEntry.getStructureId().toString());
+      daoLog.setLogType(logEntry.getType().getId());
+      daoLog.setLogData(CmsStringUtil.arrayAsString(logEntry.getData(),"|"));
+      em.persist(daoLog);
+      try {
+        if ((em.getTransaction() != null) && em.getTransaction().isActive()) {
+          em.getTransaction().commit();
+        }
+      }
+ catch (      RuntimeException e) {
+        if ((em.getTransaction() != null) && em.getTransaction().isActive()) {
+          em.getTransaction().rollback();
+        }
+      }
+ finally {
+        em.clear();
+      }
+    }
+    em.getTransaction().begin();
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,""),e);
+  }
+}

@@ -1,0 +1,21 @@
+{
+  CmsUser user=readUser(dbc,userFqn);
+  try {
+    Query q=m_sqlManager.createQuery(dbc,C_USERS_DELETE_2);
+    q.setParameter(1,CmsOrganizationalUnit.getSimpleName(userFqn));
+    q.setParameter(2,CmsOrganizationalUnit.SEPARATOR + CmsOrganizationalUnit.getParentFqn(userFqn));
+    @SuppressWarnings("unchecked") List<CmsDAOUsers> res=q.getResultList();
+    for (    CmsDAOUsers u : res) {
+      m_sqlManager.remove(dbc,u);
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  deleteUserInfos(dbc,user.getId());
+  if (OpenCms.getSubscriptionManager().isEnabled()) {
+    CmsVisitEntryFilter filter=CmsVisitEntryFilter.ALL.filterUser(user.getId());
+    m_driverManager.getSubscriptionDriver().deleteVisits(dbc,OpenCms.getSubscriptionManager().getPoolName(),filter);
+    m_driverManager.getSubscriptionDriver().unsubscribeAllResourcesFor(dbc,OpenCms.getSubscriptionManager().getPoolName(),user);
+  }
+}

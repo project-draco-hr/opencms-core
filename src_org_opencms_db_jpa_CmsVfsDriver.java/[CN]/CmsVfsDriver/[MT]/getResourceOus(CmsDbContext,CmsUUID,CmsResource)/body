@@ -1,0 +1,27 @@
+{
+  List<CmsOrganizationalUnit> ous=new ArrayList<CmsOrganizationalUnit>();
+  String resName=resource.getRootPath();
+  if (resource.isFolder() && !resName.endsWith("/")) {
+    resName+="/";
+  }
+  try {
+    Query q=m_sqlManager.createQuery(dbc,projectId,C_READ_RESOURCE_OUS);
+    q.setParameter(1,Integer.valueOf(CmsRelationType.OU_RESOURCE.getId()));
+    @SuppressWarnings("unchecked") List<I_CmsDAOResourceRelations> res=internalResourceOus(q.getResultList(),resName);
+    for (    I_CmsDAOResourceRelations rr : res) {
+      CmsRelation rel=internalReadRelation(rr);
+      try {
+        ous.add(m_driverManager.readOrganizationalUnit(dbc,rel.getSourcePath().substring(CmsUserDriver.ORGUNIT_BASE_FOLDER.length())));
+      }
+ catch (      CmsException e) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  return ous;
+}

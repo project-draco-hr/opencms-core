@@ -1,0 +1,31 @@
+{
+  List<CmsLock> locks=new ArrayList<CmsLock>(256);
+  try {
+    Query q=m_sqlManager.createQuery(dbc,C_RESOURCE_LOCKS_READALL);
+    @SuppressWarnings("unchecked") List<CmsDAOResourceLocks> res=q.getResultList();
+    for (    CmsDAOResourceLocks rl : res) {
+      String resourcePath=rl.getResourcePath();
+      CmsUUID userId=new CmsUUID(rl.getUserId());
+      CmsUUID projectId=new CmsUUID(rl.getProjectId());
+      int lockType=rl.getLockType();
+      CmsProject project;
+      try {
+        project=readProject(dbc,projectId);
+      }
+ catch (      CmsDataAccessException dae) {
+        project=null;
+      }
+      if (project != null) {
+        CmsLock lock=new CmsLock(resourcePath,userId,project,CmsLockType.valueOf(lockType));
+        locks.add(lock);
+      }
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_DBG_READ_LOCKS_1,new Integer(locks.size())));
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  return locks;
+}

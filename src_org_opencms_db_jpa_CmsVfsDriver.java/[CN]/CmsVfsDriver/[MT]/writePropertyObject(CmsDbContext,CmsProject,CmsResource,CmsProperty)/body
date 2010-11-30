@@ -1,0 +1,103 @@
+{
+  CmsUUID projectId=((dbc.getProjectId() == null) || dbc.getProjectId().isNullUUID()) ? project.getUuid() : dbc.getProjectId();
+  CmsPropertyDefinition propertyDefinition=null;
+  try {
+    propertyDefinition=readPropertyDefinition(dbc,property.getName(),projectId);
+  }
+ catch (  CmsDbEntryNotFoundException e) {
+    if (property.autoCreatePropertyDefinition()) {
+      propertyDefinition=createPropertyDefinition(dbc,projectId,property.getName(),CmsPropertyDefinition.TYPE_NORMAL);
+      try {
+        readPropertyDefinition(dbc,property.getName(),CmsProject.ONLINE_PROJECT_ID);
+      }
+ catch (      CmsDataAccessException e1) {
+        createPropertyDefinition(dbc,CmsProject.ONLINE_PROJECT_ID,property.getName(),CmsPropertyDefinition.TYPE_NORMAL);
+      }
+      try {
+        m_driverManager.getHistoryDriver(dbc).readPropertyDefinition(dbc,property.getName());
+      }
+ catch (      CmsDataAccessException e1) {
+        m_driverManager.getHistoryDriver(dbc).createPropertyDefinition(dbc,property.getName(),CmsPropertyDefinition.TYPE_NORMAL);
+      }
+    }
+ else {
+      throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_NO_PROPERTYDEF_WITH_NAME_1,property.getName()));
+    }
+  }
+  try {
+    CmsProperty existingProperty=readPropertyObject(dbc,propertyDefinition.getName(),project,resource);
+    if (existingProperty.isIdentical(property)) {
+      return;
+    }
+    for (int i=0; i < 2; i++) {
+      int mappingType=-1;
+      String value=null;
+      CmsUUID id=null;
+      boolean existsPropertyValue=false;
+      boolean deletePropertyValue=false;
+      if (i == 0) {
+        if ((existingProperty.getStructureValue() != null) && property.isDeleteStructureValue()) {
+          deletePropertyValue=true;
+        }
+ else {
+          value=property.getStructureValue();
+          if (CmsStringUtil.isEmptyOrWhitespaceOnly(value)) {
+            continue;
+          }
+        }
+        mappingType=CmsProperty.STRUCTURE_RECORD_MAPPING;
+        id=resource.getStructureId();
+        existsPropertyValue=existingProperty.getStructureValue() != null;
+      }
+ else {
+        if ((existingProperty.getResourceValue() != null) && property.isDeleteResourceValue()) {
+          deletePropertyValue=true;
+        }
+ else {
+          value=property.getResourceValue();
+          if (CmsStringUtil.isEmptyOrWhitespaceOnly(value)) {
+            break;
+          }
+        }
+        mappingType=CmsProperty.RESOURCE_RECORD_MAPPING;
+        id=resource.getResourceId();
+        existsPropertyValue=existingProperty.getResourceValue() != null;
+      }
+      Query q;
+      if (!deletePropertyValue) {
+        if (existsPropertyValue) {
+          q=m_sqlManager.createQuery(dbc,projectId,C_PROPERTIES_UPDATE);
+          q.setParameter(1,id.toString());
+          q.setParameter(2,Integer.valueOf(mappingType));
+          q.setParameter(3,propertyDefinition.getId().toString());
+          @SuppressWarnings("unchecked") List<I_CmsDAOProperties> res=q.getResultList();
+          for (          I_CmsDAOProperties p : res) {
+            p.setPropertyValue(m_sqlManager.validateEmpty(value));
+          }
+        }
+ else {
+          I_CmsDAOProperties p=CmsProject.isOnlineProject(project.getUuid()) ? new CmsDAOOnlineProperties() : new CmsDAOOfflineProperties();
+          p.setPropertyId(new CmsUUID().toString());
+          p.setPropertyDefId(propertyDefinition.getId().toString());
+          p.setPropertyMappingId(id.toString());
+          p.setPropertyMappingType(mappingType);
+          p.setPropertyValue(m_sqlManager.validateEmpty(value));
+          m_sqlManager.persist(dbc,p);
+        }
+      }
+ else {
+        q=m_sqlManager.createQuery(dbc,projectId,C_PROPERTIES_DELETE);
+        q.setParameter(1,propertyDefinition.getId().toString());
+        q.setParameter(2,id.toString());
+        q.setParameter(3,Integer.valueOf(mappingType));
+        @SuppressWarnings("unchecked") List<I_CmsDAOProperties> res=q.getResultList();
+        for (        I_CmsDAOProperties pr : res) {
+          m_sqlManager.remove(dbc,pr);
+        }
+      }
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+}

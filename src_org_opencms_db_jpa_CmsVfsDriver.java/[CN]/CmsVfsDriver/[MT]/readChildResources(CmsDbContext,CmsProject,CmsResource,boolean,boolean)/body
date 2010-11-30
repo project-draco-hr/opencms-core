@@ -1,0 +1,41 @@
+{
+  List<CmsResource> result=new ArrayList<CmsResource>();
+  CmsUUID projectId=currentProject.getUuid();
+  String resourceTypeClause;
+  if (getFolders && getFiles) {
+    resourceTypeClause=null;
+  }
+ else   if (getFolders) {
+    resourceTypeClause=m_sqlManager.readQuery(projectId,C_RESOURCES_GET_SUBRESOURCES_GET_FOLDERS);
+  }
+ else {
+    resourceTypeClause=m_sqlManager.readQuery(projectId,C_RESOURCES_GET_SUBRESOURCES_GET_FILES);
+  }
+  StringBuffer query=new StringBuffer();
+  query.append(m_sqlManager.readQuery(projectId,C_RESOURCES_GET_SUBRESOURCES));
+  if (resourceTypeClause != null) {
+    query.append(' ');
+    query.append(resourceTypeClause);
+  }
+  try {
+    Query q=m_sqlManager.createQueryFromJPQL(dbc,query.toString());
+    q.setParameter(1,resource.getStructureId().toString());
+    @SuppressWarnings("unchecked") List<Object[]> res=q.getResultList();
+    I_CmsDAOResources r;
+    for (    Object[] o : res) {
+      r=(I_CmsDAOResources)o[0];
+      long size=r.getResourceSize();
+      if (CmsFolder.isFolderSize(size)) {
+        result.add(createFolder(o,projectId,false));
+      }
+ else {
+        result.add(createFile(o,projectId,false));
+      }
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  Collections.sort(result,I_CmsResource.COMPARE_ROOT_PATH_IGNORE_CASE_FOLDERS_FIRST);
+  return result;
+}

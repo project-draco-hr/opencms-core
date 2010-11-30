@@ -1,0 +1,36 @@
+{
+  try {
+    if (readProject(dbc,CmsProject.ONLINE_PROJECT_ID) != null) {
+      return;
+    }
+  }
+ catch (  CmsDataAccessException exc) {
+  }
+  if (CmsLog.INIT.isInfoEnabled()) {
+    CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_FILL_DEFAULTS_0));
+  }
+  String adminUser=OpenCms.getDefaultUsers().getUserAdmin();
+  CmsUser admin=m_driverManager.readUser(dbc,adminUser);
+  String administratorsGroup=OpenCms.getDefaultUsers().getGroupAdministrators();
+  CmsGroup administrators=m_driverManager.readGroup(dbc,administratorsGroup);
+  String usersGroup=OpenCms.getDefaultUsers().getGroupUsers();
+  CmsGroup users=m_driverManager.readGroup(dbc,usersGroup);
+  String projectmanagersGroup=OpenCms.getDefaultUsers().getGroupProjectmanagers();
+  CmsGroup projectmanager=m_driverManager.readGroup(dbc,projectmanagersGroup);
+  CmsProject onlineProject=createProject(dbc,CmsProject.ONLINE_PROJECT_ID,admin,users,projectmanager,CmsProject.ONLINE_PROJECT_NAME,"The Online project",I_CmsPrincipal.FLAG_ENABLED,CmsProject.PROJECT_TYPE_NORMAL);
+  CmsFolder rootFolder=new CmsFolder(new CmsUUID(),new CmsUUID(),"/",CmsResourceTypeFolder.RESOURCE_TYPE_ID,0,onlineProject.getUuid(),CmsResource.STATE_CHANGED,0,admin.getId(),0,admin.getId(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,0);
+  m_driverManager.getVfsDriver(dbc).createResource(dbc,onlineProject.getUuid(),rootFolder,null);
+  m_driverManager.getProjectDriver(dbc).createProjectResource(dbc,onlineProject.getUuid(),rootFolder.getRootPath());
+  CmsFolder systemFolder=new CmsFolder(new CmsUUID(),new CmsUUID(),"/system",CmsResourceTypeFolder.RESOURCE_TYPE_ID,0,onlineProject.getUuid(),CmsResource.STATE_CHANGED,0,admin.getId(),0,admin.getId(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,0);
+  m_driverManager.getVfsDriver(dbc).createResource(dbc,onlineProject.getUuid(),systemFolder,null);
+  CmsProject setupProject=m_driverManager.getProjectDriver(dbc).createProject(dbc,CmsUUID.getConstantUUID(SETUP_PROJECT_NAME),admin,administrators,administrators,SETUP_PROJECT_NAME,"The Project for the initial import",I_CmsPrincipal.FLAG_ENABLED,CmsProject.PROJECT_TYPE_TEMPORARY);
+  rootFolder.setState(CmsResource.STATE_CHANGED);
+  CmsResource offlineRootFolder=m_driverManager.getVfsDriver(dbc).createResource(dbc,setupProject.getUuid(),rootFolder,null);
+  offlineRootFolder.setState(CmsResource.STATE_UNCHANGED);
+  m_driverManager.getVfsDriver(dbc).writeResource(dbc,setupProject.getUuid(),offlineRootFolder,CmsDriverManager.NOTHING_CHANGED);
+  m_driverManager.getProjectDriver(dbc).createProjectResource(dbc,setupProject.getUuid(),offlineRootFolder.getRootPath());
+  systemFolder.setState(CmsResource.STATE_CHANGED);
+  CmsResource offlineSystemFolder=m_driverManager.getVfsDriver(dbc).createResource(dbc,setupProject.getUuid(),systemFolder,null);
+  offlineSystemFolder.setState(CmsResource.STATE_UNCHANGED);
+  m_driverManager.getVfsDriver(dbc).writeResource(dbc,setupProject.getUuid(),offlineSystemFolder,CmsDriverManager.NOTHING_CHANGED);
+}

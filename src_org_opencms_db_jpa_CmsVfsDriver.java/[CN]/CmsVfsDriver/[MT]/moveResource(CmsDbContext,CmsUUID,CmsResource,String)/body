@@ -1,0 +1,62 @@
+{
+  if ((dbc.getRequestContext() != null) && (dbc.getRequestContext().getAttribute(REQ_ATTR_CHECK_PERMISSIONS) != null)) {
+    checkWritePermissionsInFolder(dbc,source);
+    return;
+  }
+  CmsResourceFilter filter=CmsResourceFilter.IGNORE_EXPIRATION;
+  if (projectId.equals(CmsProject.ONLINE_PROJECT_ID)) {
+    filter=CmsResourceFilter.ALL;
+  }
+  String destinationFoldername=CmsResource.getParentFolder(destinationPath);
+  CmsFolder destinationFolder=m_driverManager.readFolder(dbc,destinationFoldername,filter);
+  if (!projectId.equals(CmsProject.ONLINE_PROJECT_ID)) {
+    try {
+      CmsResource onlineResource=m_driverManager.getVfsDriver(dbc).readResource(dbc,CmsProject.ONLINE_PROJECT_ID,destinationPath,true);
+      if (!onlineResource.getStructureId().equals(source.getStructureId())) {
+        CmsResource offlineResource=null;
+        try {
+          offlineResource=readResource(dbc,dbc.getRequestContext().currentProject().getUuid(),onlineResource.getStructureId(),true);
+        }
+ catch (        CmsException e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(e.getMessage(),e);
+          }
+        }
+        throw new CmsVfsOnlineResourceAlreadyExistsException(Messages.get().container(Messages.ERR_OVERWRITE_MOVED_RESOURCE_3,dbc.removeSiteRoot(source.getRootPath()),dbc.removeSiteRoot(destinationPath),dbc.removeSiteRoot(offlineResource == null ? "__ERROR__" : offlineResource.getRootPath())));
+      }
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+    }
+  }
+  try {
+    Query q=m_sqlManager.createQuery(dbc,projectId,C_RESOURCES_MOVE);
+    q.setParameter(1,source.getStructureId().toString());
+    @SuppressWarnings("unchecked") List<I_CmsDAOStructure> res=q.getResultList();
+    for (    I_CmsDAOStructure s : res) {
+      s.setResourcePath(CmsFileUtil.removeTrailingSeparator(destinationPath));
+      s.setParentId(destinationFolder.getStructureId().toString());
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  moveRelations(dbc,projectId,source.getStructureId(),destinationPath);
+  repairBrokenRelations(dbc,projectId,source.getStructureId(),destinationPath);
+  try {
+    m_driverManager.repairCategories(dbc,projectId,readResource(dbc,projectId,destinationPath,true));
+  }
+ catch (  CmsException e) {
+    throw new CmsDataAccessException(e.getMessageContainer(),e);
+  }
+  if (!projectId.equals(CmsProject.ONLINE_PROJECT_ID) && (dbc.getRequestContext() != null)) {
+    String deletedResourceRootPath=source.getRootPath();
+    dbc.getRequestContext().setAttribute(CmsProjectDriver.DBC_ATTR_READ_PROJECT_FOR_RESOURCE,Boolean.TRUE);
+    I_CmsProjectDriver projectDriver=m_driverManager.getProjectDriver(dbc);
+    Iterator<CmsProject> itProjects=projectDriver.readProjects(dbc,deletedResourceRootPath).iterator();
+    while (itProjects.hasNext()) {
+      CmsProject project=itProjects.next();
+      projectDriver.deleteProjectResource(dbc,project.getUuid(),deletedResourceRootPath);
+      projectDriver.createProjectResource(dbc,project.getUuid(),destinationPath);
+    }
+  }
+}

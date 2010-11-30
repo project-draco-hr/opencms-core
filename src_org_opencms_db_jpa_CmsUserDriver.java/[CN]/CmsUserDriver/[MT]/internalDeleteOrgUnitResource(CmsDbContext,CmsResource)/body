@@ -1,0 +1,26 @@
+{
+  CmsRelationFilter filter=CmsRelationFilter.TARGETS;
+  if (!dbc.currentProject().isOnlineProject()) {
+    CmsProject project=dbc.currentProject();
+    dbc.getRequestContext().setCurrentProject(m_driverManager.readProject(dbc,CmsProject.ONLINE_PROJECT_ID));
+    try {
+      m_driverManager.getVfsDriver(dbc).deletePropertyObjects(dbc,CmsProject.ONLINE_PROJECT_ID,resource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+      m_driverManager.getVfsDriver(dbc).removeFolder(dbc,dbc.currentProject(),resource);
+      m_driverManager.getUserDriver(dbc).removeAccessControlEntries(dbc,dbc.currentProject(),resource.getResourceId());
+      m_driverManager.getVfsDriver(dbc).deleteRelations(dbc,dbc.getRequestContext().currentProject().getUuid(),resource,filter);
+    }
+  finally {
+      dbc.getRequestContext().setCurrentProject(project);
+    }
+  }
+  m_driverManager.getVfsDriver(dbc).deletePropertyObjects(dbc,CmsProject.ONLINE_PROJECT_ID,resource,CmsProperty.DELETE_OPTION_DELETE_STRUCTURE_AND_RESOURCE_VALUES);
+  m_driverManager.getVfsDriver(dbc).removeFolder(dbc,dbc.currentProject(),resource);
+  m_driverManager.getUserDriver(dbc).removeAccessControlEntries(dbc,dbc.currentProject(),resource.getResourceId());
+  m_driverManager.getVfsDriver(dbc).deleteRelations(dbc,dbc.getRequestContext().currentProject().getUuid(),resource,filter);
+  OpenCms.getMemoryMonitor().clearAccessControlListCache();
+  OpenCms.getMemoryMonitor().flushCache(CmsMemoryMonitor.CacheType.PROPERTY);
+  OpenCms.getMemoryMonitor().flushCache(CmsMemoryMonitor.CacheType.PROPERTY_LIST);
+  OpenCms.getMemoryMonitor().flushCache(CmsMemoryMonitor.CacheType.PROJECT_RESOURCES);
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_DELETED,Collections.<String,Object>singletonMap(I_CmsEventListener.KEY_RESOURCES,Collections.singletonList(resource))));
+  OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED,Collections.<String,Object>singletonMap(I_CmsEventListener.KEY_RESOURCE,resource)));
+}

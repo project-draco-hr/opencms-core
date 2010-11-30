@@ -1,0 +1,71 @@
+{
+  internalValidateResourceLength(offlineResource);
+  int resourceSize=offlineResource.getLength();
+  String resourcePath=CmsFileUtil.removeTrailingSeparator(offlineResource.getRootPath());
+  Query q;
+  try {
+    boolean resourceExists=validateResourceIdExists(dbc,onlineProject.getUuid(),offlineResource.getResourceId());
+    if (resourceExists) {
+      q=m_sqlManager.createQuery(dbc,onlineProject,C_RESOURCES_UPDATE_RESOURCES);
+      q.setParameter(1,offlineResource.getResourceId().toString());
+      @SuppressWarnings("unchecked") List<I_CmsDAOResources> res=q.getResultList();
+      for (      I_CmsDAOResources r : res) {
+        r.setResourceType(offlineResource.getTypeId());
+        r.setResourceFlags(offlineResource.getFlags());
+        r.setDateLastModified(offlineResource.getDateLastModified());
+        r.setUserLastModified(offlineResource.getUserLastModified().toString());
+        r.setResourceState(CmsResource.STATE_UNCHANGED.getState());
+        r.setResourceSize(resourceSize);
+        r.setDateContent(offlineResource.getDateContent());
+        r.setProjectLastModified(offlineResource.getProjectLastModified().toString());
+        r.setSiblingCount(countSiblings(dbc,onlineProject.getUuid(),onlineResource.getResourceId()));
+      }
+    }
+ else {
+      I_CmsDAOResources r=CmsProject.isOnlineProject(onlineProject.getUuid()) ? new CmsDAOOnlineResources() : new CmsDAOOfflineResources();
+      r.setResourceId(offlineResource.getResourceId().toString());
+      r.setResourceType(offlineResource.getTypeId());
+      r.setResourceFlags(offlineResource.getFlags());
+      r.setDateCreated(offlineResource.getDateCreated());
+      r.setUserCreated(offlineResource.getUserCreated().toString());
+      r.setDateLastModified(offlineResource.getDateLastModified());
+      r.setUserLastModified(offlineResource.getUserLastModified().toString());
+      r.setResourceState(CmsResource.STATE_UNCHANGED.getState());
+      r.setResourceSize(resourceSize);
+      r.setDateContent(offlineResource.getDateContent());
+      r.setProjectLastModified(offlineResource.getProjectLastModified().toString());
+      r.setSiblingCount(1);
+      r.setResourceVersion(1);
+      m_sqlManager.persist(dbc,r);
+    }
+    String parentId=internalReadParentId(dbc,onlineProject.getUuid(),resourcePath);
+    if (validateStructureIdExists(dbc,onlineProject.getUuid(),offlineResource.getStructureId())) {
+      q=m_sqlManager.createQuery(dbc,onlineProject,C_RESOURCES_UPDATE_STRUCTURE);
+      q.setParameter(1,offlineResource.getStructureId().toString());
+      @SuppressWarnings("unchecked") List<I_CmsDAOStructure> res=q.getResultList();
+      for (      I_CmsDAOStructure s : res) {
+        s.setResourceId(offlineResource.getResourceId().toString());
+        s.setResourcePath(resourcePath);
+        s.setStructureState(CmsResource.STATE_UNCHANGED.getState());
+        s.setDateReleased(offlineResource.getDateReleased());
+        s.setDateExpired(offlineResource.getDateExpired());
+        s.setParentId(parentId);
+      }
+    }
+ else {
+      I_CmsDAOStructure s=CmsProject.isOnlineProject(onlineProject.getUuid()) ? new CmsDAOOnlineStructure() : new CmsDAOOfflineStructure();
+      s.setStructureId(offlineResource.getStructureId().toString());
+      s.setResourceId(offlineResource.getResourceId().toString());
+      s.setResourcePath(resourcePath);
+      s.setStructureState(CmsResource.STATE_UNCHANGED.getState());
+      s.setDateReleased(offlineResource.getDateReleased());
+      s.setDateExpired(offlineResource.getDateExpired());
+      s.setParentId(parentId);
+      s.setStructureVersion(resourceExists ? 1 : 0);
+      m_sqlManager.persist(dbc,s);
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+}

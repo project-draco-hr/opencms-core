@@ -1,0 +1,49 @@
+{
+  CmsFile newFile=null;
+  try {
+    CmsUUID projectId=dbc.getProjectId();
+    boolean dbcHasProjectId=(projectId != null) && !projectId.isNullUUID();
+    CmsUUID projectIdForReading=(!dbcHasProjectId ? offlineProject.getUuid() : CmsProject.ONLINE_PROJECT_ID);
+    dbc.setProjectId(offlineProject.getUuid());
+    byte[] offlineContent=m_driverManager.getVfsDriver(dbc).readContent(dbc,projectIdForReading,offlineResource.getResourceId());
+    CmsFile offlineFile=new CmsFile(offlineResource);
+    offlineFile.setContents(offlineContent);
+    dbc.setProjectId(projectId);
+    newFile=(CmsFile)offlineFile.clone();
+    newFile.setState(CmsResource.STATE_UNCHANGED);
+    boolean createSibling=true;
+    if (!offlineFile.getState().isNew()) {
+      createSibling=false;
+    }
+ else {
+      if (!m_driverManager.getVfsDriver(dbc).validateResourceIdExists(dbc,onlineProject.getUuid(),offlineFile.getResourceId())) {
+        createSibling=false;
+      }
+    }
+    boolean alreadyPublished=publishedResourceIds.contains(offlineResource.getResourceId());
+    needToUpdateContent&=!alreadyPublished;
+    if (createSibling) {
+      if (!alreadyPublished) {
+        m_driverManager.getVfsDriver(dbc).createResource(dbc,onlineProject.getUuid(),newFile,null);
+      }
+ else {
+        m_driverManager.getVfsDriver(dbc).createSibling(dbc,onlineProject,offlineResource);
+      }
+      newFile=new CmsFile(offlineResource);
+      newFile.setContents(offlineContent);
+    }
+ else {
+      m_driverManager.getVfsDriver(dbc).publishResource(dbc,onlineProject,newFile,offlineFile);
+    }
+    m_driverManager.getVfsDriver(dbc).publishVersions(dbc,offlineResource,!alreadyPublished);
+    m_driverManager.getVfsDriver(dbc).createOnlineContent(dbc,offlineFile.getResourceId(),offlineFile.getContents(),publishTag,true,needToUpdateContent);
+    publishedResourceIds.add(offlineResource.getResourceId());
+  }
+ catch (  CmsDataAccessException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(Messages.get().getBundle().key(Messages.LOG_PUBLISHING_FILE_CONTENT_1,offlineResource.toString()),e);
+    }
+    throw e;
+  }
+  return newFile;
+}

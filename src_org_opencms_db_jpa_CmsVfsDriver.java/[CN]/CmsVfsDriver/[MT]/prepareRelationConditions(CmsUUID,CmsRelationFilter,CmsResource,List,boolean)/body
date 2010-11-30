@@ -1,0 +1,91 @@
+{
+  StringBuffer conditions=new StringBuffer(128);
+  params.clear();
+  if (filter.isSource() || filter.isTarget()) {
+    if (resource != null) {
+      conditions.append(BEGIN_CONDITION);
+      if (filter.isSource() && checkSource) {
+        if (!filter.isIncludeSubresources()) {
+          conditions.append(m_sqlManager.readQuery(projectId,C_RELATION_FILTER_TARGET_ID));
+          params.add(resource.getStructureId().toString());
+        }
+ else {
+          conditions.append(m_sqlManager.readQuery(projectId,C_RELATION_FILTER_TARGET_PATH));
+          params.add(resource.getRootPath() + '%');
+        }
+      }
+ else       if (filter.isTarget() && !checkSource) {
+        if (!filter.isIncludeSubresources()) {
+          conditions.append(m_sqlManager.readQuery(projectId,C_RELATION_FILTER_SOURCE_ID));
+          params.add(resource.getStructureId().toString());
+        }
+ else {
+          conditions.append(m_sqlManager.readQuery(projectId,C_RELATION_FILTER_SOURCE_PATH));
+          params.add(resource.getRootPath() + '%');
+        }
+      }
+      conditions.append(END_CONDITION);
+    }
+    if (filter.getStructureId() != null) {
+      if (conditions.length() == 0) {
+        conditions.append(BEGIN_CONDITION);
+      }
+ else {
+        conditions.append(BEGIN_INCLUDE_CONDITION);
+      }
+      if (filter.isSource() && checkSource) {
+        conditions.append(m_sqlManager.readQuery(projectId,C_RELATION_FILTER_SOURCE_ID));
+        params.add(filter.getStructureId().toString());
+      }
+ else       if (filter.isTarget() && !checkSource) {
+        conditions.append(m_sqlManager.readQuery(projectId,C_RELATION_FILTER_TARGET_ID));
+        params.add(filter.getStructureId().toString());
+      }
+      conditions.append(END_CONDITION);
+    }
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(filter.getPath())) {
+      if (conditions.length() == 0) {
+        conditions.append(BEGIN_CONDITION);
+      }
+ else {
+        conditions.append(BEGIN_INCLUDE_CONDITION);
+      }
+      String queryPath=filter.getPath();
+      if (filter.isIncludeSubresources()) {
+        queryPath+='%';
+      }
+      if (filter.isSource() && checkSource) {
+        conditions.append(m_sqlManager.readQuery(projectId,C_RELATION_FILTER_SOURCE_PATH));
+        params.add(queryPath);
+      }
+ else       if (filter.isTarget() && !checkSource) {
+        conditions.append(m_sqlManager.readQuery(projectId,C_RELATION_FILTER_TARGET_PATH));
+        params.add(queryPath);
+      }
+      conditions.append(END_CONDITION);
+    }
+  }
+  Set types=filter.getTypes();
+  if (!types.isEmpty()) {
+    if (conditions.length() == 0) {
+      conditions.append(BEGIN_CONDITION);
+    }
+ else {
+      conditions.append(BEGIN_INCLUDE_CONDITION);
+    }
+    conditions.append(m_sqlManager.readQuery(projectId,C_RELATION_FILTER_TYPE));
+    conditions.append(BEGIN_CONDITION);
+    Iterator it=types.iterator();
+    while (it.hasNext()) {
+      CmsRelationType type=(CmsRelationType)it.next();
+      conditions.append("?");
+      params.add(Integer.valueOf(type.getId()));
+      if (it.hasNext()) {
+        conditions.append(", ");
+      }
+    }
+    conditions.append(END_CONDITION);
+    conditions.append(END_CONDITION);
+  }
+  return conditions.toString();
+}

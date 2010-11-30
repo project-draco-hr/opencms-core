@@ -1,0 +1,36 @@
+{
+  CmsUUID projectId=dbc.getRequestContext().currentProject().getUuid();
+  List<CmsResource> resources=new ArrayList<CmsResource>();
+  try {
+    Query q=m_sqlManager.createQuery(dbc,projectId,C_RESOURCES_READ_WITH_ACE_1);
+    q.setParameter(1,escapeDbWildcard(folder.getRootPath() + "%"));
+    @SuppressWarnings("unchecked") List<Object[]> res=q.getResultList();
+    for (    Object[] o : res) {
+      resources.add(createResource(o,projectId));
+    }
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  Iterator<CmsResource> itResources=resources.iterator();
+  while (itResources.hasNext()) {
+    CmsResource resource=itResources.next();
+    try {
+      m_driverManager.getSecurityManager().checkPermissions(dbc.getRequestContext(),resource,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.ALL);
+    }
+ catch (    CmsException e) {
+      throw new CmsDataAccessException(e.getMessageContainer(),e);
+    }
+  }
+  CmsResourceFilter filter=CmsResourceFilter.ALL;
+  itResources=readTypesInResourceTree(dbc,projectId,folder.getRootPath(),CmsResourceTypeJsp.getJspResourceTypeIds(),filter.getState(),filter.getModifiedAfter(),filter.getModifiedBefore(),filter.getReleaseAfter(),filter.getReleaseBefore(),filter.getExpireAfter(),filter.getExpireBefore(),CmsDriverManager.READMODE_INCLUDE_TREE).iterator();
+  while (itResources.hasNext()) {
+    CmsResource resource=itResources.next();
+    try {
+      m_driverManager.getSecurityManager().checkPermissions(dbc.getRequestContext(),resource,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.ALL);
+    }
+ catch (    CmsException e) {
+      throw new CmsDataAccessException(e.getMessageContainer(),e);
+    }
+  }
+}

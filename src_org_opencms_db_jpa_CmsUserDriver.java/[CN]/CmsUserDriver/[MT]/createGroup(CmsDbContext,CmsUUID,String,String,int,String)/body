@@ -1,0 +1,29 @@
+{
+  CmsUUID parentId=CmsUUID.getNullUUID();
+  CmsGroup group=null;
+  if (existsGroup(dbc,groupFqn)) {
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_GROUP_WITH_NAME_ALREADY_EXISTS_1,groupFqn);
+    if (LOG.isErrorEnabled()) {
+      LOG.error(message.key());
+    }
+    throw new CmsDbEntryAlreadyExistsException(message);
+  }
+  try {
+    if (CmsStringUtil.isNotEmpty(parentGroupFqn)) {
+      parentId=readGroup(dbc,parentGroupFqn).getId();
+    }
+    CmsDAOGroups g=new CmsDAOGroups();
+    g.setGroupId(groupId.toString());
+    g.setParentGroupId(parentId.toString());
+    g.setGroupName(CmsOrganizationalUnit.getSimpleName(groupFqn));
+    g.setGroupDescription(m_sqlManager.validateEmpty(description));
+    g.setGroupFlags(flags);
+    g.setGroupOu(CmsOrganizationalUnit.SEPARATOR + CmsOrganizationalUnit.getParentFqn(groupFqn));
+    m_sqlManager.persist(dbc,g);
+    group=new CmsGroup(groupId,parentId,groupFqn,description,flags);
+  }
+ catch (  PersistenceException e) {
+    throw new CmsDataAccessException(Messages.get().container(Messages.ERR_JPA_PERSITENCE,e),e);
+  }
+  return group;
+}
