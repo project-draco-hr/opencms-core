@@ -4,6 +4,8 @@
   CmsSitemapManager sitemapMgr=OpenCms.getSitemapManager();
   try {
     CmsResource sitemap=cms.readResource(sitemapUri);
+    CmsProperty configProp=cms.readPropertyObject(sitemap,CmsPropertyDefinition.PROPERTY_ADE_SITEMAP_CONFIG,true);
+    String configFilePath=configProp.getValue();
     Map<String,CmsXmlContentProperty> propertyConfig=sitemapMgr.getElementPropertyConfiguration(cms,sitemap,true);
     I_CmsXmlContentHandler contentHandler=CmsXmlContentDefinition.getContentHandlerForResource(cms,sitemap);
     CmsMacroResolver resolver=CmsXmlContentPropertyHelper.getMacroResolverForProperties(cms,contentHandler);
@@ -12,14 +14,21 @@
     String openPath=getRequest().getParameter("path");
     String entryPoint=sitemapMgr.getEntryPoint(cms,sitemapUri);
     CmsSitemapEntry entry=sitemapMgr.getEntryForUri(cms,entryPoint);
+    CmsSitemapRuntimeInfo sitemapInfo=entry.getSitemapInfo();
+    if (entry.hasSubSitemap()) {
+      sitemapInfo=((CmsInternalSitemapEntry)entry).getSubEntries().get(0).getSitemapInfo();
+    }
+    CmsDetailPageTable detailPages=sitemapInfo.getDetailPageTable();
     Map<String,CmsComputedPropertyValue> parentProperties=new HashMap<String,CmsComputedPropertyValue>(entry.getParentComputedProperties());
     String siteRoot=OpenCms.getSiteManager().getSiteRoot(sitemap.getRootPath());
     String exportName=sitemapMgr.getExportnameForSiteRoot(siteRoot);
     String exportRfsPrefix=OpenCms.getStaticExportManager().getDefaultRfsPrefix();
     CmsSite site=OpenCms.getSiteManager().getSiteForSiteRoot(siteRoot);
     boolean isSecure=site.hasSecureServer();
+    List<CmsResourceTypeInfo> resourceTypeInfos=new ArrayList<CmsResourceTypeInfo>();
+    resourceTypeInfos=getResourceTypeInfos(getCmsObject(),sitemapUri);
     int maxDepth=sitemapMgr.getMaxDepth(cms,sitemap);
-    result=new CmsSitemapData(getDefaultTemplate(sitemapUri),getTemplates(),resolvedProps,getClipboardData(),parentProperties,exportName,exportRfsPrefix,isSecure,getNoEditReason(cms,getRequest()),isDisplayToolbar(getRequest()),OpenCms.getResourceManager().getResourceType(CmsResourceTypeXmlContainerPage.getStaticTypeName()).getTypeId(),parentSitemap,getRoot(sitemap,parentSitemap,openPath,propertyConfig),sitemap.getDateLastModified(),openPath,maxDepth);
+    result=new CmsSitemapData(getDefaultTemplate(sitemapUri),getTemplates(),resolvedProps,getClipboardData(),parentProperties,exportName,exportRfsPrefix,isSecure,getNoEditReason(cms,getRequest()),shouldDisplayToolbar(getRequest()),OpenCms.getResourceManager().getResourceType(CmsResourceTypeXmlContainerPage.getStaticTypeName()).getTypeId(),parentSitemap,getRoot(sitemap,parentSitemap,openPath,propertyConfig),sitemap.getDateLastModified(),openPath,maxDepth,detailPages,resourceTypeInfos,configFilePath);
   }
  catch (  Throwable e) {
     error(e);
