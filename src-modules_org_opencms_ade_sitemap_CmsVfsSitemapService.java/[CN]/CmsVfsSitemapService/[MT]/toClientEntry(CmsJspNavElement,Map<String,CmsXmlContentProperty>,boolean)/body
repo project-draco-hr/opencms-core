@@ -1,0 +1,39 @@
+{
+  CmsResource entryPage=null;
+  CmsObject cms=getCmsObject();
+  CmsClientSitemapEntry clientEntry=new CmsClientSitemapEntry();
+  CmsResource entryFolder=null;
+  Map<String,CmsSimplePropertyValue> clientProperties=CmsXmlContentPropertyHelper.convertPropertySimpleValues(getCmsObject(),Collections.<String,CmsSimplePropertyValue>emptyMap(),propertyConfig,true);
+  if (navElement.getResource().isFolder()) {
+    entryFolder=navElement.getResource();
+    entryPage=cms.readDefaultFile(entryFolder);
+    clientEntry.setName(entryFolder.getName());
+    clientProperties=generatePropertyValues(propertyConfig,CmsProperty.toMap(cms.readPropertyObjects(entryPage,false)),navElement.getProperties());
+  }
+ else   if (isRoot) {
+    entryFolder=cms.readResource("/");
+    entryPage=navElement.getResource();
+    clientEntry.setName("");
+    clientProperties=generatePropertyValues(propertyConfig,navElement.getProperties(),CmsProperty.toMap(cms.readPropertyObjects(entryFolder,false)));
+  }
+ else {
+    entryPage=navElement.getResource();
+    clientEntry.setName(entryPage.getName());
+  }
+  if (entryPage == null) {
+    return null;
+  }
+  String path=cms.getSitePath(entryPage);
+  if (entryFolder != null) {
+    CmsLock folderLock=cms.getLock(entryFolder);
+    clientEntry.setHasForeignFolderLock(!folderLock.isUnlocked() && !folderLock.isOwnedBy(cms.getRequestContext().currentUser()));
+  }
+  clientEntry.setId(entryPage.getStructureId());
+  clientEntry.setTitle(navElement.getNavText());
+  clientEntry.setVfsPath(path);
+  navElement.getProperties();
+  clientEntry.setProperties(clientProperties);
+  clientEntry.setSitePath(CmsResource.getFolderPath(path));
+  clientEntry.setLock(generateClientLock(entryPage));
+  return clientEntry;
+}
