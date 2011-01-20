@@ -19,11 +19,7 @@
       }
     }
  catch (    CmsException e) {
-      CmsSitemapEntry entry=OpenCms.getSitemapManager().getEntryForId(cms,m_structureId);
-      if (entry == null) {
-        throw new CmsVfsResourceNotFoundException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_READ_RESOURCE_1,m_target));
-      }
-      rootPath=entry.getRootPath();
+      throw new CmsVfsResourceNotFoundException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_READ_RESOURCE_1,m_target));
     }
     if (!rootPath.equals(m_target)) {
       if (LOG.isDebugEnabled()) {
@@ -41,29 +37,16 @@
     if (CmsStringUtil.isEmptyOrWhitespaceOnly(m_target)) {
       return;
     }
-    String siteTarget=cms.getRequestContext().removeSiteRoot(m_target);
+    String siteRoot=cms.getRequestContext().getSiteRoot();
     try {
-      CmsSitemapEntry entry=OpenCms.getSitemapManager().getEntryForUri(cms,siteTarget);
-      if (entry == null) {
-        throw new CmsVfsResourceNotFoundException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_READ_RESOURCE_1,m_target));
-      }
-      String rootPath=entry.getRootPath();
-      CmsUUID id;
-      if (entry.getContentId() != null) {
-        id=entry.getContentId();
-      }
- else       if (entry.isSitemap()) {
-        id=entry.getId();
-      }
- else {
-        id=entry.getStructureId();
-      }
-      if (!id.equals(m_structureId)) {
+      cms.getRequestContext().setSiteRoot("");
+      CmsResource res=cms.readResource(m_target,CmsResourceFilter.ALL);
+      if (!res.getStructureId().equals(m_structureId)) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug(Messages.get().getBundle().key(Messages.LOG_BROKEN_LINK_UPDATED_BY_NAME_3,m_target,m_structureId,id));
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_BROKEN_LINK_UPDATED_BY_NAME_3,m_target,m_structureId,res.getStructureId()));
         }
-        m_target=rootPath;
-        m_structureId=id;
+        m_target=res.getRootPath();
+        m_structureId=res.getStructureId();
         CmsLinkUpdateUtil.updateXml(this,m_element,true);
       }
     }
@@ -72,6 +55,9 @@
         LOG.debug(Messages.get().getBundle().key(Messages.LOG_BROKEN_LINK_BY_NAME_1,m_target),e1);
       }
       m_structureId=null;
+    }
+ finally {
+      cms.getRequestContext().setSiteRoot(siteRoot);
     }
   }
 }
