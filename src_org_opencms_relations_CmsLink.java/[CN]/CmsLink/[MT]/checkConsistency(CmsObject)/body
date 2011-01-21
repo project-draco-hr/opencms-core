@@ -1,4 +1,5 @@
 {
+  m_resource=null;
   if (!m_internal || (cms == null)) {
     return;
   }
@@ -7,25 +8,22 @@
       throw new CmsException(Messages.get().container(Messages.LOG_BROKEN_LINK_NO_ID_0));
     }
     String rootPath=null;
+    CmsResource res;
     try {
-      CmsResource res=cms.readResource(m_structureId,CmsResourceFilter.ALL);
+      res=cms.readResource(m_structureId,CmsResourceFilter.ALL);
+      m_resource=res;
       rootPath=res.getRootPath();
-      if (res.isFile()) {
-        I_CmsDetailPageFinder finder=OpenCms.getSitemapManager().getDetailPageFinder();
-        String detailPage=finder.getDetailPage(cms,res,cms.getRequestContext().getOriginalUri());
-        if (detailPage != null) {
-          rootPath=CmsStringUtil.joinPaths(detailPage,cms.getDetailName(res),"/");
+      if (!res.getRootPath().equals(m_target)) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_BROKEN_LINK_UPDATED_BY_ID_3,m_structureId,m_target,res.getRootPath()));
         }
       }
     }
  catch (    CmsException e) {
       throw new CmsVfsResourceNotFoundException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_READ_RESOURCE_1,m_target));
     }
-    if (!rootPath.equals(m_target)) {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug(Messages.get().getBundle().key(Messages.LOG_BROKEN_LINK_UPDATED_BY_ID_3,m_structureId,m_target,rootPath));
-      }
-      m_target=rootPath;
+    if ((rootPath != null) && !rootPath.equals(m_target)) {
+      m_target=res.getRootPath();
       setUri();
       CmsLinkUpdateUtil.updateXml(this,m_element,true);
     }
@@ -41,6 +39,7 @@
     try {
       cms.getRequestContext().setSiteRoot("");
       CmsResource res=cms.readResource(m_target,CmsResourceFilter.ALL);
+      m_resource=res;
       if (!res.getStructureId().equals(m_structureId)) {
         if (LOG.isDebugEnabled()) {
           LOG.debug(Messages.get().getBundle().key(Messages.LOG_BROKEN_LINK_UPDATED_BY_NAME_3,m_target,m_structureId,res.getStructureId()));
