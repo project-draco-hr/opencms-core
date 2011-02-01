@@ -1,0 +1,63 @@
+{
+  CmsListInfoBean infoBean=new CmsListInfoBean();
+  infoBean.setTitle(entry.getTitle());
+  infoBean.setSubTitle(entry.getSitePath());
+  infoBean.addAdditionalInfo(Messages.get().key(Messages.GUI_NAME_0),entry.getName());
+  String shownPath=entry.getVfsPath();
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(shownPath)) {
+    shownPath="-";
+  }
+  infoBean.addAdditionalInfo(Messages.get().key(Messages.GUI_VFS_PATH_0),shownPath);
+  CmsInfoLoadingListItemWidget itemWidget=new CmsInfoLoadingListItemWidget(infoBean);
+  final CmsSitemapTreeItem treeItem=new CmsSitemapTreeItem(itemWidget,entry);
+  itemWidget.setAdditionalInfoLoader(new I_CmsAdditionalInfoLoader(){
+    public void load(    final AsyncCallback<List<AdditionalInfoItem>> callback){
+      if (entry.getVfsPath() == null) {
+        List<AdditionalInfoItem> infoItems=new ArrayList<AdditionalInfoItem>();
+        AdditionalInfoItem item=createResourceStateInfo(CmsResourceState.STATE_NEW);
+        infoItems.add(item);
+        if (entry.getOwnProperty(CmsSitemapManager.Property.isRedirect.getName()) != null) {
+          CmsLinkBean link=entry.getRedirectInfo();
+          String target="-";
+          if (link != null) {
+            target=link.getLink();
+          }
+          String title=Messages.get().key(Messages.GUI_ADDINFO_REDIRECT_0);
+          AdditionalInfoItem redirectInfo=new AdditionalInfoItem(title,target,null);
+          infoItems.add(redirectInfo);
+        }
+        callback.onSuccess(infoItems);
+      }
+ else {
+        CmsCoreProvider.get().getResourceState(entry.getVfsPath(),new AsyncCallback<CmsResourceState>(){
+          /** 
+ * @see com.google.gwt.user.client.rpc.AsyncCallback#onFailure(java.lang.Throwable)
+ */
+          public void onFailure(          Throwable caught){
+          }
+          /** 
+ * @see com.google.gwt.user.client.rpc.AsyncCallback#onSuccess(Object o)
+ */
+          public void onSuccess(          CmsResourceState result){
+            AdditionalInfoItem item=createResourceStateInfo(result);
+            callback.onSuccess(Collections.singletonList(item));
+          }
+        }
+);
+      }
+    }
+    /** 
+ * Helper method for creating an additional info item from a resource state.<p>
+ * @param state the resource state for creating the additional info item 
+ * @return the additional info item 
+ */
+    protected AdditionalInfoItem createResourceStateInfo(    CmsResourceState state){
+      final String label=org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_RESOURCE_STATE_0);
+      AdditionalInfoItem item=new AdditionalInfoItem(label,CmsResourceStateUtil.getStateName(state),CmsResourceStateUtil.getStateStyle(state));
+      return item;
+    }
+  }
+);
+  CmsSitemapHoverbar.installOn(m_controller,treeItem);
+  return treeItem;
+}

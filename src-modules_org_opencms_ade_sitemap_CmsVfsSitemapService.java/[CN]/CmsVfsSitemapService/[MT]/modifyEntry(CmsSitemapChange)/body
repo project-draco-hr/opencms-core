@@ -3,13 +3,16 @@
   CmsResource entryPage=null;
   CmsResource entryFolder=null;
   try {
-    if (hasPageChanges(change)) {
+    if (hasPageChanges(change) || change.isLeafType()) {
       entryPage=cms.readResource(change.getEntryId());
       ensureLock(entryPage);
     }
     if (hasFolderChanges(change)) {
       entryFolder=cms.readParentFolder(change.getEntryId());
       ensureLock(entryFolder);
+    }
+    if (change.isLeafType()) {
+      entryFolder=entryPage;
     }
     if (entryPage != null) {
       cms.writePropertyObjects(cms.getSitePath(entryPage),generateOwnProperties(change));
@@ -19,10 +22,13 @@
         String destinationPath;
         if (change.hasNewParent()) {
           CmsResource futureParent=cms.readParentFolder(change.getParentId());
-          destinationPath=CmsStringUtil.joinPaths(cms.getSitePath(futureParent),change.getName() + "/");
+          destinationPath=CmsStringUtil.joinPaths(cms.getSitePath(futureParent),change.getName());
         }
  else {
           destinationPath=CmsStringUtil.joinPaths(CmsResource.getParentFolder(cms.getSitePath(entryFolder)),change.getName());
+        }
+        if (change.isLeafType() && destinationPath.endsWith("/")) {
+          destinationPath=destinationPath.substring(0,destinationPath.length() - 1);
         }
         if (!cms.getSitePath(entryFolder).equals(destinationPath)) {
           cms.moveResource(cms.getSitePath(entryFolder),destinationPath);
