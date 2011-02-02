@@ -1,20 +1,15 @@
 {
   I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(res);
   String typeName=resType.getTypeName();
-  CmsConfigurationParser parser=getConfigurationParser(cms,cms.getSitePath(res));
-  CmsPair<Map<String,String>,Map<Integer,String>> fmtConfig=null;
-  if (parser != null) {
-    fmtConfig=parser.getFormatterConfigurationForType(typeName);
+  String rootPath=cms.getRequestContext().addSiteRoot(cms.getRequestContext().getOriginalUri());
+  CmsContainerPageConfigurationData configData=OpenCms.getADEConfigurationManager().getContainerPageConfiguration(cms,rootPath);
+  Map<String,CmsTypeFormatterConfiguration> formatterConfig=configData.getFormatterConfiguration();
+  CmsTypeFormatterConfiguration typeFmtConfig=formatterConfig.get(typeName);
+  if (typeFmtConfig != null) {
+    String formatter=CmsFormatterUtil.selectFormatter(typeFmtConfig.getContainerTypeFormatters(),typeFmtConfig.getWidthFormatters(),cntType,width);
+    return formatter;
   }
-  if (fmtConfig != null) {
-    return CmsFormatterUtil.selectFormatter(fmtConfig.getFirst(),fmtConfig.getSecond(),cntType,width);
+ else {
+    return OpenCms.getResourceManager().getResourceType(res).getFormatterForContainerTypeAndWidth(cms,res,cntType,width);
   }
-  if (m_moduleConfig != null) {
-    CmsConfigurationParser moduleConfig=m_moduleConfig.getConfigurationParser(getAdminCmsObject(cms));
-    fmtConfig=moduleConfig.getFormatterConfigurationForType(typeName);
-    if (fmtConfig != null) {
-      return CmsFormatterUtil.selectFormatter(fmtConfig.getFirst(),fmtConfig.getSecond(),cntType,width);
-    }
-  }
-  return OpenCms.getResourceManager().getResourceType(res).getFormatterForContainerTypeAndWidth(cms,res,cntType,width);
 }

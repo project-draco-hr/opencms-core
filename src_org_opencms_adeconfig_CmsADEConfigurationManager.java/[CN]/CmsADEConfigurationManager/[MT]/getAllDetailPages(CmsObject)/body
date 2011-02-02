@@ -1,0 +1,32 @@
+{
+  Map<String,List<CmsDetailPageInfo>> result=new HashMap<String,List<CmsDetailPageInfo>>();
+  List<EntryPointFolder> entryPoints=m_entryPointCacheManager.getEntryPoints(cms);
+  for (  EntryPointFolder entryPoint : entryPoints) {
+    CmsProperty sitemapConfigProp=entryPoint.getProperties().get(CmsPropertyDefinition.PROPERTY_ADE_SITEMAP_CONFIG);
+    if ((sitemapConfigProp == null) || sitemapConfigProp.isNullProperty()) {
+      continue;
+    }
+    String originalSiteRoot=cms.getRequestContext().getSiteRoot();
+    String sitemapConfigStr=sitemapConfigProp.getValue();
+    try {
+      String resourceRootPath=entryPoint.getResource().getRootPath();
+      String siteRoot=OpenCms.getSiteManager().getSiteRoot(resourceRootPath);
+      cms.getRequestContext().setSiteRoot(siteRoot);
+      sitemapConfigStr=cms.getRequestContext().addSiteRoot(sitemapConfigProp.getValue());
+    }
+  finally {
+      cms.getRequestContext().setSiteRoot(originalSiteRoot);
+    }
+    CmsSitemapConfigurationData sitemapConfig=m_sitemapConfCache.getConfiguration(cms,sitemapConfigStr);
+    Map<String,List<CmsDetailPageInfo>> detailPageInfos=sitemapConfig.getDetailPageInfo();
+    for (    Map.Entry<String,List<CmsDetailPageInfo>> entry : detailPageInfos.entrySet()) {
+      String typeName=entry.getKey();
+      List<CmsDetailPageInfo> detailList=entry.getValue();
+      if (!result.containsKey(typeName)) {
+        result.put(typeName,new ArrayList<CmsDetailPageInfo>());
+      }
+      result.get(typeName).add(detailList.get(0));
+    }
+  }
+  return result;
+}

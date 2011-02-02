@@ -1,0 +1,56 @@
+{
+  List<CmsRelation> brokenRelations=new ArrayList<CmsRelation>();
+  Map<String,Boolean> validatedLinks=new HashMap<String,Boolean>();
+  List<CmsRelation> relations=null;
+  try {
+    relations=getLinkRelations(dbc,project,resource);
+  }
+ catch (  CmsException e) {
+    LOG.error(Messages.get().getBundle().key(Messages.LOG_LINK_SEARCH_1,resource),e);
+    if (report != null) {
+      report.println(Messages.get().container(Messages.LOG_LINK_SEARCH_1,dbc.removeSiteRoot(resource.getRootPath())),I_CmsReport.FORMAT_ERROR);
+    }
+    return brokenRelations;
+  }
+  boolean first=true;
+  Iterator<CmsRelation> itRelations=relations.iterator();
+  while (itRelations.hasNext()) {
+    CmsRelation relation=itRelations.next();
+    String link;
+    if (!resource.getState().isDeleted()) {
+      link=relation.getTargetPath();
+    }
+ else {
+      link=relation.getSourcePath();
+    }
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(link)) {
+      continue;
+    }
+    if (validatedLinks.keySet().contains(link)) {
+      if (validatedLinks.get(link).booleanValue()) {
+        brokenRelations.add(relation);
+      }
+      continue;
+    }
+    boolean isValidLink=checkLinkValid(dbc,resource,relation,link,project,fileLookup);
+    if (!isValidLink) {
+      if (first) {
+        if (report != null) {
+          report.println(Messages.get().container(Messages.RPT_HTMLLINK_FOUND_BROKEN_LINKS_0),I_CmsReport.FORMAT_WARNING);
+        }
+        first=false;
+      }
+      brokenRelations.add(relation);
+      if (report != null) {
+        if (!resource.getState().isDeleted()) {
+          report.println(Messages.get().container(Messages.RPT_HTMLLINK_BROKEN_TARGET_2,relation.getSourcePath(),dbc.removeSiteRoot(link)),I_CmsReport.FORMAT_WARNING);
+        }
+ else {
+          report.println(Messages.get().container(Messages.RPT_HTMLLINK_BROKEN_SOURCE_2,dbc.removeSiteRoot(link),relation.getTargetPath()),I_CmsReport.FORMAT_WARNING);
+        }
+      }
+    }
+    validatedLinks.put(link,Boolean.valueOf(!isValidLink));
+  }
+  return brokenRelations;
+}

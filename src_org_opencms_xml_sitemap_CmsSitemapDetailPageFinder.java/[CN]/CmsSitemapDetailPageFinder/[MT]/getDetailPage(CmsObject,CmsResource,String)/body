@@ -2,23 +2,16 @@
   if (!CmsResourceTypeXmlContent.isXmlContent(res)) {
     return null;
   }
-  CmsSitemapManager sitemapManager=OpenCms.getSitemapManager();
-  CmsSitemapEntry entry=sitemapManager.getEntryForUri(cms,linkSource);
-  String type=OpenCms.getResourceManager().getResourceType(res.getTypeId()).getTypeName();
-  CmsDetailPageInfo detailPageInfo=null;
-  if (entry.isSitemap()) {
-    detailPageInfo=entry.getSitemapInfo().getBestDetailPage(type);
-  }
-  if (detailPageInfo == null) {
-    CmsSitemapRuntimeInfo info=sitemapManager.getRuntimeInfoForSite(cms,cms.getRequestContext().getSiteRoot(),cms.getRequestContext().getLocale());
-    if (info != null) {
-      detailPageInfo=info.getBestDetailPage(type);
-    }
-  }
-  if (detailPageInfo == null) {
+  CmsADEConfigurationManager confManager=OpenCms.getADEConfigurationManager();
+  String rootLinkSource=cms.getRequestContext().addSiteRoot(linkSource);
+  CmsSitemapConfigurationData sitemapConf=confManager.getSitemapConfiguration(cms,rootLinkSource);
+  String typeName=OpenCms.getResourceManager().getResourceType(res.getTypeId()).getTypeName();
+  List<CmsDetailPageInfo> pageInfos=sitemapConf.getDetailPageInfo().get(typeName);
+  if ((pageInfos == null) || pageInfos.isEmpty()) {
     return (new CmsPropertyDetailPageFinder()).getDetailPage(cms,res,linkSource);
   }
-  String detailPageUri=detailPageInfo.getUri();
+  CmsDetailPageInfo info=pageInfos.get(0);
+  String detailPageUri=info.getUri();
   if (!CmsResource.isFolder(detailPageUri)) {
     detailPageUri=CmsResource.getFolderPath(detailPageUri);
   }
