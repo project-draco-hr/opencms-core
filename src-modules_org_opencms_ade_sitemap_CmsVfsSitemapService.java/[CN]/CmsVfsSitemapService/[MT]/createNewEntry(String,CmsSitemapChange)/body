@@ -2,12 +2,26 @@
   CmsObject cms=getCmsObject();
   if (change.getParentId() != null) {
     CmsResource parentFolder=cms.readResource(change.getParentId());
-    String entryFolderPath=CmsStringUtil.joinPaths(cms.getSitePath(parentFolder),change.getName() + "/");
-    CmsResource entryFolder=new CmsResource(change.getEntryId(),new CmsUUID(),entryFolderPath,CmsResourceTypeFolder.getStaticTypeId(),true,0,cms.getRequestContext().currentProject().getUuid(),CmsResource.STATE_NEW,System.currentTimeMillis(),cms.getRequestContext().currentUser().getId(),System.currentTimeMillis(),cms.getRequestContext().currentUser().getId(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,1,0,System.currentTimeMillis(),0);
-    cms.createResource(entryFolderPath,entryFolder,null,generateInheritProperties(change,entryFolder));
-    CmsResource copyPage=OpenCms.getSitemapManager().getCopyPage(cms,entryPoint);
-    byte[] content=cms.readFile(copyPage).getContents();
-    cms.createResource(CmsStringUtil.joinPaths(entryFolderPath,"index.html"),copyPage.getTypeId(),content,generateOwnProperties(change));
-    tryUnlock(entryFolder);
+    String entryPath="";
+    CmsResource entryFolder=null;
+    if ("xmlredirect".equals(OpenCms.getResourceManager().getResourceType(change.getNewResourceTypeId()).getTypeName())) {
+      entryPath=CmsStringUtil.joinPaths(cms.getSitePath(parentFolder),change.getName());
+    }
+ else {
+      String entryFolderPath=CmsStringUtil.joinPaths(cms.getSitePath(parentFolder),change.getName() + "/");
+      entryFolder=new CmsResource(change.getEntryId(),new CmsUUID(),entryFolderPath,CmsResourceTypeFolder.getStaticTypeId(),true,0,cms.getRequestContext().currentProject().getUuid(),CmsResource.STATE_NEW,System.currentTimeMillis(),cms.getRequestContext().currentUser().getId(),System.currentTimeMillis(),cms.getRequestContext().currentUser().getId(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,1,0,System.currentTimeMillis(),0);
+      entryFolder=cms.createResource(entryFolderPath,entryFolder,null,generateInheritProperties(change,entryFolder));
+      entryPath=CmsStringUtil.joinPaths(entryFolderPath,"index.html");
+    }
+    byte[] content=null;
+    if (change.getNewCopyResourceId() != null) {
+      CmsResource copyPage=cms.readResource(change.getNewCopyResourceId());
+      content=cms.readFile(copyPage).getContents();
+    }
+    CmsResource newRes=cms.createResource(entryPath,change.getNewResourceTypeId(),content,generateOwnProperties(change));
+    if (entryFolder != null) {
+      tryUnlock(entryFolder);
+    }
+    tryUnlock(newRes);
   }
 }
