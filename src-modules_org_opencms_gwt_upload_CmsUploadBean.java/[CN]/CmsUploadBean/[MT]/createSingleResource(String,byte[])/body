@@ -1,0 +1,47 @@
+{
+  int resTypeId=OpenCms.getResourceManager().getDefaultTypeForName(newResname).getTypeId();
+  int plainId=OpenCms.getResourceManager().getResourceType(CmsResourceTypePlain.getStaticTypeName()).getTypeId();
+  String title=CmsResource.getName(newResname);
+  if (title.lastIndexOf('.') != -1) {
+    title=title.substring(0,title.lastIndexOf('.'));
+  }
+  List<CmsProperty> properties=new ArrayList<CmsProperty>(1);
+  CmsProperty titleProp=new CmsProperty();
+  titleProp.setName(CmsPropertyDefinition.PROPERTY_TITLE);
+  if (OpenCms.getWorkplaceManager().isDefaultPropertiesOnStructure()) {
+    titleProp.setStructureValue(title);
+  }
+ else {
+    titleProp.setResourceValue(title);
+  }
+  properties.add(titleProp);
+  if (!getCmsObject().existsResource(newResname,CmsResourceFilter.IGNORE_EXPIRATION)) {
+    try {
+      getCmsObject().createResource(newResname,resTypeId,content,properties);
+    }
+ catch (    CmsSecurityException e) {
+      getCmsObject().createResource(newResname,plainId,content,properties);
+    }
+catch (    CmsDbSqlException sqlExc) {
+      getCmsObject().lockResource(newResname);
+      getCmsObject().deleteResource(newResname,CmsResource.DELETE_PRESERVE_SIBLINGS);
+      throw sqlExc;
+    }
+  }
+ else {
+    checkLock(newResname);
+    CmsFile file=getCmsObject().readFile(newResname,CmsResourceFilter.IGNORE_EXPIRATION);
+    byte[] contents=file.getContents();
+    try {
+      getCmsObject().replaceResource(newResname,resTypeId,content,null);
+    }
+ catch (    CmsSecurityException e) {
+      getCmsObject().replaceResource(newResname,plainId,content,null);
+    }
+catch (    CmsDbSqlException sqlExc) {
+      file.setContents(contents);
+      getCmsObject().writeFile(file);
+      throw sqlExc;
+    }
+  }
+}
