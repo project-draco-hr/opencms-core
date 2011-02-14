@@ -1,27 +1,29 @@
 {
-  super(handler.getDialogTitle());
+  CmsForm form=new CmsForm(null);
+  m_dialog=new CmsFormDialog(handler.getDialogTitle(),form);
   m_controller=handler.getController();
   m_propertyConfig=removeHiddenProperties(m_controller.getData().getProperties());
   m_handler=handler;
-  setFormHandler(new I_CmsFormHandler(){
+  m_dialog.setFormHandler(new I_CmsFormHandler(){
     /** 
  * @see org.opencms.gwt.client.ui.input.form.I_CmsFormHandler#onSubmitForm(java.util.Map,java.util.Set)
  */
     public void onSubmitForm(    Map<String,String> fieldValues,    Set<String> editedFields){
-      Map<String,CmsSimplePropertyValue> simpleProps;
-      final String titleValue=getAndRemoveValue(fieldValues,FIELD_TITLE);
+      Map<String,String> changedFieldValues=new HashMap<String,String>(fieldValues);
+      changedFieldValues.keySet().retainAll(editedFields);
+      List<CmsPropertyModification> propChanges=getPropertyChanges(changedFieldValues);
+      String titleValue=getTitle(fieldValues);
+      if (titleValue == null) {
+        titleValue=m_handler.getEntry().getTitle();
+      }
       if (!m_handler.hasEditableName()) {
-        hide();
-        simpleProps=convertProperties(fieldValues);
-        m_handler.handleSubmit(titleValue,"",null,simpleProps,editedFields.contains("field_urlname"));
+        m_dialog.hide();
+        m_handler.handleSubmit(titleValue,"",null,propChanges,editedFields.contains(FIELD_URLNAME));
         return;
       }
       final String urlNameValue=getAndRemoveValue(fieldValues,FIELD_URLNAME);
       fieldValues.remove(FIELD_LINK);
-      final CmsLinkBean link=m_linkSelector.getLinkBean();
-      CmsClientSitemapEntry.setRedirect(fieldValues,link);
-      simpleProps=convertProperties(fieldValues);
-      m_handler.handleSubmit(titleValue,urlNameValue,null,simpleProps,editedFields.contains(FIELD_URLNAME));
+      m_handler.handleSubmit(titleValue,urlNameValue,null,propChanges,editedFields.contains(FIELD_URLNAME));
     }
   }
 );

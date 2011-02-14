@@ -1,0 +1,32 @@
+{
+  Map<String,CmsProperty> ownProps=getPropertiesByName(cms.readPropertyObjects(ownRes,false));
+  Map<String,CmsProperty> defaultFileProps=null;
+  if (defaultFileRes != null) {
+    defaultFileProps=getPropertiesByName(cms.readPropertyObjects(defaultFileRes,false));
+  }
+  Map<CmsUUID,Map<String,CmsProperty>> propsMap=new HashMap<CmsUUID,Map<String,CmsProperty>>();
+  propsMap.put(ownRes.getStructureId(),ownProps);
+  if (defaultFileProps != null) {
+    propsMap.put(defaultFileRes.getStructureId(),defaultFileProps);
+  }
+  Map<CmsUUID,CmsResource> resources=new HashMap<CmsUUID,CmsResource>();
+  for (  CmsPropertyModificationData propMod : propertyModifications) {
+    Map<String,CmsProperty> propsToModify=propsMap.get(propMod.getId());
+    CmsProperty propToModify=propsToModify.get(propMod.getName());
+    if (propToModify == null) {
+      propToModify=new CmsProperty(propMod.getName(),null,null);
+    }
+    String newValue=propMod.getValue();
+    if (newValue == null) {
+      newValue="";
+    }
+    if (propMod.isStructureValue()) {
+      propToModify.setStructureValue(newValue);
+    }
+ else {
+      propToModify.setResourceValue(newValue);
+    }
+    CmsResource target=ownRes.getStructureId().equals(propMod.getId()) ? ownRes : defaultFileRes;
+    cms.writePropertyObjects(target,Collections.singletonList(propToModify));
+  }
+}

@@ -1,25 +1,33 @@
 {
-  CmsForm form=getForm();
+  CmsForm form=m_dialog.getForm();
   form.addLabel(m_handler.getDescriptionText(),false);
+  if (m_handler.isSimpleMode()) {
+    form.setWidget(new CmsSimpleFormFieldPanel());
+  }
+ else {
+    CmsTabbedFormFieldPanel tabs=new CmsTabbedFormFieldPanel();
+    tabs.addTab(TAB_1,"Simple");
+    tabs.addTab(TAB_2,"Structure");
+    tabs.addTab(TAB_3,"Resource");
+    form.setWidget(tabs);
+  }
   if (m_handler.hasEditableName()) {
     CmsBasicFormField urlNameField=createUrlNameField();
-    form.addField(urlNameField);
+    form.addField(TAB_1,urlNameField);
   }
-  CmsBasicFormField titleField=createTitleField();
-  form.addField(titleField);
   CmsClientSitemapEntry entry=m_handler.getEntry();
-  boolean isRedirect=entry.getProperties().containsKey(CmsSitemapManager.Property.isRedirect.getName());
+  boolean isRedirect=false;
   if (isRedirect) {
     CmsBasicFormField linkField=createLinkField();
-    form.addField(linkField);
+    form.addField(TAB_1,linkField);
   }
-  Collection<CmsXmlContentProperty> propertyDefs=m_propertyConfig.values();
-  for (  CmsXmlContentProperty propDef : propertyDefs) {
-    if (propDef.getPropertyName().equals(CmsSitemapManager.Property.template.getName()) && isRedirect) {
-      continue;
-    }
-    addFieldForProperty(propDef,entry);
-  }
-  form.setValidatorClass("org.opencms.ade.sitemap.CmsSitemapFormValidator");
-  center();
+  CmsSitemapPropertyFormBuilder builder=new CmsSitemapPropertyFormBuilder();
+  builder.setWidgetFactory(this);
+  builder.setAdvanced(!m_handler.isSimpleMode());
+  builder.setForm(form);
+  builder.setPropertyDefinitions(CmsSitemapView.getInstance().getController().getData().getProperties());
+  builder.setAllPropertyNames(CmsSitemapView.getInstance().getController().getData().getAllPropertyNames());
+  builder.buildFields(entry);
+  form.setValidatorClass("org.opencms.gwt.CmsDefaultFormValidator");
+  m_dialog.center();
 }

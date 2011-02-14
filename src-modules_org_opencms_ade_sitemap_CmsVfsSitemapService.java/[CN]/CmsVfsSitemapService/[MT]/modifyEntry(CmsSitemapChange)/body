@@ -2,24 +2,32 @@
   CmsObject cms=getCmsObject();
   CmsResource entryPage=null;
   CmsResource entryFolder=null;
+  CmsResource ownRes=null;
+  CmsResource defaultFileRes=null;
   try {
-    if (hasPageChanges(change) && !change.isLeafType()) {
-      entryPage=cms.readDefaultFile(change.getEntryId().toString());
-      ensureLock(entryPage);
+    if (hasOwnChanges(change)) {
+      ownRes=cms.readResource(change.getEntryId());
+      ensureLock(ownRes);
     }
- else     if (change.isLeafType()) {
-      entryPage=cms.readResource(change.getEntryId());
-      ensureLock(entryPage);
+    if (hasDefaultFileChanges(change)) {
+      defaultFileRes=cms.readResource(change.getDefaultFileId());
+      ensureLock(defaultFileRes);
     }
-    if (hasFolderChanges(change) && !change.isLeafType()) {
-      entryFolder=cms.readResource(change.getEntryId());
-      ensureLock(entryFolder);
+    if (ownRes.isFolder()) {
+      entryFolder=ownRes;
+    }
+    if (ownRes.isFile()) {
+      entryPage=ownRes;
+    }
+    if (defaultFileRes != null) {
+      entryPage=defaultFileRes;
     }
     if (change.isLeafType()) {
       entryFolder=entryPage;
     }
-    if (entryPage != null) {
-      cms.writePropertyObjects(cms.getSitePath(entryPage),generateOwnProperties(change));
+    updateProperties(cms,ownRes,defaultFileRes,change.getPropertyChanges());
+    if (change.hasChangedPosition()) {
+      updateNavPos(ownRes,change);
     }
     if (entryFolder != null) {
       if (change.hasNewParent() || change.hasChangedName()) {
@@ -39,7 +47,6 @@
         }
         entryFolder=cms.readResource(entryFolder.getStructureId());
       }
-      cms.writePropertyObjects(cms.getSitePath(entryFolder),generateInheritProperties(change,entryFolder));
     }
   }
   finally {

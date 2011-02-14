@@ -3,43 +3,46 @@
   CmsObject cms=getCmsObject();
   CmsClientSitemapEntry clientEntry=new CmsClientSitemapEntry();
   CmsResource entryFolder=null;
-  Map<String,CmsSimplePropertyValue> clientProperties=CmsXmlContentPropertyHelper.convertPropertySimpleValues(getCmsObject(),Collections.<String,CmsSimplePropertyValue>emptyMap(),propertyConfig,true);
+  CmsResource ownResource=navElement.getResource();
+  CmsResource defaultFileResource=null;
+  if (ownResource.isFolder()) {
+    defaultFileResource=cms.readDefaultFile(ownResource);
+  }
+  Map<String,CmsClientProperty> ownProps=getClientProperties(cms,ownResource,false);
+  Map<String,CmsClientProperty> defaultFileProps=null;
+  if (defaultFileResource != null) {
+    defaultFileProps=getClientProperties(cms,defaultFileResource,false);
+    clientEntry.setDefaultFileId(defaultFileResource.getStructureId());
+  }
+ else {
+    defaultFileProps=new HashMap<String,CmsClientProperty>();
+  }
+  clientEntry.setId(ownResource.getStructureId());
   if (navElement.getResource().isFolder()) {
     entryFolder=navElement.getResource();
-    entryPage=cms.readDefaultFile(entryFolder);
+    entryPage=defaultFileResource;
     clientEntry.setName(entryFolder.getName());
-    Map<String,String> pageProperties;
     if (entryPage == null) {
-      pageProperties=Collections.emptyMap();
       entryPage=entryFolder;
     }
- else {
-      pageProperties=CmsProperty.toMap(cms.readPropertyObjects(entryPage,false));
-    }
-    clientProperties=generatePropertyValues(propertyConfig,pageProperties,navElement.getProperties());
     if (!isRoot && isSubSitemap(navElement)) {
       clientEntry.setEntryType(EntryType.subSitemap);
     }
-    clientEntry.setId(entryFolder.getStructureId());
-  }
- else   if (isRoot) {
-    entryPage=navElement.getResource();
-    entryFolder=cms.readParentFolder(entryPage.getStructureId());
-    clientEntry.setName("");
-    clientProperties=generatePropertyValues(propertyConfig,navElement.getProperties(),CmsProperty.toMap(cms.readPropertyObjects(entryFolder,false)));
-    clientEntry.setId(entryFolder.getStructureId());
   }
  else {
     entryPage=navElement.getResource();
     clientEntry.setName(entryPage.getName());
     clientEntry.setEntryType(EntryType.leaf);
-    clientEntry.setId(entryPage.getStructureId());
   }
   String path=cms.getSitePath(entryPage);
   if (entryFolder != null) {
     CmsLock folderLock=cms.getLock(entryFolder);
     clientEntry.setHasForeignFolderLock(!folderLock.isUnlocked() && !folderLock.isOwnedBy(cms.getRequestContext().currentUser()));
   }
+  clientEntry.setVfsPath(path);
+  navElement.getProperties();
+  clientEntry.setOwnInternalProperties(ownProps);
+  clientEntry.setDefaultFileInternalProperties(defaultFileProps);
   if (navElement.isInNavigation()) {
     clientEntry.setTitle(navElement.getNavText());
   }
@@ -50,9 +53,6 @@
     }
     clientEntry.setTitle(title);
   }
-  clientEntry.setVfsPath(path);
-  navElement.getProperties();
-  clientEntry.setProperties(clientProperties);
   clientEntry.setSitePath(entryFolder != null ? cms.getSitePath(entryFolder) : path);
   clientEntry.setLock(generateClientLock(entryPage));
   clientEntry.setInNavigation(isRoot || navElement.isInNavigation());
