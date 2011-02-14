@@ -1,38 +1,43 @@
 {
-  CmsUploadListener listener=new CmsUploadListener(getRequest().getContentLength());
-  addListener(listener);
-  boolean errorOccurred=true;
-  try {
-    parseRequest(listener);
-    writeResponse(generateResponse(true,null,listener.getInfo()));
-    errorOccurred=false;
-  }
- catch (  CmsUploadException e) {
-    writeResponse(generateResponse(false,e,listener.getInfo()));
-    LOG.debug(e.getMessage(),e);
-  }
+  if (ServletFileUpload.isMultipartContent(getRequest())) {
+    CmsUploadListener listener=new CmsUploadListener(getRequest().getContentLength());
+    addListener(listener);
+    boolean errorOccurred=true;
+    try {
+      parseRequest(listener);
+      writeResponse(generateResponse(null,listener.getInfo()));
+      errorOccurred=false;
+    }
+ catch (    CmsUploadException e) {
+      writeResponse(generateResponse(e,listener.getInfo()));
+      LOG.debug(e.getMessage(),e);
+    }
  finally {
-    removeListener(listener.getId());
-  }
-  try {
-    if (m_multiPartFileItems != null) {
-      String targetFolder=getTargetFolder();
-      for (      FileItem fi : m_multiPartFileItems) {
-        if ((fi != null) && (!fi.isFormField())) {
-          String newResname=CmsResource.getName(fi.getName().replace('\\','/'));
-          newResname=getNewResourceName(newResname,targetFolder);
-          byte[] content=fi.get();
-          fi.delete();
-          createSingleResource(newResname,content);
+      removeListener(listener.getId());
+    }
+    try {
+      if (m_multiPartFileItems != null) {
+        String targetFolder=getTargetFolder();
+        for (        FileItem fi : m_multiPartFileItems) {
+          if ((fi != null) && (!fi.isFormField())) {
+            String newResname=CmsResource.getName(fi.getName().replace('\\','/'));
+            newResname=getNewResourceName(newResname,targetFolder);
+            byte[] content=fi.get();
+            fi.delete();
+            createSingleResource(newResname,content);
+          }
         }
       }
     }
-  }
- catch (  CmsException e) {
-    if (!errorOccurred) {
-      CmsUploadException ex=new CmsUploadException("Error while creating resources on the VFS of OpenCms");
-      writeResponse(generateResponse(false,ex,null));
+ catch (    CmsException e) {
+      if (!errorOccurred) {
+        CmsUploadException ex=new CmsUploadException(org.opencms.gwt.Messages.get().getBundle().key(org.opencms.gwt.Messages.ERR_UPLOAD_CREATING_0));
+        writeResponse(generateResponse(ex,null));
+      }
+      LOG.error(org.opencms.gwt.Messages.get().getBundle().key(org.opencms.gwt.Messages.ERR_UPLOAD_CREATING_0),e);
     }
-    LOG.error(e.getMessage(),e);
+  }
+ else {
+    LOG.error(new CmsException(org.opencms.gwt.Messages.get().container(org.opencms.gwt.Messages.ERR_UPLOAD_NO_MULTIPART_0)));
   }
 }
