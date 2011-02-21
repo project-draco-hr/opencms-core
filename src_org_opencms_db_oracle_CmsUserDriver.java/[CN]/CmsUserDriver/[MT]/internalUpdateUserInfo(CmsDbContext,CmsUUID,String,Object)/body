@@ -1,46 +1,19 @@
 {
   PreparedStatement stmt=null;
-  PreparedStatement commit=null;
-  ResultSet res=null;
   Connection conn=null;
-  boolean wasInTransaction=false;
   try {
     conn=m_sqlManager.getConnection(dbc);
-    wasInTransaction=!conn.getAutoCommit();
-    if (!wasInTransaction) {
-      conn.setAutoCommit(false);
-    }
-    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERDATA_UPDATE_2");
-    stmt.setString(1,userId.toString());
-    stmt.setString(2,key);
-    res=((DelegatingResultSet)stmt.executeQuery()).getInnermostDelegate();
-    if (!res.next()) {
-      throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_NO_USER_WITH_ID_1,userId));
-    }
-    OutputStream output=getOutputStreamFromBlob(res,"DATA_VALUE");
-    output.write(CmsDataTypeUtil.dataSerialize(value));
-    output.close();
-    value=null;
-    if (!wasInTransaction) {
-      commit=m_sqlManager.getPreparedStatement(conn,"C_COMMIT");
-      commit.execute();
-      m_sqlManager.closeAll(dbc,null,commit,null);
-    }
-    m_sqlManager.closeAll(dbc,null,stmt,res);
-    commit=null;
-    stmt=null;
-    res=null;
-    if (!wasInTransaction) {
-      conn.setAutoCommit(true);
-    }
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_ORACLE_USERDATA_UPDATE_3");
+    stmt.setString(1,value.getClass().getName());
+    stmt.setString(2,userId.toString());
+    stmt.setString(3,key);
+    stmt.executeUpdate();
   }
  catch (  SQLException e) {
     throw new CmsDbSqlException(org.opencms.db.generic.Messages.get().container(org.opencms.db.generic.Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
   }
-catch (  IOException e) {
-    throw new CmsDbIoException(Messages.get().container(Messages.ERR_SERIALIZING_USER_DATA_1,userId),e);
-  }
  finally {
-    org.opencms.db.oracle.CmsSqlManager.closeAllInTransaction(m_sqlManager,dbc,conn,stmt,res,commit,wasInTransaction);
+    m_sqlManager.closeAll(dbc,conn,stmt,null);
   }
+  internalUpdateUserInfoData(dbc,userId,key,value);
 }
