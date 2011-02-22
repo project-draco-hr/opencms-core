@@ -1,43 +1,28 @@
 {
-  if (ServletFileUpload.isMultipartContent(getRequest())) {
-    CmsUploadListener listener=new CmsUploadListener(getRequest().getContentLength());
-    addListener(listener);
-    boolean errorOccurred=true;
-    try {
-      parseRequest(listener);
-      writeResponse(generateResponse(null,listener.getInfo()));
-      errorOccurred=false;
-    }
- catch (    CmsUploadException e) {
-      writeResponse(generateResponse(e,listener.getInfo()));
-      LOG.debug(e.getMessage(),e);
-    }
+  if (m_called) {
+    throw new UnsupportedOperationException();
+  }
+  m_called=true;
+  CmsUploadListener listener=createListener();
+  try {
+    parseRequest(listener);
+    createResources();
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getMessage(),e);
+    return generateResponse(Boolean.FALSE,getCreationErrorMessage(),formatStackTrace(e));
+  }
+catch (  CmsUploadException e) {
+    LOG.debug(e.getMessage(),e);
+    return generateResponse(Boolean.FALSE,e.getMessage(),formatStackTrace(e));
+  }
+catch (  Exception e) {
+    LOG.error(e.getMessage(),e);
+    String message=m_gwtBundle.key(org.opencms.gwt.Messages.ERR_UPLOAD_UNEXPECTED_0);
+    return generateResponse(Boolean.FALSE,message,formatStackTrace(e));
+  }
  finally {
-      removeListener(listener.getId());
-    }
-    try {
-      if (m_multiPartFileItems != null) {
-        String targetFolder=getTargetFolder();
-        for (        FileItem fi : m_multiPartFileItems) {
-          if ((fi != null) && (!fi.isFormField())) {
-            String newResname=CmsResource.getName(fi.getName().replace('\\','/'));
-            newResname=getNewResourceName(newResname,targetFolder);
-            byte[] content=fi.get();
-            fi.delete();
-            createSingleResource(newResname,content);
-          }
-        }
-      }
-    }
- catch (    CmsException e) {
-      if (!errorOccurred) {
-        CmsUploadException ex=new CmsUploadException(org.opencms.gwt.Messages.get().getBundle().key(org.opencms.gwt.Messages.ERR_UPLOAD_CREATING_0));
-        writeResponse(generateResponse(ex,null));
-      }
-      LOG.error(org.opencms.gwt.Messages.get().getBundle().key(org.opencms.gwt.Messages.ERR_UPLOAD_CREATING_0),e);
-    }
+    removeListener(listener.getId());
   }
- else {
-    LOG.error(new CmsException(org.opencms.gwt.Messages.get().container(org.opencms.gwt.Messages.ERR_UPLOAD_NO_MULTIPART_0)));
-  }
+  return generateResponse(Boolean.TRUE,m_gwtBundle.key(org.opencms.gwt.Messages.INFO_UPLOAD_SUCCESS_0),"");
 }
