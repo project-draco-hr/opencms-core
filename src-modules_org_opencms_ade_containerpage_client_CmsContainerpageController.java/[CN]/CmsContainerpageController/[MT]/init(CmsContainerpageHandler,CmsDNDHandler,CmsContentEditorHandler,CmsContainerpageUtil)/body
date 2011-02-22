@@ -1,0 +1,47 @@
+{
+  m_containerpageUtil=containerpageUtil;
+  m_handler=handler;
+  m_contentEditorHandler=contentEditorHandler;
+  m_dndHandler=dndHandler;
+  m_cntDndController=m_dndHandler.getController();
+  m_elements=new HashMap<String,CmsContainerElementData>();
+  m_containerTypes=new HashSet<String>();
+  m_containers=new HashMap<String,CmsContainerJso>();
+  JsArray<CmsContainerJso> containers=CmsContainerJso.getContainers();
+  for (int i=0; i < containers.length(); i++) {
+    CmsContainerJso container=containers.get(i);
+    m_containerTypes.add(container.getType());
+    m_containers.put(container.getName(),container);
+  }
+  m_containerBeans=createEmptyContainerBeans();
+  m_targetContainers=m_containerpageUtil.consumeContainers(m_containers);
+  for (  CmsContainerPageContainer cont : m_targetContainers.values()) {
+    Element elem=DOM.getElementById(cont.getContainerId());
+    CmsContainerpageEditor.getZIndexManager().addContainer(cont.getContainerId(),elem);
+  }
+  resetEditableListButtons();
+  Event.addNativePreviewHandler(new NativePreviewHandler(){
+    public void onPreviewNativeEvent(    NativePreviewEvent event){
+      previewNativeEvent(event);
+    }
+  }
+);
+  Window.addWindowClosingHandler(new ClosingHandler(){
+    /** 
+ * @see com.google.gwt.user.client.Window.ClosingHandler#onWindowClosing(com.google.gwt.user.client.Window.ClosingEvent)
+ */
+    public void onWindowClosing(    ClosingEvent event){
+      deactivateOnClosing();
+      if (hasPageChanged()) {
+        boolean savePage=Window.confirm(Messages.get().key(Messages.GUI_DIALOG_SAVE_BEFORE_LEAVING_0));
+        if (savePage) {
+          syncSaveContainerpage();
+        }
+ else {
+          unlockContainerpage();
+        }
+      }
+    }
+  }
+);
+}
