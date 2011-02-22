@@ -1,27 +1,38 @@
 {
   CmsObject cms=getCmsObject();
+  CmsClientSitemapEntry newEntry=null;
   if (change.getParentId() != null) {
     CmsResource parentFolder=cms.readResource(change.getParentId());
     String entryPath="";
     CmsResource entryFolder=null;
-    if ("xmlredirect".equals(OpenCms.getResourceManager().getResourceType(change.getNewResourceTypeId()).getTypeName())) {
-      entryPath=CmsStringUtil.joinPaths(cms.getSitePath(parentFolder),change.getName());
-    }
- else {
-      String entryFolderPath=CmsStringUtil.joinPaths(cms.getSitePath(parentFolder),change.getName() + "/");
-      entryFolder=new CmsResource(change.getEntryId(),new CmsUUID(),entryFolderPath,CmsResourceTypeFolder.getStaticTypeId(),true,0,cms.getRequestContext().getCurrentProject().getUuid(),CmsResource.STATE_NEW,System.currentTimeMillis(),cms.getRequestContext().getCurrentUser().getId(),System.currentTimeMillis(),cms.getRequestContext().getCurrentUser().getId(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,1,0,System.currentTimeMillis(),0);
-      entryFolder=cms.createResource(entryFolderPath,entryFolder,null,generateInheritProperties(change,entryFolder));
-      entryPath=CmsStringUtil.joinPaths(entryFolderPath,"index.html");
-    }
+    CmsResource newRes=null;
     byte[] content=null;
     if (change.getNewCopyResourceId() != null) {
       CmsResource copyPage=cms.readResource(change.getNewCopyResourceId());
       content=cms.readFile(copyPage).getContents();
     }
-    CmsResource newRes=cms.createResource(entryPath,change.getNewResourceTypeId(),content,generateOwnProperties(change));
+    if (RECOURCE_TYPE_NAME_REDIRECT.equals(OpenCms.getResourceManager().getResourceType(change.getNewResourceTypeId()).getTypeName())) {
+      entryPath=CmsStringUtil.joinPaths(cms.getSitePath(parentFolder),change.getName());
+      newRes=cms.createResource(entryPath,change.getNewResourceTypeId(),content,null);
+      cms.writePropertyObjects(newRes,generateInheritProperties(change,newRes));
+    }
+ else {
+      String entryFolderPath=CmsStringUtil.joinPaths(cms.getSitePath(parentFolder),change.getName() + "/");
+      CmsUUID entryId=change.getEntryId() != null ? change.getEntryId() : new CmsUUID();
+      entryFolder=new CmsResource(entryId,new CmsUUID(),entryFolderPath,CmsResourceTypeFolder.getStaticTypeId(),true,0,cms.getRequestContext().getCurrentProject().getUuid(),CmsResource.STATE_NEW,System.currentTimeMillis(),cms.getRequestContext().getCurrentUser().getId(),System.currentTimeMillis(),cms.getRequestContext().getCurrentUser().getId(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,1,0,System.currentTimeMillis(),0);
+      entryFolder=cms.createResource(entryFolderPath,entryFolder,null,generateInheritProperties(change,entryFolder));
+      entryPath=CmsStringUtil.joinPaths(entryFolderPath,"index.html");
+      newRes=cms.createResource(entryPath,change.getNewResourceTypeId(),content,generateOwnProperties(change));
+    }
     if (entryFolder != null) {
       tryUnlock(entryFolder);
+      newEntry=toClientEntry(getNavBuilder().getNavigationForResource(cms.getSitePath(entryFolder)),OpenCms.getSitemapManager().getElementPropertyConfiguration(cms,entryPoint),false);
     }
     tryUnlock(newRes);
+    if (newEntry == null) {
+      newEntry=toClientEntry(getNavBuilder().getNavigationForResource(cms.getSitePath(newRes)),OpenCms.getSitemapManager().getElementPropertyConfiguration(cms,entryPoint),false);
+    }
+    newEntry.setPosition(-1);
   }
+  return newEntry;
 }
