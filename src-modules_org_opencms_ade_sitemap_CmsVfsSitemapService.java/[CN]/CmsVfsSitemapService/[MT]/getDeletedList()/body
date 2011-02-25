@@ -1,0 +1,33 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsUser user=cms.getRequestContext().getCurrentUser();
+  Object obj=user.getAdditionalInfo(ADDINFO_ADE_DELETED_LIST);
+  LinkedHashMap<CmsUUID,CmsClientSitemapEntry> result=new LinkedHashMap<CmsUUID,CmsClientSitemapEntry>();
+  if (obj instanceof String) {
+    try {
+      JSONArray array=new JSONArray((String)obj);
+      for (int i=0; i < array.length(); i++) {
+        try {
+          CmsUUID delId=new CmsUUID(array.getString(i));
+          CmsResource res=cms.readResource(delId,CmsResourceFilter.ALL);
+          if (res.getState().isDeleted()) {
+            CmsClientSitemapEntry delEntry=new CmsClientSitemapEntry();
+            delEntry.setSitePath(cms.getSitePath(res));
+            delEntry.setOwnProperties(getClientProperties(cms,res,false));
+            delEntry.setName(res.getName());
+            delEntry.setVfsPath(cms.getSitePath(res));
+            delEntry.setEntryType(res.isFolder() ? EntryType.folder : isRedirectType(res.getTypeId()) ? EntryType.redirect : EntryType.leaf);
+            result.put(delId,delEntry);
+          }
+        }
+ catch (        Throwable e) {
+          LOG.warn(e.getLocalizedMessage());
+        }
+      }
+    }
+ catch (    Throwable e) {
+      LOG.warn(e.getLocalizedMessage());
+    }
+  }
+  return result;
+}
