@@ -1,0 +1,25 @@
+{
+  DiskFileItemFactory factory=new DiskFileItemFactory();
+  factory.setSizeThreshold(4096);
+  factory.setRepository(new File(OpenCms.getSystemInfo().getPackagesRfsPath()));
+  ServletFileUpload fu=new ServletFileUpload(factory);
+  fu.setProgressListener(listener);
+  fu.setHeaderEncoding(getRequest().getCharacterEncoding());
+  long maxFileSizeBytes=OpenCms.getWorkplaceManager().getFileBytesMaxUploadSize(getCmsObject());
+  if (maxFileSizeBytes > 0) {
+    fu.setFileSizeMax(maxFileSizeBytes);
+  }
+  try {
+    return CmsCollectionsGenericWrapper.list(fu.parseRequest(getRequest()));
+  }
+ catch (  SizeLimitExceededException e) {
+    Integer actualSize=new Integer((int)(e.getActualSize() / 1024));
+    Integer maxSize=new Integer((int)(e.getPermittedSize() / 1024));
+    throw new CmsUploadException(m_bundle.key(org.opencms.ade.upload.Messages.ERR_UPLOAD_REQUEST_SIZE_LIMIT_2,actualSize,maxSize),e);
+  }
+catch (  FileSizeLimitExceededException e) {
+    Integer actualSize=new Integer((int)(e.getActualSize() / 1024));
+    Integer maxSize=new Integer((int)(e.getPermittedSize() / 1024));
+    throw new CmsUploadException(m_bundle.key(org.opencms.ade.upload.Messages.ERR_UPLOAD_FILE_SIZE_LIMIT_3,actualSize,e.getFileName(),maxSize),e);
+  }
+}
