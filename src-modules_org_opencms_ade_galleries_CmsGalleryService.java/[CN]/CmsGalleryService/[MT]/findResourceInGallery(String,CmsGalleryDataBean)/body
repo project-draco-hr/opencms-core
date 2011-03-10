@@ -13,21 +13,27 @@
   }
  catch (  CmsException e) {
     logError(e);
+    return null;
   }
-  CmsGallerySearchBean searchObj=new CmsGallerySearchBean(initialSearchObj);
-  if (resource == null) {
-    log("resource not found");
-    searchObj.setResourcePath(resourceName);
-    return searchObj;
-  }
-  String rootPath=resource.getRootPath();
   ArrayList<String> types=new ArrayList<String>();
   String resType=OpenCms.getResourceManager().getResourceType(resource).getTypeName();
   types.add(resType);
-  searchObj.setTypes(types);
+  CmsGallerySearchBean initialSearchObj=new CmsGallerySearchBean();
+  initialSearchObj.setTypes(types);
   ArrayList<String> galleries=new ArrayList<String>();
-  galleries.add(CmsResource.getFolderPath(resourceName));
-  searchObj.setGalleries(galleries);
+  for (  CmsGalleryFolderBean gallery : data.getGalleries()) {
+    if (gallery.getPath().equals(CmsResource.getFolderPath(resName))) {
+      galleries.add(gallery.getPath());
+      initialSearchObj.setGalleries(galleries);
+      break;
+    }
+  }
+  if (galleries.isEmpty()) {
+    ArrayList<String> vfsFolders=new ArrayList<String>();
+    vfsFolders.add(CmsResource.getFolderPath(resName));
+    initialSearchObj.setFolders(vfsFolders);
+  }
+  CmsGallerySearchBean searchObj=new CmsGallerySearchBean(initialSearchObj);
   searchObj.setSortOrder(CmsGallerySearchParameters.CmsGallerySortParam.DEFAULT.toString());
   if (!locale.isNullProperty()) {
     searchObj.setLocale(locale.getValue());
@@ -46,8 +52,7 @@
     Iterator<CmsGallerySearchResult> resultsIt=searchResults.listIterator();
     while (resultsIt.hasNext()) {
       CmsGallerySearchResult searchResult=resultsIt.next();
-      log("comparing: " + searchResult.getPath() + " with "+ rootPath);
-      if (searchResult.getPath().equals(rootPath)) {
+      if (searchResult.getPath().equals(resource.getRootPath())) {
         found=true;
         break;
       }
@@ -59,19 +64,18 @@
       break;
     }
   }
-  CmsGallerySearchBean searchResultsObj=new CmsGallerySearchBean();
   if (found && (searchResults != null)) {
-    searchResultsObj.setSortOrder(params.getSortOrder().name());
-    searchResultsObj.setResultCount(searchResults.getHitCount());
-    searchResultsObj.setPage(params.getResultPage());
-    searchResultsObj.setResults(buildSearchResultList(searchResults));
-    searchResultsObj.setPage(currentPage);
-    searchResultsObj.setTabId(I_CmsGalleryProviderConstants.GalleryTabId.cms_tab_results.name());
-    searchResultsObj.setResourcePath(resourceName);
-    searchResultsObj.setResourceType(resType);
+    initialSearchObj.setSortOrder(params.getSortOrder().name());
+    initialSearchObj.setResultCount(searchResults.getHitCount());
+    initialSearchObj.setPage(params.getResultPage());
+    initialSearchObj.setResults(buildSearchResultList(searchResults));
+    initialSearchObj.setPage(currentPage);
+    initialSearchObj.setTabId(I_CmsGalleryProviderConstants.GalleryTabId.cms_tab_results.name());
+    initialSearchObj.setResourcePath(resourceName);
+    initialSearchObj.setResourceType(resType);
   }
  else {
     log("could not find selected resource");
   }
-  return searchResultsObj;
+  return initialSearchObj;
 }

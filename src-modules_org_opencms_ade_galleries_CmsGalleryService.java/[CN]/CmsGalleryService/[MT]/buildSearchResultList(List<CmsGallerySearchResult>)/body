@@ -3,6 +3,7 @@
   if ((searchResult == null) || (searchResult.size() == 0)) {
     return list;
   }
+  CmsObject cms=getCmsObject();
   Iterator<CmsGallerySearchResult> iSearchResult=searchResult.iterator();
   while (iSearchResult.hasNext()) {
     try {
@@ -10,14 +11,26 @@
       CmsGallerySearchResult sResult=iSearchResult.next();
       CmsResultItemBean bean=new CmsResultItemBean();
       String path=sResult.getPath();
-      path=getCmsObject().getRequestContext().removeSiteRoot(path);
+      path=cms.getRequestContext().removeSiteRoot(path);
       bean.setPath(path);
       bean.setTitle(sResult.getTitle());
       bean.setType(sResult.getResourceType());
       bean.setClientId(sResult.getStructureId());
       I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(sResult.getResourceType());
       bean.setDescription(CmsWorkplaceMessages.getResourceTypeName(wpLocale,type.getTypeName()));
-      bean.setExcerpt(sResult.getExcerpt());
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(sResult.getExcerpt())) {
+        bean.addAdditionalInfo(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_RESULT_LABEL_EXCERPT_0),sResult.getExcerpt());
+      }
+      bean.addAdditionalInfo(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_RESULT_LABEL_SIZE_0),sResult.getLength() / 1000 + " kb");
+      if (type instanceof CmsResourceTypeImage) {
+        CmsProperty imageDimensionProp=cms.readPropertyObject(path,CmsPropertyDefinition.PROPERTY_IMAGE_SIZE,false);
+        if (!imageDimensionProp.isNullProperty()) {
+          String temp=imageDimensionProp.getValue();
+          bean.addAdditionalInfo(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_RESULT_LABEL_DIMENSION_0),temp.substring(2).replace(",h:"," x "));
+        }
+      }
+      bean.addAdditionalInfo(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_RESULT_LABEL_DATE_0),CmsDateUtil.getDate(sResult.getDateLastModified(),DateFormat.SHORT,getWorkplaceLocale()));
+      bean.setNoEditReson(new CmsResourceUtil(cms,cms.readResource(path)).getNoEditReason(OpenCms.getWorkplaceManager().getWorkplaceLocale(cms)));
       list.add(bean);
     }
  catch (    Exception e) {
