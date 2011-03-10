@@ -1,0 +1,29 @@
+{
+  List<CmsBrokenLinkBean> result=null;
+  try {
+    ensureSession();
+    CmsObject cms=getCmsObject();
+    List<CmsResource> descendands=new ArrayList<CmsResource>();
+    HashSet<CmsUUID> deleteIds=new HashSet<CmsUUID>();
+    CmsResource entryResource=cms.readResource(sitePath);
+    descendands.add(entryResource);
+    if (entryResource.isFolder()) {
+      descendands.addAll(cms.readResources(sitePath,CmsResourceFilter.IGNORE_EXPIRATION));
+    }
+    for (    CmsResource deleteRes : descendands) {
+      deleteIds.add(deleteRes.getStructureId());
+    }
+    MultiValueMap linkMap=MultiValueMap.decorate(new HashMap<Object,Object>(),FactoryUtils.instantiateFactory(HashSet.class));
+    for (    CmsResource resource : descendands) {
+      List<CmsResource> linkSources=getLinkSources(cms,resource,deleteIds);
+      for (      CmsResource source : linkSources) {
+        linkMap.put(resource,source);
+      }
+    }
+    result=getBrokenLinkBeans(linkMap);
+  }
+ catch (  Throwable e) {
+    error(e);
+  }
+  return result;
+}
