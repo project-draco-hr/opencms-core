@@ -1,0 +1,31 @@
+{
+  Set<CmsGroup> result=new HashSet<CmsGroup>();
+  if (accumulator.get(roleGroupName) != null) {
+    return accumulator.get(roleGroupName);
+  }
+  CmsGroup group=readGroup(dbc,roleGroupName);
+  if ((group == null) || (!group.isRole())) {
+    throw new CmsDbEntryNotFoundException(Messages.get().container(Messages.ERR_UNKNOWN_GROUP_1,roleGroupName));
+  }
+  result.add(group);
+  if (!directUsersOnly) {
+    CmsRole role=CmsRole.valueOf(group);
+    if (role.getParentRole() != null) {
+      try {
+        String parentGroup=role.getParentRole().getGroupName();
+        result.addAll(getRoleGroupsImpl(dbc,parentGroup,directUsersOnly,accumulator));
+      }
+ catch (      CmsDbEntryNotFoundException e) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+    String parentOu=CmsOrganizationalUnit.getParentFqn(group.getOuFqn());
+    if (parentOu != null) {
+      result.addAll(getRoleGroupsImpl(dbc,parentOu + group.getSimpleName(),directUsersOnly,accumulator));
+    }
+  }
+  accumulator.put(roleGroupName,result);
+  return result;
+}

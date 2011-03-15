@@ -1,0 +1,28 @@
+{
+  String searchFilter=searchParams.getSearchFilter();
+  if (!CmsStringUtil.isEmptyOrWhitespaceOnly(searchFilter)) {
+    CmsCompositeQueryFragment searchCondition=new CmsCompositeQueryFragment();
+    searchCondition.setSeparator(" OR ");
+    searchCondition.setPrefix("(");
+    searchCondition.setSuffix(")");
+    String patternExprTemplate=generateConcat("COALESCE(%1$s, '')","' '","COALESCE(%2$s, '')","' '","COALESCE(%3$s, '')");
+    String patternExpr=String.format(patternExprTemplate,users.column("USER_NAME"),users.column("USER_FIRSTNAME"),users.column("USER_LASTNAME"));
+    String like=" LIKE ? ESCAPE '!' ";
+    String matchExpr=patternExpr + like;
+    searchFilter="%" + CmsEncoder.escapeSqlLikePattern(searchFilter,'!') + '%';
+    searchCondition.add(new CmsSimpleQueryFragment(matchExpr,searchFilter));
+    for (    SearchKey key : searchParams.getSearchKeys()) {
+switch (key) {
+case email:
+        searchCondition.add(new CmsSimpleQueryFragment(users.column("USER_EMAIL") + like,searchFilter));
+      break;
+case orgUnit:
+    searchCondition.add(new CmsSimpleQueryFragment(users.column("USER_OU") + like,searchFilter));
+  break;
+default :
+break;
+}
+}
+select.addCondition(searchCondition);
+}
+}

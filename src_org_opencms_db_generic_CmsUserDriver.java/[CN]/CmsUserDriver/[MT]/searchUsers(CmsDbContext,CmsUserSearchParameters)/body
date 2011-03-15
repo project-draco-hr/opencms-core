@@ -1,0 +1,25 @@
+{
+  List<CmsUser> users=new ArrayList<CmsUser>();
+  CmsPair<String,List<Object>> queryAndParams=createUserQuery(searchParams,false);
+  ResultSet res=null;
+  PreparedStatement stmt=null;
+  Connection conn=null;
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,queryAndParams.getFirst());
+    CmsDbUtil.fillParameters(stmt,queryAndParams.getSecond());
+    res=stmt.executeQuery();
+    while (res.next()) {
+      CmsUser user=internalCreateUser(dbc,res);
+      users.add(user);
+    }
+  }
+ catch (  SQLException e) {
+    throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+  }
+  for (  CmsUser user : users) {
+    Map info=readUserInfos(dbc,user.getId());
+    user.setAdditionalInfo(info);
+  }
+  return users;
+}

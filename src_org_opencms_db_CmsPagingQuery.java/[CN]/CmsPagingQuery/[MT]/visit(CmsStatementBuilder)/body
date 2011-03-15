@@ -1,0 +1,30 @@
+{
+  if (m_useWindowFunctions) {
+    I_CmsQueryFragment order=m_select.getOrdering();
+    if (order == null) {
+      order=new CmsSimpleQueryFragment("USER_ID");
+    }
+ else {
+      m_select.setOrdering(null);
+    }
+    CmsCompositeQueryFragment rownumFragment=new CmsCompositeQueryFragment();
+    rownumFragment.add(new CmsSimpleQueryFragment("ROW_NUMBER() OVER (ORDER BY "));
+    rownumFragment.add(order);
+    rownumFragment.add(new CmsSimpleQueryFragment(") AS rownumber"));
+    m_select.addColumn(rownumFragment);
+    builder.add("SELECT * FROM ( ");
+    m_select.visit(builder);
+    int start=1 + m_pageSize * (m_page - 1);
+    int end=start + m_pageSize - 1;
+    builder.add(")");
+    if (m_nameSubquery) {
+      builder.add(" AS rnsq ");
+    }
+    builder.add(" WHERE rownumber BETWEEN " + start + " AND "+ end);
+  }
+ else {
+    m_select.visit(builder);
+    int offset=(m_page - 1) * m_pageSize;
+    builder.add("\nLIMIT " + m_pageSize + " OFFSET "+ offset);
+  }
+}
