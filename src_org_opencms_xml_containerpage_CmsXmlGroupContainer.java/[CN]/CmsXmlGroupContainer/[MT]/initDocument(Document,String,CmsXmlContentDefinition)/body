@@ -1,0 +1,64 @@
+{
+  m_document=document;
+  m_contentDefinition=definition;
+  m_encoding=CmsEncoder.lookupEncoding(encoding,encoding);
+  m_elementLocales=new HashMap<String,Set<Locale>>();
+  m_elementNames=new HashMap<Locale,Set<String>>();
+  m_locales=new HashSet<Locale>();
+  m_groupContainers=new HashMap<Locale,CmsGroupContainerBean>();
+  clearBookmarks();
+  for (Iterator<Element> itGroupContainers=CmsXmlGenericWrapper.elementIterator(m_document.getRootElement()); itGroupContainers.hasNext(); ) {
+    Element cntPage=itGroupContainers.next();
+    try {
+      Locale locale=CmsLocaleManager.getLocale(cntPage.attribute(CmsXmlContentDefinition.XSD_ATTRIBUTE_VALUE_LANGUAGE).getValue());
+      addLocale(locale);
+      Element groupContainer=cntPage.element(XmlNode.GroupContainers.name());
+      int cntIndex=CmsXmlUtils.getXpathIndexInt(groupContainer.getUniquePath(cntPage));
+      String cntPath=CmsXmlUtils.createXpathElement(groupContainer.getName(),cntIndex);
+      I_CmsXmlSchemaType cntSchemaType=definition.getSchemaType(groupContainer.getName());
+      I_CmsXmlContentValue cntValue=cntSchemaType.createValue(this,groupContainer,locale);
+      addBookmark(cntPath,locale,true,cntValue);
+      CmsXmlContentDefinition cntDef=((CmsXmlNestedContentDefinition)cntSchemaType).getNestedContentDefinition();
+      Element title=groupContainer.element(XmlNode.Title.name());
+      addBookmarkForElement(title,locale,groupContainer,cntPath,cntDef);
+      Element description=groupContainer.element(XmlNode.Description.name());
+      addBookmarkForElement(description,locale,groupContainer,cntPath,cntDef);
+      Set<String> types=new HashSet<String>();
+      for (Iterator<Element> itTypes=CmsXmlGenericWrapper.elementIterator(groupContainer,XmlNode.Type.name()); itTypes.hasNext(); ) {
+        Element type=itTypes.next();
+        addBookmarkForElement(type,locale,groupContainer,cntPath,cntDef);
+        String typeName=type.getTextTrim();
+        if (!CmsStringUtil.isEmptyOrWhitespaceOnly(typeName)) {
+          types.add(typeName);
+        }
+      }
+      List<CmsContainerElementBean> elements=new ArrayList<CmsContainerElementBean>();
+      for (Iterator<Element> itElems=CmsXmlGenericWrapper.elementIterator(groupContainer,XmlNode.Element.name()); itElems.hasNext(); ) {
+        Element element=itElems.next();
+        int elemIndex=CmsXmlUtils.getXpathIndexInt(element.getUniquePath(groupContainer));
+        String elemPath=CmsXmlUtils.concatXpath(cntPath,CmsXmlUtils.createXpathElement(element.getName(),elemIndex));
+        I_CmsXmlSchemaType elemSchemaType=cntDef.getSchemaType(element.getName());
+        I_CmsXmlContentValue elemValue=elemSchemaType.createValue(this,element,locale);
+        addBookmark(elemPath,locale,true,elemValue);
+        CmsXmlContentDefinition elemDef=((CmsXmlNestedContentDefinition)elemSchemaType).getNestedContentDefinition();
+        Element uri=element.element(XmlNode.Uri.name());
+        addBookmarkForElement(uri,locale,element,elemPath,elemDef);
+        Element uriLink=uri.element(CmsXmlPage.NODE_LINK);
+        CmsUUID elementId=null;
+        if (uriLink == null) {
+        }
+ else {
+          elementId=new CmsLink(uriLink).getStructureId();
+        }
+        Map<String,String> propertiesMap=CmsXmlContentPropertyHelper.readProperties(this,locale,element,elemPath,elemDef);
+        if (elementId != null) {
+          elements.add(new CmsContainerElementBean(elementId,null,propertiesMap,false));
+        }
+      }
+      m_groupContainers.put(locale,new CmsGroupContainerBean(title.getText(),description.getText(),elements,types));
+    }
+ catch (    NullPointerException e) {
+      LOG.error(org.opencms.xml.content.Messages.get().getBundle().key(org.opencms.xml.content.Messages.LOG_XMLCONTENT_INIT_BOOKMARKS_0),e);
+    }
+  }
+}
