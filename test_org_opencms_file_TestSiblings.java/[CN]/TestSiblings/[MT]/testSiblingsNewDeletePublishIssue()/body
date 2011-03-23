@@ -1,0 +1,94 @@
+{
+  echo("Tests publish issue with two siblings (one new sibling and one deleted sibling) of the same resource.");
+  CmsObject cms=getCmsObject();
+  CmsProject offlineProject=cms.getRequestContext().currentProject();
+  CmsProject onlineProject=cms.readProject(CmsProject.ONLINE_PROJECT_ID);
+  String mainFolder="/test/";
+  cms.createResource(mainFolder,CmsResourceTypeFolder.getStaticTypeId());
+  String source=mainFolder + "testabc.xml";
+  cms.createResource(source,CmsResourceTypePlain.getStaticTypeId(),null,null);
+  String subFolderDe=mainFolder + "de/";
+  cms.createResource(subFolderDe,CmsResourceTypeFolder.getStaticTypeId());
+  String subFolderEn=mainFolder + "en/";
+  cms.createResource(subFolderEn,CmsResourceTypeFolder.getStaticTypeId());
+  String subFolderNl=mainFolder + "nl/";
+  cms.createResource(subFolderNl,CmsResourceTypeFolder.getStaticTypeId());
+  OpenCms.getPublishManager().publishResource(cms,mainFolder);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  assertState(cms,mainFolder,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,source,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderDe,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderEn,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderNl,CmsResourceState.STATE_UNCHANGED);
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertState(cms,mainFolder,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,source,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderDe,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderEn,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderNl,CmsResourceState.STATE_UNCHANGED);
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  String siblingDe=subFolderDe + "testabc.xml";
+  cms.copyResource(source,siblingDe,CmsResource.COPY_AS_SIBLING);
+  String siblingEn=subFolderEn + "testabc.xml";
+  cms.copyResource(source,siblingEn,CmsResource.COPY_AS_SIBLING);
+  OpenCms.getPublishManager().publishResource(cms,mainFolder);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  assertState(cms,mainFolder,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,source,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderDe,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,siblingDe,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderEn,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,siblingEn,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderNl,CmsResourceState.STATE_UNCHANGED);
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertState(cms,mainFolder,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,source,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderDe,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,siblingDe,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderEn,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,siblingEn,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderNl,CmsResourceState.STATE_UNCHANGED);
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  cms.lockResource(siblingDe);
+  cms.deleteResource(siblingDe,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  String siblingNl=subFolderNl + "testabc.xml";
+  cms.copyResource(source,siblingNl,CmsResource.COPY_AS_SIBLING);
+  OpenCms.getPublishManager().publishProject(cms);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  String offReadSiblDe=null;
+  try {
+    cms.readResource(siblingDe);
+  }
+ catch (  CmsException e) {
+    offReadSiblDe=e.toString();
+  }
+  assertNotNull("The sibling /test/de/testabc.xml is not deleted in the 'Offline' project.",offReadSiblDe);
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  String onReadSiblDe=null;
+  try {
+    cms.readResource(siblingDe);
+  }
+ catch (  CmsException e) {
+    onReadSiblDe=e.toString();
+  }
+  assertNotNull("The sibling /test/de/testabc.xml is not deleted in the 'Online' project.",onReadSiblDe);
+  cms.getRequestContext().setCurrentProject(offlineProject);
+  assertState(cms,mainFolder,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,source,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderDe,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderEn,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,siblingEn,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderNl,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,siblingNl,CmsResourceState.STATE_UNCHANGED);
+  cms.getRequestContext().setCurrentProject(onlineProject);
+  assertState(cms,mainFolder,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,source,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderDe,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderEn,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,siblingEn,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,subFolderNl,CmsResourceState.STATE_UNCHANGED);
+  assertState(cms,siblingNl,CmsResourceState.STATE_UNCHANGED);
+}
