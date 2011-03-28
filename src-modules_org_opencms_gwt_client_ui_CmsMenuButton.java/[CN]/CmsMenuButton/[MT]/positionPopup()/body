@@ -1,40 +1,58 @@
 {
-  CmsPositionBean buttonPosition=CmsPositionBean.generatePositionInfo(m_button.getElement());
-  int contentTop;
-  int contentWidth=m_content.getOffsetWidth();
-  int contentLeft=m_isOpenRight ? buttonPosition.getLeft() - 5 : buttonPosition.getLeft() - contentWidth + buttonPosition.getWidth() + 5;
+  int spaceAssurance=20;
+  int space=getToolbarWidth() + 2 * spaceAssurance;
   int windowWidth=Window.getClientWidth();
-  if (m_isToolbarMode) {
+  int minLeft=(windowWidth - space) / 2;
+  if (minLeft < spaceAssurance) {
+    minLeft=spaceAssurance;
+  }
+  int maxRight=minLeft + space;
+  CmsPositionBean buttonPosition=CmsPositionBean.generatePositionInfo(m_button.getElement());
+  int buttonMiddle=buttonPosition.getLeft() - Window.getScrollLeft() + buttonPosition.getWidth() / 2;
+  int contentWidth=m_content.getOffsetWidth();
+  int contentLeft=buttonMiddle - contentWidth / 2;
+  if (minLeft > contentLeft) {
+    contentLeft=minLeft;
+  }
+ else   if (contentLeft + contentWidth > maxRight) {
+    contentLeft=maxRight - contentWidth;
+  }
+  if (contentLeft + contentWidth + spaceAssurance > windowWidth) {
+    contentLeft=windowWidth - contentWidth - spaceAssurance;
+  }
+  if (contentLeft < spaceAssurance) {
+    contentLeft=spaceAssurance;
+  }
+  int arrowSpace=10;
+  int arrowWidth=I_CmsLayoutBundle.INSTANCE.gwtImages().menuArrowTopImage().getWidth();
+  int arrowHeight=I_CmsLayoutBundle.INSTANCE.gwtImages().menuArrowTopImage().getHeight();
+  int arrowLeft=buttonMiddle - contentLeft - arrowWidth / 2;
+  if (arrowLeft + arrowWidth + arrowSpace > contentWidth) {
+    arrowLeft=contentWidth - arrowWidth - arrowSpace;
+  }
+ else   if (arrowLeft - arrowSpace < 0) {
+    arrowLeft=arrowWidth + arrowSpace;
+  }
+  int arrowTop=-(arrowHeight - 1);
+  String arrowClass=I_CmsLayoutBundle.INSTANCE.dialogCss().menuArrowTop();
+  int contentTop=buttonPosition.getTop() + buttonPosition.getHeight() - Window.getScrollTop() + arrowHeight - 2;
+  if (!m_isToolbarMode) {
+    contentTop=buttonPosition.getTop() + buttonPosition.getHeight() + arrowHeight - 2;
+    int contentHeight=m_content.getOffsetHeight();
+    int windowHeight=Window.getClientHeight();
+    if ((contentHeight + spaceAssurance < windowHeight) && (buttonPosition.getTop() - Window.getScrollTop() > contentHeight) && (contentHeight + spaceAssurance + contentTop - Window.getScrollTop() > windowHeight)) {
+      contentTop=buttonPosition.getTop() - arrowHeight + 2 - contentHeight;
+      arrowTop=contentHeight - 1;
+      arrowClass=I_CmsLayoutBundle.INSTANCE.dialogCss().menuArrowBottom();
+    }
+  }
+ else {
+    contentLeft=contentLeft - Window.getScrollLeft();
     m_content.getElement().getStyle().setPosition(Position.FIXED);
-    contentTop=buttonPosition.getTop() + buttonPosition.getHeight() - Window.getScrollTop() + 4;
-    if ((contentWidth + 10 < windowWidth) && (contentWidth + contentLeft > windowWidth)) {
-      contentLeft=windowWidth - contentWidth - 10;
-    }
- else {
-      contentLeft-=Window.getScrollLeft();
-    }
-    m_content.setPopupPosition(contentLeft,contentTop);
-    return;
   }
-  contentTop=buttonPosition.getTop() + buttonPosition.getHeight() + 1;
-  int contentHeight=m_content.getOffsetHeight();
-  int windowHeight=Window.getClientHeight();
-  boolean showBelowButton=true;
-  if ((contentHeight + 10 < windowHeight) && (buttonPosition.getTop() - Window.getScrollTop() > contentHeight) && (contentHeight + contentTop - Window.getScrollTop() > windowHeight)) {
-    showBelowButton=false;
-    contentTop=buttonPosition.getTop() - 1 - contentHeight;
-    getElement().addClassName(I_CmsLayoutBundle.INSTANCE.menuButtonCss().showAbove());
-    m_menuConnect.removeClassName(I_CmsLayoutBundle.INSTANCE.generalCss().cornerTop());
-    m_menuConnect.addClassName(I_CmsLayoutBundle.INSTANCE.generalCss().cornerBottom());
-  }
- else {
-    getElement().removeClassName(I_CmsLayoutBundle.INSTANCE.menuButtonCss().showAbove());
-    m_menuConnect.addClassName(I_CmsLayoutBundle.INSTANCE.generalCss().cornerTop());
-    m_menuConnect.removeClassName(I_CmsLayoutBundle.INSTANCE.generalCss().cornerBottom());
-  }
-  if ((contentWidth + 10 < windowWidth) && (contentWidth + contentLeft > windowWidth)) {
-    contentLeft=windowWidth - contentWidth - 10;
-  }
-  m_content.setPopupPosition(contentLeft,contentTop);
-  m_content.showConnect(buttonPosition.getWidth() + 2,m_isOpenRight,showBelowButton);
+  m_arrow.setClassName(arrowClass);
+  m_arrow.getStyle().setLeft(arrowLeft,Unit.PX);
+  m_arrow.getStyle().setTop(arrowTop,Unit.PX);
+  m_content.getElement().appendChild(m_arrow);
+  m_content.setPopupPosition(contentLeft + Window.getScrollLeft(),contentTop);
 }
