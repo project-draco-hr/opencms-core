@@ -1,0 +1,48 @@
+{
+  m_entryMap=new IdentityHashMap<CmsLazyTreeItem,CmsVfsEntryBean>();
+  m_tree=new CmsLazyTree<CmsLazyTreeItem>(new A_CmsLazyOpenHandler<CmsLazyTreeItem>(){
+    /** 
+ * @see org.opencms.gwt.client.ui.tree.I_CmsLazyOpenHandler#load(org.opencms.gwt.client.ui.tree.CmsLazyTreeItem)
+ */
+    public void load(    final CmsLazyTreeItem target){
+      CmsVfsEntryBean entry=m_entryMap.get(target);
+      final String path=entry.getPath();
+      CmsRpcAction<List<CmsVfsEntryBean>> action=new CmsRpcAction<List<CmsVfsEntryBean>>(){
+        @Override public void execute(){
+          start(0,false);
+          CmsCoreProvider.getVfsService().getChildren(path,this);
+        }
+        @Override protected void onResponse(        List<CmsVfsEntryBean> result){
+          stop(false);
+          for (          CmsVfsEntryBean childEntry : result) {
+            CmsLazyTreeItem item=createItem(childEntry);
+            target.addChild(item);
+          }
+          target.onFinishLoading();
+          center();
+        }
+      }
+;
+      action.execute();
+    }
+  }
+);
+  m_tree.getElement().getStyle().setOverflow(Overflow.AUTO);
+  add(m_tree);
+  CmsRpcAction<List<CmsVfsEntryBean>> action=new CmsRpcAction<List<CmsVfsEntryBean>>(){
+    @Override public void execute(){
+      start(0,false);
+      CmsCoreProvider.getVfsService().getRootEntries(this);
+    }
+    @Override protected void onResponse(    List<CmsVfsEntryBean> result){
+      stop(false);
+      for (      CmsVfsEntryBean entry : result) {
+        CmsLazyTreeItem item=createItem(entry);
+        m_tree.add(item);
+      }
+      center();
+    }
+  }
+;
+  action.execute();
+}
