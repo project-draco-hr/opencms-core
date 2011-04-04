@@ -1,0 +1,31 @@
+{
+  CmsSelectQuery select=new CmsSelectQuery();
+  TableAlias users=select.addTable("CmsDAOUsers","user");
+  if (countOnly) {
+    select.addColumn("COUNT(user.m_userId)");
+  }
+ else {
+    select.addColumn(users.getName());
+  }
+  CmsOrganizationalUnit orgUnit=searchParams.getOrganizationalUnit();
+  boolean recursive=searchParams.recursiveOrgUnits();
+  if (orgUnit != null) {
+    addOrgUnitCondition(select,users,orgUnit,recursive);
+  }
+  if (searchParams.isFilterCore()) {
+    select.addCondition(createCoreCondition(users));
+  }
+  addAllowedOuCondition(select,users,searchParams.getAllowedOus());
+  addFlagCondition(select,users,searchParams.getFlags(),searchParams.keepCoreUsers());
+  if (orgUnit != null) {
+    addWebuserCondition(select,orgUnit,users);
+  }
+  addSearchFilterCondition(select,users,searchParams);
+  addGroupCondition(select,users,searchParams);
+  if (!countOnly) {
+    addSorting(select,users,searchParams);
+  }
+  CmsStatementBuilder builder=new CmsStatementBuilder();
+  select.visit(builder);
+  return CmsPair.create(builder.getQuery(),builder.getParameters());
+}

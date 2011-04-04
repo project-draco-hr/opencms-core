@@ -1,0 +1,45 @@
+{
+  CmsGroup group=searchParams.getGroup();
+  if (group != null) {
+    CmsUUID groupId=group.getId();
+    TableAlias groupUsers=select.addTable(tabGroupUsers(),"groupusrs");
+    select.addCondition(new CmsSimpleQueryFragment(groupUsers.column(colGroupUserGroupId()) + " = ? ",groupId.toString()));
+    select.addCondition(new CmsSimpleQueryFragment(groupUsers.column(colGroupUserUserId()) + " = " + users.column(colId())));
+    if (searchParams.isFilterByGroupOu()) {
+      select.addCondition(new CmsSimpleQueryFragment(users.column(colOu()) + " = ? ",group.getOuFqn()));
+    }
+  }
+  CmsGroup notGroup=searchParams.getNotGroup();
+  if (notGroup != null) {
+    CmsSimpleQueryFragment notGroupCondition=new CmsSimpleQueryFragment("NOT EXISTS (SELECT " + getGroupUserSubqueryColumns() + " FROM "+ tabGroupUsers()+ " GU WHERE GU."+ colGroupUserUserId()+ " = "+ users.column(colId())+ " AND GU."+ colGroupUserGroupId()+ " = ?)",notGroup.getId().toString());
+    select.addCondition(notGroupCondition);
+  }
+  Collection<CmsGroup> anyGroups=searchParams.getAnyGroups();
+  if ((anyGroups != null) && !anyGroups.isEmpty()) {
+    CmsCompositeQueryFragment groupClause=new CmsCompositeQueryFragment();
+    groupClause.setSeparator(" OR ");
+    for (    CmsGroup grp : anyGroups) {
+      groupClause.add(new CmsSimpleQueryFragment("GU." + colGroupUserGroupId() + " = ?",grp.getId().toString()));
+    }
+    CmsCompositeQueryFragment existsClause=new CmsCompositeQueryFragment();
+    existsClause.add(new CmsSimpleQueryFragment("EXISTS (SELECT " + getGroupUserSubqueryColumns() + " FROM "+ tabGroupUsers()+ " GU WHERE GU."+ colGroupUserUserId()+ " = "+ users.column(colId())+ " AND "));
+    existsClause.add(groupClause);
+    existsClause.add(new CmsSimpleQueryFragment(" ) "));
+    select.addCondition(existsClause);
+  }
+  Collection<CmsGroup> notAnyGroups=searchParams.getNotAnyGroups();
+  if ((notAnyGroups != null) && (!notAnyGroups.isEmpty())) {
+    CmsCompositeQueryFragment groupClause=new CmsCompositeQueryFragment();
+    groupClause.setPrefix("(");
+    groupClause.setSuffix(")");
+    groupClause.setSeparator(" OR ");
+    for (    CmsGroup grp : notAnyGroups) {
+      groupClause.add(new CmsSimpleQueryFragment("GU." + colGroupUserGroupId() + " = ?",grp.getId().toString()));
+    }
+    CmsCompositeQueryFragment notExistsClause=new CmsCompositeQueryFragment();
+    notExistsClause.add(new CmsSimpleQueryFragment("NOT EXISTS (SELECT " + getGroupUserSubqueryColumns() + " FROM "+ tabGroupUsers()+ " GU WHERE GU."+ colGroupUserUserId()+ " = "+ users.column(colId())+ " AND "));
+    notExistsClause.add(groupClause);
+    notExistsClause.add(new CmsSimpleQueryFragment(" ) "));
+    select.addCondition(notExistsClause);
+  }
+}

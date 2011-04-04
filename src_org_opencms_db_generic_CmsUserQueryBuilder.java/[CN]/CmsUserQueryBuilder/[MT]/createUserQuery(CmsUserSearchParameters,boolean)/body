@@ -1,0 +1,37 @@
+{
+  CmsSelectQuery select=new CmsSelectQuery();
+  TableAlias users=select.addTable(tabUsers(),"usr");
+  if (countOnly) {
+    select.addColumn("COUNT(" + users.column(colId()) + ")");
+  }
+ else {
+    String[] columns=new String[]{colId(),colName(),colPassword(),colFirstName(),colLastName(),colEmail(),colLastLogin(),colFlags(),colOu(),colDateCreated()};
+    for (    String columnName : columns) {
+      select.addColumn(users.column(columnName));
+    }
+  }
+  CmsOrganizationalUnit orgUnit=searchParams.getOrganizationalUnit();
+  boolean recursive=searchParams.recursiveOrgUnits();
+  if (orgUnit != null) {
+    addOrgUnitCondition(select,users,orgUnit,recursive);
+  }
+  if (searchParams.isFilterCore()) {
+    select.addCondition(createCoreCondition(users));
+  }
+  addAllowedOuCondition(select,users,searchParams.getAllowedOus());
+  addFlagCondition(select,users,searchParams.getFlags(),searchParams.keepCoreUsers());
+  if (orgUnit != null) {
+    addWebuserCondition(select,orgUnit,users);
+  }
+  addSearchFilterCondition(select,users,searchParams);
+  addGroupCondition(select,users,searchParams);
+  if (countOnly) {
+    CmsStatementBuilder builder=new CmsStatementBuilder();
+    select.visit(builder);
+    return CmsPair.create(builder.getQuery(),builder.getParameters());
+  }
+ else {
+    addSorting(select,users,searchParams);
+    return makePaged(select,searchParams);
+  }
+}
