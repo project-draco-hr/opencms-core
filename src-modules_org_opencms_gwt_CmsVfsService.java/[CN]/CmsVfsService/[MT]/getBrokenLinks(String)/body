@@ -1,29 +1,40 @@
 {
-  List<CmsBrokenLinkBean> result=null;
   try {
-    ensureSession();
+    CmsResource entryResource=getCmsObject().readResource(sitePath,CmsResourceFilter.IGNORE_EXPIRATION);
+    CmsDeleteResourceBean result=null;
+    CmsListInfoBean info=null;
+    List<CmsBrokenLinkBean> brokenLinks=null;
     CmsObject cms=getCmsObject();
-    List<CmsResource> descendands=new ArrayList<CmsResource>();
-    HashSet<CmsUUID> deleteIds=new HashSet<CmsUUID>();
-    CmsResource entryResource=cms.readResource(sitePath);
-    descendands.add(entryResource);
-    if (entryResource.isFolder()) {
-      descendands.addAll(cms.readResources(sitePath,CmsResourceFilter.IGNORE_EXPIRATION));
-    }
-    for (    CmsResource deleteRes : descendands) {
-      deleteIds.add(deleteRes.getStructureId());
-    }
-    MultiValueMap linkMap=MultiValueMap.decorate(new HashMap<Object,Object>(),FactoryUtils.instantiateFactory(HashSet.class));
-    for (    CmsResource resource : descendands) {
-      List<CmsResource> linkSources=getLinkSources(cms,resource,deleteIds);
-      for (      CmsResource source : linkSources) {
-        linkMap.put(resource,source);
+    String resourceSitePath=cms.getSitePath(entryResource);
+    try {
+      ensureSession();
+      List<CmsResource> descendands=new ArrayList<CmsResource>();
+      HashSet<CmsUUID> deleteIds=new HashSet<CmsUUID>();
+      descendands.add(entryResource);
+      if (entryResource.isFolder()) {
+        descendands.addAll(cms.readResources(resourceSitePath,CmsResourceFilter.IGNORE_EXPIRATION));
       }
+      for (      CmsResource deleteRes : descendands) {
+        deleteIds.add(deleteRes.getStructureId());
+      }
+      MultiValueMap linkMap=MultiValueMap.decorate(new HashMap<Object,Object>(),FactoryUtils.instantiateFactory(HashSet.class));
+      for (      CmsResource resource : descendands) {
+        List<CmsResource> linkSources=getLinkSources(cms,resource,deleteIds);
+        for (        CmsResource source : linkSources) {
+          linkMap.put(resource,source);
+        }
+      }
+      brokenLinks=getBrokenLinkBeans(linkMap);
+      info=getPageInfo(entryResource);
+      result=new CmsDeleteResourceBean(resourceSitePath,info,brokenLinks);
     }
-    result=getBrokenLinkBeans(linkMap);
+ catch (    Throwable e) {
+      error(e);
+    }
+    return result;
   }
- catch (  Throwable e) {
+ catch (  CmsException e) {
     error(e);
+    return null;
   }
-  return result;
 }
