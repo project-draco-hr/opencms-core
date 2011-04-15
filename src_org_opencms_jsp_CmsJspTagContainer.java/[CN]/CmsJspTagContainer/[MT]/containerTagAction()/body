@@ -8,9 +8,9 @@
   ServletRequest req=pageContext.getRequest();
   CmsFlexController controller=CmsFlexController.getController(req);
   CmsObject cms=controller.getCmsObject();
-  CmsResource containerPage=(CmsResource)CmsHistoryResourceHandler.getHistoryResource(req);
-  if (containerPage == null) {
-    containerPage=cms.readResource(cms.getRequestContext().getUri());
+  CmsResource pageResource=(CmsResource)CmsHistoryResourceHandler.getHistoryResource(req);
+  if (pageResource == null) {
+    pageResource=cms.readResource(cms.getRequestContext().getUri());
   }
   boolean createTag=false;
   String tagName=CmsStringUtil.isEmptyOrWhitespaceOnly(tag) ? DEFAULT_TAG_NAME : tag;
@@ -18,38 +18,47 @@
     createTag=true;
     pageContext.getOut().print(getTagOpen(tagName,containerName,tagClass));
   }
-  CmsXmlContainerPage xmlCntPage=CmsXmlContainerPageFactory.unmarshal(cms,containerPage,req);
-  CmsContainerPageBean cntPage=xmlCntPage.getCntPage(cms,cms.getRequestContext().getLocale());
-  Locale locale=cntPage.getLocale();
-  int maxElements=getMaxElements(cms,containerPage,locale);
-  CmsContainerBean container=cntPage.getContainers().get(containerName);
+  CmsXmlContainerPage xmlContainerPage=CmsXmlContainerPageFactory.unmarshal(cms,pageResource,req);
+  CmsContainerPageBean containerPage=xmlContainerPage.getCntPage(cms,cms.getRequestContext().getLocale());
+  Locale locale=containerPage.getLocale();
+  int maxElements=getMaxElements(cms,pageResource,locale);
+  CmsContainerBean container=containerPage.getContainers().get(containerName);
   boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
+  CmsJspStandardContextBean standardContext=CmsJspStandardContextBean.getInstance(req);
+  standardContext.setPage(containerPage);
   boolean isUsedAsDetailView=false;
-  CmsUUID detailContentId=CmsDetailPageResourceHandler.getDetailId(req);
+  CmsUUID detailContentId=standardContext.getDetailContentId();
   if (m_detailView && (detailContentId != null)) {
     isUsedAsDetailView=true;
   }
   if (container == null) {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(Messages.get().container(Messages.LOG_CONTAINER_NOT_FOUND_3,cms.getSitePath(containerPage),locale,containerName).key());
-    }
-    if (!isOnline) {
-      try {
-        pageContext.getOut().print(getCntDataTag(new CmsContainerBean(containerName,containerType,maxElements,null),width,isUsedAsDetailView));
+    if (!isUsedAsDetailView) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_CONTAINER_NOT_FOUND_3,cms.getSitePath(pageResource),locale,containerName));
       }
- catch (      JSONException e) {
-        throw new JspException(e);
+      if (!isOnline) {
+        try {
+          pageContext.getOut().print(getContainerDataTag(new CmsContainerBean(containerName,containerType,maxElements,null),width,isUsedAsDetailView));
+        }
+ catch (        JSONException e) {
+          throw new JspException(e);
+        }
       }
+      if (createTag) {
+        pageContext.getOut().print(getTagClose(tagName));
+      }
+      return;
     }
-    if (createTag) {
-      pageContext.getOut().print(getTagClose(tagName));
+ else {
+      container=new CmsContainerBean(containerName,getType(),maxElements,Collections.<CmsContainerElementBean>emptyList());
     }
-    return;
   }
+  standardContext.setContainer(container);
   if (!containerType.equals(container.getType())) {
-    throw new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_TYPE_4,new Object[]{cms.getSitePath(containerPage),locale,containerName,containerType}));
+    throw new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_TYPE_4,new Object[]{cms.getSitePath(pageResource),locale,containerName,containerType}));
   }
   container.setMaxElements(maxElements);
+  container.setWidth(getWidth());
   List<CmsContainerElementBean> allElems=new ArrayList<CmsContainerElementBean>();
   allElems.addAll(container.getElements());
   if (detailView) {
@@ -57,7 +66,7 @@
   }
   if (!isOnline) {
     try {
-      pageContext.getOut().print(getCntDataTag(new CmsContainerBean(containerName,containerType,maxElements,allElems),width,isUsedAsDetailView));
+      pageContext.getOut().print(getContainerDataTag(new CmsContainerBean(containerName,containerType,maxElements,allElems),width,isUsedAsDetailView));
     }
  catch (    JSONException e) {
       throw new JspException(e);
@@ -75,24 +84,20 @@
   if ((maxElements > 0) && (renderElems > maxElements)) {
     renderElems=maxElements;
   }
-  req.setAttribute(CmsContainerPageBean.ATTR_KEY_CURRENTCONTAINER,container);
-  req.setAttribute(CmsContainerPageBean.ATTR_KEY_CURRENTCONTAINER_WIDTH,width);
   for (  CmsContainerElementBean element : allElems) {
     if (renderElems < 1) {
       break;
     }
     renderElems--;
     try {
-      renderContainerElement(cms,element);
+      renderContainerElement(cms,standardContext,element,locale);
     }
- catch (    CmsException e) {
-      if (LOG.isWarnEnabled()) {
-        LOG.warn(Messages.get().container(Messages.ERR_CONTAINER_PAGE_ELEMENT_RENDER_ERROR_1,element.getSitePath()),e);
+ catch (    Exception e) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(e);
       }
     }
   }
-  req.removeAttribute(CmsContainerPageBean.ATTR_KEY_CURRENTCONTAINER);
-  req.removeAttribute(CmsContainerPageBean.ATTR_KEY_CURRENTCONTAINER_WIDTH);
   if (createTag) {
     pageContext.getOut().print(getTagClose(tagName));
   }
