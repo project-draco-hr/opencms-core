@@ -4,25 +4,25 @@
   String containerType=getType();
   int containerWidth=getContainerWidth();
   boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
-  CmsResource resUri=cms.readResource(element.getElementId());
+  CmsResource resUri=cms.readResource(element.getId());
   if (resUri.getTypeId() == CmsResourceTypeXmlContainerPage.GROUP_CONTAINER_TYPE_ID) {
     CmsXmlGroupContainer xmlGroupContainer=CmsXmlGroupContainerFactory.unmarshal(cms,resUri,req);
     CmsGroupContainerBean groupContainer=xmlGroupContainer.getGroupContainer(cms,cms.getRequestContext().getLocale());
     if (!groupContainer.getTypes().contains(containerType)) {
       throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,resUri.getRootPath(),OpenCms.getResourceManager().getResourceType(resUri).getTypeName(),containerType));
     }
-    element.setSitePath(cms.getSitePath(resUri));
+    element.initResource(resUri,cms.getSitePath(resUri));
     printElementWrapperTagStart(isOnline,cms,resUri,element,true);
     for (    CmsContainerElementBean subelement : groupContainer.getElements()) {
       try {
-        CmsResource subelementRes=cms.readResource(subelement.getElementId());
+        CmsResource subelementRes=cms.readResource(subelement.getId());
         String subelementUri=cms.getSitePath(subelementRes);
         String subelementFormatter=OpenCms.getADEManager().getFormatterForContainerTypeAndWidth(cms,subelementRes,containerType,containerWidth);
         if (CmsStringUtil.isEmptyOrWhitespaceOnly(subelementFormatter) && LOG.isErrorEnabled()) {
           LOG.error(new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,subelementUri,OpenCms.getResourceManager().getResourceType(subelementRes).getTypeName(),containerType)));
           continue;
         }
-        subelement.setSitePath(subelementUri);
+        subelement.initResource(subelementRes,subelementUri);
         printElementWrapperTagStart(isOnline,cms,subelementRes,subelement,false);
         standardContext.setElement(subelement);
         try {
@@ -48,7 +48,7 @@
   }
  else {
     String elementFormatter=cms.getSitePath(cms.readResource(element.getFormatterId()));
-    element.setSitePath(cms.getSitePath(resUri));
+    element.initResource(resUri,cms.getSitePath(resUri));
     printElementWrapperTagStart(isOnline,cms,resUri,element,false);
     standardContext.setElement(element);
     try {
