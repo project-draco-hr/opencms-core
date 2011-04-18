@@ -8,11 +8,20 @@
     if (!matchesFilter && !filter.isSharedExclusive()) {
       continue;
     }
-    try {
-      lockedResource=m_driverManager.readResource(dbc,lock.getResourceName(),CmsResourceFilter.ALL);
+    lockedResource=cache.get(lock.getResourceName());
+    if (lockedResource == null) {
+      try {
+        lockedResource=m_driverManager.readResource(dbc,lock.getResourceName(),CmsResourceFilter.ALL);
+        cache.put(lock.getResourceName(),lockedResource);
+      }
+ catch (      CmsVfsResourceNotFoundException e) {
+        OpenCms.getMemoryMonitor().uncacheLock(lock.getResourceName());
+        CmsResource dummy=new CmsResource(null,null,null,0,false,0,null,null,0,null,0,null,0,0,0,0,0,0);
+        cache.put(lock.getResourceName(),dummy);
+        continue;
+      }
     }
- catch (    CmsVfsResourceNotFoundException e) {
-      OpenCms.getMemoryMonitor().uncacheLock(lock.getResourceName());
+ else     if (lockedResource.getStructureId() == null) {
       continue;
     }
     if (filter.isSharedExclusive() && (lockedResource.getSiblingCount() > 1)) {
