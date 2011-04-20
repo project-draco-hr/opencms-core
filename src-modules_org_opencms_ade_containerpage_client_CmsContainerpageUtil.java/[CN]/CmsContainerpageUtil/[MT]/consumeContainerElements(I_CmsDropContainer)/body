@@ -1,9 +1,8 @@
 {
-  List<CmsContainerPageElement> elements=new ArrayList<CmsContainerPageElement>();
   Element child=(Element)container.getElement().getFirstChildElement();
   while (child != null) {
-    boolean isContainerElement=CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENTS,child);
-    boolean isGroupcontainerElement=CmsDomUtil.hasClass(CLASS_GROUP_CONTAINER_ELEMENTS,child);
+    boolean isContainerElement=CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_START_MARKER,child);
+    boolean isGroupcontainerElement=CmsDomUtil.hasClass(CLASS_GROUP_CONTAINER_ELEMENT_MARKER,child);
     if (isContainerElement || isGroupcontainerElement) {
       String clientId=child.getAttribute("title");
       String sitePath=child.getAttribute("alt");
@@ -11,33 +10,72 @@
       String newType=child.getAttribute("newType");
       boolean hasProps=Boolean.parseBoolean(child.getAttribute("hasprops"));
       if (isContainerElement) {
-        Element elementRoot=(Element)child.getFirstChildElement();
-        CmsDomUtil.removeScriptTags(elementRoot);
-        DOM.removeChild(child,elementRoot);
-        CmsContainerPageElement containerElement=createElement(elementRoot,container,clientId,sitePath,noEditReason,hasProps);
-        if ((newType != null) && (newType.length() > 0)) {
-          containerElement.setNewType(newType);
+        Element elementRoot=(Element)child.getNextSibling();
+        while ((elementRoot != null) && (elementRoot.getNodeType() != Node.ELEMENT_NODE)) {
+          Element temp=elementRoot;
+          elementRoot=(Element)elementRoot.getNextSibling();
+          temp.removeFromParent();
         }
-        elements.add(containerElement);
-        DOM.removeChild((Element)container.getElement(),child);
+        if (elementRoot == null) {
+          child.removeFromParent();
+          child=null;
+          continue;
+        }
+        if (CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_START_MARKER,elementRoot)) {
+          child.removeFromParent();
+          child=elementRoot;
+          continue;
+        }
+        if (CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_END_MARKER,elementRoot)) {
+          child.removeFromParent();
+          child=(Element)elementRoot.getNextSiblingElement();
+          elementRoot.removeFromParent();
+          continue;
+        }
+ else {
+          Element endMarker=(Element)elementRoot.getNextSibling();
+          while (!((endMarker == null) || ((endMarker.getNodeType() == Node.ELEMENT_NODE) && (CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_END_MARKER,endMarker) || CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_START_MARKER,endMarker))))) {
+            Element temp=endMarker;
+            endMarker=(Element)endMarker.getNextSibling();
+            temp.removeFromParent();
+          }
+          if (endMarker == null) {
+            elementRoot.removeFromParent();
+            child.removeFromParent();
+            child=null;
+            continue;
+          }
+          if (CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_START_MARKER,endMarker)) {
+            elementRoot.removeFromParent();
+            child.removeFromParent();
+            child=endMarker;
+          }
+          CmsDomUtil.removeScriptTags(elementRoot);
+          CmsContainerPageElement containerElement=createElement(elementRoot,container,clientId,sitePath,noEditReason,hasProps);
+          if ((newType != null) && (newType.length() > 0)) {
+            containerElement.setNewType(newType);
+          }
+          container.adoptElement(containerElement);
+          child.removeFromParent();
+          child=(Element)endMarker.getNextSiblingElement();
+          endMarker.removeFromParent();
+        }
       }
  else       if (isGroupcontainerElement && (container instanceof CmsContainerPageContainer)) {
         CmsDomUtil.removeScriptTags(child);
         CmsGroupContainerElement groupContainer=createGroupcontainer(child,container,clientId,sitePath,noEditReason,hasProps);
         groupContainer.setContainerId(container.getContainerId());
-        elements.add(groupContainer);
-        DOM.removeChild((Element)container.getElement(),child);
+        container.adoptElement(groupContainer);
         consumeContainerElements(groupContainer);
         addOptionBar(groupContainer);
+        child=(Element)child.getNextSiblingElement();
       }
     }
  else {
+      Element sibling=(Element)child.getNextSiblingElement();
       DOM.removeChild((Element)container.getElement(),child);
+      child=sibling;
+      continue;
     }
-    child=(Element)container.getElement().getFirstChildElement();
-  }
-  Iterator<CmsContainerPageElement> it=elements.iterator();
-  while (it.hasNext()) {
-    container.add(it.next());
   }
 }

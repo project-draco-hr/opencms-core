@@ -4,26 +4,23 @@
   String containerType=getType();
   int containerWidth=getContainerWidth();
   boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
-  CmsResource resUri=cms.readResource(element.getId());
-  if (resUri.getTypeId() == CmsResourceTypeXmlContainerPage.GROUP_CONTAINER_TYPE_ID) {
-    CmsXmlGroupContainer xmlGroupContainer=CmsXmlGroupContainerFactory.unmarshal(cms,resUri,req);
+  element.initResource(cms);
+  if (element.getResource().getTypeId() == CmsResourceTypeXmlContainerPage.GROUP_CONTAINER_TYPE_ID) {
+    CmsXmlGroupContainer xmlGroupContainer=CmsXmlGroupContainerFactory.unmarshal(cms,element.getResource(),req);
     CmsGroupContainerBean groupContainer=xmlGroupContainer.getGroupContainer(cms,cms.getRequestContext().getLocale());
     if (!groupContainer.getTypes().contains(containerType)) {
-      throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,resUri.getRootPath(),OpenCms.getResourceManager().getResourceType(resUri).getTypeName(),containerType));
+      throw new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,element.getResource().getRootPath(),OpenCms.getResourceManager().getResourceType(element.getResource()).getTypeName(),containerType));
     }
-    element.initResource(resUri,cms.getSitePath(resUri));
-    printElementWrapperTagStart(isOnline,cms,resUri,element,true);
+    printElementWrapperTagStart(isOnline,cms,element,true);
     for (    CmsContainerElementBean subelement : groupContainer.getElements()) {
       try {
-        CmsResource subelementRes=cms.readResource(subelement.getId());
-        String subelementUri=cms.getSitePath(subelementRes);
-        String subelementFormatter=OpenCms.getADEManager().getFormatterForContainerTypeAndWidth(cms,subelementRes,containerType,containerWidth);
+        subelement.initResource(cms);
+        String subelementFormatter=OpenCms.getADEManager().getFormatterForContainerTypeAndWidth(cms,subelement.getResource(),containerType,containerWidth);
         if (CmsStringUtil.isEmptyOrWhitespaceOnly(subelementFormatter) && LOG.isErrorEnabled()) {
-          LOG.error(new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,subelementUri,OpenCms.getResourceManager().getResourceType(subelementRes).getTypeName(),containerType)));
+          LOG.error(new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,subelement.getSitePath(),OpenCms.getResourceManager().getResourceType(subelement.getResource()).getTypeName(),containerType)));
           continue;
         }
-        subelement.initResource(subelementRes,subelementUri);
-        printElementWrapperTagStart(isOnline,cms,subelementRes,subelement,false);
+        printElementWrapperTagStart(isOnline,cms,subelement,false);
         standardContext.setElement(subelement);
         try {
           CmsJspTagInclude.includeTagAction(pageContext,subelementFormatter,null,locale,false,isOnline,null,Collections.<String,Object>singletonMap(CmsJspStandardContextBean.ATTRIBUTE_JSP_STANDARD_CONTEXT_BEAN,standardContext),req,res);
@@ -34,9 +31,7 @@
           }
           printElementErrorTag(isOnline,subelement.getSitePath(),subelementFormatter);
         }
- finally {
-          printElementWrapperTagEnd(isOnline);
-        }
+        printElementWrapperTagEnd(isOnline,false);
       }
  catch (      Exception e) {
         if (LOG.isErrorEnabled()) {
@@ -44,12 +39,11 @@
         }
       }
     }
-    printElementWrapperTagEnd(isOnline);
+    printElementWrapperTagEnd(isOnline,true);
   }
  else {
     String elementFormatter=cms.getSitePath(cms.readResource(element.getFormatterId()));
-    element.initResource(resUri,cms.getSitePath(resUri));
-    printElementWrapperTagStart(isOnline,cms,resUri,element,false);
+    printElementWrapperTagStart(isOnline,cms,element,false);
     standardContext.setElement(element);
     try {
       CmsJspTagInclude.includeTagAction(pageContext,elementFormatter,null,locale,false,isOnline,null,Collections.<String,Object>singletonMap(CmsJspStandardContextBean.ATTRIBUTE_JSP_STANDARD_CONTEXT_BEAN,standardContext),req,res);
@@ -60,8 +54,6 @@
       }
       printElementErrorTag(isOnline,element.getSitePath(),elementFormatter);
     }
- finally {
-      printElementWrapperTagEnd(isOnline);
-    }
+    printElementWrapperTagEnd(isOnline,false);
   }
 }
