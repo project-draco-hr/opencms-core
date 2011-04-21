@@ -1,0 +1,40 @@
+{
+  try {
+    CmsFile file=readFile(cms,resource);
+    CmsXmlContainerPage containerPage=CmsXmlContainerPageFactory.unmarshal(cms,file);
+    Locale locale=index.getLocaleForResource(cms,resource,containerPage.getLocales());
+    StringBuffer content=new StringBuffer();
+    Map<String,String> items=new HashMap<String,String>();
+    CmsContainerPageBean containerBean=containerPage.getCntPage(cms,locale);
+    for (    CmsContainerElementBean element : containerBean.getElements()) {
+      CmsResource formatter=cms.readResource(element.getFormatterId());
+      CmsProperty excludeProp=cms.readPropertyObject(formatter,CmsPropertyDefinition.PROPERTY_SEARCH_EXCLUDE,false);
+      boolean excludeElement=false;
+      if (!excludeProp.isNullProperty()) {
+        String propValue=excludeProp.getValue();
+        excludeElement=Boolean.valueOf(propValue).booleanValue() || CmsSearchIndex.PROPERTY_SEARCH_EXCLUDE_VALUE_ALL.equalsIgnoreCase(propValue) || CmsSearchIndex.PROPERTY_SEARCH_EXCLUDE_VALUE_GALLERY.equalsIgnoreCase(propValue);
+      }
+      if (!excludeElement) {
+        element.initResource(cms);
+        CmsFile elementFile=readFile(cms,element.getResource());
+        A_CmsXmlDocument elementContent=CmsXmlContentFactory.unmarshal(cms,elementFile);
+        List<String> elementNames=elementContent.getNames(locale);
+        for (        String xpath : elementNames) {
+          I_CmsXmlContentValue value=elementContent.getValue(xpath,locale);
+          if (value.getContentDefinition().getContentHandler().isSearchable(value)) {
+            String extracted=value.getPlainText(cms);
+            if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
+              items.put(elementFile.getRootPath() + "/" + xpath,extracted);
+              content.append(extracted);
+              content.append('\n');
+            }
+          }
+        }
+      }
+    }
+    return new CmsExtractionResult(content.toString(),items);
+  }
+ catch (  Exception e) {
+    throw new CmsIndexException(Messages.get().container(Messages.ERR_TEXT_EXTRACTION_1,resource.getRootPath()),e);
+  }
+}
