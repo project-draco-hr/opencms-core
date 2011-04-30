@@ -2,7 +2,6 @@
   ServletRequest req=pageContext.getRequest();
   if (CmsFlexController.isCmsRequest(req)) {
     try {
-      boolean detailView=m_detailView;
       CmsFlexController controller=CmsFlexController.getController(req);
       CmsObject cms=controller.getCmsObject();
       String requestUri=cms.getRequestContext().getUri();
@@ -31,8 +30,8 @@
       }
       boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
       boolean isUsedAsDetailView=false;
-      CmsUUID detailContentId=standardContext.getDetailContentId();
-      if (m_detailView && (detailContentId != null)) {
+      CmsResource detailContent=standardContext.getDetailContent();
+      if (m_detailView && (detailContent != null)) {
         isUsedAsDetailView=true;
       }
       if (container == null) {
@@ -63,14 +62,20 @@
         }
         container.setMaxElements(maxElements);
         container.setWidth(getWidth());
-        List<CmsContainerElementBean> allElems=new ArrayList<CmsContainerElementBean>();
-        allElems.addAll(container.getElements());
-        if (detailView) {
-          addDetailViewToElements(cms,allElems);
+        List<CmsContainerElementBean> allElements=new ArrayList<CmsContainerElementBean>();
+        CmsContainerElementBean detailElement=null;
+        if (isUsedAsDetailView) {
+          detailElement=generateDetailViewElement(cms,detailContent);
+        }
+        if (detailElement != null) {
+          allElements.add(detailElement);
+        }
+ else {
+          allElements.addAll(container.getElements());
         }
         if (!isOnline) {
           try {
-            pageContext.getOut().print(getContainerDataTag(new CmsContainerBean(getName(),getType(),maxElements,allElems),getWidth(),isUsedAsDetailView));
+            pageContext.getOut().print(getContainerDataTag(new CmsContainerBean(getName(),getType(),maxElements,allElements),getWidth(),isUsedAsDetailView));
           }
  catch (          JSONException e) {
             throw new JspException(e);
@@ -80,21 +85,13 @@
             sessionCache=new CmsADESessionCache(cms);
             ((HttpServletRequest)req).getSession().setAttribute(CmsADESessionCache.SESSION_ATTR_ADE_CACHE,sessionCache);
           }
-          for (          CmsContainerElementBean element : allElems) {
+          for (          CmsContainerElementBean element : allElements) {
             sessionCache.setCacheContainerElement(element.editorHash(),element);
           }
         }
-        int renderElems=allElems.size();
-        if ((maxElements > 0) && (renderElems > maxElements)) {
-          renderElems=maxElements;
-        }
-        for (        CmsContainerElementBean element : allElems) {
-          if (renderElems < 1) {
-            break;
-          }
-          renderElems--;
+        for (int i=0; (i < maxElements) && (i < allElements.size()); i++) {
           try {
-            renderContainerElement(cms,standardContext,element,locale);
+            renderContainerElement(cms,standardContext,allElements.get(i),locale);
           }
  catch (          Exception e) {
             if (LOG.isErrorEnabled()) {
