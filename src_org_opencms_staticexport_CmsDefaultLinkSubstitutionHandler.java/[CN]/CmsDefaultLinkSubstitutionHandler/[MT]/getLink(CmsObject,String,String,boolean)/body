@@ -31,6 +31,40 @@
   if (targetSite == null) {
     targetSite=currentSite;
   }
+  String targetSiteRoot=targetSite.getSiteRoot();
+  String originalVfsName=vfsName;
+  try {
+    String rootVfsName;
+    if (!vfsName.startsWith(targetSiteRoot) && !vfsName.startsWith(CmsResource.VFS_FOLDER_SYSTEM + "/") && !OpenCms.getSiteManager().startsWithShared(vfsName)) {
+      rootVfsName=CmsStringUtil.joinPaths(targetSiteRoot,vfsName);
+    }
+ else {
+      rootVfsName=vfsName;
+    }
+    I_CmsDetailPageFinder finder=OpenCms.getADEManager().getDetailPageFinder();
+    String detailPage=finder.getDetailPage(cms,rootVfsName,cms.getRequestContext().getUri());
+    if (detailPage != null) {
+      if (detailPage.startsWith(targetSiteRoot)) {
+        detailPage=detailPage.substring(targetSiteRoot.length());
+        if (!detailPage.startsWith("/")) {
+          detailPage="/" + detailPage;
+        }
+      }
+      try {
+        CmsResource element=cms.readResource(vfsName);
+        vfsName=CmsStringUtil.joinPaths(detailPage,cms.getDetailName(element),"/");
+      }
+ catch (      CmsVfsException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+    }
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+    LOG.info(e.getLocalizedMessage(),e);
+  }
+catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
   String serverPrefix;
   if (targetSite != currentSite) {
     serverPrefix=targetSite.getUrl();
@@ -81,7 +115,7 @@
       if (!vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
         int linkType=-1;
         try {
-          linkType=cms.readResource(vfsName).getTypeId();
+          linkType=cms.readResource(originalVfsName).getTypeId();
         }
  catch (        CmsException e) {
           if (LOG.isInfoEnabled()) {
