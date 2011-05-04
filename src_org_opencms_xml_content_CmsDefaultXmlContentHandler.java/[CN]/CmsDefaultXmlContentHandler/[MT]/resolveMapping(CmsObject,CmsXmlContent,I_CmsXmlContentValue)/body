@@ -17,11 +17,17 @@
   }
   rootCms.getRequestContext().setSiteRoot("/");
   List<CmsResource> siblings=rootCms.readSiblings(content.getFile().getRootPath(),CmsResourceFilter.IGNORE_EXPIRATION);
+  Set<CmsResource> urlNameMappingResources=new HashSet<CmsResource>();
+  boolean mapToUrlName=false;
+  urlNameMappingResources.add(content.getFile());
   for (  String mapping : mappings) {
     if (CmsStringUtil.isNotEmpty(mapping)) {
       for (int i=(siblings.size() - 1); i >= 0; i--) {
         String filename=(siblings.get(i)).getRootPath();
         Locale locale=OpenCms.getLocaleManager().getDefaultLocale(rootCms,filename);
+        if (mapping.startsWith(MAPTO_URLNAME)) {
+          mapToUrlName=true;
+        }
         if (!locale.equals(value.getLocale())) {
           continue;
         }
@@ -165,11 +171,7 @@
           }
         }
  else         if (mapping.startsWith(MAPTO_URLNAME)) {
-          if (!CmsResource.isTemporaryFileName(siblings.get(i).getRootPath())) {
-            I_CmsFileNameGenerator nameGen=OpenCms.getResourceManager().getNameGenerator();
-            Iterator<String> nameSeq=nameGen.getUrlNameSequence(cms,content,value,siblings.get(i));
-            cms.writeUrlNameMapping(nameSeq,siblings.get(i).getStructureId());
-          }
+          urlNameMappingResources.add(siblings.get(i));
         }
  else         if (mapping.startsWith(MAPTO_ATTRIBUTE)) {
           String attribute=mapping.substring(MAPTO_ATTRIBUTE.length());
@@ -207,6 +209,15 @@ break;
 default :
 }
 }
+}
+}
+}
+if (mapToUrlName) {
+for (CmsResource resourceForUrlNameMapping : urlNameMappingResources) {
+if (!CmsResource.isTemporaryFileName(resourceForUrlNameMapping.getRootPath())) {
+I_CmsFileNameGenerator nameGen=OpenCms.getResourceManager().getNameGenerator();
+Iterator<String> nameSeq=nameGen.getUrlNameSequence(cms,content,value,resourceForUrlNameMapping);
+cms.writeUrlNameMapping(nameSeq,resourceForUrlNameMapping.getStructureId(),value.getLocale().toString());
 }
 }
 }

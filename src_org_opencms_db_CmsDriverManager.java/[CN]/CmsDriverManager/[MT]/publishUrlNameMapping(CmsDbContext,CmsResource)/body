@@ -1,2 +1,22 @@
 {
+  I_CmsVfsDriver vfsDriver=getVfsDriver(dbc);
+  if (res.getState().isDeleted()) {
+    CmsUrlNameMappingFilter idFilter=CmsUrlNameMappingFilter.ALL.filterStructureId(res.getStructureId());
+    vfsDriver.deleteUrlNameMappingEntries(dbc,true,idFilter);
+    vfsDriver.deleteUrlNameMappingEntries(dbc,false,idFilter);
+  }
+ else {
+    List<CmsUrlNameMappingEntry> entries=vfsDriver.readUrlNameMappingEntries(dbc,false,CmsUrlNameMappingFilter.ALL.filterStructureId(res.getStructureId()).filterState(CmsUrlNameMappingEntry.MAPPING_STATUS_NEW));
+    if (!entries.isEmpty()) {
+      long now=System.currentTimeMillis();
+      for (      CmsUrlNameMappingEntry entry : entries) {
+        CmsUrlNameMappingFilter nameFilter=CmsUrlNameMappingFilter.ALL.filterName(entry.getName());
+        vfsDriver.deleteUrlNameMappingEntries(dbc,true,nameFilter);
+        vfsDriver.deleteUrlNameMappingEntries(dbc,false,nameFilter);
+        CmsUrlNameMappingEntry newEntry=new CmsUrlNameMappingEntry(entry.getName(),entry.getStructureId(),CmsUrlNameMappingEntry.MAPPING_STATUS_PUBLISHED,now,entry.getLocale());
+        vfsDriver.addUrlNameMappingEntry(dbc,true,newEntry);
+        vfsDriver.addUrlNameMappingEntry(dbc,false,newEntry);
+      }
+    }
+  }
 }

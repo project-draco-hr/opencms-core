@@ -1,0 +1,29 @@
+{
+  List<CmsUrlNameMappingEntry> entries=getVfsDriver(dbc).readUrlNameMappingEntries(dbc,dbc.currentProject().isOnlineProject(),CmsUrlNameMappingFilter.ALL.filterStructureId(id));
+  if (entries.isEmpty()) {
+    return null;
+  }
+  ArrayListMultimap<String,CmsUrlNameMappingEntry> entriesByLocale=ArrayListMultimap.create();
+  for (  CmsUrlNameMappingEntry entry : entries) {
+    entriesByLocale.put(entry.getLocale(),entry);
+  }
+  List<CmsUrlNameMappingEntry> lastEntries=new ArrayList<CmsUrlNameMappingEntry>();
+  Comparator<CmsUrlNameMappingEntry> dateChangedComparator=new UrlNameMappingComparator();
+  for (  String localeKey : entriesByLocale.keySet()) {
+    CmsUrlNameMappingEntry latestEntryForLocale=Collections.max(entriesByLocale.get(localeKey),dateChangedComparator);
+    lastEntries.add(latestEntryForLocale);
+  }
+  CmsLocaleManager localeManager=OpenCms.getLocaleManager();
+  List<Locale> availableLocales=new ArrayList<Locale>();
+  for (  CmsUrlNameMappingEntry entry : lastEntries) {
+    availableLocales.add(new Locale(entry.getLocale()));
+  }
+  Locale bestLocale=localeManager.getBestMatchingLocale(locale,defaultLocales,availableLocales);
+  String bestLocaleStr=bestLocale.getLanguage();
+  for (  CmsUrlNameMappingEntry entry : lastEntries) {
+    if (entry.getLocale().equals(bestLocaleStr)) {
+      return entry.getName();
+    }
+  }
+  return null;
+}
