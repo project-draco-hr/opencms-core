@@ -1,0 +1,51 @@
+{
+  for (  CmsFormatterBean formatter : m_allFormatters) {
+    if (formatter.getJspStructureId() == null) {
+      CmsResource res=null;
+      try {
+        CmsObject cmsCopy=OpenCms.initCmsObject(cms);
+        cmsCopy.getRequestContext().setSiteRoot("");
+        res=cms.readResource(formatter.getJspRootPath());
+      }
+ catch (      CmsException e) {
+      }
+      if ((res == null) || !CmsResourceTypeJsp.isJsp(res)) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_FORMATTER_JSP_DONT_EXIST_1,formatter.getJspRootPath()));
+      }
+ else {
+        formatter.setJspStructureId(res.getStructureId());
+      }
+    }
+    if (formatter.getJspStructureId() != null) {
+      String oldUri=null;
+      Object key;
+      if (formatter.isTypeFormatter()) {
+        String type=formatter.getContainerType();
+        key=type;
+        CmsFormatterBean oldFormatter=m_typeFormatters.get(type);
+        if (oldFormatter != null) {
+          oldUri=oldFormatter.getJspRootPath();
+        }
+        m_typeFormatters.put(type,formatter);
+      }
+ else {
+        Integer minWidth=Integer.valueOf(formatter.getMinWidth());
+        key=minWidth;
+        int old=m_widthFormatters.lastIndexOf(formatter);
+        if (old >= 0) {
+          oldUri=m_widthFormatters.remove(old).getJspRootPath();
+        }
+        m_widthFormatters.add(formatter);
+      }
+      if (formatter.isPreviewFormatter()) {
+        m_previewFormatter=formatter;
+      }
+      if (oldUri != null) {
+        LOG.warn(Messages.get().getBundle().key(Messages.LOG_CONTENT_DEFINITION_DUPLICATE_FORMATTER_4,new Object[]{key,oldUri,formatter.getJspRootPath(),formatter.getLocation()}));
+      }
+    }
+  }
+  m_allFormatters=Collections.unmodifiableList(m_allFormatters);
+  m_typeFormatters=Collections.unmodifiableMap(m_typeFormatters);
+  m_widthFormatters=Collections.unmodifiableList(m_widthFormatters);
+}
