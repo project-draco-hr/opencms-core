@@ -8,11 +8,30 @@
  * @see com.google.gwt.user.client.Command#execute()
  */
     public void execute(){
-      CmsSitemapController controller=getHoverbar().getController();
-      CmsClientSitemapEntry entry=controller.getEntry(getHoverbar().getSitePath());
-      I_CmsSitemapEntryEditorHandler handler=new CmsEditEntryHandler(controller,entry,CmsSitemapView.getInstance().isNavigationMode());
-      A_CmsSitemapEntryEditor editor=createEntryEditor(handler);
-      editor.start();
+      final CmsSitemapController controller=getHoverbar().getController();
+      final CmsClientSitemapEntry entry=controller.getEntry(getHoverbar().getSitePath());
+      final CmsUUID infoId;
+      if ((entry.getDefaultFileId() != null) && CmsSitemapView.getInstance().isNavigationMode()) {
+        infoId=entry.getDefaultFileId();
+      }
+ else {
+        infoId=entry.getId();
+      }
+      CmsRpcAction<CmsListInfoBean> action=new CmsRpcAction<CmsListInfoBean>(){
+        @Override public void execute(){
+          start(300,false);
+          CmsCoreProvider.getVfsService().getPageInfo(infoId,this);
+        }
+        @Override protected void onResponse(        CmsListInfoBean result){
+          stop(false);
+          CmsEditEntryHandler handler=new CmsEditEntryHandler(controller,entry,CmsSitemapView.getInstance().isNavigationMode());
+          handler.setPageInfo(result);
+          A_CmsSitemapEntryEditor editor=createEntryEditor(handler);
+          editor.start();
+        }
+      }
+;
+      action.execute();
     }
   }
 );
