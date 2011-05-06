@@ -1,19 +1,39 @@
 {
   Map<String,CmsProperty> ownProps=getPropertiesByName(cms.readPropertyObjects(ownRes,false));
-  Map<String,CmsProperty> defaultFileProps=null;
+  boolean changeOwnTitle=shouldChangeTitle(ownProps);
+  boolean changeDefaultFileTitle=false;
+  Map<String,CmsProperty> defaultFileProps=Collections.emptyMap();
   if (defaultFileRes != null) {
     defaultFileProps=getPropertiesByName(cms.readPropertyObjects(defaultFileRes,false));
+    changeDefaultFileTitle=shouldChangeDefaultFileTitle(defaultFileProps,ownProps.get(CmsPropertyDefinition.PROPERTY_NAVTEXT));
   }
-  Map<CmsUUID,Map<String,CmsProperty>> propsMap=new HashMap<CmsUUID,Map<String,CmsProperty>>();
-  propsMap.put(ownRes.getStructureId(),ownProps);
-  if ((defaultFileProps != null) && (defaultFileRes != null)) {
-    propsMap.put(defaultFileRes.getStructureId(),defaultFileProps);
-  }
+  String hasNavTextChange=null;
+  List<CmsProperty> ownPropertyChanges=new ArrayList<CmsProperty>();
+  List<CmsProperty> defaultFilePropertyChanges=new ArrayList<CmsProperty>();
   for (  CmsPropertyModification propMod : propertyModifications) {
-    Map<String,CmsProperty> propsToModify=propsMap.get(propMod.getId());
-    CmsProperty propToModify=propsToModify.get(propMod.getName());
-    if (propToModify == null) {
-      propToModify=new CmsProperty(propMod.getName(),null,null);
+    CmsProperty propToModify=null;
+    if (ownRes.getStructureId().equals(propMod.getId())) {
+      if (CmsPropertyDefinition.PROPERTY_NAVTEXT.equals(propMod.getName())) {
+        hasNavTextChange=propMod.getValue();
+      }
+ else       if (CmsPropertyDefinition.PROPERTY_TITLE.equals(propMod.getName())) {
+        changeOwnTitle=false;
+      }
+      propToModify=ownProps.get(propMod.getName());
+      if (propToModify == null) {
+        propToModify=new CmsProperty(propMod.getName(),null,null);
+      }
+      ownPropertyChanges.add(propToModify);
+    }
+ else {
+      if (CmsPropertyDefinition.PROPERTY_TITLE.equals(propMod.getName())) {
+        changeDefaultFileTitle=false;
+      }
+      propToModify=defaultFileProps.get(propMod.getName());
+      if (propToModify == null) {
+        propToModify=new CmsProperty(propMod.getName(),null,null);
+      }
+      defaultFilePropertyChanges.add(propToModify);
     }
     String newValue=propMod.getValue();
     if (newValue == null) {
@@ -25,7 +45,29 @@
  else {
       propToModify.setResourceValue(newValue);
     }
-    CmsResource target=ownRes.getStructureId().equals(propMod.getId()) ? ownRes : defaultFileRes;
-    cms.writePropertyObjects(target,Collections.singletonList(propToModify));
+  }
+  if (hasNavTextChange != null) {
+    if (changeOwnTitle) {
+      CmsProperty titleProp=ownProps.get(CmsPropertyDefinition.PROPERTY_TITLE);
+      if (titleProp == null) {
+        titleProp=new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,null,null);
+      }
+      titleProp.setStructureValue(hasNavTextChange);
+      ownPropertyChanges.add(titleProp);
+    }
+    if (changeDefaultFileTitle) {
+      CmsProperty titleProp=defaultFileProps.get(CmsPropertyDefinition.PROPERTY_TITLE);
+      if (titleProp == null) {
+        titleProp=new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,null,null);
+      }
+      titleProp.setStructureValue(hasNavTextChange);
+      defaultFilePropertyChanges.add(titleProp);
+    }
+  }
+  if (!ownPropertyChanges.isEmpty()) {
+    cms.writePropertyObjects(ownRes,ownPropertyChanges);
+  }
+  if (!defaultFilePropertyChanges.isEmpty() && (defaultFileRes != null)) {
+    cms.writePropertyObjects(defaultFileRes,defaultFilePropertyChanges);
   }
 }
