@@ -4,4 +4,35 @@
     throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_MISSING_RESOURCE_BUNDLE_NAME_2,root.getName(),contentDefinition.getSchemaLocation()));
   }
   m_messageBundleName=name;
+  Iterator<Element> bundles=CmsXmlGenericWrapper.elementIterator(root,APPINFO_BUNDLE);
+  while (bundles.hasNext()) {
+    Element bundle=bundles.next();
+    String localeStr=bundle.attributeValue(APPINFO_ATTR_LOCALE);
+    Locale locale;
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(localeStr)) {
+      locale=CmsLocaleManager.getDefaultLocale();
+    }
+ else {
+      locale=CmsLocaleManager.getLocale(localeStr);
+    }
+    CmsXmlResourceBundle xmlBundle=null;
+    Iterator<Element> resources=CmsXmlGenericWrapper.elementIterator(bundle,APPINFO_RESOURCE);
+    while (resources.hasNext()) {
+      Element resource=resources.next();
+      String key=resource.attributeValue(APPINFO_ATTR_KEY);
+      String value=resource.attributeValue(APPINFO_ATTR_VALUE);
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(value)) {
+        value=resource.getTextTrim();
+      }
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(key) && CmsStringUtil.isNotEmptyOrWhitespaceOnly(value)) {
+        if (xmlBundle == null) {
+          xmlBundle=new CmsXmlResourceBundle();
+        }
+        xmlBundle.addMessage(key,value);
+      }
+    }
+    if (xmlBundle != null) {
+      CmsResourceBundleLoader.addBundleToCache(m_messageBundleName,locale,xmlBundle);
+    }
+  }
 }
