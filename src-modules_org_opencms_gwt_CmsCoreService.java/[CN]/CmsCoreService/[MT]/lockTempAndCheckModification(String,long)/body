@@ -1,12 +1,19 @@
 {
   CmsObject cms=getCmsObject();
   try {
-    if (cms.readResource(uri).getDateLastModified() != modification) {
-      return Messages.get().container(Messages.ERR_RESOURCE_MODIFIED_AFTER_OPEN_1,uri).key();
+    CmsResource resource=cms.readResource(uri);
+    if (resource.getDateLastModified() != modification) {
+      CmsUser user=cms.readUser(resource.getUserLastModified());
+      return CmsLockInfo.forChangedResource(uri,user.getName());
     }
   }
  catch (  Throwable e) {
     error(e);
   }
-  return lockTemp(uri);
+  try {
+    return getLock(uri);
+  }
+ catch (  CmsException e) {
+    return CmsLockInfo.forError(uri,e.getLocalizedMessage());
+  }
 }
