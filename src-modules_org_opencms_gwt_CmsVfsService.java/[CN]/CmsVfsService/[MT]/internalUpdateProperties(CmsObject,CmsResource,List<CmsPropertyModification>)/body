@@ -1,0 +1,48 @@
+{
+  Map<String,CmsProperty> ownProps=getPropertiesByName(cms.readPropertyObjects(ownRes,false));
+  boolean changeOwnTitle=shouldChangeTitle(ownProps);
+  String hasNavTextChange=null;
+  List<CmsProperty> ownPropertyChanges=new ArrayList<CmsProperty>();
+  for (  CmsPropertyModification propMod : propertyModifications) {
+    CmsProperty propToModify=null;
+    if (ownRes.getStructureId().equals(propMod.getId())) {
+      if (CmsPropertyDefinition.PROPERTY_NAVTEXT.equals(propMod.getName())) {
+        hasNavTextChange=propMod.getValue();
+      }
+ else       if (CmsPropertyDefinition.PROPERTY_TITLE.equals(propMod.getName())) {
+        changeOwnTitle=false;
+      }
+      propToModify=ownProps.get(propMod.getName());
+      if (propToModify == null) {
+        propToModify=new CmsProperty(propMod.getName(),null,null);
+      }
+      ownPropertyChanges.add(propToModify);
+    }
+ else {
+      throw new IllegalStateException("Invalid structure id in property changes!");
+    }
+    String newValue=propMod.getValue();
+    if (newValue == null) {
+      newValue="";
+    }
+    if (propMod.isStructureValue()) {
+      propToModify.setStructureValue(newValue);
+    }
+ else {
+      propToModify.setResourceValue(newValue);
+    }
+  }
+  if (hasNavTextChange != null) {
+    if (changeOwnTitle) {
+      CmsProperty titleProp=ownProps.get(CmsPropertyDefinition.PROPERTY_TITLE);
+      if (titleProp == null) {
+        titleProp=new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,null,null);
+      }
+      titleProp.setStructureValue(hasNavTextChange);
+      ownPropertyChanges.add(titleProp);
+    }
+  }
+  if (!ownPropertyChanges.isEmpty()) {
+    cms.writePropertyObjects(ownRes,ownPropertyChanges);
+  }
+}

@@ -1,0 +1,44 @@
+{
+  CmsXmlContentProperty propDef=m_propertyConfig.get(propName);
+  CmsClientProperty fileProp=defaultFileProps == null ? null : defaultFileProps.get(propName);
+  CmsClientProperty ownProp=ownProps.get(propName);
+  CmsPathValue pathValue;
+  if (!CmsClientProperty.isPropertyEmpty(fileProp)) {
+    pathValue=fileProp.getPathValue().prepend(defaultFileId + "/" + propName);
+  }
+ else   if (!CmsClientProperty.isPropertyEmpty(ownProp)) {
+    pathValue=ownProp.getPathValue().prepend(entryId + "/" + propName);
+  }
+ else {
+    String targetId=null;
+    if (propDef.isPreferFolder() || (m_handler.getDefaultFileId() == null)) {
+      targetId=entryId;
+    }
+ else {
+      targetId=m_handler.getDefaultFileId().toString();
+    }
+    pathValue=new CmsPathValue("",targetId + "/" + propName+ "/"+ CmsClientProperty.PATH_STRUCTURE_VALUE);
+  }
+  boolean alwaysAllowEmpty=!propName.equals(CmsClientProperty.PROPERTY_NAVTEXT);
+  CmsBasicFormField field=CmsBasicFormField.createField(propDef,pathValue.getPath(),this,Collections.singletonMap(CmsSelectBox.NO_SELECTION_TEXT,org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_SELECTBOX_UNSELECTED_1)),alwaysAllowEmpty);
+  CmsClientProperty inheritedProperty=m_handler.getInheritedProperty(propName);
+  String inherited=(inheritedProperty == null) ? null : inheritedProperty.getEffectiveValue();
+  if (inheritedProperty != null) {
+    String message=Messages.get().key(Messages.GUI_PROPERTY_ORIGIN_2,inheritedProperty.getOrigin(),inherited);
+    ((Widget)field.getWidget()).setTitle(message);
+  }
+  I_CmsFormWidget w=field.getWidget();
+  String initialValue=pathValue.getValue();
+  boolean ghost=CmsStringUtil.isEmptyOrWhitespaceOnly(pathValue.getValue());
+  if (w instanceof I_CmsHasGhostValue) {
+    ((I_CmsHasGhostValue)w).setGhostValue(inherited,ghost);
+    if (ghost) {
+      initialValue=null;
+    }
+  }
+  if (ghost && (inheritedProperty != null)) {
+    String message=org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_ORIGIN_INHERITED_1,inheritedProperty.getOrigin());
+    field.getLayoutData().put("info",message);
+  }
+  m_form.addField(m_form.getWidget().getDefaultGroup(),field,initialValue);
+}

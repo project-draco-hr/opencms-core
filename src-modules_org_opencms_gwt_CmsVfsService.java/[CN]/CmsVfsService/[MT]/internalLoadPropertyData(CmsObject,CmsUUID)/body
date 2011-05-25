@@ -1,0 +1,32 @@
+{
+  String originalSiteRoot=cms.getRequestContext().getSiteRoot();
+  CmsPropertiesBean result=new CmsPropertiesBean();
+  CmsResource resource=cms.readResource(id);
+  String sitePath=cms.getSitePath(resource);
+  Map<String,CmsXmlContentProperty> propertyConfig=OpenCms.getADEManager().getElementPropertyConfiguration(cms,sitePath);
+  result.setPropertyDefinitions(new HashMap<String,CmsXmlContentProperty>(propertyConfig));
+  try {
+    cms.getRequestContext().setSiteRoot("");
+    String parentPath=CmsResource.getParentFolder(resource.getRootPath());
+    CmsResource parent=cms.readResource(parentPath);
+    List<CmsProperty> parentProperties=cms.readPropertyObjects(parent,true);
+    List<CmsProperty> ownProperties=cms.readPropertyObjects(resource,false);
+    result.setOwnProperties(convertProperties(ownProperties));
+    result.setInheritedProperties(convertProperties(parentProperties));
+    result.setPageInfo(CmsServiceUtil.getPageInfo(cms,resource));
+    List<CmsPropertyDefinition> propDefs=cms.readAllPropertyDefinitions();
+    List<String> propNames=new ArrayList<String>();
+    for (    CmsPropertyDefinition propDef : propDefs) {
+      propNames.add(propDef.getName());
+    }
+    CmsTemplateFinder templateFinder=new CmsTemplateFinder(cms);
+    result.setTemplates(templateFinder.getTemplates());
+    result.setAllProperties(propNames);
+    result.setStructureId(id);
+    result.setSitePath(sitePath);
+    return result;
+  }
+  finally {
+    cms.getRequestContext().setSiteRoot(originalSiteRoot);
+  }
+}
