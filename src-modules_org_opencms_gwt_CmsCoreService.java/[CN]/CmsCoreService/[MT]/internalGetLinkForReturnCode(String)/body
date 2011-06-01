@@ -1,0 +1,35 @@
+{
+  CmsObject cms=getCmsObject();
+  if (CmsUUID.isValidUUID(returnCode)) {
+    try {
+      CmsResource pageRes=cms.readResource(new CmsUUID(returnCode));
+      return new CmsReturnLinkInfo(CmsStringUtil.joinPaths(OpenCms.getSystemInfo().getOpenCmsContext(),cms.getSitePath(pageRes)),CmsReturnLinkInfo.Status.ok);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      return new CmsReturnLinkInfo(null,CmsReturnLinkInfo.Status.notfound);
+    }
+  }
+ else {
+    int colonIndex=returnCode.indexOf(':');
+    if (colonIndex >= 0) {
+      String before=returnCode.substring(0,colonIndex);
+      String after=returnCode.substring(colonIndex + 1);
+      if (CmsUUID.isValidUUID(before) && CmsUUID.isValidUUID(after)) {
+        try {
+          CmsUUID pageId=new CmsUUID(before);
+          CmsUUID detailId=new CmsUUID(after);
+          CmsResource pageRes=cms.readResource(pageId);
+          String pagePath=CmsResource.getFolderPath(cms.getSitePath(pageRes));
+          CmsResource detailRes=cms.readResource(detailId);
+          String detailName=cms.getDetailName(detailRes,cms.getRequestContext().getLocale(),OpenCms.getLocaleManager().getDefaultLocales());
+          String uri=CmsStringUtil.joinPaths(pagePath,detailName);
+          return new CmsReturnLinkInfo(CmsStringUtil.joinPaths(OpenCms.getSystemInfo().getOpenCmsContext(),uri),CmsReturnLinkInfo.Status.ok);
+        }
+ catch (        CmsVfsResourceNotFoundException e) {
+          return new CmsReturnLinkInfo(null,CmsReturnLinkInfo.Status.notfound);
+        }
+      }
+    }
+    throw new IllegalArgumentException("return code has wrong format");
+  }
+}
