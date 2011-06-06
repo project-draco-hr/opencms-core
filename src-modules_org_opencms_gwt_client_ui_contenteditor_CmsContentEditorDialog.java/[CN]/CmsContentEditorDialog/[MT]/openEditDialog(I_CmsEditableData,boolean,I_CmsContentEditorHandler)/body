@@ -1,0 +1,33 @@
+{
+  if ((m_dialog != null) && m_dialog.isShowing()) {
+    CmsDebugLog.getInstance().printLine("Dialog is already open, cannot open another one.");
+    return;
+  }
+  m_isNew=isNew;
+  m_editableData=editableData;
+  m_editorHandler=editorHandler;
+  if (m_isNew || (editableData.getStructureId() == null)) {
+    openDialog();
+  }
+ else {
+    CmsRpcAction<String> action=new CmsRpcAction<String>(){
+      @Override public void execute(){
+        show(true);
+        CmsCoreProvider.getVfsService().getSitePath(getEditableData().getStructureId(),this);
+      }
+      @Override protected void onResponse(      String result){
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(result)) {
+          getEditableData().setSitePath(result);
+          openDialog();
+        }
+ else {
+          CmsAlertDialog alert=new CmsAlertDialog(Messages.get().key(Messages.ERR_TITLE_ERROR_0),Messages.get().key(Messages.ERR_RESOURCE_UNAVAILABLE_1,getEditableData().getSitePath()));
+          alert.center();
+        }
+        stop(false);
+      }
+    }
+;
+    action.execute();
+  }
+}
