@@ -1,19 +1,39 @@
 {
-  CmsTree<CmsTreeItem> content=new CmsTree<CmsTreeItem>();
-  CmsListItemWidget resourceListItemWidget=new CmsListItemWidget(reportInfo.getResourceInfo());
-  CmsTreeItem treeItem=new CmsTreeItem(false,resourceListItemWidget);
-  content.addItem(treeItem);
-  for (  CmsListInfoBean lockedInfo : reportInfo.getLockedResourceInfos()) {
-    CmsListItemWidget listItemWidget=new CmsListItemWidget(lockedInfo);
-    treeItem.addChild(new CmsTreeItem(false,listItemWidget));
-  }
-  treeItem.setOpen(true);
-  this.setMainContent(content);
+  FlowPanel content=new FlowPanel();
+  m_resourceItem=new CmsListItemWidget(reportInfo.getResourceInfo());
+  HeightHandler heightHandler=new HeightHandler();
+  m_resourceItem.addOpenHandler(heightHandler);
+  m_resourceItem.addCloseHandler(heightHandler);
+  content.add(m_resourceItem);
+  m_scrollPanel=new FlowPanel();
+  m_scrollPanel.setStyleName(I_CmsLayoutBundle.INSTANCE.generalCss().border());
+  m_scrollPanel.addStyleName(I_CmsLayoutBundle.INSTANCE.generalCss().cornerAll());
+  m_scrollPanel.addStyleName(I_CmsLayoutBundle.INSTANCE.dialogCss().logReportScrollPanel());
+  CmsMessageWidget message=new CmsMessageWidget();
+  m_scrollPanel.add(message);
+  CmsList<CmsListItem> list=null;
   if (!reportInfo.getLockedResourceInfos().isEmpty() || ((reportInfo.getResourceInfo().getLockIcon() != null) && (reportInfo.getResourceInfo().getLockIcon() != LockIcon.NONE))) {
     m_unlockButton.setVisible(true);
+    message.setMessageText(Messages.get().key(Messages.GUI_LOCK_REPORT_UNLOCK_MESSAGE_0));
+    list=new CmsList<CmsListItem>();
+    for (    CmsListInfoBean lockedInfo : reportInfo.getLockedResourceInfos()) {
+      CmsListItemWidget listItemWidget=new CmsListItemWidget(lockedInfo);
+      listItemWidget.addOpenHandler(heightHandler);
+      listItemWidget.addCloseHandler(heightHandler);
+      list.addItem(new CmsListItem(listItemWidget));
+    }
+    m_scrollPanel.add(list);
   }
+ else {
+    message.setMessageText(Messages.get().key(Messages.GUI_LOCK_REPORT_NOTHING_LOCKED_0));
+  }
+  content.add(m_scrollPanel);
+  this.setMainContent(content);
   if (isShowing()) {
-    content.truncate(this.getClass().getName(),DIALOG_WIDTH);
-    center();
+    m_resourceItem.truncate(TEXT_METRICS_KEY,DIALOG_WIDTH);
+    if (list != null) {
+      list.truncate(TEXT_METRICS_KEY,DIALOG_WIDTH);
+    }
+    adjustHeight();
   }
 }
