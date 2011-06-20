@@ -1,14 +1,13 @@
 {
   CmsSitemapData result=null;
   CmsObject cms=getCmsObject();
-  CmsADEManager sitemapMgr=OpenCms.getADEManager();
   try {
     String openPath=getRequest().getParameter("path");
     if (CmsStringUtil.isEmptyOrWhitespaceOnly(openPath)) {
       openPath="/";
     }
-    String entryPoint=sitemapMgr.findEntryPoint(cms,openPath);
-    Map<String,CmsXmlContentProperty> propertyConfig=new LinkedHashMap<String,CmsXmlContentProperty>(sitemapMgr.getElementPropertyConfiguration(cms,entryPoint));
+    String entryPoint=OpenCms.getADEConfigurationManager().findEntryPoint(cms,openPath);
+    Map<String,CmsXmlContentProperty> propertyConfig=new LinkedHashMap<String,CmsXmlContentProperty>(OpenCms.getADEConfigurationManager().lookupConfiguration(cms,entryPoint).getPropertyConfigurationAsMap());
     Map<String,CmsClientProperty> parentProperties=generateParentProperties(entryPoint);
     String siteRoot=cms.getRequestContext().getSiteRoot();
     String exportRfsPrefix=OpenCms.getStaticExportManager().getDefaultRfsPrefix();
@@ -16,9 +15,9 @@
     boolean isSecure=site.hasSecureServer();
     String parentSitemap=null;
     if (!entryPoint.equals("/")) {
-      parentSitemap=sitemapMgr.findEntryPoint(cms,CmsResource.getParentFolder(entryPoint));
+      parentSitemap=OpenCms.getADEConfigurationManager().findEntryPoint(cms,CmsResource.getParentFolder(entryPoint));
     }
-    CmsSitemapConfigurationData sitemapConfig=OpenCms.getADEConfigurationManager().getSitemapConfiguration(cms,cms.getRequestContext().addSiteRoot(openPath));
+    CmsADEConfigData configData=OpenCms.getADEConfigurationManager().lookupConfiguration(cms,cms.getRequestContext().addSiteRoot(openPath));
     String noEdit="";
     CmsNewResourceInfo defaultNewInfo=null;
     List<CmsNewResourceInfo> newResourceInfos=null;
@@ -26,18 +25,18 @@
     List<CmsNewResourceInfo> resourceTypeInfos=null;
     boolean canEditDetailPages=false;
     boolean isOnlineProject=CmsProject.isOnlineProject(cms.getRequestContext().getCurrentProject().getUuid());
-    if (sitemapConfig == null) {
+    if (configData == null) {
       noEdit=Messages.get().getBundle().key(Messages.GUI_SITEMAP_NO_EDIT_0);
     }
  else {
-      detailPages=new CmsDetailPageTable(sitemapConfig.getDetailPageInfo());
+      detailPages=new CmsDetailPageTable(configData.getAllDetailPages());
       if (!isOnlineProject) {
-        CmsConfigurationItem containerpageConfigItem=sitemapConfig.getTypeConfiguration().get(CmsResourceTypeXmlContainerPage.getStaticTypeName());
+        CmsConfigurationItem containerpageConfigItem=null;
         if (containerpageConfigItem != null) {
           resourceTypeInfos=getResourceTypeInfos(getCmsObject(),entryPoint,containerpageConfigItem.getSourceFile());
           defaultNewInfo=createNewResourceInfo(cms,containerpageConfigItem);
         }
-        canEditDetailPages=!(sitemapConfig.getLastSource().isModuleConfiguration());
+        canEditDetailPages=!(configData.isModuleConfiguration());
         newResourceInfos=getNewResourceInfos(cms,entryPoint);
       }
     }

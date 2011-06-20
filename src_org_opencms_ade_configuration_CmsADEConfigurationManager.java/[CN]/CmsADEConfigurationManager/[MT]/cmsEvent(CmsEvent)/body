@@ -1,0 +1,71 @@
+{
+  CmsResource resource=null;
+  List<CmsResource> resources=null;
+switch (event.getType()) {
+case I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED:
+case I_CmsEventListener.EVENT_RESOURCE_MODIFIED:
+case I_CmsEventListener.EVENT_RESOURCE_CREATED:
+    Object change=event.getData().get(I_CmsEventListener.KEY_CHANGE);
+  if ((change != null) && change.equals(new Integer(CmsDriverManager.NOTHING_CHANGED))) {
+    return;
+  }
+resource=(CmsResource)event.getData().get(I_CmsEventListener.KEY_RESOURCE);
+m_offlineCache.update(resource);
+break;
+case I_CmsEventListener.EVENT_RESOURCES_AND_PROPERTIES_MODIFIED:
+resources=CmsCollectionsGenericWrapper.list(event.getData().get(I_CmsEventListener.KEY_RESOURCES));
+for (CmsResource res : resources) {
+m_offlineCache.update(res);
+}
+break;
+case I_CmsEventListener.EVENT_RESOURCE_MOVED:
+resources=CmsCollectionsGenericWrapper.list(event.getData().get(I_CmsEventListener.KEY_RESOURCES));
+m_offlineCache.remove(resources.get(0));
+m_offlineCache.update(resources.get(resources.size() - 2));
+break;
+case I_CmsEventListener.EVENT_RESOURCE_DELETED:
+resources=CmsCollectionsGenericWrapper.list(event.getData().get(I_CmsEventListener.KEY_RESOURCES));
+for (CmsResource res : resources) {
+m_offlineCache.remove(res);
+}
+break;
+case I_CmsEventListener.EVENT_RESOURCES_MODIFIED:
+resources=CmsCollectionsGenericWrapper.list(event.getData().get(I_CmsEventListener.KEY_RESOURCES));
+for (CmsResource res : resources) {
+m_offlineCache.update(res);
+}
+break;
+case I_CmsEventListener.EVENT_CLEAR_ONLINE_CACHES:
+m_onlineCache.initialize();
+break;
+case I_CmsEventListener.EVENT_PUBLISH_PROJECT:
+String publishIdStr=(String)event.getData().get(I_CmsEventListener.KEY_PUBLISHID);
+if (publishIdStr != null) {
+CmsUUID publishId=new CmsUUID(publishIdStr);
+try {
+List<CmsPublishedResource> publishedResources=m_onlineCms.readPublishedResources(publishId);
+for (CmsPublishedResource res : publishedResources) {
+if (res.getState().isDeleted()) {
+m_onlineCache.remove(res);
+}
+ else {
+m_onlineCache.update(res);
+}
+}
+}
+ catch (CmsException e) {
+LOG.error(e.getLocalizedMessage(),e);
+}
+}
+break;
+case I_CmsEventListener.EVENT_CLEAR_CACHES:
+m_offlineCache.initialize();
+m_onlineCache.initialize();
+break;
+case I_CmsEventListener.EVENT_CLEAR_OFFLINE_CACHES:
+m_offlineCache.initialize();
+break;
+default :
+break;
+}
+}

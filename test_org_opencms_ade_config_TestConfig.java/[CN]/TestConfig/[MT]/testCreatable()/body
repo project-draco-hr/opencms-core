@@ -1,0 +1,30 @@
+{
+  String baseDirectory="/sites/default/testCreatable";
+  String contentDirectory=baseDirectory + "/.content";
+  String plain="plain";
+  String binary="binary";
+  String plainDir=contentDirectory + "/" + plain;
+  String binaryDir=contentDirectory + "/" + binary;
+  createFolder(plainDir,true);
+  createFolder(binaryDir,true);
+  CmsObject cms=rootCms();
+  String username="User_testCreatable";
+  CmsUser dummyUser=cms.createUser(username,"password","description",Collections.<String,Object>emptyMap());
+  cms.chacc(plainDir,I_CmsPrincipal.PRINCIPAL_USER,username,"+r+v-w");
+  cms.chacc(binaryDir,I_CmsPrincipal.PRINCIPAL_USER,username,"+r+v+w");
+  CmsObject dummyUserCms=rootCms();
+  cms.addUserToGroup(username,OpenCms.getDefaultUsers().getGroupUsers());
+  dummyUserCms.loginUser(username,"password");
+  dummyUserCms.getRequestContext().setCurrentProject(cms.readProject("Offline"));
+  CmsFolderOrName folder=new CmsFolderOrName(baseDirectory + "/.content","plain");
+  CmsResourceTypeConfig typeConf1=new CmsResourceTypeConfig("plain",false,folder,"pattern_%(number)",null);
+  CmsResourceTypeConfig typeConf2=new CmsResourceTypeConfig("binary",false,new CmsFolderOrName(baseDirectory + "/.content","binary"),"binary_%(number).html",null);
+  CmsTestConfigData config1=new CmsTestConfigData(baseDirectory,list(typeConf1,typeConf2),NO_PROPERTIES,NO_DETAILPAGES,NO_MODEL_PAGES);
+  config1.initialize(rootCms());
+  List<CmsResourceTypeConfig> creatableTypes=config1.getCreatableTypes(dummyUserCms);
+  assertEquals(1,creatableTypes.size());
+  assertEquals(binary,creatableTypes.get(0).getTypeName());
+  creatableTypes=config1.getCreatableTypes(cms);
+  assertEquals(2,creatableTypes.size());
+  assertEquals(set("plain","binary"),set(creatableTypes.get(0).getTypeName(),creatableTypes.get(1).getTypeName()));
+}
