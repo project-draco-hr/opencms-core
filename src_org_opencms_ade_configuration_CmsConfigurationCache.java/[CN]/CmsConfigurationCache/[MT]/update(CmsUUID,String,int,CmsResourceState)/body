@@ -2,17 +2,30 @@
   if (CmsResource.isTemporaryFileName(rootPath)) {
     return;
   }
-  m_pathCache.remove(structureId);
+  try {
+    updateFolderTypes(rootPath);
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+synchronized (m_pathCache) {
+    m_pathCache.remove(structureId);
+    m_pathCache.put(structureId,rootPath);
+  }
   if (isSitemapConfiguration(rootPath,type)) {
-    CmsConfigurationReader configReader=new CmsConfigurationReader(m_cms);
-    String basePath=getBasePath(rootPath);
-    CmsResource configRes=m_cms.readResource(rootPath);
-    CmsADEConfigData configData=configReader.parseSitemapConfiguration(getBasePath(rootPath),configRes);
-    configData.initialize(m_cms);
-    m_siteConfigurations.put(basePath,configData);
-    LOG.info("Updating configuration file " + rootPath);
+synchronized (this) {
+      CmsConfigurationReader configReader=new CmsConfigurationReader(m_cms);
+      String basePath=getBasePath(rootPath);
+      CmsResource configRes=m_cms.readResource(rootPath);
+      CmsADEConfigData configData=configReader.parseSitemapConfiguration(getBasePath(rootPath),configRes);
+      configData.initialize(m_cms);
+      m_siteConfigurations.put(basePath,configData);
+      LOG.info("Updating configuration file " + rootPath);
+      initializeFolderTypes();
+    }
   }
  else   if (isModuleConfiguration(rootPath,type)) {
     refreshModuleConfiguration();
+    initializeFolderTypes();
   }
 }
