@@ -6,18 +6,22 @@
     if (CmsStringUtil.isEmptyOrWhitespaceOnly(openPath)) {
       openPath="/";
     }
-    String entryPoint=OpenCms.getADEConfigurationManager().findEntryPoint(cms,openPath);
-    Map<String,CmsXmlContentProperty> propertyConfig=new LinkedHashMap<String,CmsXmlContentProperty>(OpenCms.getADEConfigurationManager().lookupConfiguration(cms,entryPoint).getPropertyConfigurationAsMap());
-    Map<String,CmsClientProperty> parentProperties=generateParentProperties(entryPoint);
+    openPath=cms.getRequestContext().addSiteRoot(openPath);
+    CmsADEConfigData configData=OpenCms.getADEConfigurationManager().lookupConfiguration(cms,openPath);
+    Map<String,CmsXmlContentProperty> propertyConfig=new LinkedHashMap<String,CmsXmlContentProperty>(configData.getPropertyConfigurationAsMap());
+    Map<String,CmsClientProperty> parentProperties=generateParentProperties(configData.getBasePath());
     String siteRoot=cms.getRequestContext().getSiteRoot();
     String exportRfsPrefix=OpenCms.getStaticExportManager().getDefaultRfsPrefix();
     CmsSite site=OpenCms.getSiteManager().getSiteForSiteRoot(siteRoot);
     boolean isSecure=site.hasSecureServer();
     String parentSitemap=null;
-    if (!entryPoint.equals("/")) {
-      parentSitemap=OpenCms.getADEConfigurationManager().findEntryPoint(cms,CmsResource.getParentFolder(entryPoint));
+    if (configData.getBasePath() != null) {
+      CmsADEConfigData parentConfigData=OpenCms.getADEConfigurationManager().lookupConfiguration(cms,CmsResource.getParentFolder(configData.getBasePath()));
+      parentSitemap=parentConfigData.getBasePath();
+      if (parentSitemap != null) {
+        parentSitemap=cms.getRequestContext().removeSiteRoot(parentSitemap);
+      }
     }
-    CmsADEConfigData configData=OpenCms.getADEConfigurationManager().lookupConfiguration(cms,cms.getRequestContext().addSiteRoot(openPath));
     String noEdit="";
     CmsNewResourceInfo defaultNewInfo=null;
     List<CmsNewResourceInfo> newResourceInfos=null;
@@ -25,27 +29,21 @@
     List<CmsNewResourceInfo> resourceTypeInfos=null;
     boolean canEditDetailPages=false;
     boolean isOnlineProject=CmsProject.isOnlineProject(cms.getRequestContext().getCurrentProject().getUuid());
-    if (configData == null) {
-      noEdit=Messages.get().getBundle().key(Messages.GUI_SITEMAP_NO_EDIT_0);
-    }
- else {
-      detailPages=new CmsDetailPageTable(configData.getAllDetailPages());
-      if (!isOnlineProject) {
-        CmsConfigurationItem containerpageConfigItem=null;
-        if (containerpageConfigItem != null) {
-          resourceTypeInfos=getResourceTypeInfos(getCmsObject(),entryPoint,containerpageConfigItem.getSourceFile());
-          defaultNewInfo=createNewResourceInfo(cms,containerpageConfigItem);
-        }
-        canEditDetailPages=!(configData.isModuleConfiguration());
-        newResourceInfos=getNewResourceInfos(cms,entryPoint);
+    detailPages=new CmsDetailPageTable(configData.getAllDetailPages());
+    if (!isOnlineProject) {
+      if (configData.getDefaultModelPage() != null) {
+        resourceTypeInfos=getResourceTypeInfos(getCmsObject(),configData);
+        defaultNewInfo=createNewResourceInfo(cms,configData.getDefaultModelPage().getResource());
       }
+      canEditDetailPages=!(configData.isModuleConfiguration());
+      newResourceInfos=getNewResourceInfos(cms,configData);
     }
     if (isOnlineProject) {
       noEdit=Messages.get().getBundle().key(Messages.GUI_SITEMAP_NO_EDIT_ONLINE_0);
     }
     List<String> allPropNames=getPropertyNames(cms);
     cms.getRequestContext().getSiteRoot();
-    result=new CmsSitemapData((new CmsTemplateFinder(cms)).getTemplates(),propertyConfig,getClipboardData(),parentProperties,allPropNames,exportRfsPrefix,isSecure,noEdit,isDisplayToolbar(getRequest()),defaultNewInfo,newResourceInfos,createResourceTypeInfo(OpenCms.getResourceManager().getResourceType(RECOURCE_TYPE_NAME_REDIRECT),null),OpenCms.getSiteManager().getCurrentSite(cms).getTitle(),parentSitemap,getRootEntry(entryPoint),openPath,30,detailPages,resourceTypeInfos,canEditDetailPages);
+    result=new CmsSitemapData((new CmsTemplateFinder(cms)).getTemplates(),propertyConfig,getClipboardData(),parentProperties,allPropNames,exportRfsPrefix,isSecure,noEdit,isDisplayToolbar(getRequest()),defaultNewInfo,newResourceInfos,createResourceTypeInfo(OpenCms.getResourceManager().getResourceType(RECOURCE_TYPE_NAME_REDIRECT),null),OpenCms.getSiteManager().getCurrentSite(cms).getTitle(),parentSitemap,getRootEntry(configData.getBasePath()),getRequest().getParameter("path"),30,detailPages,resourceTypeInfos,canEditDetailPages);
   }
  catch (  Throwable e) {
     error(e);
