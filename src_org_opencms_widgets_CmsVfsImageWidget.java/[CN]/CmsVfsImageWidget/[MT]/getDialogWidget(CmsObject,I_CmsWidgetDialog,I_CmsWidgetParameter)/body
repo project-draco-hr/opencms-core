@@ -27,7 +27,7 @@
   result.append("</td>");
   result.append(widgetDialog.dialogHorizontalSpacer(10));
   result.append("<td><table class=\"editorbuttonbackground\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr>");
-  result.append(widgetDialog.button("javascript:openVfsImageGallery('" + id + "', '"+ idHash+ "');return false;",null,"imagegallery",Messages.getButtonName("image"),widgetDialog.getButtonStyle()));
+  result.append(widgetDialog.button(getOpenGalleryCall(cms,widgetDialog,param,idHash),null,getGalleryName() + "gallery",Messages.getButtonName(getGalleryName()),widgetDialog.getButtonStyle()));
   String previewClass="hide";
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(imageLink)) {
     previewClass="show";
@@ -38,15 +38,24 @@
   result.append(id);
   result.append("\">");
   result.append("<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr>");
-  result.append(widgetDialog.button("javascript:previewVfsImage('" + id + "', '"+ idHash+ "');return false;",null,"preview.png",Messages.GUI_BUTTON_PREVIEW_0,widgetDialog.getButtonStyle()));
+  result.append(widgetDialog.button(getOpenPreviewCall(widgetDialog,param.getId()),null,"preview.png",Messages.GUI_BUTTON_PREVIEW_0,widgetDialog.getButtonStyle()));
   result.append("</tr></table></td>");
   result.append("</tr></table></td>");
   result.append("</tr>");
-  CmsVfsImageWidgetConfiguration configuration=new CmsVfsImageWidgetConfiguration(cms,widgetDialog,param,getConfiguration());
-  result.append("\n<script type=\"text/javascript\">");
-  result.append("\nvar startupFolder").append(idHash).append(" = \"").append(configuration.getStartup()).append("\";");
-  result.append("\nvar startupType").append(idHash).append(" = \"").append(configuration.getType()).append("\";");
-  result.append("\n</script>");
+  JSONObject additional=null;
+  try {
+    additional=getAdditionalGalleryInfo(cms,widgetDialog,param);
+  }
+ catch (  JSONException e) {
+    LOG.error("Error parsing widget configuration",e);
+  }
+  if (additional != null) {
+    result.append("\n<script type=\"text/javascript\">\n");
+    result.append("var cms_additional_").append(idHash).append("=");
+    result.append(additional.toString()).append(";\n");
+    result.append("</script>");
+  }
+  CmsVfsImageWidgetConfiguration configuration=getWidgetConfiguration(cms,widgetDialog,param);
   String format=value.getFormat(cms);
   if (configuration.isShowFormat()) {
     result.append("<tr>");
@@ -69,11 +78,11 @@
     result.append(idHash);
     result.append("\');\"");
     result.append(">");
-    List options=configuration.getSelectFormat();
+    List<CmsSelectWidgetOption> options=configuration.getSelectFormat();
     String selected=getSelectedValue(cms,options,format);
     int selectedIndex=0;
     for (int i=0; i < options.size(); i++) {
-      CmsSelectWidgetOption option=(CmsSelectWidgetOption)options.get(i);
+      CmsSelectWidgetOption option=options.get(i);
       result.append("<option value=\"");
       result.append(option.getValue());
       result.append("\"");
@@ -88,10 +97,10 @@
     result.append("</select>");
     result.append("</td>");
     result.append("</tr>");
-    List formatValues=configuration.getFormatValues();
+    List<String> formatValues=configuration.getFormatValues();
     String selectedFormat="";
     try {
-      selectedFormat=(String)formatValues.get(selectedIndex);
+      selectedFormat=formatValues.get(selectedIndex);
     }
  catch (    Exception e) {
     }
