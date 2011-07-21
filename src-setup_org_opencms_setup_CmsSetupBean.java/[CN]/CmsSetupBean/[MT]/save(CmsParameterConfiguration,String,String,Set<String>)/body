@@ -1,0 +1,67 @@
+{
+  try {
+    Set<String> alreadyWritten=new HashSet<String>();
+    LineNumberReader lnr=new LineNumberReader(new FileReader(new File(m_configRfsPath + source)));
+    FileWriter fw=new FileWriter(new File(m_configRfsPath + target));
+    while (true) {
+      String line=lnr.readLine();
+      if (line == null) {
+        break;
+      }
+      line=line.trim();
+      if ("".equals(line)) {
+        fw.write("\n");
+      }
+ else       if (line.startsWith("#")) {
+        fw.write(line);
+        fw.write("\n");
+      }
+ else {
+        int index=line.indexOf('=');
+        int index1=line.indexOf("\\=");
+        if ((line.indexOf('=') > -1) && (index1 != (index - 1))) {
+          String key=line.substring(0,line.indexOf('=')).trim();
+          if (alreadyWritten.contains(key)) {
+            continue;
+          }
+          fw.write((key + "="));
+          try {
+            Object obj=properties.getObject(key);
+            if (obj != null) {
+              String valueToWrite=getPropertyValueToWrite(obj);
+              fw.write(valueToWrite);
+            }
+          }
+ catch (          NullPointerException e) {
+          }
+          fw.write("\n");
+          alreadyWritten.add(key);
+        }
+      }
+    }
+    if (forceWrite != null) {
+      for (      String forced : forceWrite) {
+        if (!alreadyWritten.contains(forced) && properties.containsParameter(forced)) {
+          fw.write("\n\n");
+          fw.write(forced + "=");
+          try {
+            Object obj=properties.getObject(forced);
+            if (obj != null) {
+              String valueToWrite=getPropertyValueToWrite(obj);
+              fw.write(valueToWrite);
+            }
+          }
+ catch (          NullPointerException e) {
+          }
+          fw.write("\n");
+        }
+      }
+    }
+    lnr.close();
+    fw.close();
+  }
+ catch (  Exception e) {
+    m_errors.add("Could not save properties to " + target + " \n");
+    m_errors.add(e.toString() + "\n");
+  }
+}
