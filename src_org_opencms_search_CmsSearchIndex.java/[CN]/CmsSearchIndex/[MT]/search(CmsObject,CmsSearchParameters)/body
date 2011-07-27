@@ -24,24 +24,37 @@
     Query query=null;
     Query fieldsQuery=null;
     if (!params.isIgnoreQuery()) {
-      if (params.getFieldQueries() != null) {
+      if (params.getParsedQuery() != null) {
+        QueryParser p=new QueryParser(LUCENE_VERSION,CmsSearchField.FIELD_CONTENT,getAnalyzer());
+        fieldsQuery=p.parse(params.getParsedQuery());
+      }
+ else       if (params.getFieldQueries() != null) {
         BooleanQuery mustOccur=null;
         BooleanQuery shouldOccur=null;
-        Iterator<CmsSearchParameters.CmsSearchFieldQuery> i=params.getFieldQueries().iterator();
-        while (i.hasNext()) {
-          CmsSearchParameters.CmsSearchFieldQuery fq=i.next();
+        for (        CmsSearchParameters.CmsSearchFieldQuery fq : params.getFieldQueries()) {
           QueryParser p=new QueryParser(LUCENE_VERSION,fq.getFieldName(),getAnalyzer());
+          Query keywordQuery=null;
+          if (fq.getSearchTerms().size() == 1) {
+            keywordQuery=p.parse(fq.getSearchTerms().get(0));
+          }
+ else {
+            BooleanQuery keywordListQuery=new BooleanQuery();
+            for (            String keyword : fq.getSearchTerms()) {
+              keywordListQuery.add(p.parse(keyword),fq.getTermOccur());
+            }
+            keywordQuery=keywordListQuery;
+          }
           if (BooleanClause.Occur.SHOULD.equals(fq.getOccur())) {
             if (shouldOccur == null) {
               shouldOccur=new BooleanQuery();
             }
-            shouldOccur.add(p.parse(fq.getSearchQuery()),fq.getOccur());
+            shouldOccur.add(keywordQuery,fq.getOccur());
           }
  else {
             if (mustOccur == null) {
               mustOccur=new BooleanQuery();
             }
-            mustOccur.add(p.parse(fq.getSearchQuery()),fq.getOccur());
+            mustOccur.add(keywordQuery,fq.getOccur());
           }
         }
         BooleanQuery booleanFieldsQuery=new BooleanQuery();
@@ -72,6 +85,9 @@
     }
     if (query == null) {
       query=new MatchAllDocsQuery();
+    }
+ else {
+      params.setParsedQuery(query.toString(CmsSearchField.FIELD_CONTENT));
     }
     CmsSearchCategoryCollector categoryCollector;
     if (params.isCalculateCategories()) {
