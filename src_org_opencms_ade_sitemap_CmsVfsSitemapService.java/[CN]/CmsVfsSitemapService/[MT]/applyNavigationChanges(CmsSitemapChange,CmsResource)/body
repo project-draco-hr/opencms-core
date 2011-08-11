@@ -1,0 +1,37 @@
+{
+  CmsObject cms=getCmsObject();
+  String parentPath=null;
+  if (change.hasNewParent()) {
+    CmsResource parent=cms.readResource(change.getParentId());
+    parentPath=cms.getSitePath(parent);
+  }
+ else {
+    parentPath=CmsResource.getParentFolder(cms.getSitePath(entryFolder));
+  }
+  List<CmsJspNavElement> navElements=getNavBuilder().getNavigationForFolder(parentPath,true);
+  CmsSitemapNavPosCalculator npc=new CmsSitemapNavPosCalculator(navElements,entryFolder,change.getPosition());
+  List<CmsJspNavElement> navs=npc.getNavigationChanges();
+  List<CmsResource> needToUnlock=new ArrayList<CmsResource>();
+  try {
+    for (    CmsJspNavElement nav : navs) {
+      LockInfo lockInfo=ensureLockAndGetInfo(nav.getResource());
+      if (!nav.getResource().equals(entryFolder) && lockInfo.wasJustLocked()) {
+        needToUnlock.add(nav.getResource());
+      }
+    }
+    for (    CmsJspNavElement nav : navs) {
+      CmsProperty property=new CmsProperty(CmsPropertyDefinition.PROPERTY_NAVPOS,"" + nav.getNavPosition(),null);
+      cms.writePropertyObject(cms.getSitePath(nav.getResource()),property);
+    }
+  }
+  finally {
+    for (    CmsResource lockedRes : needToUnlock) {
+      try {
+        cms.unlockResource(lockedRes);
+      }
+ catch (      CmsException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+    }
+  }
+}
