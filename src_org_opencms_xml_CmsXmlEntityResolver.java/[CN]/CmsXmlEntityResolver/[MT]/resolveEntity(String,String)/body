@@ -1,5 +1,6 @@
 {
   byte[] content;
+  systemId=translateLegacySystemId(systemId);
   content=m_cachePermanent.get(systemId);
   if (content != null) {
     return new InputSource(new ByteArrayInputStream(content));
@@ -49,6 +50,18 @@
     }
  finally {
       m_cms.getRequestContext().setSiteRoot(storedSiteRoot);
+    }
+  }
+ else   if (systemId.startsWith(INTERNAL_SCHEME)) {
+    String location=systemId.substring(INTERNAL_SCHEME.length());
+    try {
+      InputStream stream=getClass().getClassLoader().getResourceAsStream(location);
+      content=CmsFileUtil.readFully(stream);
+      m_cachePermanent.put(systemId,content);
+      return new InputSource(new ByteArrayInputStream(content));
+    }
+ catch (    Throwable t) {
+      LOG.error(t.getLocalizedMessage(),t);
     }
   }
  else   if (systemId.substring(0,systemId.lastIndexOf("/") + 1).equalsIgnoreCase(CmsConfigurationManager.DEFAULT_DTD_PREFIX)) {

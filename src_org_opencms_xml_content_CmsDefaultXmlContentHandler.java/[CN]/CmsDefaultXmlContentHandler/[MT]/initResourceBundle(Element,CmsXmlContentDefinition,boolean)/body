@@ -1,0 +1,69 @@
+{
+  if (m_messageBundleNames == null) {
+    m_messageBundleNames=new ArrayList<String>(2);
+  }
+  if (single) {
+    String messageBundleName=root.attributeValue(APPINFO_ATTR_NAME);
+    if (messageBundleName == null) {
+      throw new CmsXmlException(Messages.get().container(Messages.ERR_XMLCONTENT_MISSING_RESOURCE_BUNDLE_NAME_2,root.getName(),contentDefinition.getSchemaLocation()));
+    }
+    if (!m_messageBundleNames.contains(messageBundleName)) {
+      m_messageBundleNames.add(messageBundleName);
+    }
+    CmsResourceBundleLoader.flushBundleCache(messageBundleName);
+  }
+ else {
+    Iterator<Element> propertybundles=CmsXmlGenericWrapper.elementIterator(root,APPINFO_PROPERTYBUNDLE);
+    while (propertybundles.hasNext()) {
+      Element propBundle=propertybundles.next();
+      String propertyBundleName=propBundle.attributeValue(APPINFO_ATTR_NAME);
+      if (!m_messageBundleNames.contains(propertyBundleName)) {
+        m_messageBundleNames.add(propertyBundleName);
+      }
+      CmsResourceBundleLoader.flushBundleCache(propertyBundleName);
+    }
+    Iterator<Element> xmlbundles=CmsXmlGenericWrapper.elementIterator(root,APPINFO_XMLBUNDLE);
+    while (xmlbundles.hasNext()) {
+      Element xmlbundle=xmlbundles.next();
+      String xmlBundleName=xmlbundle.attributeValue(APPINFO_ATTR_NAME);
+      if (!m_messageBundleNames.contains(xmlBundleName)) {
+        m_messageBundleNames.add(xmlBundleName);
+      }
+      CmsResourceBundleLoader.flushBundleCache(xmlBundleName);
+      Iterator<Element> bundles=CmsXmlGenericWrapper.elementIterator(xmlbundle,APPINFO_BUNDLE);
+      while (bundles.hasNext()) {
+        Element bundle=bundles.next();
+        String localeStr=bundle.attributeValue(APPINFO_ATTR_LOCALE);
+        Locale locale;
+        if (CmsStringUtil.isEmptyOrWhitespaceOnly(localeStr)) {
+          locale=null;
+        }
+ else {
+          locale=CmsLocaleManager.getLocale(localeStr);
+        }
+        if (CmsLocaleManager.getDefaultLocale().equals(locale)) {
+          locale=null;
+        }
+        CmsListResourceBundle xmlBundle=null;
+        Iterator<Element> resources=CmsXmlGenericWrapper.elementIterator(bundle,APPINFO_RESOURCE);
+        while (resources.hasNext()) {
+          Element resource=resources.next();
+          String key=resource.attributeValue(APPINFO_ATTR_KEY);
+          String value=resource.attributeValue(APPINFO_ATTR_VALUE);
+          if (CmsStringUtil.isEmptyOrWhitespaceOnly(value)) {
+            value=resource.getTextTrim();
+          }
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(key) && CmsStringUtil.isNotEmptyOrWhitespaceOnly(value)) {
+            if (xmlBundle == null) {
+              xmlBundle=new CmsListResourceBundle();
+            }
+            xmlBundle.addMessage(key.trim(),value.trim());
+          }
+        }
+        if (xmlBundle != null) {
+          CmsResourceBundleLoader.addBundleToCache(xmlBundleName,locale,xmlBundle);
+        }
+      }
+    }
+  }
+}

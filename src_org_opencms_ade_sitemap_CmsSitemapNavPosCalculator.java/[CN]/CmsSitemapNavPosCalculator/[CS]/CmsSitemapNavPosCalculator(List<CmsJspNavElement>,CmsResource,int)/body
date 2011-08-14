@@ -1,0 +1,50 @@
+{
+  List<CmsJspNavElement> workList=new ArrayList<CmsJspNavElement>(navigation);
+  CmsJspNavElement dummyNavElement=new CmsJspNavElement(DUMMY_PATH,movedElement,new HashMap<String,String>());
+  for (int i=0; i < workList.size(); i++) {
+    CmsJspNavElement currentElement=workList.get(i);
+    if ((i != insertPosition) && currentElement.getResource().getStructureId().equals(movedElement.getStructureId())) {
+      workList.remove(i);
+      break;
+    }
+  }
+  workList.add(insertPosition,dummyNavElement);
+  Iterator<CmsJspNavElement> it=workList.iterator();
+  while (it.hasNext()) {
+    CmsJspNavElement nav=it.next();
+    if (!nav.isInNavigation() && (nav != dummyNavElement)) {
+      it.remove();
+    }
+  }
+  insertPosition=workList.indexOf(dummyNavElement);
+  m_insertPositionInResult=insertPosition;
+  int blockStart=insertPosition;
+  int blockEnd=insertPosition + 1;
+  PositionInfo before=getPositionInfo(workList,insertPosition - 1);
+  PositionInfo after=getPositionInfo(workList,insertPosition + 1);
+  boolean extendBlock=false;
+  float blockValue=0;
+  if (before.isMax()) {
+    blockValue=Float.MAX_VALUE;
+    extendBlock=true;
+  }
+ else   if (before.isNormal() && after.isNormal() && (before.getNavPos() == after.getNavPos())) {
+    blockValue=before.getNavPos();
+    extendBlock=true;
+  }
+  if (extendBlock) {
+    while ((blockStart > 0) && (workList.get(blockStart - 1).getNavPosition() == blockValue)) {
+      blockStart-=1;
+    }
+    while ((blockEnd < workList.size()) && ((blockEnd == (insertPosition + 1)) || (workList.get(blockEnd).getNavPosition() == blockValue))) {
+      blockEnd+=1;
+    }
+  }
+  PositionInfo beforeBlock=getPositionInfo(workList,blockStart - 1);
+  PositionInfo afterBlock=getPositionInfo(workList,blockEnd);
+  List<Float> newNavPositions=interpolatePositions(beforeBlock,afterBlock,blockEnd - blockStart);
+  for (int i=0; i < (blockEnd - blockStart); i++) {
+    workList.get(i + blockStart).setNavPosition(newNavPositions.get(i).floatValue());
+  }
+  m_resultList=Collections.unmodifiableList(workList);
+}

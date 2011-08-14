@@ -1,0 +1,21 @@
+{
+  CmsObject cms=getCmsObject();
+  boolean justLocked=false;
+  List<CmsResource> blockingResources=cms.getBlockingLockedResources(resource);
+  if ((blockingResources != null) && !blockingResources.isEmpty()) {
+    throw new CmsException(org.opencms.gwt.Messages.get().container(org.opencms.gwt.Messages.ERR_RESOURCE_HAS_BLOCKING_LOCKED_CHILDREN_1,cms.getSitePath(resource)));
+  }
+  CmsUser user=cms.getRequestContext().getCurrentUser();
+  CmsLock lock=cms.getLock(resource);
+  if (!lock.isOwnedBy(user)) {
+    cms.lockResourceTemporary(resource);
+    lock=cms.getLock(resource);
+    justLocked=true;
+  }
+ else   if (!lock.isOwnedInProjectBy(user,cms.getRequestContext().getCurrentProject())) {
+    cms.changeLock(resource);
+    lock=cms.getLock(resource);
+    justLocked=true;
+  }
+  return new LockInfo(lock,justLocked);
+}
