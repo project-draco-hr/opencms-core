@@ -8,8 +8,9 @@
     CmsResource newRes=null;
     byte[] content=null;
     List<CmsProperty> properties=Collections.emptyList();
+    CmsResource copyPage=null;
     if (change.getNewCopyResourceId() != null) {
-      CmsResource copyPage=cms.readResource(change.getNewCopyResourceId());
+      copyPage=cms.readResource(change.getNewCopyResourceId());
       content=cms.readFile(copyPage).getContents();
       properties=cms.readPropertyObjects(copyPage,false);
     }
@@ -32,6 +33,14 @@
       }
       applyNavigationChanges(change,entryFolder);
       entryPath=CmsStringUtil.joinPaths(entryFolderPath,"index.html");
+      boolean isFunctionDetail=(change.getCreateParameter() != null) && CmsUUID.isValidUUID(change.getCreateParameter());
+      if (isFunctionDetail) {
+        CmsUUID functionStructureId=new CmsUUID(change.getCreateParameter());
+        CmsResource functionFormatter=cms.readResource(CmsXmlDynamicFunctionHandler.FORMATTER_PATH);
+        if (copyPage != null) {
+          content=addElementToContainerPage(copyPage,functionStructureId,functionFormatter.getStructureId());
+        }
+      }
       newRes=cms.createResource(entryPath,change.getNewResourceTypeId(),content,properties);
       cms.writePropertyObjects(newRes,generateOwnProperties(change));
     }

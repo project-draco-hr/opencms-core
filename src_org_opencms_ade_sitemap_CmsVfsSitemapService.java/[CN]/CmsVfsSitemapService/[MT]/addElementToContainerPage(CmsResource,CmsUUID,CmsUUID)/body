@@ -1,0 +1,32 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsFile pageFile=cms.readFile(pageRes);
+  CmsXmlContainerPage page=CmsXmlContainerPageFactory.unmarshal(cms,pageFile,true,true);
+  List<Locale> pageLocales=page.getLocales();
+  for (  Locale locale : pageLocales) {
+    CmsContainerPageBean bean=page.getContainerPage(cms,locale);
+    List<CmsContainerBean> containerBeans=new ArrayList<CmsContainerBean>();
+    boolean foundContainer=false;
+    for (    CmsContainerBean cntBean : bean.getContainers().values()) {
+      Map<String,String> attributes=cntBean.getAttributes();
+      boolean isDetailTarget=attributes.containsKey("FunctionDetail");
+      if (isDetailTarget && !foundContainer) {
+        foundContainer=true;
+        List<CmsContainerElementBean> newElems=new ArrayList<CmsContainerElementBean>();
+        newElems.addAll(cntBean.getElements());
+        CmsContainerElementBean newElement=new CmsContainerElementBean(elementId,formatterId,new HashMap<String,String>(),false);
+        newElems.add(0,newElement);
+        CmsContainerBean newCntBean=new CmsContainerBean(cntBean.getName(),cntBean.getType(),newElems);
+        newCntBean.setAttributes(cntBean.getAttributes());
+        containerBeans.add(newCntBean);
+      }
+ else {
+        containerBeans.add(cntBean);
+      }
+    }
+    CmsContainerPageBean bean2=new CmsContainerPageBean(locale,new ArrayList<CmsContainerBean>(containerBeans));
+    page.writeContainerPage(cms,locale,bean2);
+  }
+  byte[] data=page.marshal();
+  return data;
+}
