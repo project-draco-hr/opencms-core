@@ -6,6 +6,7 @@
   boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
   element.initResource(cms);
   getSessionCache(cms).setCacheContainerElement(element.editorHash(),element);
+  CmsADEConfigData adeConfig=OpenCms.getADEManager().lookupConfiguration(cms,cms.getRequestContext().getRootUri());
   if (element.isGroupContainer(cms)) {
     CmsXmlGroupContainer xmlGroupContainer=CmsXmlGroupContainerFactory.unmarshal(cms,element.getResource(),req);
     CmsGroupContainerBean groupContainer=xmlGroupContainer.getGroupContainer(cms,cms.getRequestContext().getLocale());
@@ -17,7 +18,6 @@
       try {
         subelement.initResource(cms);
         getSessionCache(cms).setCacheContainerElement(subelement.editorHash(),subelement);
-        CmsADEConfigData adeConfig=OpenCms.getADEManager().lookupConfiguration(cms,cms.getRequestContext().getRootUri());
         CmsFormatterConfiguration subelementFormatters=adeConfig.getFormatters(subelement.getResource());
         CmsFormatterBean subelementFormatter=subelementFormatters.getFormatter(containerType,containerWidth);
         if (subelementFormatter == null) {
@@ -48,17 +48,31 @@
     printElementWrapperTagEnd(isOnline,true);
   }
  else {
-    String elementFormatter=cms.getSitePath(cms.readResource(element.getFormatterId()));
+    String formatter=null;
+    try {
+      formatter=cms.getSitePath(cms.readResource(element.getFormatterId()));
+    }
+ catch (    CmsException e) {
+      CmsFormatterConfiguration elementFormatters=adeConfig.getFormatters(element.getResource());
+      CmsFormatterBean elementFormatterBean=elementFormatters.getFormatter(containerType,containerWidth);
+      if (elementFormatterBean == null) {
+        if (LOG.isErrorEnabled()) {
+          LOG.error(new CmsIllegalStateException(Messages.get().container(Messages.ERR_XSD_NO_TEMPLATE_FORMATTER_3,element.getSitePath(),OpenCms.getResourceManager().getResourceType(element.getResource()).getTypeName(),containerType)));
+        }
+        return;
+      }
+      formatter=elementFormatterBean.getJspRootPath();
+    }
     printElementWrapperTagStart(isOnline,cms,element,false);
     standardContext.setElement(element);
     try {
-      CmsJspTagInclude.includeTagAction(pageContext,elementFormatter,null,locale,false,isOnline,null,CmsRequestUtil.getAtrributeMap(req),req,res);
+      CmsJspTagInclude.includeTagAction(pageContext,formatter,null,locale,false,isOnline,null,CmsRequestUtil.getAtrributeMap(req),req,res);
     }
  catch (    Exception e) {
       if (LOG.isErrorEnabled()) {
-        LOG.error(Messages.get().getBundle().key(Messages.ERR_CONTAINER_PAGE_ELEMENT_RENDER_ERROR_2,element.getSitePath(),elementFormatter),e);
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_CONTAINER_PAGE_ELEMENT_RENDER_ERROR_2,element.getSitePath(),formatter),e);
       }
-      printElementErrorTag(isOnline,element.getSitePath(),elementFormatter,e);
+      printElementErrorTag(isOnline,element.getSitePath(),formatter,e);
     }
     printElementWrapperTagEnd(isOnline,false);
   }
