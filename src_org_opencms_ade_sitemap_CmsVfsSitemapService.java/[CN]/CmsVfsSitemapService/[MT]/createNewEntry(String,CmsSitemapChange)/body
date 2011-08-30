@@ -33,13 +33,17 @@
       }
       applyNavigationChanges(change,entryFolder);
       entryPath=CmsStringUtil.joinPaths(entryFolderPath,"index.html");
-      boolean isFunctionDetail=(change.getCreateParameter() != null) && CmsUUID.isValidUUID(change.getCreateParameter());
-      if (isFunctionDetail) {
-        CmsUUID functionStructureId=new CmsUUID(change.getCreateParameter());
-        CmsResource functionFormatter=cms.readResource(CmsXmlDynamicFunctionHandler.FORMATTER_PATH);
-        if (copyPage != null) {
-          content=addElementToContainerPage(copyPage,functionStructureId,functionFormatter.getStructureId());
+      boolean isContainerPage=change.getNewResourceTypeId() == CmsResourceTypeXmlContainerPage.getContainerPageTypeIdSafely();
+      if (isContainerPage && (copyPage != null)) {
+        CmsXmlContainerPage page=CmsXmlContainerPageFactory.unmarshal(cms,cms.readFile(copyPage),true,true);
+        ensureSingleLocale(page,entryFolder);
+        boolean isFunctionDetail=(change.getCreateParameter() != null) && CmsUUID.isValidUUID(change.getCreateParameter());
+        if (isFunctionDetail) {
+          CmsUUID functionStructureId=new CmsUUID(change.getCreateParameter());
+          CmsResource functionFormatter=cms.readResource(CmsXmlDynamicFunctionHandler.FORMATTER_PATH);
+          addFunctionDetailElement(cms,page,functionStructureId,functionFormatter.getStructureId());
         }
+        content=page.marshal();
       }
       newRes=cms.createResource(entryPath,change.getNewResourceTypeId(),content,properties);
       cms.writePropertyObjects(newRes,generateOwnProperties(change));
