@@ -1,0 +1,41 @@
+{
+  int typeId=modelResource.getTypeId();
+  String name=OpenCms.getResourceManager().getResourceType(typeId).getTypeName();
+  String title=cms.readPropertyObject(modelResource,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
+  String description=cms.readPropertyObject(modelResource,CmsPropertyDefinition.PROPERTY_DESCRIPTION,false).getValue();
+  try {
+    CmsGallerySearch search=new CmsGallerySearch();
+    search.init(cms);
+    search.setIndex(CmsGallerySearchIndex.GALLERY_INDEX_NAME);
+    CmsGallerySearchResult result=search.searchById(modelResource.getStructureId(),locale);
+    if (!CmsStringUtil.isEmptyOrWhitespaceOnly(result.getTitle())) {
+      title=result.getTitle();
+    }
+    if (!CmsStringUtil.isEmptyOrWhitespaceOnly(result.getDescription())) {
+      description=result.getDescription();
+    }
+  }
+ catch (  CmsException e) {
+    LOG.warn(e.getLocalizedMessage(),e);
+  }
+  CmsNewResourceInfo info=new CmsNewResourceInfo(typeId,name,title,description,modelResource.getStructureId(),description);
+  Float navpos=null;
+  try {
+    CmsProperty navposProp=cms.readPropertyObject(modelResource,CmsPropertyDefinition.PROPERTY_NAVPOS,true);
+    String navposStr=navposProp.getValue();
+    if (navposStr != null) {
+      try {
+        navpos=Float.valueOf(navposStr);
+      }
+ catch (      NumberFormatException e) {
+      }
+    }
+  }
+ catch (  CmsException e) {
+    LOG.warn(e.getLocalizedMessage(),e);
+  }
+  info.setNavPos(navpos);
+  info.setDate(CmsDateUtil.getDate(new Date(modelResource.getDateLastModified()),DateFormat.LONG,getWorkplaceLocale()));
+  info.setVfsPath(modelResource.getRootPath());
+  return info;
+}
