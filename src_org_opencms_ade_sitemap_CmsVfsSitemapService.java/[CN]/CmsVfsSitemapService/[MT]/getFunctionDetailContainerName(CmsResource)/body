@@ -1,7 +1,28 @@
 {
-  String result=internalGetFunctionDetailContainerName(parent);
-  if (result == null) {
-    throw new CmsException(Messages.get().container(Messages.ERR_FUNCTION_DETAIL_UNDEFINED_1,parent.getRootPath()));
+  try {
+    CmsObject cms=getCmsObject();
+    CmsObject rootCms=OpenCms.initCmsObject(cms);
+    rootCms.getRequestContext().setSiteRoot("");
+    CmsProperty templateProp=cms.readPropertyObject(parent,CmsPropertyDefinition.PROPERTY_TEMPLATE,true);
+    String templateVal=templateProp.getValue();
+    if (templateVal == null) {
+      return null;
+    }
+    CmsResource templateRes;
+    try {
+      templateRes=cms.readResource(templateVal);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      templateRes=rootCms.readResource(templateVal);
+    }
+    CmsProperty containerInfoProp=cms.readPropertyObject(templateRes,CmsPropertyDefinition.PROPERTY_CONTAINER_INFO,true);
+    String containerInfo=containerInfoProp.getValue() == null ? "" : containerInfoProp.getValue();
+    Map<String,String> attrs=CmsStringUtil.splitAsMap(containerInfo,"|","=");
+    String functionDetailContainerName=attrs.get(KEY_FUNCTION_DETAIL);
+    return functionDetailContainerName;
   }
-  return result;
+ catch (  CmsException e) {
+    LOG.warn(e.getLocalizedMessage(),e);
+    return null;
+  }
 }
