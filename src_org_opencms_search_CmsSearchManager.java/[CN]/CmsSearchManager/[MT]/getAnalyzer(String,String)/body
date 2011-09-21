@@ -13,12 +13,10 @@
  else   if (CmsGallerySearchAnalyzer.class.equals(analyzerClass)) {
     analyzer=new CmsGallerySearchAnalyzer(CmsSearchIndex.LUCENE_VERSION);
   }
- else   if ((snowballStemmer != null) && SnowballAnalyzer.class.equals(analyzerClass)) {
-    analyzer=new SnowballAnalyzer(CmsSearchIndex.LUCENE_VERSION,snowballStemmer);
-  }
  else {
     boolean hasEmpty=false;
     boolean hasVersion=false;
+    boolean hasVersionWithString=false;
     Constructor<?>[] constructors=analyzerClass.getConstructors();
     for (int i=0; i < constructors.length; i++) {
       Constructor<?> c=constructors[i];
@@ -29,12 +27,18 @@
       if ((parameters.length == 1) && parameters[0].equals(Version.class)) {
         hasVersion=true;
       }
-      if (hasVersion) {
-        analyzer=(Analyzer)analyzerClass.getDeclaredConstructor(new Class[]{Version.class}).newInstance(CmsSearchIndex.LUCENE_VERSION);
+      if ((stemmer != null) && (parameters.length == 2) && parameters[0].equals(Version.class)&& parameters[1].equals(String.class)) {
+        hasVersionWithString=true;
       }
- else       if (hasEmpty) {
-        analyzer=(Analyzer)analyzerClass.newInstance();
-      }
+    }
+    if (hasVersionWithString) {
+      analyzer=(Analyzer)analyzerClass.getDeclaredConstructor(new Class[]{Version.class,String.class}).newInstance(CmsSearchIndex.LUCENE_VERSION,stemmer);
+    }
+ else     if (hasVersion) {
+      analyzer=(Analyzer)analyzerClass.getDeclaredConstructor(new Class[]{Version.class}).newInstance(CmsSearchIndex.LUCENE_VERSION);
+    }
+ else     if (hasEmpty) {
+      analyzer=(Analyzer)analyzerClass.newInstance();
     }
   }
   return analyzer;
