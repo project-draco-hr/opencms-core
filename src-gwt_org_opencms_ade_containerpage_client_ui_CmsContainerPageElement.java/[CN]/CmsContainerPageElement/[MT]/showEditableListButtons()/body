@@ -1,26 +1,42 @@
 {
+  m_checkingEditables=true;
   if (m_editables == null) {
-    m_editables=new ArrayList<CmsListCollectorEditor>();
+    m_editables=new HashMap<Element,CmsListCollectorEditor>();
     List<Element> editables=CmsDomUtil.getElementsByClass("cms-editable",Tag.div,getElement());
     if ((editables != null) && (editables.size() > 0)) {
       for (      Element editable : editables) {
-        try {
-          CmsListCollectorEditor editor=new CmsListCollectorEditor(editable,m_clientId);
-          add(editor);
-          com.google.gwt.user.client.Element thisElement=getElement();
-          editor.setPosition(CmsDomUtil.getEditablePosition(editable),thisElement);
-          m_editables.add(editor);
-        }
- catch (        UnsupportedOperationException e) {
-          CmsDebugLog.getInstance().printLine(e.getMessage());
-        }
+        CmsListCollectorEditor editor=new CmsListCollectorEditor(editable,m_clientId);
+        add(editor,(com.google.gwt.user.client.Element)editable.getParentElement());
+        editor.setPosition(CmsDomUtil.getEditablePosition(editable),getElement());
+        m_editables.put(editable,editor);
       }
     }
   }
  else {
-    for (    CmsListCollectorEditor editor : m_editables) {
-      editor.getElement().getStyle().clearDisplay();
-      editor.setPosition(CmsDomUtil.getEditablePosition(editor.getMarkerTag()),getElement());
+    Iterator<Entry<Element,CmsListCollectorEditor>> it=m_editables.entrySet().iterator();
+    while (it.hasNext()) {
+      Entry<Element,CmsListCollectorEditor> entry=it.next();
+      if (!entry.getValue().isValid()) {
+        entry.getValue().removeFromParent();
+        it.remove();
+      }
+ else       if (CmsDomUtil.hasDimension(entry.getValue().getElement().getParentElement())) {
+        entry.getValue().getElement().getStyle().clearDisplay();
+        entry.getValue().setPosition(CmsDomUtil.getEditablePosition(entry.getValue().getMarkerTag()),getElement());
+      }
+    }
+    List<Element> editables=CmsDomUtil.getElementsByClass("cms-editable",Tag.div,getElement());
+    if (editables.size() > m_editables.size()) {
+      for (      Element editable : editables) {
+        if (!m_editables.containsKey(editable)) {
+          CmsListCollectorEditor editor=new CmsListCollectorEditor(editable,m_clientId);
+          add(editor,(com.google.gwt.user.client.Element)editable.getParentElement());
+          editor.setPosition(CmsDomUtil.getEditablePosition(editable),getElement());
+          m_editables.put(editable,editor);
+        }
+      }
     }
   }
+  m_checkingEditables=false;
+  resetNodeInsertedHandler();
 }
