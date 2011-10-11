@@ -1,25 +1,60 @@
 {
   int height=target.getHeight();
   int width=target.getWidth();
-  if ((width > 0) && (getWidth() > 0)) {
-    float scale=(float)width / (float)getWidth();
-    height=Math.round(getHeight() * scale);
-  }
- else   if ((height > 0) && (getHeight() > 0)) {
-    float scale=(float)height / (float)getHeight();
-    width=Math.round(getWidth() * scale);
-  }
- else   if (isValid() && !target.isValid()) {
-    width=getWidth();
-    height=getHeight();
-  }
-  if ((target.getType() == 1) && (!target.isValid())) {
-    if ((target.getWidth() > 0) && (getWidth() < width)) {
-      height=getHeight();
-    }
- else     if ((target.getHeight() > 0) && (getHeight() < height)) {
-      width=getWidth();
-    }
-  }
-  return new CmsImageScaler(target,width,height);
+  int type=target.getType();
+  if (type == 5) {
+    if (target.isValid()) {
+      float maxWidth=target.getMaxWidth() > 0 ? target.getMaxWidth() : height;
+      float maxHeight=target.getMaxHeight() > 0 ? target.getMaxHeight() : width;
+      float scaleOfImage=(float)getWidth() / (float)getHeight();
+      float[] scales=new float[3];
+      scales[0]=(float)width / (float)height;
+      scales[1]=width / maxHeight;
+      scales[2]=maxWidth / height;
+      int useScale=calculateClosest(scaleOfImage,scales);
+      int[] dimensions;
+switch (useScale) {
+case 0:
+default :
+        dimensions=calculateDimension(getWidth(),getHeight(),width,height);
+      break;
+case 1:
+    dimensions=calculateDimension(getWidth(),getHeight(),width,(int)maxHeight);
+  break;
+case 2:
+dimensions=calculateDimension(getWidth(),getHeight(),(int)maxWidth,height);
+break;
+}
+width=dimensions[0];
+height=dimensions[1];
+}
+ else {
+type=1;
+}
+}
+if (type != 5) {
+if ((width > 0) && (getWidth() > 0)) {
+float scale=(float)width / (float)getWidth();
+height=Math.round(getHeight() * scale);
+}
+ else if ((height > 0) && (getHeight() > 0)) {
+float scale=(float)height / (float)getHeight();
+width=Math.round(getWidth() * scale);
+}
+ else if (isValid() && !target.isValid()) {
+width=getWidth();
+height=getHeight();
+}
+}
+if ((type == 1) && (!target.isValid())) {
+if ((target.getWidth() > 0) && (getWidth() < width)) {
+height=getHeight();
+}
+ else if ((target.getHeight() > 0) && (getHeight() < height)) {
+width=getWidth();
+}
+}
+CmsImageScaler result=new CmsImageScaler(target,width,height);
+result.setType(type);
+return result;
 }
