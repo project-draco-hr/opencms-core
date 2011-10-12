@@ -1,0 +1,24 @@
+{
+  init();
+  List<CmsRelation> relationsToCorrect=findRelationsFromTargetToSource();
+  Multimap<CmsUUID,CmsRelation> relationsBySourceId=ArrayListMultimap.create();
+  for (  CmsRelation relation : relationsToCorrect) {
+    LOG.info("Found relation which needs to be corrected: " + relation.getSourcePath() + " -> "+ relation.getTargetPath()+ " ["+ relation.getType().getName()+ "]");
+    relationsBySourceId.put(relation.getSourceId(),relation);
+  }
+  CmsLock lock=m_cms.getLock(m_targetPath);
+  if (lock.isUnlocked() || !lock.isOwnedBy(m_cms.getRequestContext().getCurrentUser())) {
+    m_cms.lockResource(m_targetPath);
+  }
+  for (  CmsUUID structureId : relationsBySourceId.keySet()) {
+    Collection<CmsRelation> relationsForResource=relationsBySourceId.get(structureId);
+    CmsResource resource=null;
+    try {
+      resource=getResource(structureId);
+      rewriteLinks(resource,relationsForResource);
+    }
+ catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+}
