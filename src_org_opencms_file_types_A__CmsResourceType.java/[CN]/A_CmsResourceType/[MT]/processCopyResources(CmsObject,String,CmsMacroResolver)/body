@@ -1,5 +1,6 @@
 {
   Iterator<CmsConfigurationCopyResource> i=m_copyResources.iterator();
+  Map<String,String> copiedResources=new HashMap<String,String>();
   while (i.hasNext()) {
     CmsConfigurationCopyResource copyResource=i.next();
     String oriTarget=copyResource.getTarget();
@@ -11,6 +12,7 @@
     target=CmsFileUtil.normalizePath(CmsLinkManager.getAbsoluteUri(target,resourcename),'/');
     try {
       cms.copyResource(copyResource.getSource(),target,copyResource.getType());
+      copiedResources.put(copyResource.getSource(),target);
       if (CmsMacroResolver.isMacro(oriTarget,MACRO_RESOURCE_FOLDER_PATH_TOUCH)) {
         CmsResource res=cms.readResource(target);
         if (res.isFile()) {
@@ -35,5 +37,17 @@
         LOG.error(Messages.get().getBundle().key(Messages.LOG_PROCESS_COPY_RESOURCES_3,resourcename,copyResource,target));
       }
     }
+  }
+  try {
+    if (!CmsStringUtil.isEmptyOrWhitespaceOnly(m_adjustLinksFolder) && !copiedResources.isEmpty()) {
+      String realAdjustFolderPath=resolver.resolveMacros(m_adjustLinksFolder);
+      cms.adjustLinks(copiedResources,realAdjustFolderPath);
+    }
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+catch (  CmsIllegalArgumentException e) {
+    LOG.error(e.getLocalizedMessage(),e);
   }
 }
