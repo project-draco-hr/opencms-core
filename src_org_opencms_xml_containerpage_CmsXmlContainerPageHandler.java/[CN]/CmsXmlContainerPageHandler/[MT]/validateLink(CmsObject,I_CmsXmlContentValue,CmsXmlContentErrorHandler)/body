@@ -1,0 +1,43 @@
+{
+  if ((value == null) || (!(value instanceof CmsXmlVfsFileValue) && !(value instanceof CmsXmlVarLinkValue))) {
+    return false;
+  }
+  CmsLink link=null;
+  if (value instanceof CmsXmlVfsFileValue) {
+    link=((CmsXmlVfsFileValue)value).getLink(cms);
+  }
+ else   if (value instanceof CmsXmlVarLinkValue) {
+    link=((CmsXmlVarLinkValue)value).getLink(cms);
+  }
+  if ((link == null) || !link.isInternal()) {
+    return false;
+  }
+  try {
+    String sitePath=cms.getRequestContext().removeSiteRoot(link.getTarget());
+    CmsResource res=cms.readResource(sitePath,CmsResourceFilter.IGNORE_EXPIRATION);
+    if (cms.getRequestContext().getCurrentProject().isOnlineProject()) {
+      if (res != null) {
+        long time=System.currentTimeMillis();
+        if (!res.isReleased(time)) {
+          if (errorHandler != null) {
+            errorHandler.addWarning(value,org.opencms.xml.content.Messages.get().getBundle(value.getLocale()).key(org.opencms.xml.content.Messages.GUI_XMLCONTENT_CHECK_WARNING_NOT_RELEASED_0));
+          }
+          return true;
+        }
+ else         if (res.isExpired(time)) {
+          if (errorHandler != null) {
+            errorHandler.addWarning(value,org.opencms.xml.content.Messages.get().getBundle(value.getLocale()).key(org.opencms.xml.content.Messages.GUI_XMLCONTENT_CHECK_WARNING_EXPIRED_0));
+          }
+          return true;
+        }
+      }
+    }
+  }
+ catch (  CmsException e) {
+    if (errorHandler != null) {
+      errorHandler.addError(value,org.opencms.xml.content.Messages.get().getBundle(value.getLocale()).key(org.opencms.xml.content.Messages.GUI_XMLCONTENT_CHECK_ERROR_0));
+    }
+    return true;
+  }
+  return false;
+}
