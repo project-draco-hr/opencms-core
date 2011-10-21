@@ -1,0 +1,68 @@
+{
+  if (m_parentConfigurations.isEmpty()) {
+    return Collections.emptyList();
+  }
+  Map<String,CmsContainerElementBean> elementsByKey=new HashMap<String,CmsContainerElementBean>();
+  for (  CmsContainerConfiguration bean : m_parentConfigurations) {
+    elementsByKey.putAll(bean.getNewElements());
+  }
+  List<CmsContainerElementBean> result=new ArrayList<CmsContainerElementBean>();
+  CmsContainerConfiguration lastElement=m_parentConfigurations.get(m_parentConfigurations.size() - 1);
+  Set<String> keysUsed=new HashSet<String>();
+  List<String> ordering=null;
+  for (  CmsContainerConfiguration configuration : Lists.reverse(m_parentConfigurations)) {
+    if (configuration.getOrdering() != null) {
+      ordering=configuration.getOrdering();
+      break;
+    }
+  }
+  if (ordering == null) {
+    ordering=new ArrayList<String>();
+  }
+  for (  String key : ordering) {
+    CmsContainerElementBean element=elementsByKey.get(key);
+    if (element != null) {
+      CmsContainerElementBean elementToAdd=CmsContainerElementBean.cloneWithSettings(element,element.getIndividualSettings());
+      CmsInheritanceInfo info=new CmsInheritanceInfo();
+      info.setKey(key);
+      elementToAdd.setInheritanceInfo(info);
+      result.add(elementToAdd);
+      keysUsed.add(key);
+    }
+  }
+  for (int i=0; i < (m_parentConfigurations.size()); i++) {
+    CmsContainerConfiguration currentConfig=m_parentConfigurations.get(i);
+    for (    Map.Entry<String,CmsContainerElementBean> entry : currentConfig.getNewElements().entrySet()) {
+      String key=entry.getKey();
+      if (!keysUsed.contains(key)) {
+        CmsContainerElementBean elementToAdd=CmsContainerElementBean.cloneWithSettings(entry.getValue(),entry.getValue().getIndividualSettings());
+        CmsInheritanceInfo info=new CmsInheritanceInfo();
+        info.setKey(key);
+        elementToAdd.setInheritanceInfo(info);
+        result.add(elementToAdd);
+      }
+    }
+  }
+  for (  CmsContainerElementBean resultElement : result) {
+    CmsInheritanceInfo info=resultElement.getInheritanceInfo();
+    String key=info.getKey();
+    List<Boolean> visibilities=getVisibilities(key);
+    computeVisibility(visibilities,info);
+  }
+  List<CmsContainerElementBean> resultWithoutHidden=new ArrayList<CmsContainerElementBean>();
+  List<CmsContainerElementBean> hiddenElements=new ArrayList<CmsContainerElementBean>();
+  for (  CmsContainerElementBean resultElement : result) {
+    CmsInheritanceInfo info=resultElement.getInheritanceInfo();
+    if (info.getVisibility() == Boolean.FALSE) {
+      hiddenElements.add(resultElement);
+    }
+ else {
+      resultWithoutHidden.add(resultElement);
+    }
+  }
+  result=resultWithoutHidden;
+  if (includeHidden) {
+    result.addAll(hiddenElements);
+  }
+  return result;
+}
