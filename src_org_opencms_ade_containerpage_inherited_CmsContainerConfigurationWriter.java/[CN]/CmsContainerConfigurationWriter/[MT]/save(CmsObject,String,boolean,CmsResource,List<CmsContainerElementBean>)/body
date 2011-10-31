@@ -1,0 +1,60 @@
+{
+  String encoding=OpenCms.getSystemInfo().getDefaultEncoding();
+  try {
+    CmsProperty encodingProperty=cms.readPropertyObject(pageResource,CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true);
+    encoding=CmsEncoder.lookupEncoding(encodingProperty.getValue(),encoding);
+  }
+ catch (  CmsException e) {
+  }
+  cms=OpenCms.initCmsObject(cms);
+  cms.getRequestContext().setSiteRoot("");
+  String configPath;
+  if (pageResource.isFolder()) {
+    configPath=CmsStringUtil.joinPaths(pageResource.getRootPath(),CmsContainerConfigurationCache.FILE_NAME);
+  }
+ else {
+    configPath=CmsStringUtil.joinPaths(CmsResource.getParentFolder(pageResource.getRootPath()),CmsContainerConfigurationCache.FILE_NAME);
+  }
+  CmsContainerConfiguration configuration=createConfigurationBean(newOrdering,elements);
+  CmsContainerConfigurationParser parser=new CmsContainerConfigurationParser(cms);
+  CmsResource configResource=null;
+  Map<Locale,Map<String,CmsContainerConfiguration>> oldGroups=null;
+  try {
+    configResource=cms.readResource(configPath);
+    parser.parse(configResource);
+  }
+ catch (  CmsVfsResourceNotFoundException e) {
+    oldGroups=Maps.newHashMap();
+  }
+  oldGroups=parser.getParsedResults();
+  Locale locale=cms.getRequestContext().getLocale();
+  Map<String,CmsContainerConfiguration> groupForLocale=oldGroups.get(locale);
+  if (groupForLocale == null) {
+    groupForLocale=Maps.newHashMap();
+    oldGroups.put(locale,groupForLocale);
+  }
+  groupForLocale.put(name,configuration);
+  CmsContainerConfigurationGroup newGroups=new CmsContainerConfigurationGroup(oldGroups);
+  Document doc=newGroups.createXml(cms);
+  String newContentString=CmsXmlUtils.marshal(doc,encoding);
+  byte[] contentBytes;
+  try {
+    contentBytes=newContentString.getBytes(encoding);
+  }
+ catch (  UnsupportedEncodingException e) {
+    contentBytes=newContentString.getBytes();
+  }
+  if (configResource == null) {
+    int typeId=OpenCms.getResourceManager().getResourceType(CmsResourceTypeXmlContainerPage.INHERIT_CONTAINER_CONFIG_TYPE_NAME).getTypeId();
+    cms.createResource(configPath,typeId,contentBytes,new ArrayList<CmsProperty>());
+  }
+ else {
+    CmsFile file=cms.readFile(configResource);
+    file.setContents(contentBytes);
+    CmsLock lock=cms.getLock(configResource);
+    if (lock.isUnlocked() || !lock.isOwnedBy(cms.getRequestContext().getCurrentUser())) {
+      cms.lockResource(configResource);
+    }
+    cms.writeFile(file);
+  }
+}
