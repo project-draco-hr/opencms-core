@@ -1,0 +1,23 @@
+{
+  resp.setStatus(CmsWebdavStatus.SC_MULTI_STATUS);
+  String absoluteUri=req.getRequestURI();
+  String relativePath=getRelativePath(req);
+  Document doc=DocumentHelper.createDocument();
+  Element multiStatusElem=doc.addElement(new QName(TAG_MULTISTATUS,Namespace.get(DEFAULT_NAMESPACE)));
+  Iterator<Entry<String,Integer>> it=errors.entrySet().iterator();
+  while (it.hasNext()) {
+    Entry<String,Integer> e=it.next();
+    String errorPath=e.getKey();
+    int errorCode=e.getValue().intValue();
+    Element responseElem=addElement(multiStatusElem,TAG_RESPONSE);
+    String toAppend=errorPath.substring(relativePath.length());
+    if (!toAppend.startsWith("/")) {
+      toAppend="/" + toAppend;
+    }
+    addElement(responseElem,TAG_HREF).addText(absoluteUri + toAppend);
+    addElement(responseElem,TAG_STATUS).addText("HTTP/1.1 " + errorCode + " "+ CmsWebdavStatus.getStatusText(errorCode));
+  }
+  Writer writer=resp.getWriter();
+  doc.write(writer);
+  writer.close();
+}

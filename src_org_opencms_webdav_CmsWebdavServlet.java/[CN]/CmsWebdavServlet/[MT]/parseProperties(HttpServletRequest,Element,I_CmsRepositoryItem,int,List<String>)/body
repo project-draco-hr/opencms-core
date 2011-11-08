@@ -1,0 +1,164 @@
+{
+  String path=item.getName();
+  Element responseElem=addElement(elem,TAG_RESPONSE);
+  String status="HTTP/1.1 " + CmsWebdavStatus.SC_OK + " "+ CmsWebdavStatus.getStatusText(CmsWebdavStatus.SC_OK);
+  Element hrefElem=addElement(responseElem,TAG_HREF);
+  String href=req.getContextPath() + req.getServletPath();
+  if ((href.endsWith("/")) && (path.startsWith("/"))) {
+    href+=path.substring(1);
+  }
+ else {
+    href+=path;
+  }
+  try {
+    hrefElem.addText(rewriteUrl(href));
+  }
+ catch (  UnsupportedEncodingException ex) {
+    return;
+  }
+  String resourceName=path;
+  Element propstatElem=addElement(responseElem,TAG_PROPSTAT);
+  Element propElem=addElement(propstatElem,TAG_PROP);
+switch (type) {
+case FIND_ALL_PROP:
+    addElement(propElem,TAG_CREATIONDATE).addText(ISO8601_FORMAT.format(new Date(item.getCreationDate())));
+  addElement(propElem,TAG_DISPLAYNAME).addCDATA(resourceName);
+if (!item.isCollection()) {
+  addElement(propElem,TAG_LASTMODIFIED).addText(HTTP_DATE_FORMAT.format(new Date(item.getLastModifiedDate())));
+  addElement(propElem,TAG_CONTENTLENGTH).addText(String.valueOf(item.getContentLength()));
+  String contentType=getServletContext().getMimeType(item.getName());
+  if (contentType != null) {
+    addElement(propElem,TAG_CONTENTTYPE).addText(contentType);
+  }
+  addElement(propElem,TAG_ETAG).addText(getETag(item));
+  addElement(propElem,TAG_RESOURCETYPE);
+}
+ else {
+  addElement(addElement(propElem,TAG_RESOURCETYPE),TAG_COLLECTION);
+}
+addElement(propElem,TAG_SOURCE).addText("");
+Element suppLockElem=addElement(propElem,TAG_SUPPORTEDLOCK);
+Element lockEntryElem=addElement(suppLockElem,TAG_LOCKENTRY);
+addElement(addElement(lockEntryElem,TAG_LOCKSCOPE),CmsRepositoryLockInfo.SCOPE_EXCLUSIVE);
+addElement(addElement(lockEntryElem,TAG_LOCKTYPE),CmsRepositoryLockInfo.TYPE_WRITE);
+lockEntryElem=addElement(suppLockElem,TAG_LOCKENTRY);
+addElement(addElement(lockEntryElem,TAG_LOCKSCOPE),CmsRepositoryLockInfo.SCOPE_SHARED);
+addElement(addElement(lockEntryElem,TAG_LOCKTYPE),CmsRepositoryLockInfo.TYPE_WRITE);
+generateLockDiscovery(path,propElem,req);
+addElement(propstatElem,TAG_STATUS).addText(status);
+break;
+case FIND_PROPERTY_NAMES:
+addElement(propElem,TAG_CREATIONDATE);
+addElement(propElem,TAG_DISPLAYNAME);
+if (!item.isCollection()) {
+addElement(propElem,TAG_CONTENTLANGUAGE);
+addElement(propElem,TAG_CONTENTLENGTH);
+addElement(propElem,TAG_CONTENTTYPE);
+addElement(propElem,TAG_ETAG);
+}
+addElement(propElem,TAG_LASTMODIFIED);
+addElement(propElem,TAG_RESOURCETYPE);
+addElement(propElem,TAG_SOURCE);
+addElement(propElem,TAG_LOCKDISCOVERY);
+addElement(propstatElem,TAG_STATUS).addText(status);
+break;
+case FIND_BY_PROPERTY:
+List<String> propertiesNotFound=new Vector<String>();
+Iterator<String> iter=propertiesVector.iterator();
+while (iter.hasNext()) {
+String property=iter.next();
+if (property.equals(TAG_CREATIONDATE)) {
+addElement(propElem,TAG_CREATIONDATE).addText(ISO8601_FORMAT.format(new Date(item.getCreationDate())));
+}
+ else if (property.equals(TAG_DISPLAYNAME)) {
+addElement(propElem,TAG_DISPLAYNAME).addCDATA(resourceName);
+}
+ else if (property.equals(TAG_CONTENTLANGUAGE)) {
+if (item.isCollection()) {
+propertiesNotFound.add(property);
+}
+ else {
+addElement(propElem,TAG_CONTENTLANGUAGE);
+}
+}
+ else if (property.equals(TAG_CONTENTLENGTH)) {
+if (item.isCollection()) {
+propertiesNotFound.add(property);
+}
+ else {
+addElement(propElem,TAG_CONTENTLENGTH).addText((String.valueOf(item.getContentLength())));
+}
+}
+ else if (property.equals(TAG_CONTENTTYPE)) {
+if (item.isCollection()) {
+propertiesNotFound.add(property);
+}
+ else {
+String contentType=item.getMimeType();
+if (contentType == null) {
+contentType=getServletContext().getMimeType(item.getName());
+}
+if (contentType != null) {
+addElement(propElem,TAG_CONTENTTYPE).addText(contentType);
+}
+}
+}
+ else if (property.equals(TAG_ETAG)) {
+if (item.isCollection()) {
+propertiesNotFound.add(property);
+}
+ else {
+addElement(propElem,TAG_ETAG).addText(getETag(item));
+}
+}
+ else if (property.equals(TAG_LASTMODIFIED)) {
+addElement(propElem,TAG_LASTMODIFIED).addText(HTTP_DATE_FORMAT.format(new Date(item.getLastModifiedDate())));
+}
+ else if (property.equals(TAG_RESOURCETYPE)) {
+if (item.isCollection()) {
+addElement(addElement(propElem,TAG_RESOURCETYPE),TAG_COLLECTION);
+}
+ else {
+addElement(propElem,TAG_RESOURCETYPE);
+}
+}
+ else if (property.equals(TAG_SOURCE)) {
+addElement(propElem,TAG_SOURCE).addText("");
+}
+ else if (property.equals(TAG_SUPPORTEDLOCK)) {
+suppLockElem=addElement(propElem,TAG_SUPPORTEDLOCK);
+lockEntryElem=addElement(suppLockElem,TAG_LOCKENTRY);
+addElement(addElement(lockEntryElem,TAG_LOCKSCOPE),CmsRepositoryLockInfo.SCOPE_EXCLUSIVE);
+addElement(addElement(lockEntryElem,TAG_LOCKTYPE),CmsRepositoryLockInfo.TYPE_WRITE);
+lockEntryElem=addElement(suppLockElem,TAG_LOCKENTRY);
+addElement(addElement(lockEntryElem,TAG_LOCKSCOPE),CmsRepositoryLockInfo.SCOPE_SHARED);
+addElement(addElement(lockEntryElem,TAG_LOCKTYPE),CmsRepositoryLockInfo.TYPE_WRITE);
+}
+ else if (property.equals(TAG_LOCKDISCOVERY)) {
+if (!generateLockDiscovery(path,propElem,req)) {
+addElement(propElem,TAG_LOCKDISCOVERY);
+}
+}
+ else {
+propertiesNotFound.add(property);
+}
+}
+addElement(propstatElem,TAG_STATUS).addText(status);
+if (propertiesNotFound.size() > 0) {
+status="HTTP/1.1 " + CmsWebdavStatus.SC_NOT_FOUND + " "+ CmsWebdavStatus.getStatusText(CmsWebdavStatus.SC_NOT_FOUND);
+propstatElem=addElement(responseElem,TAG_PROPSTAT);
+propElem=addElement(propstatElem,TAG_PROP);
+Iterator<String> notFoundIter=propertiesNotFound.iterator();
+while (notFoundIter.hasNext()) {
+addElement(propElem,notFoundIter.next());
+}
+addElement(propstatElem,TAG_STATUS).addText(status);
+}
+break;
+default :
+if (LOG.isErrorEnabled()) {
+LOG.error(Messages.get().getBundle().key(Messages.LOG_INVALID_PROPFIND_TYPE_0));
+}
+break;
+}
+}

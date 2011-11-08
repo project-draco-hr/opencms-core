@@ -1,0 +1,86 @@
+{
+  CmsExplorerTypeAccess defaultAccess=null;
+  if (OpenCms.getWorkplaceManager() != null) {
+    defaultAccess=OpenCms.getWorkplaceManager().getDefaultAccess();
+  }
+  CmsMenuRuleTranslator menuRuleTranslator=new CmsMenuRuleTranslator();
+  Iterator<CmsExplorerTypeSettings> i=explorerTypes.iterator();
+  while (i.hasNext()) {
+    CmsExplorerTypeSettings settings=i.next();
+    if (settings.isAddititionalModuleExplorerType() == module) {
+      Element explorerTypeElement=startNode.addElement(N_EXPLORERTYPE);
+      explorerTypeElement.addAttribute(A_NAME,settings.getName());
+      explorerTypeElement.addAttribute(A_KEY,settings.getKey());
+      String originalIcon=settings.getOriginalIcon();
+      if (CmsStringUtil.isNotEmpty(originalIcon)) {
+        explorerTypeElement.addAttribute(A_ICON,settings.getOriginalIcon());
+      }
+      if (CmsStringUtil.isNotEmpty(settings.getBigIcon())) {
+        explorerTypeElement.addAttribute(A_BIGICON,settings.getBigIcon());
+      }
+      if (settings.getReference() != null) {
+        explorerTypeElement.addAttribute(A_REFERENCE,settings.getReference());
+      }
+      Element newResElement=explorerTypeElement.addElement(N_NEWRESOURCE);
+      if (CmsStringUtil.isNotEmpty(settings.getNewResourcePage())) {
+        newResElement.addAttribute(A_PAGE,settings.getNewResourcePage());
+      }
+      newResElement.addAttribute(A_HANDLER,settings.getNewResourceHandlerClassName());
+      newResElement.addAttribute(A_URI,CmsEncoder.escapeXml(settings.getNewResourceUri()));
+      newResElement.addAttribute(A_ORDER,settings.getNewResourceOrder());
+      newResElement.addAttribute(A_AUTOSETNAVIGATION,String.valueOf(settings.isAutoSetNavigation()));
+      newResElement.addAttribute(A_AUTOSETTITLE,String.valueOf(settings.isAutoSetTitle()));
+      newResElement.addAttribute(A_INFO,settings.getInfo());
+      newResElement.addAttribute(A_ICON,settings.getDescriptionImage());
+      newResElement.addAttribute(A_KEY,settings.getTitleKey());
+      CmsExplorerTypeAccess access=settings.getAccess();
+      if (access != defaultAccess) {
+        List<String> accessEntries=new ArrayList<String>(access.getAccessEntries().keySet());
+        Collections.sort(accessEntries);
+        if (accessEntries.size() > 0) {
+          Element accessControlElement=explorerTypeElement.addElement(N_ACCESSCONTROL);
+          Iterator<String> k=accessEntries.iterator();
+          while (k.hasNext()) {
+            String key=k.next();
+            String value=settings.getAccess().getAccessEntries().get(key);
+            Element accessEntryElement=accessControlElement.addElement(N_ACCESSENTRY);
+            accessEntryElement.addAttribute(A_PRINCIPAL,key);
+            accessEntryElement.addAttribute(A_PERMISSIONS,value);
+          }
+        }
+      }
+      if (settings.hasEditOptions()) {
+        Element editOptionsElement=explorerTypeElement.addElement(N_EDITOPTIONS);
+        Element defaultPropertiesElement=editOptionsElement.addElement(N_DEFAULTPROPERTIES);
+        defaultPropertiesElement.addAttribute(A_ENABLED,String.valueOf(settings.isPropertiesEnabled()));
+        defaultPropertiesElement.addAttribute(A_SHOWNAVIGATION,String.valueOf(settings.isShowNavigation()));
+        Iterator<String> m=settings.getProperties().iterator();
+        while (m.hasNext()) {
+          defaultPropertiesElement.addElement(N_DEFAULTPROPERTY).addAttribute(A_NAME,m.next());
+        }
+        Element contextMenuElement=editOptionsElement.addElement(N_CONTEXTMENU);
+        Iterator<CmsExplorerContextMenuItem> contextMenuEntries=settings.getContextMenuEntries().iterator();
+        while (contextMenuEntries.hasNext()) {
+          CmsExplorerContextMenuItem item=contextMenuEntries.next();
+          generateContextMenuItemXml(contextMenuElement,menuRuleTranslator,item);
+        }
+      }
+      Map<String,CmsIconRule> iconRules=settings.getIconRules();
+      if ((iconRules != null) && !iconRules.isEmpty()) {
+        Element iconRulesElem=explorerTypeElement.addElement(N_ICONRULES);
+        for (        Map.Entry<String,CmsIconRule> entry : iconRules.entrySet()) {
+          CmsIconRule rule=entry.getValue();
+          Element ruleElem=iconRulesElem.addElement(N_ICONRULE);
+          String icon=rule.getIcon();
+          String bigIcon=rule.getBigIcon();
+          String extension=rule.getExtension();
+          ruleElem.addAttribute(A_EXTENSION,extension);
+          ruleElem.addAttribute(A_ICON,icon);
+          if (bigIcon != null) {
+            ruleElem.addAttribute(A_BIGICON,bigIcon);
+          }
+        }
+      }
+    }
+  }
+}
