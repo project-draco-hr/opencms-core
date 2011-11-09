@@ -1,0 +1,33 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing to move a folder with deleted sub-resources which are non-empty folders");
+  String folder1="/testMoveDeletedWithSub/";
+  String folder2="/testMoveDeletedWithSub/folders/";
+  String file="index.html";
+  cms.createResource(folder1,CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  cms.createResource(folder1 + file,CmsResourceTypePlain.getStaticTypeId());
+  cms.createResource(folder2,CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+  cms.createResource(folder2 + file,CmsResourceTypePlain.getStaticTypeId());
+  OpenCms.getPublishManager().publishResource(cms,folder1);
+  OpenCms.getPublishManager().waitWhileRunning();
+  cms.lockResource(folder1);
+  cms.deleteResource(folder2,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  storeResources(cms,folder1,true);
+  String destinationFolder1="/testMoveDeletedWithSubChanged/";
+  String destinationFolder2="/testMoveDeletedWithSubChanged/folders/";
+  cms.moveResource(folder1,destinationFolder1);
+  assertProject(cms,destinationFolder1,cms.getRequestContext().getCurrentProject());
+  assertState(cms,destinationFolder1,CmsResource.STATE_CHANGED);
+  assertLock(cms,destinationFolder1,CmsLockType.EXCLUSIVE);
+  setMapping(destinationFolder1,folder1);
+  assertFilter(cms,destinationFolder1,OpenCmsTestResourceFilter.FILTER_MOVE_DESTINATION);
+  assertProject(cms,destinationFolder1 + file,cms.getRequestContext().getCurrentProject());
+  assertState(cms,destinationFolder1 + file,CmsResource.STATE_CHANGED);
+  assertState(cms,destinationFolder1 + file,CmsResource.STATE_CHANGED);
+  assertState(cms,destinationFolder2,CmsResource.STATE_DELETED);
+  assertState(cms,destinationFolder2 + file,CmsResource.STATE_DELETED);
+  assertLock(cms,destinationFolder1 + file,CmsLockType.INHERITED);
+  assertLock(cms,destinationFolder2 + file,CmsLockType.INHERITED);
+  assertFilter(cms,destinationFolder1 + file,OpenCmsTestResourceFilter.FILTER_MOVE_DESTINATION);
+  assertFilter(cms,destinationFolder2 + file,OpenCmsTestResourceFilter.FILTER_MOVE_DESTINATION);
+}

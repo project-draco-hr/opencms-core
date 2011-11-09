@@ -1,40 +1,53 @@
 {
-  Iterator<CmsConfigurationCopyResource> i=m_copyResources.iterator();
   Map<String,String> copiedResources=new HashMap<String,String>();
-  while (i.hasNext()) {
-    CmsConfigurationCopyResource copyResource=i.next();
-    String oriTarget=copyResource.getTarget();
+  for (  CmsConfigurationCopyResource oriCopyResource : m_copyResources) {
+    String oriTarget=oriCopyResource.getTarget();
     String target=oriTarget;
-    if (copyResource.isTargetWasNull() || CmsMacroResolver.isMacro(target,MACRO_RESOURCE_FOLDER_PATH) || CmsMacroResolver.isMacro(target,MACRO_RESOURCE_FOLDER_PATH_TOUCH)) {
-      target=target.concat(CmsResource.getName(copyResource.getSource()));
-    }
-    target=resolver.resolveMacros(target);
-    target=CmsFileUtil.normalizePath(CmsLinkManager.getAbsoluteUri(target,resourcename),'/');
+    List<CmsConfigurationCopyResource> copyResources=new ArrayList<CmsConfigurationCopyResource>();
     try {
-      cms.copyResource(copyResource.getSource(),target,copyResource.getType());
-      copiedResources.put(copyResource.getSource(),target);
-      if (CmsMacroResolver.isMacro(oriTarget,MACRO_RESOURCE_FOLDER_PATH_TOUCH)) {
-        CmsResource res=cms.readResource(target);
-        if (res.isFile()) {
-          CmsFile file=cms.readFile(res);
-          cms.writeFile(file);
+      if (oriCopyResource.getSource().endsWith("*")) {
+        String source=oriCopyResource.getSource().substring(0,oriCopyResource.getSource().length() - 1);
+        List<CmsResource> sources=cms.readResources(source,CmsResourceFilter.IGNORE_EXPIRATION,false);
+        for (        CmsResource sourceRes : sources) {
+          copyResources.add(new CmsConfigurationCopyResource(cms.getSitePath(sourceRes),oriCopyResource.getTarget(),oriCopyResource.getTypeString()));
         }
+        copiedResources.put(source,resolver.resolveMacros(target));
+      }
  else {
-          Iterator<CmsResource> it=cms.readResources(target,CmsResourceFilter.DEFAULT_FILES,true).iterator();
-          while (it.hasNext()) {
-            CmsResource subRes=it.next();
-            CmsFile file=cms.readFile(subRes);
+        copyResources.add(oriCopyResource);
+      }
+      for (      CmsConfigurationCopyResource copyResource : copyResources) {
+        target=copyResource.getTarget();
+        if (copyResource.isTargetWasNull() || CmsMacroResolver.isMacro(target,MACRO_RESOURCE_FOLDER_PATH) || CmsMacroResolver.isMacro(target,MACRO_RESOURCE_FOLDER_PATH_TOUCH)) {
+          target=target.concat(CmsResource.getName(copyResource.getSource()));
+        }
+        target=resolver.resolveMacros(target);
+        target=CmsFileUtil.normalizePath(CmsLinkManager.getAbsoluteUri(target,resourcename),'/');
+        cms.copyResource(copyResource.getSource(),target,copyResource.getType());
+        copiedResources.put(copyResource.getSource(),target);
+        if (CmsMacroResolver.isMacro(oriTarget,MACRO_RESOURCE_FOLDER_PATH_TOUCH)) {
+          CmsResource res=cms.readResource(target);
+          if (res.isFile()) {
+            CmsFile file=cms.readFile(res);
             cms.writeFile(file);
+          }
+ else {
+            Iterator<CmsResource> it=cms.readResources(target,CmsResourceFilter.DEFAULT_FILES,true).iterator();
+            while (it.hasNext()) {
+              CmsResource subRes=it.next();
+              CmsFile file=cms.readFile(subRes);
+              cms.writeFile(file);
+            }
           }
         }
       }
     }
  catch (    Exception e) {
       if (LOG.isDebugEnabled()) {
-        LOG.debug(Messages.get().getBundle().key(Messages.LOG_PROCESS_COPY_RESOURCES_3,resourcename,copyResource,target),e);
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_PROCESS_COPY_RESOURCES_3,resourcename,oriCopyResource,target),e);
       }
  else {
-        LOG.error(Messages.get().getBundle().key(Messages.LOG_PROCESS_COPY_RESOURCES_3,resourcename,copyResource,target));
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_PROCESS_COPY_RESOURCES_3,resourcename,oriCopyResource,target));
       }
     }
   }
