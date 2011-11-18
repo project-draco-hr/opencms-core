@@ -1,0 +1,46 @@
+{
+  Document document=createDocument("<dummy></dummy>");
+  CmsContainerConfiguration config=buildConfiguration("a b c|d|e f|a b c");
+  CmsXmlContentProperty setting1def=new CmsXmlContentProperty("setting_a","string",null,null,null,null,null,null,null,null,null);
+  final Map<String,CmsXmlContentProperty> settingDefs=new HashMap<String,CmsXmlContentProperty>();
+  settingDefs.put("setting_a",setting1def);
+  CmsContainerConfigurationWriter writer=new CmsContainerConfigurationWriter(){
+    @Override protected java.util.Map<String,CmsXmlContentProperty> getSettingConfiguration(    CmsObject cms,    CmsResource resource){
+      return settingDefs;
+    }
+  }
+;
+  Element element=writer.serializeSingleConfiguration(getCmsObject(),"configname",config,document.getRootElement());
+  assertNotNull(element);
+  assertEquals("Configuration",element.getName());
+  List<Node> nodes=CmsCollectionsGenericWrapper.list(element.selectNodes(N_ORDERKEY));
+  assertEquals(3,nodes.size());
+  Element element0=(Element)nodes.get(0);
+  checkCDATA(element0,"a");
+  checkCDATA((Element)nodes.get(1),"b");
+  checkCDATA((Element)nodes.get(2),"c");
+  List<Node> visibleNodes=CmsCollectionsGenericWrapper.list(element.selectNodes(N_VISIBLE));
+  assertEquals(1,visibleNodes.size());
+  checkCDATA((Element)visibleNodes.get(0),"d");
+  List<Node> invisibleNodes=CmsCollectionsGenericWrapper.list(element.selectNodes(N_HIDDEN));
+  assertEquals(2,invisibleNodes.size());
+  Set<String> actualInvisible=new HashSet<String>();
+  Set<String> expectedInvisible=new HashSet<String>();
+  expectedInvisible.add("e");
+  expectedInvisible.add("f");
+  for (  Node node : invisibleNodes) {
+    actualInvisible.add(getNestedText((Element)node));
+  }
+  assertEquals(expectedInvisible,actualInvisible);
+  Node targetIdNode=element.selectSingleNode("NewElement[Key='a']/Element/Uri/link/uuid");
+  String uuidString=getNestedText((Element)targetIdNode);
+  assertEquals(makeStructureId("a"),new CmsUUID(uuidString));
+  Node targetIdNode2=element.selectSingleNode("NewElement[Key='b']/Element/Uri/link/uuid");
+  String uuidString2=getNestedText((Element)targetIdNode2);
+  assertEquals(makeStructureId("b"),new CmsUUID(uuidString2));
+  Node targetIdNode3=element.selectSingleNode("NewElement[Key='c']/Element/Uri/link/uuid");
+  String uuidString3=getNestedText((Element)targetIdNode3);
+  assertEquals(makeStructureId("c"),new CmsUUID(uuidString3));
+  assertEquals(3,element.selectNodes("NewElement").size());
+  assertEquals("value_a",getNestedText((Element)element.selectSingleNode("NewElement[Key='a']/Element/Properties[Name='setting_a']/Value/String")));
+}

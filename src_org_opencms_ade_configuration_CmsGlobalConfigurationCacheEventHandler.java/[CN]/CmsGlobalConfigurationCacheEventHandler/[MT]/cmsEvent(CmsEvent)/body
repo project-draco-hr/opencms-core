@@ -1,0 +1,76 @@
+{
+  CmsResource resource=null;
+  List<CmsResource> resources=null;
+switch (event.getType()) {
+case I_CmsEventListener.EVENT_RESOURCE_AND_PROPERTIES_MODIFIED:
+case I_CmsEventListener.EVENT_RESOURCE_MODIFIED:
+case I_CmsEventListener.EVENT_RESOURCE_CREATED:
+    Object change=event.getData().get(I_CmsEventListener.KEY_CHANGE);
+  if ((change != null) && change.equals(new Integer(CmsDriverManager.NOTHING_CHANGED))) {
+    return;
+  }
+resource=(CmsResource)event.getData().get(I_CmsEventListener.KEY_RESOURCE);
+offlineCacheUpdate(resource);
+break;
+case I_CmsEventListener.EVENT_RESOURCES_AND_PROPERTIES_MODIFIED:
+resources=CmsCollectionsGenericWrapper.list(event.getData().get(I_CmsEventListener.KEY_RESOURCES));
+for (CmsResource res : resources) {
+offlineCacheUpdate(res);
+}
+break;
+case I_CmsEventListener.EVENT_RESOURCE_MOVED:
+resources=CmsCollectionsGenericWrapper.list(event.getData().get(I_CmsEventListener.KEY_RESOURCES));
+offlineCacheRemove(resources.get(0));
+offlineCacheUpdate(resources.get(resources.size() - 2));
+break;
+case I_CmsEventListener.EVENT_RESOURCE_DELETED:
+resources=CmsCollectionsGenericWrapper.list(event.getData().get(I_CmsEventListener.KEY_RESOURCES));
+for (CmsResource res : resources) {
+offlineCacheRemove(res);
+}
+break;
+case I_CmsEventListener.EVENT_RESOURCES_MODIFIED:
+resources=CmsCollectionsGenericWrapper.list(event.getData().get(I_CmsEventListener.KEY_RESOURCES));
+for (CmsResource res : resources) {
+offlineCacheUpdate(res);
+}
+break;
+case I_CmsEventListener.EVENT_CLEAR_ONLINE_CACHES:
+onlineCacheClear();
+break;
+case I_CmsEventListener.EVENT_PUBLISH_PROJECT:
+String publishIdStr=(String)event.getData().get(I_CmsEventListener.KEY_PUBLISHID);
+if (publishIdStr != null) {
+CmsUUID publishId=new CmsUUID(publishIdStr);
+try {
+List<CmsPublishedResource> publishedResources=m_onlineCms.readPublishedResources(publishId);
+if (publishedResources.isEmpty()) {
+onlineCacheClear();
+}
+ else {
+for (CmsPublishedResource res : publishedResources) {
+if (res.getState().isDeleted()) {
+onlineCacheRemove(res);
+}
+ else {
+onlineCacheUpdate(res);
+}
+}
+}
+}
+ catch (CmsException e) {
+LOG.error(e.getLocalizedMessage(),e);
+}
+}
+break;
+case I_CmsEventListener.EVENT_CLEAR_CACHES:
+offlineCacheClear();
+onlineCacheClear();
+break;
+case I_CmsEventListener.EVENT_CLEAR_OFFLINE_CACHES:
+offlineCacheClear();
+break;
+default :
+break;
+}
+}
