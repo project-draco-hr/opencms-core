@@ -14,7 +14,7 @@
     MultipartRequestEntity request=new MultipartRequestEntity(parts,methodParams);
     post.setRequestEntity(request);
     String sessionId=getParameter("sessionId");
-    String query=";" + C_JSESSIONID.toLowerCase() + "="+ sessionId;
+    String query=";" + C_JSESSIONID.toLowerCase() + "="+ sessionId+ "&uploadapplet=true";
     post.setQueryString(query);
     post.addRequestHeader(C_JSESSIONID,sessionId);
     HttpClient client=new HttpClient();
@@ -28,8 +28,18 @@
     initialState.addCookie(sessionCookie);
     client.setState(initialState);
     int status=client.executeMethod(post);
+    String responseString=post.getResponseBodyAsString();
     if (status == HttpStatus.SC_OK) {
-      getAppletContext().showDocument(new URL(m_redirectUrl),m_redirectTargetFrame);
+      String uploadHook=getParameterFromResponse("CMS_UPLOAD_HOOK",responseString);
+      String uploadPropertiesDialogUri=getParameter("uriPrefix") + uploadHook;
+      String uploadedFilesAsString=getParameterFromResponse("CMS_UPLOADED_FILES",responseString);
+      if ((uploadHook != null) && (uploadedFilesAsString != null)) {
+        String targetUri=uploadPropertiesDialogUri + "?resources=" + uploadedFilesAsString+ "&closelink="+ m_redirectUrl;
+        getAppletContext().showDocument(new URL(targetUri),m_redirectTargetFrame);
+      }
+ else {
+        getAppletContext().showDocument(new URL(m_redirectUrl),m_redirectTargetFrame);
+      }
     }
  else {
       String error=m_errorLine1 + "\n" + post.getStatusLine();

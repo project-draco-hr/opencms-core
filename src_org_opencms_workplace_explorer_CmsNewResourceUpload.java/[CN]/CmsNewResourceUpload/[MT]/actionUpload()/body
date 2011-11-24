@@ -41,7 +41,11 @@
         if (CmsStringUtil.isEmpty(currentFolder) || !currentFolder.startsWith("/")) {
           currentFolder=computeCurrentFolder();
         }
-        new CmsImportFolder(content,currentFolder,getCms(),false);
+        getJsp().getRequest().getSession().setAttribute(ATTR_UPLOAD_FOLDER,currentFolder);
+        CmsImportFolder importFolder=new CmsImportFolder(content,currentFolder,getCms(),false);
+        for (        CmsResource importedResource : importFolder.getImportedResources()) {
+          m_uploadedFiles.add(importedResource.getStructureId().toString());
+        }
       }
  else {
         String newResname=CmsResource.getName(fileName.replace('\\','/'));
@@ -65,12 +69,16 @@
         setParamResource(computeFullResourceName());
         int resTypeId=OpenCms.getResourceManager().getDefaultTypeForName(newResname).getTypeId();
         int plainId=OpenCms.getResourceManager().getResourceType(CmsResourceTypePlain.getStaticTypeName()).getTypeId();
+        String uploadFolder=CmsResource.getParentFolder(getParamResource());
+        getJsp().getRequest().getSession().setAttribute(ATTR_UPLOAD_FOLDER,uploadFolder);
         if (!getCms().existsResource(getParamResource(),CmsResourceFilter.IGNORE_EXPIRATION)) {
           try {
-            getCms().createResource(getParamResource(),resTypeId,content,properties);
+            CmsResource uploadedFile=getCms().createResource(getParamResource(),resTypeId,content,properties);
+            m_uploadedFiles.add(uploadedFile.getStructureId().toString());
           }
  catch (          CmsSecurityException e) {
-            getCms().createResource(getParamResource(),plainId,content,properties);
+            CmsResource uploadedFile=getCms().createResource(getParamResource(),plainId,content,properties);
+            m_uploadedFiles.add(uploadedFile.getStructureId().toString());
           }
 catch (          CmsDbSqlException sqlExc) {
             getCms().lockResource(getParamResource());
@@ -84,9 +92,11 @@ catch (          CmsDbSqlException sqlExc) {
           byte[] contents=file.getContents();
           try {
             getCms().replaceResource(getParamResource(),resTypeId,content,null);
+            m_uploadedFiles.add(file.getStructureId().toString());
           }
  catch (          CmsSecurityException e) {
             getCms().replaceResource(getParamResource(),plainId,content,null);
+            m_uploadedFiles.add(file.getStructureId().toString());
           }
 catch (          CmsDbSqlException sqlExc) {
             file.setContents(contents);
@@ -104,5 +114,11 @@ catch (          CmsDbSqlException sqlExc) {
     setParamMessage(Messages.get().getBundle(getLocale()).key(Messages.ERR_UPLOAD_FILE_0));
     setAction(ACTION_SHOWERROR);
     includeErrorpage(this,e);
+  }
+ finally {
+    if (!m_uploadedFiles.isEmpty()) {
+      String uploadedFilesString=Joiner.on(",").join(m_uploadedFiles);
+      getJsp().getRequest().getSession().setAttribute(ATTR_UPLOADED_FILES,uploadedFilesString);
+    }
   }
 }

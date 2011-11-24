@@ -10,9 +10,37 @@
       m_contentLength=requestSize;
     }
     if (success) {
+      List<String> uploadedFilesList=new ArrayList<String>();
       displayDialogInfo(Messages.get().key(Messages.GUI_UPLOAD_INFO_FINISHING_0),false);
+      JSONValue uploadedFilesVal=jsonObject.get(I_CmsUploadConstants.KEY_UPLOADED_FILES);
+      JSONValue uploadHook=jsonObject.get(I_CmsUploadConstants.KEY_UPLOAD_HOOK);
+      JSONArray uploadedFilesArray=uploadedFilesVal.isArray();
+      if (uploadedFilesArray != null) {
+        for (int i=0; i < uploadedFilesArray.size(); i++) {
+          JSONString entry=uploadedFilesArray.get(i).isString();
+          if (entry != null) {
+            uploadedFilesList.add(entry.stringValue());
+          }
+        }
+      }
       m_progressInfo.finish();
+      final Runnable finishAction=getFinishAction();
+      if (uploadHook != null) {
+        setFinishAction(null);
+      }
       closeOnSuccess();
+      if (uploadHook != null) {
+        String title=Messages.get().key(Messages.GUI_UPLOAD_HOOK_DIALOG_TITLE_0);
+        CmsUploadHookDialog dialog=CmsUploadHookDialog.openDialog(title,uploadHook.isString().stringValue(),uploadedFilesList);
+        if (finishAction != null) {
+          dialog.addCloseHandler(new CloseHandler<PopupPanel>(){
+            public void onClose(            CloseEvent<PopupPanel> event){
+              finishAction.run();
+            }
+          }
+);
+        }
+      }
     }
  else {
       String message=jsonObject.get(I_CmsUploadConstants.KEY_MESSAGE).isString().stringValue();
