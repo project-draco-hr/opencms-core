@@ -1,16 +1,11 @@
 {
   Element child=(Element)container.getElement().getFirstChildElement();
   while (child != null) {
-    boolean isContainerElement=CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_START_MARKER,child);
-    boolean isGroupcontainerElement=CmsDomUtil.hasClass(CLASS_GROUP_CONTAINER_ELEMENT_MARKER,child);
+    boolean isContainerElement=CmsDomUtil.hasClass(CmsContainerElement.CLASS_CONTAINER_ELEMENT_START_MARKER,child);
+    boolean isGroupcontainerElement=CmsDomUtil.hasClass(CmsContainerElement.CLASS_GROUP_CONTAINER_ELEMENT_MARKER,child);
     if (isContainerElement || isGroupcontainerElement) {
-      String clientId=child.getAttribute("clientId");
-      String sitePath=child.getAttribute("alt");
-      String noEditReason=child.getAttribute("rel");
-      String newType=child.getAttribute("newType");
-      boolean hasProps=Boolean.parseBoolean(child.getAttribute("hasprops"));
-      boolean hasViewPermission=Boolean.parseBoolean(child.getAttribute("hasviewpermission"));
-      boolean releasedAndNotExpired=Boolean.parseBoolean(child.getAttribute("releasedandnotexpired"));
+      String serializedData=child.getAttribute("rel");
+      CmsContainerElement elementData=m_controller.getSerializedElement(serializedData);
       if (isContainerElement) {
         Element elementRoot=(Element)child.getNextSibling();
         while ((elementRoot != null) && (elementRoot.getNodeType() != Node.ELEMENT_NODE)) {
@@ -23,12 +18,12 @@
           child=null;
           continue;
         }
-        if (CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_START_MARKER,elementRoot)) {
+        if (CmsDomUtil.hasClass(CmsContainerElement.CLASS_CONTAINER_ELEMENT_START_MARKER,elementRoot)) {
           child.removeFromParent();
           child=elementRoot;
           continue;
         }
-        if (CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_END_MARKER,elementRoot)) {
+        if (CmsDomUtil.hasClass(CmsContainerElement.CLASS_CONTAINER_ELEMENT_END_MARKER,elementRoot)) {
           child.removeFromParent();
           child=(Element)elementRoot.getNextSiblingElement();
           elementRoot.removeFromParent();
@@ -36,7 +31,7 @@
         }
  else {
           Element endMarker=(Element)elementRoot.getNextSibling();
-          while (!((endMarker == null) || ((endMarker.getNodeType() == Node.ELEMENT_NODE) && (CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_END_MARKER,endMarker) || CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_START_MARKER,endMarker))))) {
+          while (!((endMarker == null) || ((endMarker.getNodeType() == Node.ELEMENT_NODE) && (CmsDomUtil.hasClass(CmsContainerElement.CLASS_CONTAINER_ELEMENT_END_MARKER,endMarker) || CmsDomUtil.hasClass(CmsContainerElement.CLASS_CONTAINER_ELEMENT_START_MARKER,endMarker))))) {
             Element temp=endMarker;
             endMarker=(Element)endMarker.getNextSibling();
             temp.removeFromParent();
@@ -47,15 +42,15 @@
             child=null;
             continue;
           }
-          if (CmsDomUtil.hasClass(CLASS_CONTAINER_ELEMENT_START_MARKER,endMarker)) {
+          if (CmsDomUtil.hasClass(CmsContainerElement.CLASS_CONTAINER_ELEMENT_START_MARKER,endMarker)) {
             elementRoot.removeFromParent();
             child.removeFromParent();
             child=endMarker;
           }
           CmsDomUtil.removeScriptTags(elementRoot);
-          CmsContainerPageElementPanel containerElement=createElement(elementRoot,container,clientId,sitePath,noEditReason,hasProps,hasViewPermission,releasedAndNotExpired);
-          if ((newType != null) && (newType.length() > 0)) {
-            containerElement.setNewType(newType);
+          CmsContainerPageElementPanel containerElement=createElement(elementRoot,container,elementData);
+          if (elementData.isNew()) {
+            containerElement.setNewType(elementData.getResourceType());
           }
           container.adoptElement(containerElement);
           child.removeFromParent();
@@ -65,7 +60,7 @@
       }
  else       if (isGroupcontainerElement && (container instanceof CmsContainerPageContainer)) {
         CmsDomUtil.removeScriptTags(child);
-        CmsGroupContainerElementPanel groupContainer=createGroupcontainer(child,container,clientId,sitePath,noEditReason,hasProps,hasViewPermission,releasedAndNotExpired);
+        CmsGroupContainerElementPanel groupContainer=createGroupcontainer(child,container,elementData);
         groupContainer.setContainerId(container.getContainerId());
         container.adoptElement(groupContainer);
         consumeContainerElements(groupContainer);
