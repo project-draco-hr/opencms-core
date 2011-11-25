@@ -10,7 +10,6 @@
     title=searchResult.getTitle();
   }
   CmsContainerElementData elementBean=new CmsContainerElementData();
-  elementBean.setInheritanceInfo(element.getInheritanceInfo());
   elementBean.setReleasedAndNotExpired(element.isReleasedAndNotExpired());
   elementBean.setClientId(element.editorHash());
   elementBean.setSitePath(resUtil.getFullPath());
@@ -38,7 +37,6 @@
     noEditReason=org.opencms.jsp.Messages.get().getBundle().key(org.opencms.jsp.Messages.GUI_ELEMENT_RESOURCE_CAN_NOT_BE_EDITED_0);
   }
   elementBean.setNoEditReason(noEditReason);
-  elementBean.setStatus(resUtil.getStateAbbreviation());
   Map<String,String> contents=new HashMap<String,String>();
   if (element.isGroupContainer(m_cms)) {
     Set<String> types=new HashSet<String>();
@@ -49,7 +47,6 @@
     }
     CmsXmlGroupContainer xmlGroupContainer=CmsXmlGroupContainerFactory.unmarshal(m_cms,element.getResource(),m_req);
     CmsGroupContainerBean groupContainer=xmlGroupContainer.getGroupContainer(m_cms,m_locale);
-    elementBean.setGroupContainer(true);
     elementBean.setTitle(groupContainer.getTitle());
     elementBean.setTypes(groupContainer.getTypes());
     elementBean.setDescription(groupContainer.getDescription());
@@ -77,6 +74,31 @@
       subItems.add(subElement.editorHash());
     }
     elementBean.setSubItems(subItems);
+  }
+ else   if (element.isInheritedContainer(m_cms)) {
+    CmsInheritanceReferenceParser parser=new CmsInheritanceReferenceParser(m_cms);
+    parser.parse(element.getResource());
+    CmsInheritanceReference ref=parser.getReferences().get(m_locale);
+    String name=ref.getName();
+    elementBean.setDescription(ref.getDescription());
+    elementBean.setTitle(ref.getTitle());
+    for (    CmsContainer container : containers) {
+      contents.put(container.getName(),"<div>should not be used</div>");
+    }
+    List<CmsInheritanceInfo> inheritanceInfos=new ArrayList<CmsInheritanceInfo>();
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(name)) {
+      CmsInheritedContainerState result=OpenCms.getADEManager().getInheritedContainerState(m_cms,m_cms.addSiteRoot(m_currentPageUri),name);
+      for (      CmsContainerElementBean subElement : result.getElements(true)) {
+        CmsInheritanceInfo inheritanceInfo=subElement.getInheritanceInfo();
+        inheritanceInfo.setClientId(subElement.editorHash());
+        inheritanceInfos.add(inheritanceInfo);
+      }
+    }
+ else {
+      name=new CmsUUID().toString();
+    }
+    elementBean.setInheritanceInfos(inheritanceInfos);
+    elementBean.setInheritanceName(name);
   }
  else {
     Map<String,String> contentsByName=getContentsByContainerName(element,containers);

@@ -1,0 +1,31 @@
+{
+  CmsContainerElement result=new CmsContainerElement();
+  Locale wpLocale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
+  String noEditReason="";
+  elementBean.initResource(cms);
+  if (CmsResourceTypeXmlContent.isXmlContent(elementBean.getResource())) {
+    noEditReason=new CmsResourceUtil(cms,elementBean.getResource()).getNoEditReason(wpLocale,true);
+  }
+ else {
+    noEditReason=Messages.get().getBundle().key(Messages.GUI_ELEMENT_RESOURCE_CAN_NOT_BE_EDITED_0);
+  }
+  result.setClientId(elementBean.editorHash());
+  result.setSitePath(elementBean.getSitePath());
+  String typeName=OpenCms.getResourceManager().getResourceType(elementBean.getResource().getTypeId()).getTypeName();
+  result.setResourceType(typeName);
+  result.setNew(elementBean.isCreateNew());
+  if (elementBean.isCreateNew()) {
+    CmsResourceTypeConfig typeConfig=OpenCms.getADEManager().lookupConfiguration(cms,cms.getRequestContext().getRootUri()).getResourceType(typeName);
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(noEditReason) && ((typeConfig == null) || !typeConfig.checkCreatable(cms))) {
+      String niceName=CmsWorkplaceMessages.getResourceTypeName(wpLocale,typeName);
+      noEditReason=Messages.get().getBundle().key(Messages.GUI_CONTAINERPAGE_TYPE_NOT_CREATABLE_1,niceName);
+    }
+  }
+  result.setHasSettings(hasSettings(cms,elementBean.getResource()));
+  CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(typeName);
+  boolean viewPermission=cms.hasPermissions(elementBean.getResource(),CmsPermissionSet.ACCESS_VIEW,false,CmsResourceFilter.IGNORE_EXPIRATION) && settings.getAccess().getPermissions(cms,elementBean.getResource()).requiresViewPermission();
+  result.setViewPermission(viewPermission);
+  result.setReleasedAndNotExpired(elementBean.isReleasedAndNotExpired());
+  result.setNoEditReason(noEditReason);
+  return CmsGwtActionElement.serialize(I_CmsContainerpageService.class.getMethod("getElementInfo"),result);
+}
