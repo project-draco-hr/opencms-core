@@ -1,61 +1,63 @@
 {
-  List<CmsSearchIndexUpdateData> updateCollections=new ArrayList<CmsSearchIndexUpdateData>();
-  boolean hasResourcesToDelete=false;
-  boolean hasResourcesToUpdate=false;
-  Iterator<CmsSearchIndexSource> sources=index.getSources().iterator();
-  while (sources.hasNext()) {
-    CmsSearchIndexSource source=sources.next();
-    I_CmsIndexer indexer=source.getIndexer().newInstance(cms,report,index);
-    CmsSearchIndexUpdateData updateData=indexer.getUpdateData(source,resourcesToIndex);
-    if (!updateData.isEmpty()) {
-      updateCollections.add(updateData);
-      hasResourcesToDelete=hasResourcesToDelete | updateData.hasResourcesToDelete();
-      hasResourcesToUpdate=hasResourcesToUpdate | updateData.hasResourceToUpdate();
+synchronized (index) {
+    List<CmsSearchIndexUpdateData> updateCollections=new ArrayList<CmsSearchIndexUpdateData>();
+    boolean hasResourcesToDelete=false;
+    boolean hasResourcesToUpdate=false;
+    Iterator<CmsSearchIndexSource> sources=index.getSources().iterator();
+    while (sources.hasNext()) {
+      CmsSearchIndexSource source=sources.next();
+      I_CmsIndexer indexer=source.getIndexer().newInstance(cms,report,index);
+      CmsSearchIndexUpdateData updateData=indexer.getUpdateData(source,resourcesToIndex);
+      if (!updateData.isEmpty()) {
+        updateCollections.add(updateData);
+        hasResourcesToDelete=hasResourcesToDelete | updateData.hasResourcesToDelete();
+        hasResourcesToUpdate=hasResourcesToUpdate | updateData.hasResourceToUpdate();
+      }
     }
-  }
-  if (hasResourcesToDelete || hasResourcesToUpdate) {
-    report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_UPDATE_BEGIN_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
-    I_CmsIndexWriter writer=null;
-    try {
-      writer=index.getIndexWriter(report,false);
-      if (hasResourcesToDelete) {
-        Iterator<CmsSearchIndexUpdateData> i=updateCollections.iterator();
-        while (i.hasNext()) {
-          CmsSearchIndexUpdateData updateCollection=i.next();
-          if (updateCollection.hasResourcesToDelete()) {
-            updateCollection.getIndexer().deleteResources(writer,updateCollection.getResourcesToDelete());
+    if (hasResourcesToDelete || hasResourcesToUpdate) {
+      report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_UPDATE_BEGIN_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
+      I_CmsIndexWriter writer=null;
+      try {
+        writer=index.getIndexWriter(report,false);
+        if (hasResourcesToDelete) {
+          Iterator<CmsSearchIndexUpdateData> i=updateCollections.iterator();
+          while (i.hasNext()) {
+            CmsSearchIndexUpdateData updateCollection=i.next();
+            if (updateCollection.hasResourcesToDelete()) {
+              updateCollection.getIndexer().deleteResources(writer,updateCollection.getResourcesToDelete());
+            }
+          }
+        }
+        if (hasResourcesToUpdate) {
+          CmsIndexingThreadManager threadManager=getThreadManager();
+          Iterator<CmsSearchIndexUpdateData> i=updateCollections.iterator();
+          while (i.hasNext()) {
+            CmsSearchIndexUpdateData updateCollection=i.next();
+            if (updateCollection.hasResourceToUpdate()) {
+              updateCollection.getIndexer().updateResources(writer,threadManager,updateCollection.getResourcesToUpdate());
+            }
+          }
+          while (threadManager.isRunning()) {
+            try {
+              Thread.sleep(500);
+            }
+ catch (            InterruptedException e) {
+            }
           }
         }
       }
-      if (hasResourcesToUpdate) {
-        CmsIndexingThreadManager threadManager=getThreadManager();
-        Iterator<CmsSearchIndexUpdateData> i=updateCollections.iterator();
-        while (i.hasNext()) {
-          CmsSearchIndexUpdateData updateCollection=i.next();
-          if (updateCollection.hasResourceToUpdate()) {
-            updateCollection.getIndexer().updateResources(writer,threadManager,updateCollection.getResourcesToUpdate());
-          }
-        }
-        while (threadManager.isRunning()) {
-          try {
-            Thread.sleep(500);
-          }
- catch (          InterruptedException e) {
-          }
-        }
-      }
-    }
   finally {
-      if (writer != null) {
-        try {
-          writer.commit();
+        if (writer != null) {
+          try {
+            writer.commit();
+          }
+ catch (          IOException e) {
+            LOG.error(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_WRITER_COMMIT_2,index.getName(),index.getPath()),e);
+          }
         }
- catch (        IOException e) {
-          LOG.error(Messages.get().getBundle().key(Messages.LOG_IO_INDEX_WRITER_COMMIT_2,index.getName(),index.getPath()),e);
-        }
+        index.indexSearcherUpdate();
       }
-      index.indexSearcherUpdate();
+      report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_UPDATE_END_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
     }
-    report.println(Messages.get().container(Messages.RPT_SEARCH_INDEXING_UPDATE_END_1,index.getName()),I_CmsReport.FORMAT_HEADLINE);
   }
 }
