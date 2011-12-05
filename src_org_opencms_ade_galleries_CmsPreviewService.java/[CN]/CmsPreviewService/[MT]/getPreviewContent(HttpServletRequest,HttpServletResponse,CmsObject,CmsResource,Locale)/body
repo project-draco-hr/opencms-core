@@ -1,0 +1,32 @@
+{
+  try {
+    if (CmsResourceTypeXmlContent.isXmlContent(resource)) {
+      CmsADEConfigData adeConfig=OpenCms.getADEManager().lookupConfiguration(cms,cms.getRequestContext().getRootUri());
+      CmsFormatterConfiguration formatters=adeConfig.getFormatters(cms,resource);
+      CmsFormatterBean formatter=formatters.getFormatter(CmsFormatterBean.PREVIEW_TYPE,-1);
+      if (formatter != null) {
+        CmsObject tempCms=OpenCms.initCmsObject(cms);
+        tempCms.getRequestContext().setLocale(locale);
+        CmsResource formatterResource=tempCms.readResource(formatter.getJspStructureId());
+        request.setAttribute(CmsJspStandardContextBean.ATTRIBUTE_CMS_OBJECT,tempCms);
+        CmsJspStandardContextBean standardContext=CmsJspStandardContextBean.getInstance(request);
+        CmsContainerElementBean element=new CmsContainerElementBean(resource.getStructureId(),formatter.getJspStructureId(),null,false);
+        element.initResource(tempCms);
+        CmsContainerBean containerBean=new CmsContainerBean("PREVIEW",CmsFormatterBean.PREVIEW_TYPE,1,Collections.<CmsContainerElementBean>emptyList());
+        containerBean.setWidth(String.valueOf(CmsFormatterBean.PREVIEW_WIDTH));
+        standardContext.setContainer(containerBean);
+        standardContext.setElement(element);
+        standardContext.setEdited(true);
+        standardContext.setPage(new CmsContainerPageBean(locale,Collections.<CmsContainerBean>singletonList(containerBean)));
+        String encoding=response.getCharacterEncoding();
+        CmsTemplateLoaderFacade loaderFacade=new CmsTemplateLoaderFacade(OpenCms.getResourceManager().getLoader(formatterResource),element.getResource(),formatterResource);
+        CmsResource loaderRes=loaderFacade.getLoaderStartResource();
+        return (new String(loaderFacade.getLoader().dump(tempCms,loaderRes,null,locale,request,response),encoding)).trim();
+      }
+    }
+  }
+ catch (  Exception e) {
+    LOG.warn(e.getLocalizedMessage(),e);
+  }
+  return null;
+}
