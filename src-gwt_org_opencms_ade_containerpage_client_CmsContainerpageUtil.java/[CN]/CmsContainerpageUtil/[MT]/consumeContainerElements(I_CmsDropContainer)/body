@@ -5,7 +5,13 @@
     boolean isGroupcontainerElement=CmsDomUtil.hasClass(CmsContainerElement.CLASS_GROUP_CONTAINER_ELEMENT_MARKER,child);
     if (isContainerElement || isGroupcontainerElement) {
       String serializedData=child.getAttribute("rel");
-      CmsContainerElement elementData=m_controller.getSerializedElement(serializedData);
+      CmsContainerElement elementData=null;
+      try {
+        elementData=m_controller.getSerializedElement(serializedData);
+      }
+ catch (      Exception e) {
+        CmsErrorDialog.handleException(new Exception("Deserialization of element data failed. This may be caused by expired java-script resources, please clear your browser cache and try again.",e));
+      }
       if (isContainerElement) {
         Element elementRoot=(Element)child.getNextSibling();
         while ((elementRoot != null) && (elementRoot.getNodeType() != Node.ELEMENT_NODE)) {
@@ -19,11 +25,17 @@
           continue;
         }
         if (CmsDomUtil.hasClass(CmsContainerElement.CLASS_CONTAINER_ELEMENT_START_MARKER,elementRoot)) {
+          if (elementData != null) {
+            alertParsingError(elementData.getSitePath());
+          }
           child.removeFromParent();
           child=elementRoot;
           continue;
         }
         if (CmsDomUtil.hasClass(CmsContainerElement.CLASS_CONTAINER_ELEMENT_END_MARKER,elementRoot)) {
+          if (elementData != null) {
+            alertParsingError(elementData.getSitePath());
+          }
           child.removeFromParent();
           child=(Element)elementRoot.getNextSiblingElement();
           elementRoot.removeFromParent();
@@ -37,15 +49,28 @@
             temp.removeFromParent();
           }
           if (endMarker == null) {
+            if (elementData != null) {
+              alertParsingError(elementData.getSitePath());
+            }
             elementRoot.removeFromParent();
             child.removeFromParent();
             child=null;
             continue;
           }
           if (CmsDomUtil.hasClass(CmsContainerElement.CLASS_CONTAINER_ELEMENT_START_MARKER,endMarker)) {
+            if (elementData != null) {
+              alertParsingError(elementData.getSitePath());
+            }
             elementRoot.removeFromParent();
             child.removeFromParent();
             child=endMarker;
+          }
+          if (elementData == null) {
+            child.removeFromParent();
+            elementRoot.removeFromParent();
+            child=(Element)endMarker.getNextSiblingElement();
+            endMarker.removeFromParent();
+            continue;
           }
           CmsDomUtil.removeScriptTags(elementRoot);
           CmsContainerPageElementPanel containerElement=createElement(elementRoot,container,elementData);
@@ -59,6 +84,12 @@
         }
       }
  else       if (isGroupcontainerElement && (container instanceof CmsContainerPageContainer)) {
+        if (elementData == null) {
+          Element sibling=(Element)child.getNextSiblingElement();
+          DOM.removeChild((Element)container.getElement(),child);
+          child=sibling;
+          continue;
+        }
         CmsDomUtil.removeScriptTags(child);
         CmsGroupContainerElementPanel groupContainer=createGroupcontainer(child,container,elementData);
         groupContainer.setContainerId(container.getContainerId());
