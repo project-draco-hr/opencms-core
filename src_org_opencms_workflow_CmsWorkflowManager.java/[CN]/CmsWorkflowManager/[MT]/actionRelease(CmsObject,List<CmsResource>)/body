@@ -6,10 +6,20 @@
   String managerGroup=getWorkflowProjectManagerGroup();
   String userGroup=getWorkflowProjectUserGroup();
   CmsProject workflowProject=m_adminCms.createProject(projectName,projectDescription,userGroup,managerGroup,CmsProject.PROJECT_TYPE_WORKFLOW);
+  CmsUser admin=offlineAdminCms.getRequestContext().getCurrentUser();
+  clearLocks(userCms.getRequestContext().getCurrentProject(),resources);
   for (  CmsResource resource : resources) {
+    CmsLock lock=offlineAdminCms.getLock(resource);
+    if (lock.isUnlocked()) {
+      offlineAdminCms.lockResource(resource);
+    }
+ else     if (!lock.isOwnedBy(admin)) {
+      offlineAdminCms.changeLock(resource);
+    }
     offlineAdminCms.writeProjectLastModified(resource,workflowProject);
-    System.out.println("Releasing resource " + resource.getRootPath());
   }
-  sendNotification(userCms,workflowProject,resources);
-  return new CmsWorkflowResponse(true,"ok",new ArrayList<CmsPublishResource>(),new ArrayList<CmsWorkflowActionBean>(),workflowProject.getUuid());
+  for (  CmsUser user : getNotificationMailRecipients()) {
+    sendNotification(userCms,user,workflowProject,resources);
+  }
+  return new CmsWorkflowResponse(true,"",new ArrayList<CmsPublishResource>(),new ArrayList<CmsWorkflowActionBean>(),workflowProject.getUuid());
 }
