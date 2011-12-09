@@ -1,4 +1,5 @@
 {
+  checkNewParentsInList(userCms,resources);
   String projectName=generateProjectName(userCms);
   String projectDescription=generateProjectDescription(userCms);
   CmsObject offlineAdminCms=OpenCms.initCmsObject(m_adminCms);
@@ -6,6 +7,10 @@
   String managerGroup=getWorkflowProjectManagerGroup();
   String userGroup=getWorkflowProjectUserGroup();
   CmsProject workflowProject=m_adminCms.createProject(projectName,projectDescription,userGroup,managerGroup,CmsProject.PROJECT_TYPE_WORKFLOW);
+  CmsObject newProjectCms=OpenCms.initCmsObject(offlineAdminCms);
+  newProjectCms.getRequestContext().setCurrentProject(workflowProject);
+  newProjectCms.getRequestContext().setSiteRoot("");
+  newProjectCms.copyResourceToProject("/");
   CmsUser admin=offlineAdminCms.getRequestContext().getCurrentUser();
   clearLocks(userCms.getRequestContext().getCurrentProject(),resources);
   for (  CmsResource resource : resources) {
@@ -17,6 +22,7 @@
       offlineAdminCms.changeLock(resource);
     }
     offlineAdminCms.writeProjectLastModified(resource,workflowProject);
+    offlineAdminCms.unlockResource(resource);
   }
   for (  CmsUser user : getNotificationMailRecipients()) {
     sendNotification(userCms,user,workflowProject,resources);
