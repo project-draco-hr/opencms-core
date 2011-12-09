@@ -1,0 +1,30 @@
+{
+  CmsObject cms=getCmsObject();
+  if (CmsResourceTypeXmlContainerPage.isContainerPage(resource) || CmsResourceTypeXmlPage.isXmlPage(resource)) {
+    return new CmsPreviewInfo(null,OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "?__disableDirectEdit=true",false);
+  }
+  if (CmsResourceTypeImage.getStaticTypeId() == resource.getTypeId()) {
+    CmsImageScaler scaler=new CmsImageScaler(cms,resource);
+    String title="";
+    CmsProperty titleProperty;
+    try {
+      titleProperty=cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_TITLE,false);
+      title=titleProperty.getValue("");
+    }
+ catch (    CmsException e) {
+      LOG.warn(e.getLocalizedMessage(),e);
+    }
+    String content="<img src=\"" + OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "\" title=\""+ title+ "\" style=\"display:block\" />";
+    CmsPreviewInfo result=new CmsPreviewInfo(content,null,false);
+    result.setHeight(scaler.getHeight());
+    result.setWidth(scaler.getWidth());
+    return result;
+  }
+  if (CmsResourceTypeXmlContent.isXmlContent(resource)) {
+    String previewContent=CmsPreviewService.getPreviewContent(getRequest(),getResponse(),cms,resource,locale);
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(previewContent)) {
+      return new CmsPreviewInfo(previewContent,null,false);
+    }
+  }
+  return new CmsPreviewInfo(null,cms.getSitePath(resource) + "?__disableDirectEdit=true",true);
+}
