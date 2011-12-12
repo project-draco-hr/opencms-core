@@ -1,0 +1,33 @@
+{
+  List<RESOURCE> sortedResources=new ArrayList<RESOURCE>(resources);
+  Collections.sort(sortedResources,new Comparator<RESOURCE>(){
+    public int compare(    RESOURCE r1,    RESOURCE r2){
+      if (r1 == r2) {
+        return 0;
+      }
+      long date1=getDateLastModified(r1);
+      long date2=getDateLastModified(r2);
+      return (date1 > date2) ? -1 : (date1 < date2) ? 1 : 0;
+    }
+  }
+);
+  Map<Long,Integer> daysMap=computeDaysForResources(sortedResources);
+  Map<GroupAge,List<RESOURCE>> resourcesByAge=partitionPublishResourcesByAge(sortedResources,daysMap);
+  List<List<RESOURCE>> youngGroups=partitionYoungResources(resourcesByAge.get(GroupAge.young));
+  List<List<RESOURCE>> mediumGroups=partitionMediumResources(resourcesByAge.get(GroupAge.medium),daysMap);
+  List<RESOURCE> oldGroup=resourcesByAge.get(GroupAge.old);
+  List<GROUP> resultGroups=new ArrayList<GROUP>();
+  for (  List<RESOURCE> groupRes : youngGroups) {
+    String name=getPublishGroupName(groupRes,GroupAge.young);
+    resultGroups.add(createGroup(name,groupRes));
+  }
+  for (  List<RESOURCE> groupRes : mediumGroups) {
+    String name=getPublishGroupName(groupRes,GroupAge.medium);
+    resultGroups.add(createGroup(name,groupRes));
+  }
+  if (!oldGroup.isEmpty()) {
+    String oldName=getPublishGroupName(oldGroup,GroupAge.old);
+    resultGroups.add(createGroup(oldName,oldGroup));
+  }
+  return resultGroups;
+}
