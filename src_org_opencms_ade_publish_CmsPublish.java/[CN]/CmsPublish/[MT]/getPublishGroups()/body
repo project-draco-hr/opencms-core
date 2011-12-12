@@ -1,43 +1,8 @@
 {
-  Set<CmsResource> published=getAlreadyPublishedResources();
-  Set<CmsResource> exclude=new HashSet<CmsResource>(published);
-  ResourcesAndRelated permissions=getResourcesWithoutPermissions(exclude);
-  exclude.addAll(permissions.getResources());
-  exclude.addAll(permissions.getRelatedResources());
-  ResourcesAndRelated locked=getBlockingLockedResources(exclude);
-  exclude.clear();
-  exclude.addAll(published);
-  exclude.addAll(permissions.getResources());
-  exclude.addAll(locked.getResources());
-  ResourcesAndRelated pubResources=new ResourcesAndRelated();
-  pubResources.getResources().addAll(getPublishResources().getResources());
-  pubResources.getResources().removeAll(exclude);
-  pubResources.getRelatedResources().addAll(getPublishResources().getRelatedResources());
-  pubResources.getRelatedResources().removeAll(permissions.getRelatedResources());
-  pubResources.getRelatedResources().removeAll(locked.getRelatedResources());
-  if (getPublishResources().getResources().isEmpty()) {
+  if (getPublishResourcesInternal().getResources().isEmpty()) {
     return new ArrayList<CmsPublishGroup>();
   }
-  List<CmsResource> resourcesWithoutTempfiles=new ArrayList<CmsResource>();
-  for (  CmsResource res : getPublishResources().getResources()) {
-    if (!CmsResource.isTemporaryFileName(res.getRootPath())) {
-      resourcesWithoutTempfiles.add(res);
-    }
-  }
-  Set<CmsResource> allPubRes=new HashSet<CmsResource>(pubResources.getRelatedResources());
-  allPubRes.addAll(pubResources.getResources());
-  List<CmsResource> pubList=new ArrayList<CmsResource>();
-  try {
-    pubList=OpenCms.getPublishManager().getUsersPubList(m_cms);
-  }
- catch (  CmsException e) {
-    LOG.error(e.getLocalizedMessage(),e);
-  }
-  List<CmsPublishResource> publishResources=new ArrayList<CmsPublishResource>();
-  for (  CmsResource resource : resourcesWithoutTempfiles) {
-    CmsPublishResource pubRes=createPublishResource(resource,pubList,allPubRes,published,permissions,locked);
-    publishResources.add(pubRes);
-  }
+  List<CmsPublishResource> publishResources=getPublishResourceBeans();
   A_CmsPublishGroupHelper<CmsPublishResource,CmsPublishGroup> groupHelper=new CmsDefaultPublishGroupHelper(m_workplaceLocale);
   List<CmsPublishGroup> resultGroups=groupHelper.getGroups(publishResources);
   return resultGroups;
