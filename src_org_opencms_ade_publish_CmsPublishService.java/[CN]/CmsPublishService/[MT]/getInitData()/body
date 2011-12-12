@@ -1,6 +1,19 @@
 {
   CmsPublishData result=null;
+  CmsObject cms=getCmsObject();
   try {
+    Map<String,CmsWorkflow> workflows=OpenCms.getWorkflowManager().getWorkflows(cms);
+    if (workflows.isEmpty()) {
+      throw new Exception("No workflow available for the current user");
+    }
+    String workflowId=getRequest().getParameter(PARAM_WORKFLOW_ID);
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(workflowId) || !workflows.containsKey(workflowId)) {
+      workflowId=getLastWorklowForUser();
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(workflowId) || !workflows.containsKey(workflowId)) {
+        workflowId=workflows.values().iterator().next().getId();
+      }
+    }
+    setLastWorkflowForUser(workflowId);
     String projectParam=getRequest().getParameter(PARAM_PUBLISH_PROJECT_ID);
     CmsPublishOptions options=getCachedOptions();
     List<CmsProjectBean> projects=getProjects();
@@ -13,7 +26,7 @@
         }
       }
     }
-    result=new CmsPublishData(options,projects,getResourceGroups(options),OpenCms.getWorkflowManager().getAvailableActions(getCmsObject()));
+    result=new CmsPublishData(options,projects,null,workflows,workflowId);
   }
  catch (  Throwable e) {
     error(e);
