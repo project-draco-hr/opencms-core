@@ -8,22 +8,40 @@
  catch (  CmsException e) {
     LOG.warn(e.getLocalizedMessage(),e);
   }
-  if (CmsResourceTypeXmlContainerPage.isContainerPage(resource) || CmsResourceTypeXmlPage.isXmlPage(resource)) {
-    return new CmsPreviewInfo(null,OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "?" + CmsJspTagEditable.PARAM_DISABLE_DIRECT_EDIT+ "=true",false,title,cms.getSitePath(resource));
+  String noPreviewReason=getNoPreviewReason(cms,resource);
+  String previewContent=null;
+  int height=0;
+  int width=0;
+  if (noPreviewReason != null) {
+    previewContent="<div>" + noPreviewReason + "</div>";
+    return new CmsPreviewInfo("<div>" + noPreviewReason + "</div>",null,false,title,cms.getSitePath(resource));
   }
-  if (CmsResourceTypeImage.getStaticTypeId() == resource.getTypeId()) {
+ else   if (CmsResourceTypeImage.getStaticTypeId() == resource.getTypeId()) {
     CmsImageScaler scaler=new CmsImageScaler(cms,resource);
-    String content="<img src=\"" + OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "\" title=\""+ title+ "\" style=\"display:block\" />";
-    CmsPreviewInfo result=new CmsPreviewInfo(content,null,false,title,cms.getSitePath(resource));
-    result.setHeight(scaler.getHeight());
-    result.setWidth(scaler.getWidth());
+    previewContent="<img src=\"" + OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "\" title=\""+ title+ "\" style=\"display:block\" />";
+    height=scaler.getHeight();
+    width=scaler.getWidth();
+  }
+ else   if (CmsResourceTypeXmlContent.isXmlContent(resource)) {
+    previewContent=CmsPreviewService.getPreviewContent(getRequest(),getResponse(),cms,resource,locale);
+  }
+ else   if (CmsResourceTypePlain.getStaticTypeId() == resource.getTypeId()) {
+    try {
+      previewContent="<pre><code>" + cms.readFile(resource).getContents().toString() + "</code></pre>";
+    }
+ catch (    CmsException e) {
+      LOG.warn(e.getLocalizedMessage(),e);
+      previewContent="<div>Could not read file content</div>";
+    }
+  }
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(previewContent)) {
+    CmsPreviewInfo result=new CmsPreviewInfo(previewContent,null,false,title,cms.getSitePath(resource));
+    result.setHeight(height);
+    result.setWidth(width);
     return result;
   }
-  if (CmsResourceTypeXmlContent.isXmlContent(resource)) {
-    String previewContent=CmsPreviewService.getPreviewContent(getRequest(),getResponse(),cms,resource,locale);
-    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(previewContent)) {
-      return new CmsPreviewInfo(previewContent,null,false,title,cms.getSitePath(resource));
-    }
+  if (CmsResourceTypeXmlContainerPage.isContainerPage(resource) || CmsResourceTypeXmlPage.isXmlPage(resource)) {
+    return new CmsPreviewInfo(null,OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "?" + CmsJspTagEditable.PARAM_DISABLE_DIRECT_EDIT+ "=true",false,title,cms.getSitePath(resource));
   }
   return new CmsPreviewInfo(null,OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "?" + CmsJspTagEditable.PARAM_DISABLE_DIRECT_EDIT+ "=true",true,title,cms.getSitePath(resource));
 }
