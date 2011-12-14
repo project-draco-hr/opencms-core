@@ -5,36 +5,48 @@
   initWidget(UI_BINDER.createAndBindUi(this));
   m_scrollPanel.getElement().getStyle().setPropertyPx(CmsDomUtil.Style.maxHeight.toString(),scrollPanelHeight);
   m_checkboxProblems.setVisible(false);
-  LinkedHashMap<String,String> workflowItems=new LinkedHashMap<String,String>();
+  CmsMessages messages=Messages.get();
+  LinkedHashMap<String,String> workflowSelectorItems=new LinkedHashMap<String,String>();
   for (  CmsWorkflow workflow : workflows.values()) {
-    workflowItems.put(workflow.getId(),workflow.getNiceName());
+    workflowSelectorItems.put(workflow.getId(),workflow.getNiceName());
   }
-  m_workflowSelector.setItems(workflowItems);
-  m_workflowSelector.setFormValueAsString(selectedWorkflowId);
+  LinkedHashMap<String,String> projectSelectItems=new LinkedHashMap<String,String>();
+  projectSelectItems.put(CmsUUID.getNullUUID().toString(),messages.key(Messages.GUI_PUBLISH_DIALOG_MY_CHANGES_0));
+  boolean foundOldProject=false;
+  boolean selectedWorkflowProject=false;
+  for (  CmsProjectBean project : projects) {
+    if (project.isWorkflowProject()) {
+      workflowSelectorItems.put(project.getId().toString(),project.getName());
+      if (project.getId().equals(publishOptions.getProjectId())) {
+        selectedWorkflowProject=true;
+      }
+    }
+ else {
+      projectSelectItems.put(project.getId().toString(),project.getName());
+      if (project.getId().equals(publishOptions.getProjectId())) {
+        foundOldProject=true;
+      }
+    }
+  }
+  m_workflowSelector.setItems(workflowSelectorItems);
   m_workflowSelector.addStyleName(CSS.selector());
   if (!(workflows.size() > 1)) {
     m_workflowSelector.setEnabled(false);
   }
-  CmsMessages messages=Messages.get();
   m_workflowsLabel.setText(messages.key(Messages.GUI_PUBLISH_WORKFLOW_SELECT_0));
-  LinkedHashMap<String,String> items=new LinkedHashMap<String,String>();
-  items.put(CmsUUID.getNullUUID().toString(),messages.key(Messages.GUI_PUBLISH_DIALOG_MY_CHANGES_0));
-  boolean foundOldProject=false;
-  for (  CmsProjectBean project : projects) {
-    items.put(project.getId().toString(),project.getName());
-    if (project.getId().equals(publishOptions.getProjectId())) {
-      foundOldProject=true;
-    }
-  }
-  m_projectSelector.setItems(items);
+  m_projectSelector.setItems(projectSelectItems);
   m_projectSelector.addStyleName(CSS.selector());
-  if (!publishOptions.getProjectId().isNullUUID()) {
+  if (!publishOptions.getProjectId().isNullUUID() && foundOldProject) {
     m_projectSelector.setFormValueAsString(publishOptions.getProjectId().toString());
   }
   m_checkboxRelated.setChecked(publishOptions.isIncludeRelated());
   m_checkboxSiblings.setChecked(publishOptions.isIncludeSiblings());
-  if (foundOldProject) {
-    m_projectSelector.selectValue(publishOptions.getProjectId().toString());
+  if (selectedWorkflowProject) {
+    m_projectSelector.setEnabled(false);
+    m_workflowSelector.setFormValueAsString(publishOptions.getProjectId().toString());
+  }
+ else {
+    m_workflowSelector.setFormValueAsString(selectedWorkflowId);
   }
   m_cancelButton.setText(messages.key(Messages.GUI_PUBLISH_DIALOG_CANCEL_BUTTON_0));
   m_cancelButton.setUseMinWidth(true);
