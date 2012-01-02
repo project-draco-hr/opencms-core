@@ -23,6 +23,8 @@
     filter=appendDateCreatedFilter(filter,params.getMinDateCreated(),params.getMaxDateCreated());
     Query query=null;
     Query fieldsQuery=null;
+    indexSearcherUpdate();
+    IndexSearcher searcher=getSearcher();
     if (!params.isIgnoreQuery()) {
       if (params.getParsedQuery() != null) {
         QueryParser p=new QueryParser(LUCENE_VERSION,CmsSearchField.FIELD_CONTENT,getAnalyzer());
@@ -64,7 +66,7 @@
         if (shouldOccur != null) {
           booleanFieldsQuery.add(shouldOccur,BooleanClause.Occur.MUST);
         }
-        fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
+        fieldsQuery=searcher.rewrite(booleanFieldsQuery);
       }
  else       if ((params.getFields() != null) && (params.getFields().size() > 0)) {
         BooleanQuery booleanFieldsQuery=new BooleanQuery();
@@ -72,11 +74,11 @@
           QueryParser p=new QueryParser(LUCENE_VERSION,params.getFields().get(i),getAnalyzer());
           booleanFieldsQuery.add(p.parse(params.getQuery()),BooleanClause.Occur.SHOULD);
         }
-        fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
+        fieldsQuery=searcher.rewrite(booleanFieldsQuery);
       }
  else {
         QueryParser p=new QueryParser(LUCENE_VERSION,CmsSearchField.FIELD_CONTENT,getAnalyzer());
-        fieldsQuery=getSearcher().rewrite(p.parse(params.getQuery()));
+        fieldsQuery=searcher.rewrite(p.parse(params.getQuery()));
       }
       query=fieldsQuery;
     }
@@ -91,16 +93,16 @@
     }
     CmsSearchCategoryCollector categoryCollector;
     if (params.isCalculateCategories()) {
-      categoryCollector=new CmsSearchCategoryCollector(getSearcher());
-      getSearcher().search(query,filter,categoryCollector);
+      categoryCollector=new CmsSearchCategoryCollector(searcher);
+      searcher.search(query,filter,categoryCollector);
       searchResults.setCategories(categoryCollector.getCategoryCountResult());
     }
     if ((params.getSort() == null) || (params.getSort() == CmsSearchParameters.SORT_DEFAULT)) {
-      hits=getSearcher().search(query,filter,m_maxHits);
+      hits=searcher.search(query,filter,m_maxHits);
     }
  else {
-      prepareSortScoring(m_indexSearcher,params.getSort());
-      hits=getSearcher().search(query,filter,m_maxHits,params.getSort());
+      prepareSortScoring(searcher,params.getSort());
+      hits=searcher.search(query,filter,m_maxHits,params.getSort());
     }
     timeLucene+=System.currentTimeMillis();
     timeResultProcessing=-System.currentTimeMillis();
@@ -123,7 +125,7 @@
       int visibleHitCount=hitCount;
       for (int i=0, cnt=0; (i < hitCount) && (cnt < end); i++) {
         try {
-          doc=getSearcher().doc(hits.scoreDocs[i].doc);
+          doc=searcher.doc(hits.scoreDocs[i].doc);
           if ((isInTimeRange(doc,params)) && (hasReadPermission(searchCms,doc))) {
             if (cnt >= start) {
               String excerpt=null;

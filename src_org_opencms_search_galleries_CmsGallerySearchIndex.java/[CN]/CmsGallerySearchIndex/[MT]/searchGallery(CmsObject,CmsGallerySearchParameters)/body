@@ -31,6 +31,8 @@
     filter=appendDateCreatedFilter(filter,params.getDateCreatedRange().getStartTime(),params.getDateCreatedRange().getEndTime());
     Query query=null;
     Query fieldsQuery=null;
+    indexSearcherUpdate();
+    IndexSearcher searcher=getSearcher();
     Locale locale=params.getLocale() == null ? null : CmsLocaleManager.getLocale(params.getLocale());
     if (params.getSearchWords() != null) {
       BooleanQuery booleanFieldsQuery=new BooleanQuery();
@@ -41,14 +43,14 @@
         QueryParser p=new QueryParser(CmsSearchIndex.LUCENE_VERSION,field,getAnalyzer());
         booleanFieldsQuery.add(p.parse(params.getSearchWords()),BooleanClause.Occur.SHOULD);
       }
-      fieldsQuery=getSearcher().rewrite(booleanFieldsQuery);
+      fieldsQuery=searcher.rewrite(booleanFieldsQuery);
     }
     query=fieldsQuery;
     if (query == null) {
       query=new MatchAllDocsQuery();
     }
-    getSearcher().setDefaultFieldSortScoring(true,true);
-    hits=getSearcher().search(query,filter,getMaxHits(),params.getSort());
+    searcher.setDefaultFieldSortScoring(true,true);
+    hits=searcher.search(query,filter,getMaxHits(),params.getSort());
     if (hits != null) {
       int hitCount=hits.totalHits > hits.scoreDocs.length ? hits.scoreDocs.length : hits.totalHits;
       int page=params.getResultPage();
@@ -69,7 +71,7 @@
       int visibleHitCount=hitCount;
       for (int i=0, cnt=0; (i < hitCount) && (cnt < end); i++) {
         try {
-          doc=getSearcher().doc(hits.scoreDocs[i].doc);
+          doc=searcher.doc(hits.scoreDocs[i].doc);
           if (hasReadPermission(searchCms,doc)) {
             if (cnt >= start) {
               String excerpt=null;
