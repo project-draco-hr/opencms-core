@@ -12,9 +12,10 @@
   String previewContent=null;
   int height=0;
   int width=0;
+  LinkedHashMap<String,String> locales=getAvailableLocales(resource);
   if (noPreviewReason != null) {
     previewContent="<div>" + noPreviewReason + "</div>";
-    return new CmsPreviewInfo("<div>" + noPreviewReason + "</div>",null,false,title,cms.getSitePath(resource));
+    return new CmsPreviewInfo("<div>" + noPreviewReason + "</div>",null,false,title,cms.getSitePath(resource),locale.toString());
   }
  else   if (CmsResourceTypeImage.getStaticTypeId() == resource.getTypeId()) {
     CmsImageScaler scaler=new CmsImageScaler(cms,resource);
@@ -23,6 +24,9 @@
     width=scaler.getWidth();
   }
  else   if (CmsResourceTypeXmlContent.isXmlContent(resource)) {
+    if (!locales.containsKey(locale.toString())) {
+      locale=CmsLocaleManager.getMainLocale(cms,resource);
+    }
     previewContent=CmsPreviewService.getPreviewContent(getRequest(),getResponse(),cms,resource,locale);
   }
  else   if (CmsResourceTypePlain.getStaticTypeId() == resource.getTypeId()) {
@@ -35,13 +39,16 @@
     }
   }
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(previewContent)) {
-    CmsPreviewInfo result=new CmsPreviewInfo(previewContent,null,false,title,cms.getSitePath(resource));
+    CmsPreviewInfo result=new CmsPreviewInfo(previewContent,null,false,title,cms.getSitePath(resource),locale.toString());
     result.setHeight(height);
     result.setWidth(width);
+    result.setLocales(locales);
     return result;
   }
   if (CmsResourceTypeXmlContainerPage.isContainerPage(resource) || CmsResourceTypeXmlPage.isXmlPage(resource)) {
-    return new CmsPreviewInfo(null,OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "?" + CmsJspTagEditable.PARAM_DISABLE_DIRECT_EDIT+ "=true",false,title,cms.getSitePath(resource));
+    CmsPreviewInfo result=new CmsPreviewInfo(null,OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "?" + CmsJspTagEditable.PARAM_DISABLE_DIRECT_EDIT+ "=true"+ "&__locale="+ locale.toString(),false,title,cms.getSitePath(resource),locale.toString());
+    result.setLocales(locales);
+    return result;
   }
-  return new CmsPreviewInfo(null,OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "?" + CmsJspTagEditable.PARAM_DISABLE_DIRECT_EDIT+ "=true",true,title,cms.getSitePath(resource));
+  return new CmsPreviewInfo(null,OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,resource.getRootPath()) + "?" + CmsJspTagEditable.PARAM_DISABLE_DIRECT_EDIT+ "=true",true,title,cms.getSitePath(resource),locale.toString());
 }
