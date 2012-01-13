@@ -42,12 +42,39 @@
     }
     detailPages=new CmsDetailPageTable(configData.getAllDetailPages());
     if (!isOnlineProject) {
+      newResourceInfos=getNewResourceInfos(cms,configData,locale);
+      CmsResource modelResource=null;
       if (configData.getDefaultModelPage() != null) {
-        resourceTypeInfos=getResourceTypeInfos(getCmsObject(),configData,locale);
-        defaultNewInfo=createNewResourceInfo(cms,configData.getDefaultModelPage().getResource(),locale);
+        if (cms.existsResource(configData.getDefaultModelPage().getResource().getStructureId())) {
+          modelResource=configData.getDefaultModelPage().getResource();
+        }
+ else {
+          try {
+            modelResource=cms.readResource(cms.getSitePath(configData.getDefaultModelPage().getResource()));
+          }
+ catch (          CmsException e) {
+            LOG.warn(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+      if ((modelResource == null) && !newResourceInfos.isEmpty()) {
+        try {
+          modelResource=cms.readResource(newResourceInfos.get(0).getCopyResourceId());
+        }
+ catch (        CmsException e) {
+          LOG.warn(e.getLocalizedMessage(),e);
+        }
+      }
+      if (modelResource != null) {
+        resourceTypeInfos=getResourceTypeInfos(getCmsObject(),configData.getResourceTypes(),configData.getFunctionReferences(),modelResource,locale);
+        try {
+          defaultNewInfo=createNewResourceInfo(cms,modelResource,locale);
+        }
+ catch (        CmsException e) {
+          LOG.warn(e.getLocalizedMessage(),e);
+        }
       }
       canEditDetailPages=!(configData.isModuleConfiguration());
-      newResourceInfos=getNewResourceInfos(cms,configData,locale);
     }
     if (isOnlineProject) {
       noEdit=Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_SITEMAP_NO_EDIT_ONLINE_0);
