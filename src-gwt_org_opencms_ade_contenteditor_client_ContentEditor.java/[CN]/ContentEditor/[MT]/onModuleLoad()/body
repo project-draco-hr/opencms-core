@@ -1,0 +1,39 @@
+{
+  I_LayoutBundle.INSTANCE.style().ensureInjected();
+  I_Vie vie=Vie.getInstance();
+  ContentDefinition definition=null;
+  try {
+    definition=(ContentDefinition)CmsRpcPrefetcher.getSerializedObjectFromDictionary(getService(),I_CmsContentService.DICT_CONTENT_DEFINITION);
+  }
+ catch (  SerializationException e) {
+    RootPanel.get().add(new Label(e.getMessage()));
+    return;
+  }
+  I_Entity entity=WidgetService.register(vie,definition);
+  WidgetService service=new WidgetService();
+  service.init(definition);
+  service.registerWidgetFactory("string",new I_WidgetFactory(){
+    public I_EditWidget createWidget(    String configuration){
+      return new StringWidget();
+    }
+  }
+);
+  service.registerWidgetFactory("tinymce",new I_WidgetFactory(){
+    public I_EditWidget createWidget(    String configuration){
+      return new TinyMCEWidget(null);
+    }
+  }
+);
+  I_EntityRenderer inlineRenderer=new ComplexTypeRenderer(service,vie);
+  service.setDefaultComplexRenderer(inlineRenderer);
+  service.setDefaultSimpleRenderer(inlineRenderer);
+  I_EntityRenderer renderer=service.getRendererForType(vie.getType(entity.getTypeName()));
+  renderer.render(entity,RootPanel.getBodyElement());
+  ((Entity)entity).addValueChangeHandler(new ValueChangeHandler<I_Entity>(){
+    public void onValueChange(    ValueChangeEvent<I_Entity> event){
+      RootPanel.get().getElement().getStyle().setBackgroundColor("#77f3f3");
+      RootPanel.get().add(new Label(event.getValue().toJSON()));
+    }
+  }
+);
+}
