@@ -1,31 +1,39 @@
 {
-  String buttonString=getHtmlWidgetOption().getButtonBar(BUTTON_TRANSLATION_MAP,",",false);
-  buttonString=StringUtils.replace(buttonString,"[","");
-  buttonString=StringUtils.replace(buttonString,"]","");
-  buttonString=StringUtils.replace(buttonString,",-,",",");
-  if (getHtmlWidgetOption().isFullPage()) {
-    buttonString=buttonString + ",fullpage";
-  }
-  String[] availableButtons=buttonString.split("\\,");
-  StringBuilder toolbar=new StringBuilder();
-  int currentRow=1;
-  for (int i=0; i < m_toolbarMap.length; i++) {
-    StringBuilder row=new StringBuilder();
-    for (int j=0; j < m_toolbarMap[i].length; j++) {
-      if (isEnabledButton(m_toolbarMap[i][j],availableButtons)) {
-        if (row.length() > 0) {
-          row.append(", ");
-        }
-        row.append(m_toolbarMap[i][j]);
+  String result="";
+  List<String> barItems=getHtmlWidgetOption().getButtonBarShownItems();
+  List<List<String>> blocks=new ArrayList<List<String>>();
+  blocks.add(new ArrayList<String>());
+  String lastItem=null;
+  List<String> processedItems=new ArrayList<String>();
+  for (  String barItem : barItems) {
+    if (BUTTON_TRANSLATION_MAP.containsKey(barItem)) {
+      barItem=BUTTON_TRANSLATION_MAP.get(barItem);
+    }
+    if (barItem.equals("[") || barItem.equals("]") || barItem.equals("-")) {
+      barItem="|";
+      if ("|".equals(lastItem)) {
+        continue;
       }
     }
-    if (row.length() > 0) {
-      toolbar.append("theme_advanced_buttons" + currentRow + ": \""+ row+ "\",\n");
-      currentRow++;
+    processedItems.add(barItem);
+    lastItem=barItem;
+  }
+  if ((processedItems.size() > 0) && processedItems.get(0).equals("|")) {
+    processedItems.remove(0);
+  }
+  if ((processedItems.size() > 0) && processedItems.get(processedItems.size() - 1).equals("|")) {
+    processedItems.remove(processedItems.size() - 1);
+  }
+  for (  String processedItem : processedItems) {
+    blocks.get(blocks.size() - 1).add(processedItem);
+    if ("|".equals(processedItem)) {
+      blocks.add(new ArrayList<String>());
     }
   }
-  for (int i=currentRow; i <= m_toolbarMap.length; i++) {
-    toolbar.append("theme_advanced_buttons" + i + ": \"\",\n");
+  int row=1;
+  for (  List<String> block : blocks) {
+    result=result + "theme_advanced_buttons" + row+ ": '"+ CmsStringUtil.listAsString(block,",")+ "',\n";
+    row+=1;
   }
-  return toolbar.toString();
+  return result;
 }
