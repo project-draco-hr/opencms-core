@@ -1,5 +1,15 @@
 {
+  super.onModuleLoad();
   I_LayoutBundle.INSTANCE.style().ensureInjected();
+  m_saveButton=new CmsPushButton();
+  m_saveButton.setText("Save");
+  m_saveButton.disable("Nothing to save yet");
+  m_saveButton.addClickHandler(new ClickHandler(){
+    public void onClick(    ClickEvent event){
+      saveEntity();
+    }
+  }
+);
   I_Vie vie=Vie.getInstance();
   ContentDefinition definition=null;
   try {
@@ -9,7 +19,16 @@
     RootPanel.get().add(new Label(e.getMessage()));
     return;
   }
-  I_Entity entity=WidgetService.register(vie,definition);
+  m_entityId=definition.getEntity().getId();
+  m_locale=definition.getLocale();
+  FlowPanel panel=new FlowPanel();
+  RootPanel.get().add(panel);
+  panel.add(m_saveButton);
+  HTML html=new HTML();
+  panel.add(html);
+  I_Type baseType=definition.getTypes().get(definition.getEntity().getTypeName());
+  vie.registerTypes(baseType,definition.getTypes());
+  I_Entity entity=vie.registerEntity(definition.getEntity());
   WidgetService service=new WidgetService();
   service.init(definition);
   service.registerWidgetFactory("string",new I_WidgetFactory(){
@@ -18,7 +37,7 @@
     }
   }
 );
-  service.registerWidgetFactory("tinymce",new I_WidgetFactory(){
+  service.registerWidgetFactory("org.opencms.widgets.CmsHtmlWidget",new I_WidgetFactory(){
     public I_EditWidget createWidget(    String configuration){
       return new TinyMCEWidget(null);
     }
@@ -28,11 +47,10 @@
   service.setDefaultComplexRenderer(inlineRenderer);
   service.setDefaultSimpleRenderer(inlineRenderer);
   I_EntityRenderer renderer=service.getRendererForType(vie.getType(entity.getTypeName()));
-  renderer.render(entity,RootPanel.getBodyElement());
+  renderer.render(entity,html.getElement());
   ((Entity)entity).addValueChangeHandler(new ValueChangeHandler<I_Entity>(){
     public void onValueChange(    ValueChangeEvent<I_Entity> event){
-      RootPanel.get().getElement().getStyle().setBackgroundColor("#77f3f3");
-      RootPanel.get().add(new Label(event.getValue().toJSON()));
+      m_saveButton.enable();
     }
   }
 );
