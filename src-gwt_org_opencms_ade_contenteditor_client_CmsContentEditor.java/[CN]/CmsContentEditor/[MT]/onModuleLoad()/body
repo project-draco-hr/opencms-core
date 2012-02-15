@@ -1,0 +1,46 @@
+{
+  super.onModuleLoad();
+  I_LayoutBundle.INSTANCE.style().ensureInjected();
+  I_CmsContentServiceAsync service=GWT.create(I_CmsContentService.class);
+  String serviceUrl=CmsCoreProvider.get().link("org.opencms.ade.contenteditor.CmsContentService.gwt");
+  ((ServiceDefTarget)service).setServiceEntryPoint(serviceUrl);
+  final CmsEditorBase editor=new CmsEditorBase(service,false);
+  ContentDefinition definition=null;
+  try {
+    definition=(ContentDefinition)CmsRpcPrefetcher.getSerializedObjectFromDictionary(editor.getService(),I_CmsContentService.DICT_CONTENT_DEFINITION);
+  }
+ catch (  SerializationException e) {
+    RootPanel.get().add(new Label(e.getMessage()));
+    return;
+  }
+  editor.registerContentDefinition(definition);
+  final String entityId=definition.getEntityId();
+  final String locale=definition.getLocale();
+  FlowPanel panel=new FlowPanel();
+  RootPanel.get().add(panel);
+  final CmsPushButton saveButton=new CmsPushButton();
+  saveButton.setText("Save");
+  saveButton.addClickHandler(new ClickHandler(){
+    public void onClick(    ClickEvent event){
+      editor.saveEntity(entityId,locale,new Command(){
+        public void execute(){
+          saveButton.disable(DISABLE_SAVE);
+          closeEditor();
+        }
+      }
+);
+    }
+  }
+);
+  saveButton.disable(DISABLE_SAVE);
+  panel.add(saveButton);
+  Element parent=DOM.createDiv();
+  RootPanel.getBodyElement().appendChild(parent);
+  editor.renderEntity(entityId,parent);
+  editor.addEntityChangeHandler(entityId,new ValueChangeHandler<I_Entity>(){
+    public void onValueChange(    ValueChangeEvent<I_Entity> event){
+      saveButton.enable();
+    }
+  }
+);
+}
