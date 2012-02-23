@@ -1,0 +1,81 @@
+{
+  if (getSelectedItem() == null) {
+    return;
+  }
+  String logchannnelName=getSelectedItem().getId();
+  Logger logchannel=LogManager.getLogger(logchannnelName);
+  if (logchannel == null) {
+    return;
+  }
+  Level newLogchannelLevel=null;
+  if (ACTION_LOGGING_LEVEL_DEBUG.equals(getParamListAction())) {
+    newLogchannelLevel=Level.DEBUG;
+  }
+ else   if (ACTION_LOGGING_LEVEL_INFO.equals(getParamListAction())) {
+    newLogchannelLevel=Level.INFO;
+  }
+ else   if (ACTION_LOGGING_LEVEL_WARN.equals(getParamListAction())) {
+    newLogchannelLevel=Level.WARN;
+  }
+ else   if (ACTION_LOGGING_LEVEL_ERROR.equals(getParamListAction())) {
+    newLogchannelLevel=Level.ERROR;
+  }
+ else   if (ACTION_LOGGING_LEVEL_FATAL.equals(getParamListAction())) {
+    newLogchannelLevel=Level.FATAL;
+  }
+ else   if (ACTION_LOGGING_LEVEL_OFF.equals(getParamListAction())) {
+    newLogchannelLevel=Level.OFF;
+  }
+  if (newLogchannelLevel != null) {
+    logchannel.setLevel(newLogchannelLevel);
+  }
+  if (ACTION_ACTIVATE_LOGFILE.equals(getParamListAction())) {
+    String filepath="";
+    Layout layout=null;
+    if (isloggingactivated(logchannel)) {
+      logchannel.removeAllAppenders();
+      logchannel.setAdditivity(true);
+    }
+ else {
+      @SuppressWarnings("unchecked") List<Appender> appenders_root=Collections.list(Logger.getRootLogger().getAllAppenders());
+      Iterator<Appender> app_root=appenders_root.iterator();
+      while (app_root.hasNext()) {
+        FileAppender fapp=(FileAppender)app_root.next();
+        filepath=fapp.getFile().substring(0,fapp.getFile().lastIndexOf(File.separatorChar));
+        layout=fapp.getLayout();
+      }
+      @SuppressWarnings("unchecked") List<Appender> appenders=Collections.list(logchannel.getAllAppenders());
+      Iterator<Appender> app=appenders.iterator();
+      while (app.hasNext()) {
+        FileAppender fapp=(FileAppender)app.next();
+        layout=fapp.getLayout();
+      }
+      String logfilename="";
+      String temp=logchannel.getName();
+      if (logchannel.getName().contains(OPENCMS_CLASS_PREFIX)) {
+        temp=temp.replace(OPENCMS_CLASS_PREFIX,"");
+        if (temp.length() >= 1) {
+          logfilename=filepath + File.separator + "opencms-"+ temp.substring(1).replace(".","-")+ ".log";
+        }
+ else {
+          logfilename=filepath + File.separator + "opencms"+ temp.replace(".","-")+ ".log";
+        }
+      }
+ else {
+        logfilename=filepath + File.separator + "opencms-"+ temp.replace(".","-")+ ".log";
+      }
+      FileAppender fapp=null;
+      try {
+        fapp=new FileAppender(layout,logfilename,true);
+        fapp.setName(logchannnelName);
+      }
+ catch (      IOException e) {
+        e.printStackTrace();
+      }
+      logchannel.setAdditivity(false);
+      logchannel.removeAllAppenders();
+      logchannel.addAppender(fapp);
+    }
+  }
+  refreshList();
+}
