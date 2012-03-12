@@ -26,9 +26,22 @@
       if (idWasNull) {
         change.setEntryId(new CmsUUID());
       }
-      boolean isFunctionDetail=(change.getCreateParameter() != null) && CmsUUID.isValidUUID(change.getCreateParameter());
+      boolean isFunctionDetail=false;
+      boolean isNavigationLevel=false;
+      if (change.getCreateParameter() != null) {
+        if (CmsUUID.isValidUUID(change.getCreateParameter())) {
+          isFunctionDetail=true;
+        }
+ else         if (CmsJspNavBuilder.NAVIGATION_LEVEL_FOLDER.equals(change.getCreateParameter())) {
+          isNavigationLevel=true;
+        }
+      }
       entryFolder=new CmsResource(change.getEntryId(),new CmsUUID(),entryFolderPath,CmsResourceTypeFolder.getStaticTypeId(),true,0,cms.getRequestContext().getCurrentProject().getUuid(),CmsResource.STATE_NEW,System.currentTimeMillis(),cms.getRequestContext().getCurrentUser().getId(),System.currentTimeMillis(),cms.getRequestContext().getCurrentUser().getId(),CmsResource.DATE_RELEASED_DEFAULT,CmsResource.DATE_EXPIRED_DEFAULT,1,0,System.currentTimeMillis(),0);
-      entryFolder=cms.createResource(entryFolderPath,OpenCms.getResourceManager().getResourceType(CmsResourceTypeFolder.getStaticTypeName()).getTypeId(),null,generateInheritProperties(change,entryFolder));
+      List<CmsProperty> folderProperties=generateInheritProperties(change,entryFolder);
+      if (isNavigationLevel) {
+        folderProperties.add(new CmsProperty(CmsPropertyDefinition.PROPERTY_DEFAULT_FILE,CmsJspNavBuilder.NAVIGATION_LEVEL_FOLDER,null));
+      }
+      entryFolder=cms.createResource(entryFolderPath,OpenCms.getResourceManager().getResourceType(CmsResourceTypeFolder.getStaticTypeName()).getTypeId(),null,folderProperties);
       if (idWasNull) {
         change.setEntryId(entryFolder.getStructureId());
       }
@@ -46,14 +59,21 @@
         }
         content=page.marshal();
       }
-      newRes=cms.createResource(entryPath,change.getNewResourceTypeId(),content,properties);
-      cms.writePropertyObjects(newRes,generateOwnProperties(change));
+      if (!isNavigationLevel) {
+        newRes=cms.createResource(entryPath,change.getNewResourceTypeId(),content,properties);
+        cms.writePropertyObjects(newRes,generateOwnProperties(change));
+      }
     }
     if (entryFolder != null) {
       tryUnlock(entryFolder);
-      newEntry=toClientEntry(getNavBuilder().getNavigationForResource(cms.getSitePath(entryFolder)),false);
+      String sitePath=cms.getSitePath(entryFolder);
+      newEntry=toClientEntry(getNavBuilder().getNavigationForResource(sitePath),false);
+      newEntry.setSubEntries(getChildren(sitePath,1,null));
+      newEntry.setChildrenLoadedInitially(true);
     }
-    tryUnlock(newRes);
+    if (newRes != null) {
+      tryUnlock(newRes);
+    }
     if (newEntry == null) {
       newEntry=toClientEntry(getNavBuilder().getNavigationForResource(cms.getSitePath(newRes)),false);
     }
