@@ -1,0 +1,54 @@
+{
+  CmsObject cms=getCmsObject();
+  Set<String> seenPaths=new HashSet<String>();
+  Set<String> duplicatePaths=new HashSet<String>();
+  for (  String path : aliasPaths.values()) {
+    if (seenPaths.contains(path)) {
+      duplicatePaths.add(path);
+    }
+    seenPaths.add(path);
+  }
+  Map<String,String> errorMessagesByPath=new HashMap<String,String>();
+  for (  String path : duplicatePaths) {
+    errorMessagesByPath.put(path,Messages.get().getBundle().key(Messages.ERR_ALIAS_DUPLICATE_PATH_0));
+  }
+  seenPaths.removeAll(duplicatePaths);
+  for (  String path : seenPaths) {
+    String pathError=checkValidAliasPath(path);
+    if (pathError != null) {
+      errorMessagesByPath.put(path,pathError);
+    }
+ else {
+      errorMessagesByPath.put(path,null);
+      if (cms.existsResource(path,CmsResourceFilter.ALL)) {
+        errorMessagesByPath.put(path,Messages.get().getBundle().key(Messages.ERR_ALIAS_IS_VFS_0));
+      }
+ else {
+        List<CmsAlias> aliases=OpenCms.getAliasManager().getAliasesForPath(cms.getRequestContext().getSiteRoot(),path);
+        for (        CmsAlias alias : aliases) {
+          CmsUUID otherStructureId=alias.getStructureId();
+          if (!otherStructureId.equals(uuid)) {
+            try {
+              CmsResource resource=cms.readResource(otherStructureId,CmsResourceFilter.ALL);
+              errorMessagesByPath.put(path,Messages.get().getBundle().key(Messages.ERR_ALIAS_ALREADY_USED_1,resource.getRootPath()));
+              break;
+            }
+ catch (            CmsVfsResourceNotFoundException e) {
+              errorMessagesByPath.put(path,Messages.get().getBundle().key(Messages.ERR_ALIAS_ALREADY_USED_UNKNOWN_0));
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+  Map<String,String> errorMessagesById=new HashMap<String,String>();
+  for (  String key : aliasPaths.keySet()) {
+    String path=aliasPaths.get(key);
+    if (errorMessagesByPath.containsKey(path)) {
+      String errorMessage=errorMessagesByPath.get(path);
+      errorMessagesById.put(key,errorMessage);
+    }
+  }
+  return errorMessagesById;
+}

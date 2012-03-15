@@ -1,21 +1,33 @@
 {
   CmsAdditionalEntryInfo result=null;
   try {
+    Map<String,String> additional=new LinkedHashMap<String,String>();
+    result=new CmsAdditionalEntryInfo();
+    result.setAdditional(additional);
     try {
       CmsResource resource=getCmsObject().readResource(structureId);
-      result=new CmsAdditionalEntryInfo();
       result.setResourceState(resource.getState());
       if (isRedirectType(resource.getTypeId())) {
         CmsFile file=getCmsObject().readFile(resource);
         I_CmsXmlDocument content=CmsXmlContentFactory.unmarshal(getCmsObject(),file);
         String link=content.getValue(REDIRECT_LINK_TARGET_XPATH,getCmsObject().getRequestContext().getLocale()).getStringValue(getCmsObject());
-        Map<String,String> additional=new HashMap<String,String>();
         additional.put(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_REDIRECT_TARGET_LABEL_0),link);
-        result.setAdditional(additional);
+      }
+      CmsResource page=resource;
+      if (resource.isFolder()) {
+        page=getCmsObject().readDefaultFile(resource);
+      }
+      if (page != null) {
+        List<CmsAlias> aliases=OpenCms.getAliasManager().getAliasesForStructureId(page.getStructureId());
+        int counter=1;
+        for (        CmsAlias alias : aliases) {
+          String aliasPath=alias.getAliasPath();
+          additional.put(Messages.get().getBundle().key(Messages.GUI_ALIAS_0) + counter,aliasPath);
+          counter+=1;
+        }
       }
     }
  catch (    CmsVfsResourceNotFoundException ne) {
-      result=new CmsAdditionalEntryInfo();
       result.setResourceState(CmsResourceState.STATE_DELETED);
     }
   }
