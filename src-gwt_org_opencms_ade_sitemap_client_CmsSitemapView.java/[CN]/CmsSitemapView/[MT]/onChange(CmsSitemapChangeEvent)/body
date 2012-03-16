@@ -1,3 +1,42 @@
 {
-  changeEvent.getChange().applyToView(this);
+  CmsSitemapChange change=changeEvent.getChange();
+switch (change.getChangeType()) {
+case delete:
+    CmsSitemapTreeItem item=getTreeItem(change.getEntryId());
+  item.getParentItem().removeChild(item);
+break;
+case undelete:
+case create:
+CmsClientSitemapEntry newEntry=m_controller.getEntryById(change.getEntryId());
+CmsSitemapTreeItem newItem=createSitemapItem(newEntry);
+getTreeItem(change.getParentId()).insertChild(newItem,newEntry.getPosition());
+break;
+case bumpDetailPage:
+updateDetailPageView(m_controller.getEntryById(change.getEntryId()));
+updateAll(m_controller.getEntryById(change.getEntryId()));
+break;
+case modify:
+if (change.hasChangedPosition() || change.hasNewParent()) {
+CmsClientSitemapEntry entry=m_controller.getEntryById(change.getEntryId());
+CmsSitemapTreeItem moveEntry=getTreeItem(change.getEntryId());
+CmsSitemapTreeItem sourceParent=(CmsSitemapTreeItem)moveEntry.getParentItem();
+getTree().setAnimationEnabled(false);
+sourceParent.removeChild(moveEntry);
+CmsSitemapTreeItem destParent=change.hasNewParent() ? getTreeItem(change.getParentId()) : sourceParent;
+if (entry.getPosition() < destParent.getChildCount()) {
+destParent.insertChild(moveEntry,entry.getPosition());
+}
+ else {
+destParent.addChild(moveEntry);
+}
+updateAll(entry);
+ensureVisible(moveEntry);
+getTree().setAnimationEnabled(true);
+break;
+}
+case remove:
+updateAll(m_controller.getEntryById(change.getEntryId()));
+break;
+default :
+}
 }

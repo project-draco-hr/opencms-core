@@ -1,29 +1,17 @@
 {
-  CmsClientSitemapChangeEdit edit=getChangeForEdit(entry,vfsPath,propertyChanges,!editedName);
-  CmsClientSitemapChangeMove move=getChangeForMove(entry,getPath(entry,newUrlName),entry.getPosition(),false);
-  CmsClientSitemapCompositeChange change=new CmsClientSitemapCompositeChange();
-  change.addChange(edit);
-  change.addChange(move);
-  AsyncCallback<Object> callback=new AsyncCallback<Object>(){
-    public void onFailure(    Throwable caught){
-    }
-    public void onSuccess(    Object result){
-switch (reloadStatus) {
-case reloadEntry:
-        updateEntry(entry.getSitePath());
-      break;
-case reloadParent:
-    CmsClientSitemapEntry parent=getParentEntry(entry);
-  if (parent != null) {
-    updateEntry(parent.getSitePath());
+  CmsSitemapChange change=getChangeForEdit(entry,vfsPath,propertyChanges,!editedName);
+  if (editedName) {
+    change.setName(newUrlName);
   }
-break;
-case none:
-default :
-break;
-}
-}
-}
+  Command callback=null;
+  if ((reloadStatus == CmsReloadMode.reloadParent) || (reloadStatus == CmsReloadMode.reloadEntry)) {
+    final String updateTarget=((reloadStatus == CmsReloadMode.reloadParent) || editedName) ? getParentEntry(entry).getSitePath() : entry.getSitePath();
+    callback=new Command(){
+      public void execute(){
+        updateEntry(updateTarget);
+      }
+    }
 ;
-applyChange(change,callback);
+  }
+  commitChange(change,callback);
 }

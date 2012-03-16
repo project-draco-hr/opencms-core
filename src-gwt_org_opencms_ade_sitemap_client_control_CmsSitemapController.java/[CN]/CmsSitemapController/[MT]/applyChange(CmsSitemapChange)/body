@@ -1,0 +1,80 @@
+{
+  if (change.getClipBoardData() != null) {
+    getData().getClipboardData().setDeletions(change.getClipBoardData().getDeletions());
+    getData().getClipboardData().setModifications(change.getClipBoardData().getModifications());
+  }
+switch (change.getChangeType()) {
+case bumpDetailPage:
+    CmsDetailPageTable detailPageTable=getData().getDetailPageTable();
+  if (detailPageTable.contains(change.getEntryId())) {
+    detailPageTable.bump(change.getEntryId());
+  }
+break;
+case clipboardOnly:
+break;
+case remove:
+CmsClientSitemapEntry entry=getEntryById(change.getEntryId());
+entry.setInNavigation(false);
+CmsPropertyModification propMod=new CmsPropertyModification(entry.getId(),CmsClientProperty.PROPERTY_NAVTEXT,null,true);
+executePropertyModification(propMod);
+propMod=new CmsPropertyModification(entry.getId(),CmsClientProperty.PROPERTY_NAVTEXT,null,true);
+executePropertyModification(propMod);
+entry.normalizeProperties();
+break;
+case undelete:
+case create:
+CmsClientSitemapEntry newEntry=change.getUpdatedEntry();
+getEntryById(change.getParentId()).insertSubEntry(newEntry,change.getPosition());
+newEntry.initializeAll(this);
+if (isDetailPage(newEntry)) {
+CmsDetailPageInfo info=getDetailPageInfo(newEntry.getId());
+if (info == null) {
+info=new CmsDetailPageInfo(newEntry.getId(),newEntry.getSitePath(),newEntry.getDetailpageTypeName());
+}
+addDetailPageInfo(info);
+}
+break;
+case delete:
+removeEntry(change.getEntryId(),change.getParentId());
+break;
+case modify:
+if (change.hasNewParent() || change.hasChangedPosition()) {
+CmsClientSitemapEntry moved=getEntryById(change.getEntryId());
+String oldSitepath=moved.getSitePath();
+CmsClientSitemapEntry sourceParent=getEntry(CmsResource.getParentFolder(oldSitepath));
+sourceParent.removeSubEntry(moved.getId());
+CmsClientSitemapEntry destParent=change.hasNewParent() ? getEntryById(change.getParentId()) : sourceParent;
+if (change.getPosition() < destParent.getSubEntries().size()) {
+destParent.insertSubEntry(moved,change.getPosition());
+}
+ else {
+destParent.addSubEntry(moved);
+}
+}
+if (change.hasChangedName()) {
+CmsClientSitemapEntry changed=getEntryById(change.getEntryId());
+String oldSitepath=changed.getSitePath();
+CmsClientSitemapEntry parent=getEntry(CmsResource.getParentFolder(oldSitepath));
+changed.updateSitePath(CmsStringUtil.joinPaths(parent.getSitePath(),change.getName()));
+}
+if (change.hasChangedProperties()) {
+for (CmsPropertyModification modification : change.getPropertyChanges()) {
+executePropertyModification(modification);
+}
+getEntryById(change.getEntryId()).normalizeProperties();
+}
+if (change.getUpdatedEntry() != null) {
+CmsClientSitemapEntry oldEntry=getEntryById(change.getEntryId());
+CmsClientSitemapEntry parent=getEntry(CmsResource.getParentFolder(oldEntry.getSitePath()));
+removeEntry(change.getEntryId(),parent.getId());
+parent.insertSubEntry(change.getUpdatedEntry(),oldEntry.getPosition());
+change.getUpdatedEntry().initializeAll(this);
+}
+break;
+default :
+}
+if (change.getChangeType() != ChangeType.delete) {
+recomputeProperties();
+}
+m_eventBus.fireEventFromSource(new CmsSitemapChangeEvent(change),this);
+}
