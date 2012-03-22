@@ -1,13 +1,43 @@
 {
-  super(widget,false);
+  super(generateItemWidget(entry),false);
   m_entryId=entry.getId();
   m_decoratedPanel.addDecorationBoxStyle(CSS.sitemapEntryDecoration());
-  m_listItemWidget=widget;
   m_detailPageLabelTitleGenerator=new DetailPageLabelTitleGenerator();
-  m_listItemWidget.getSubTitleSuffix().setTitleGenerator(m_detailPageLabelTitleGenerator);
+  getListItemWidget().getSubTitleSuffix().setTitleGenerator(m_detailPageLabelTitleGenerator);
+  getListItemWidget().addOpenHandler(new OpenHandler<CmsListItemWidget>(){
+    public void onOpen(    OpenEvent<CmsListItemWidget> event){
+      CmsSitemapView.getInstance().getController().updateSingleEntry(m_entryId);
+    }
+  }
+);
+  getListItemWidget().addIconClickHandler(new ClickHandler(){
+    public void onClick(    ClickEvent event){
+      CmsSitemapController controller=CmsSitemapView.getInstance().getController();
+      CmsClientSitemapEntry sitemapEntry=controller.getEntryById(m_entryId);
+      if (sitemapEntry != null) {
+        if (sitemapEntry.isSubSitemapType()) {
+          controller.openSiteMap(sitemapEntry.getSitePath());
+        }
+ else         if (sitemapEntry.isNavigationLevelType()) {
+          if (!sitemapEntry.getSubEntries().isEmpty()) {
+            CmsClientSitemapEntry subEntry=sitemapEntry.getSubEntries().get(0);
+            if (!subEntry.isNavigationLevelType()) {
+              controller.leaveEditor(subEntry.getSitePath());
+              return;
+            }
+          }
+          getListItemWidget().setIconTitle(Messages.get().key(Messages.GUI_NAVIGATION_LEVEL_UNKOWN_TARGET_0));
+        }
+ else {
+          controller.leaveEditor(sitemapEntry.getSitePath());
+        }
+      }
+    }
+  }
+);
   m_inNavigationStyle=new CmsStyleVariable(this);
   m_openerForNonNavigationStyle=new CmsStyleVariable(m_opener);
-  m_listItemWidget.addTitleStyleName(CSS.itemTitle());
+  getListItemWidget().addTitleStyleName(CSS.itemTitle());
   updateInNavigation(entry);
   m_itemsById.put(m_entryId,this);
   setId(getName(entry.getSitePath()));
@@ -18,7 +48,7 @@
     hideOpeners();
   }
   setDropEnabled(entry.isFolderType() && !entry.hasForeignFolderLock());
-  m_listItemWidget.setTitleEditHandler(new I_CmsTitleEditHandler(){
+  getListItemWidget().setTitleEditHandler(new I_CmsTitleEditHandler(){
     /** 
  * @see org.opencms.gwt.client.ui.CmsListItemWidget.I_CmsTitleEditHandler#handleEdit(org.opencms.gwt.client.ui.input.CmsLabel,com.google.gwt.user.client.ui.TextBox)
  */
