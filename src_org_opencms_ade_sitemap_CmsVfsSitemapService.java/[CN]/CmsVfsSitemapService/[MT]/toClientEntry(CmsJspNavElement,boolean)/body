@@ -4,9 +4,10 @@
   CmsClientSitemapEntry clientEntry=new CmsClientSitemapEntry();
   CmsResource entryFolder=null;
   CmsResource ownResource=navElement.getResource();
+  clientEntry.setResourceState(ownResource.getState());
   CmsResource defaultFileResource=null;
   if (ownResource.isFolder() && !navElement.isNavigationLevel()) {
-    defaultFileResource=cms.readDefaultFile(ownResource);
+    defaultFileResource=cms.readDefaultFile(ownResource,CmsResourceFilter.ONLY_VISIBLE);
   }
   Map<String,CmsClientProperty> ownProps=getClientProperties(cms,ownResource,false);
   Map<String,CmsClientProperty> defaultFileProps=null;
@@ -47,11 +48,35 @@
     clientEntry.setName(entryPage.getName());
     if (isRedirectType(entryPage.getTypeId())) {
       clientEntry.setEntryType(EntryType.redirect);
+      CmsFile file=getCmsObject().readFile(entryPage);
+      I_CmsXmlDocument content=CmsXmlContentFactory.unmarshal(getCmsObject(),file);
+      String link=content.getValue(REDIRECT_LINK_TARGET_XPATH,getCmsObject().getRequestContext().getLocale()).getStringValue(getCmsObject());
+      clientEntry.setRedirectTarget(link);
     }
  else {
       clientEntry.setEntryType(EntryType.leaf);
     }
   }
+  if (entryPage.isFile()) {
+    List<CmsAlias> aliases=OpenCms.getAliasManager().getAliasesForStructureId(getCmsObject(),entryPage.getStructureId());
+    if (!aliases.isEmpty()) {
+      List<String> aliasList=new ArrayList<String>();
+      for (      CmsAlias alias : aliases) {
+        String aliasPath=alias.getAliasPath();
+        aliasList.add(aliasPath);
+      }
+      clientEntry.setAliases(aliasList);
+    }
+  }
+  long dateExpired=navElement.getResource().getDateExpired();
+  if (dateExpired != CmsResource.DATE_EXPIRED_DEFAULT) {
+    clientEntry.setDateExpired(CmsDateUtil.getDate(new Date(dateExpired),DateFormat.SHORT,getWorkplaceLocale()));
+  }
+  long dateReleased=navElement.getResource().getDateReleased();
+  if (dateReleased != CmsResource.DATE_RELEASED_DEFAULT) {
+    clientEntry.setDateReleased(CmsDateUtil.getDate(new Date(dateReleased),DateFormat.SHORT,getWorkplaceLocale()));
+  }
+  clientEntry.setResleasedAndNotExpired(navElement.getResource().isReleasedAndNotExpired(System.currentTimeMillis()));
   String path=cms.getSitePath(entryPage);
   clientEntry.setVfsPath(path);
   clientEntry.setOwnProperties(ownProps);
