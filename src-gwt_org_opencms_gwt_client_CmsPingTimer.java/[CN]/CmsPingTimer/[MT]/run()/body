@@ -1,14 +1,20 @@
 {
   Scheduler.get().scheduleFixedDelay(new RepeatingCommand(){
     public boolean execute(){
-      CmsCoreProvider.getService().ping(new AsyncCallback<Void>(){
-        public void onFailure(        Throwable caught){
+      if (CmsPingTimer.shouldKeepRunning()) {
+        CmsCoreProvider.getService().ping(new AsyncCallback<Void>(){
+          public void onFailure(          Throwable caught){
+            if ((caught instanceof StatusCodeException) && (((StatusCodeException)caught).getStatusCode() == 500)) {
+              CmsPingTimer.abort();
+            }
+          }
+          public void onSuccess(          Void result){
+          }
         }
-        public void onSuccess(        Void result){
-        }
-      }
 );
-      return true;
+        return true;
+      }
+      return false;
     }
   }
 ,PING_INTERVAL);
