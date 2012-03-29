@@ -25,22 +25,15 @@
   if (!d.exists()) {
     d.mkdirs();
   }
+  ReentrantReadWriteLock readWriteLock=getFileLock(jspVfsName);
   try {
-    while (m_processingFiles.contains(jspVfsName)) {
-      try {
-synchronized (m_processingFiles) {
-          m_processingFiles.wait(100);
-        }
-      }
- catch (      InterruptedException e) {
-      }
-    }
-    m_processingFiles.add(jspVfsName);
+    readWriteLock.readLock().lock();
+    File jspFile=new File(jspPath);
     boolean mustUpdate=false;
-    File f=new File(jspPath);
-    if (!f.exists()) {
+    long jspModificationDate=0;
+    if (!jspFile.exists()) {
       mustUpdate=true;
-      File folder=f.getParentFile();
+      File folder=jspFile.getParentFile();
       if (!folder.exists()) {
         boolean success=folder.mkdirs();
         if (!success) {
@@ -48,73 +41,86 @@ synchronized (m_processingFiles) {
         }
       }
     }
- else     if (f.lastModified() <= resource.getDateLastModified()) {
-      mustUpdate=true;
-    }
- else     if (controller.getCurrentRequest().isDoRecompile()) {
-      mustUpdate=true;
-    }
  else {
-      if (controller.getCurrentRequest().isOnline()) {
-        mustUpdate=!m_onlineJsps.containsKey(jspVfsName);
+      jspModificationDate=jspFile.lastModified();
+      if (jspModificationDate <= resource.getDateLastModified()) {
+        mustUpdate=true;
+      }
+ else       if (controller.getCurrentRequest().isDoRecompile()) {
+        mustUpdate=true;
       }
  else {
-        mustUpdate=!m_offlineJsps.containsKey(jspVfsName);
-      }
-      if (mustUpdate) {
-        mustUpdate=updateStrongLinks(resource,controller,updatedFiles);
+        if (controller.getCurrentRequest().isOnline()) {
+          mustUpdate=!m_onlineJsps.containsKey(jspVfsName);
+        }
+ else {
+          mustUpdate=!m_offlineJsps.containsKey(jspVfsName);
+        }
+        if (mustUpdate) {
+          mustUpdate=updateStrongLinks(resource,controller,updatedFiles);
+        }
       }
     }
     if (mustUpdate) {
       if (LOG.isDebugEnabled()) {
         LOG.debug(Messages.get().getBundle().key(Messages.LOG_WRITING_JSP_1,jspTargetName));
       }
-      updatedFiles.add(jspTargetName);
-      byte[] contents;
-      String encoding;
+      readWriteLock.readLock().unlock();
+      readWriteLock.writeLock().lock();
       try {
-        CmsObject cms=controller.getCmsObject();
-        contents=cms.readFile(resource).getContents();
-        encoding=cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true).getValue();
-        if (encoding == null) {
-          encoding=OpenCms.getSystemInfo().getDefaultEncoding();
-        }
+        if (!jspFile.exists() || (jspModificationDate == jspFile.lastModified())) {
+          updatedFiles.add(jspTargetName);
+          byte[] contents;
+          String encoding;
+          try {
+            CmsObject cms=controller.getCmsObject();
+            contents=cms.readFile(resource).getContents();
+            encoding=cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true).getValue();
+            if (encoding == null) {
+              encoding=OpenCms.getSystemInfo().getDefaultEncoding();
+            }
  else {
-          encoding=CmsEncoder.lookupEncoding(encoding.trim(),encoding);
-        }
-      }
- catch (      CmsException e) {
-        controller.setThrowable(e,jspVfsName);
-        throw new ServletException(Messages.get().getBundle().key(Messages.ERR_LOADER_JSP_ACCESS_1,jspVfsName),e);
-      }
-      try {
-        contents=parseJsp(contents,encoding,controller,updatedFiles,isHardInclude);
-        if (LOG.isInfoEnabled()) {
-          LOG.info(Messages.get().getBundle().key(Messages.LOG_JSP_PERMCHECK_4,new Object[]{f.getAbsolutePath(),Boolean.valueOf(f.exists()),Boolean.valueOf(f.isFile()),Boolean.valueOf(f.canWrite())}));
-        }
+              encoding=CmsEncoder.lookupEncoding(encoding.trim(),encoding);
+            }
+          }
+ catch (          CmsException e) {
+            controller.setThrowable(e,jspVfsName);
+            throw new ServletException(Messages.get().getBundle().key(Messages.ERR_LOADER_JSP_ACCESS_1,jspVfsName),e);
+          }
+          try {
+            contents=parseJsp(contents,encoding,controller,updatedFiles,isHardInclude);
+            if (LOG.isInfoEnabled()) {
+              LOG.info(Messages.get().getBundle().key(Messages.LOG_JSP_PERMCHECK_4,new Object[]{jspFile.getAbsolutePath(),Boolean.valueOf(jspFile.exists()),Boolean.valueOf(jspFile.isFile()),Boolean.valueOf(jspFile.canWrite())}));
+            }
 synchronized (CmsJspLoader.class) {
-          FileOutputStream fs=new FileOutputStream(f);
-          fs.write(contents);
-          fs.close();
-        }
-        if (controller.getCurrentRequest().isOnline()) {
-          m_onlineJsps.put(jspVfsName,Boolean.TRUE);
-        }
+              FileOutputStream fs=new FileOutputStream(jspFile);
+              fs.write(contents);
+              fs.close();
+            }
+            if (controller.getCurrentRequest().isOnline()) {
+              m_onlineJsps.put(jspVfsName,Boolean.TRUE);
+            }
  else {
-          m_offlineJsps.put(jspVfsName,Boolean.TRUE);
-        }
-        if (LOG.isInfoEnabled()) {
-          LOG.info(Messages.get().getBundle().key(Messages.LOG_UPDATED_JSP_2,jspTargetName,jspVfsName));
+              m_offlineJsps.put(jspVfsName,Boolean.TRUE);
+            }
+            if (LOG.isInfoEnabled()) {
+              LOG.info(Messages.get().getBundle().key(Messages.LOG_UPDATED_JSP_2,jspTargetName,jspVfsName));
+            }
+          }
+ catch (          FileNotFoundException e) {
+            throw new ServletException(Messages.get().getBundle().key(Messages.ERR_LOADER_JSP_WRITE_1,jspFile.getName()),e);
+          }
         }
       }
- catch (      FileNotFoundException e) {
-        throw new ServletException(Messages.get().getBundle().key(Messages.ERR_LOADER_JSP_WRITE_1,f.getName()),e);
+  finally {
+        readWriteLock.readLock().lock();
+        readWriteLock.writeLock().unlock();
       }
     }
-    controller.updateDates(f.lastModified(),CmsResource.DATE_EXPIRED_DEFAULT);
+    controller.updateDates(jspFile.lastModified(),CmsResource.DATE_EXPIRED_DEFAULT);
   }
   finally {
-    m_processingFiles.remove(jspVfsName);
+    readWriteLock.readLock().unlock();
   }
   return jspTargetName;
 }
