@@ -1,0 +1,44 @@
+{
+  List<CmsBrokenLinkBean> result=new ArrayList<CmsBrokenLinkBean>();
+  try {
+    Set<String> names=CmsInheritanceGroupUtils.getNamesOfGroupsContainingResource(m_cms,source,target);
+    if (!names.isEmpty()) {
+      for (      String name : names) {
+        String title=null;
+        String path=null;
+        String extraTitle=null;
+        String extraPath=null;
+        CmsResource group=CmsInheritanceGroupUtils.getInheritanceGroupContentByName(m_cms,name);
+        String groupParent=CmsResource.getParentFolder(source.getRootPath());
+        CmsProperty titleProp=m_cms.readPropertyObject(group,CmsPropertyDefinition.PROPERTY_TITLE,false);
+        title=CmsResource.getName(group.getRootPath());
+        if (!titleProp.isNullProperty()) {
+          title=titleProp.getValue();
+        }
+        path=m_cms.getRequestContext().removeSiteRoot(source.getRootPath());
+        List<CmsRelation> relations=m_cms.readRelations(CmsRelationFilter.relationsToStructureId(group.getStructureId()));
+        List<CmsResource> referencingPages=new ArrayList<CmsResource>();
+        for (        CmsRelation relation : relations) {
+          CmsResource relSource=relation.getSource(m_cms,CmsResourceFilter.ALL);
+          String pageParent=CmsResource.getParentFolder(relSource.getRootPath());
+          if (CmsResourceTypeXmlContainerPage.isContainerPage(relSource) && pageParent.equals(groupParent)) {
+            referencingPages.add(relSource);
+          }
+        }
+        if (!referencingPages.isEmpty()) {
+          CmsResource firstPage=referencingPages.get(0);
+          extraPath=m_cms.getRequestContext().removeSiteRoot(firstPage.getRootPath());
+          extraTitle=m_cms.readPropertyObject(firstPage,CmsPropertyDefinition.PROPERTY_TITLE,true).getValue();
+        }
+        result.add(createBrokenLinkBean(CmsResourceTypeXmlContainerPage.INHERIT_CONTAINER_CONFIG_TYPE_NAME,title,path,extraTitle,extraPath));
+      }
+    }
+ else {
+      result.add(createSitemapBrokenLinkBean(source));
+    }
+  }
+ catch (  CmsException e) {
+    result.add(createSitemapBrokenLinkBean(source));
+  }
+  return result;
+}
