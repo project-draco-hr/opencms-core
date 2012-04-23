@@ -1,0 +1,43 @@
+{
+  I_CmsReport report=null;
+  String msg=null;
+  try {
+    report=new CmsStringBufferReport(cms.getRequestContext().getLocale());
+    report.println(Messages.get().container(Messages.GUI_RELATIONS_VALIDATION_PROJECT_1,cms.getRequestContext().getCurrentProject().getName()),I_CmsReport.FORMAT_HEADLINE);
+    OpenCms.getPublishManager().validateRelations(cms,null,report);
+  }
+ catch (  Exception e) {
+    if (report != null) {
+      report.println(e);
+    }
+ else {
+      msg=CmsException.getStackTraceAsString(e);
+    }
+  }
+  String from=parameters.get(PARAM_FROM);
+  String addresses=parameters.get(PARAM_EMAIL);
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(addresses)) {
+    addresses=cms.getRequestContext().getCurrentUser().getEmail();
+  }
+  List<InternetAddress> to=new ArrayList<InternetAddress>();
+  Iterator<String> it=CmsStringUtil.splitAsList(addresses,',').iterator();
+  while (it.hasNext()) {
+    to.add(new InternetAddress(it.next()));
+  }
+  String subject=parameters.get(PARAM_SUBJECT);
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(subject)) {
+    subject=Messages.get().getBundle(cms.getRequestContext().getLocale()).key(Messages.GUI_RELATIONS_VALIDATION_DEFAULT_SUBJECT_0);
+  }
+  if (report != null) {
+    msg=report.toString();
+  }
+  CmsSimpleMail mail=new CmsSimpleMail();
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(from)) {
+    mail.setFrom(from);
+  }
+  mail.setTo(to);
+  mail.setSubject(subject);
+  mail.setMsg(msg);
+  mail.send();
+  return null;
+}

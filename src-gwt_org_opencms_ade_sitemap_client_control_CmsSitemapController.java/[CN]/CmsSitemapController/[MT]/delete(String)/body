@@ -1,5 +1,21 @@
 {
   CmsClientSitemapEntry entry=getEntry(sitePath);
   CmsClientSitemapEntry parent=getEntry(CmsResource.getParentFolder(entry.getSitePath()));
-  applyChange(new CmsClientSitemapChangeDelete(entry,parent.getId()),null);
+  CmsSitemapChange change=new CmsSitemapChange(entry.getId(),entry.getSitePath(),ChangeType.delete);
+  change.setParentId(parent.getId());
+  change.setDefaultFileId(entry.getDefaultFileId());
+  CmsSitemapClipboardData data=CmsSitemapView.getInstance().getController().getData().getClipboardData().copy();
+  if (!entry.isNew()) {
+    data.addDeleted(entry);
+    removeDeletedFromModified(entry,data);
+  }
+  change.setClipBoardData(data);
+  CmsDetailPageTable detailPageTable=CmsSitemapView.getInstance().getController().getData().getDetailPageTable();
+  CmsUUID id=entry.getId();
+  if (detailPageTable.contains(id)) {
+    CmsDetailPageTable copyTable=detailPageTable.copy();
+    copyTable.remove(id);
+    change.setDetailPageInfos(copyTable.toList());
+  }
+  commitChange(change,null);
 }

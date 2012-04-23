@@ -10,11 +10,17 @@
   }
   CmsInheritedContainerState state=OpenCms.getADEManager().getInheritedContainerState(cms,CmsResource.getParentFolder(CmsResource.getParentFolder(configPath)),name);
   Set<String> keys=state.getNewElementKeys();
+  CmsResource configRes=null;
+  boolean needToUnlock=false;
   if (!cms.existsResource(configPath)) {
-    cms.createResource(configPath,OpenCms.getResourceManager().getResourceType(CmsResourceTypeXmlContainerPage.INHERIT_CONTAINER_CONFIG_TYPE_NAME).getTypeId());
+    configRes=cms.createResource(configPath,OpenCms.getResourceManager().getResourceType(CmsResourceTypeXmlContainerPage.INHERIT_CONTAINER_CONFIG_TYPE_NAME).getTypeId());
+    needToUnlock=true;
   }
-  CmsResource configRes=cms.readResource(configPath);
+  if (configRes == null) {
+    configRes=cms.readResource(configPath);
+  }
   CmsFile configFile=cms.readFile(configRes);
+  configFile.setFlags(configFile.getFlags() | CmsResource.FLAG_INTERNAL);
   CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,configFile);
   removeExistingEntry(cms,content,cms.getRequestContext().getLocale(),name);
   CmsContainerConfiguration configuration=createConfigurationBean(newOrdering,elements,keys);
@@ -26,6 +32,18 @@
   serializeSingleConfiguration(cms,name,configuration,parentElement);
   byte[] contentBytes=content.marshal();
   configFile.setContents(contentBytes);
-  cms.lockResource(configRes);
-  cms.writeFile(configFile);
+  CmsLock prevLock=cms.getLock(configRes);
+  boolean alreadyLocked=prevLock.isOwnedBy(cms.getRequestContext().getCurrentUser());
+  if (!alreadyLocked) {
+    cms.lockResourceTemporary(configRes);
+    needToUnlock=true;
+  }
+  try {
+    cms.writeFile(configFile);
+  }
+  finally {
+    if (needToUnlock) {
+      cms.unlockResource(configRes);
+    }
+  }
 }
