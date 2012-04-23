@@ -1,0 +1,62 @@
+{
+  File propFile=getPropertiesFile(file);
+  if (!propFile.exists()) {
+    return;
+  }
+  JAXBElement<CmisObjectType> obj=null;
+  try {
+    Unmarshaller u=JaxBHelper.createUnmarshaller();
+    obj=(JAXBElement<CmisObjectType>)u.unmarshal(propFile);
+  }
+ catch (  Exception e) {
+    warn("Unvalid CMIS properties: " + propFile.getAbsolutePath(),e);
+  }
+  if ((obj == null) || (obj.getValue() == null) || (obj.getValue().getProperties() == null)) {
+    return;
+  }
+  for (  CmisProperty cmisProp : obj.getValue().getProperties().getProperty()) {
+    PropertyData<?> prop=Converter.convert(cmisProp);
+    if (prop instanceof PropertyString) {
+      String firstValueStr=((PropertyString)prop).getFirstValue();
+      if (PropertyIds.NAME.equals(prop.getId())) {
+        objectInfo.setName(firstValueStr);
+      }
+ else       if (PropertyIds.OBJECT_TYPE_ID.equals(prop.getId())) {
+        objectInfo.setTypeId(firstValueStr);
+      }
+ else       if (PropertyIds.CREATED_BY.equals(prop.getId())) {
+        objectInfo.setCreatedBy(firstValueStr);
+      }
+ else       if (PropertyIds.CONTENT_STREAM_MIME_TYPE.equals(prop.getId())) {
+        objectInfo.setContentType(firstValueStr);
+      }
+ else       if (PropertyIds.CONTENT_STREAM_FILE_NAME.equals(prop.getId())) {
+        objectInfo.setFileName(firstValueStr);
+      }
+    }
+    if (prop instanceof PropertyDateTime) {
+      GregorianCalendar firstValueCal=((PropertyDateTime)prop).getFirstValue();
+      if (PropertyIds.CREATION_DATE.equals(prop.getId())) {
+        objectInfo.setCreationDate(firstValueCal);
+      }
+ else       if (PropertyIds.LAST_MODIFICATION_DATE.equals(prop.getId())) {
+        objectInfo.setLastModificationDate(firstValueCal);
+      }
+    }
+    if (filter != null) {
+      if (!filter.contains(prop.getId())) {
+        continue;
+      }
+ else {
+        filter.remove(prop.getId());
+      }
+    }
+    if (PropertyIds.OBJECT_ID.equals(prop.getId())) {
+      continue;
+    }
+    if (PropertyIds.BASE_TYPE_ID.equals(prop.getId())) {
+      continue;
+    }
+    properties.addProperty(prop);
+  }
+}

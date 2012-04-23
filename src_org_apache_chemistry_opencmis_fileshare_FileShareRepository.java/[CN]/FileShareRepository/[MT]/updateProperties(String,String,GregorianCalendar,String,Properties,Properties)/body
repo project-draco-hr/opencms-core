@@ -1,0 +1,43 @@
+{
+  PropertiesImpl result=new PropertiesImpl();
+  if (properties == null) {
+    throw new CmisConstraintException("No properties!");
+  }
+  TypeDefinition type=types.getType(typeId);
+  if (type == null) {
+    throw new CmisObjectNotFoundException("Type '" + typeId + "' is unknown!");
+  }
+  for (  PropertyData<?> prop : oldProperties.getProperties().values()) {
+    PropertyDefinition<?> propType=type.getPropertyDefinitions().get(prop.getId());
+    if (propType == null) {
+      throw new CmisConstraintException("Property '" + prop.getId() + "' is unknown!");
+    }
+    if ((propType.getUpdatability() != Updatability.READWRITE)) {
+      continue;
+    }
+    result.addProperty(prop);
+  }
+  for (  PropertyData<?> prop : properties.getProperties().values()) {
+    PropertyDefinition<?> propType=type.getPropertyDefinitions().get(prop.getId());
+    if (propType == null) {
+      throw new CmisConstraintException("Property '" + prop.getId() + "' is unknown!");
+    }
+    if ((propType.getUpdatability() == Updatability.READONLY)) {
+      throw new CmisConstraintException("Property '" + prop.getId() + "' is readonly!");
+    }
+    if ((propType.getUpdatability() == Updatability.ONCREATE)) {
+      throw new CmisConstraintException("Property '" + prop.getId() + "' can only be set on create!");
+    }
+    if (isEmptyProperty(prop)) {
+      addPropertyDefault(result,propType);
+    }
+ else {
+      result.addProperty(prop);
+    }
+  }
+  addPropertyId(result,typeId,null,PropertyIds.OBJECT_TYPE_ID,typeId);
+  addPropertyString(result,typeId,null,PropertyIds.CREATED_BY,creator);
+  addPropertyDateTime(result,typeId,null,PropertyIds.CREATION_DATE,creationDate);
+  addPropertyString(result,typeId,null,PropertyIds.LAST_MODIFIED_BY,modifier);
+  return result;
+}

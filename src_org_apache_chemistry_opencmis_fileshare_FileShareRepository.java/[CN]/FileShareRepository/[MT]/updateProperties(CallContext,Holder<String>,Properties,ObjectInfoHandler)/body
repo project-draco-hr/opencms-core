@@ -1,0 +1,48 @@
+{
+  debug("updateProperties");
+  boolean userReadOnly=checkUser(context,true);
+  if (objectId == null) {
+    throw new CmisInvalidArgumentException("Id is not valid!");
+  }
+  File file=getFile(objectId.getValue());
+  String newName=getStringProperty(properties,PropertyIds.NAME);
+  boolean isRename=(newName != null) && (!file.getName().equals(newName));
+  if (isRename && !isValidName(newName)) {
+    throw new CmisNameConstraintViolationException("Name is not valid!");
+  }
+  PropertiesImpl oldProperties=new PropertiesImpl();
+  readCustomProperties(file,oldProperties,null,new ObjectInfoImpl());
+  String typeId=getIdProperty(oldProperties,PropertyIds.OBJECT_TYPE_ID);
+  if (typeId == null) {
+    typeId=(file.isDirectory() ? TypeManager.FOLDER_TYPE_ID : TypeManager.DOCUMENT_TYPE_ID);
+  }
+  String creator=getStringProperty(oldProperties,PropertyIds.CREATED_BY);
+  if (creator == null) {
+    creator=context.getUsername();
+  }
+  GregorianCalendar creationDate=getDateTimeProperty(oldProperties,PropertyIds.CREATION_DATE);
+  if (creationDate == null) {
+    creationDate=millisToCalendar(file.lastModified());
+  }
+  Properties props=updateProperties(typeId,creator,creationDate,context.getUsername(),oldProperties,properties);
+  writePropertiesFile(file,props);
+  File newFile=file;
+  if (isRename) {
+    File parent=file.getParentFile();
+    File propFile=getPropertiesFile(file);
+    newFile=new File(parent,newName);
+    if (!file.renameTo(newFile)) {
+      throw new CmisUpdateConflictException("Could not rename object!");
+    }
+ else {
+      objectId.setValue(getId(newFile));
+      if (newFile.isFile()) {
+        if (propFile.exists()) {
+          File newPropFile=new File(parent,newName + SHADOW_EXT);
+          propFile.renameTo(newPropFile);
+        }
+      }
+    }
+  }
+  return compileObjectType(context,newFile,null,false,false,userReadOnly,objectInfos);
+}

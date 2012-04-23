@@ -1,0 +1,34 @@
+{
+  debug("setContentStream or deleteContentStream");
+  checkUser(context,true);
+  if (objectId == null) {
+    throw new CmisInvalidArgumentException("Id is not valid!");
+  }
+  File file=getFile(objectId.getValue());
+  if (!file.isFile()) {
+    throw new CmisStreamNotSupportedException("Not a file!");
+  }
+  boolean owf=(overwriteFlag == null ? true : overwriteFlag.booleanValue());
+  if (!owf && file.length() > 0) {
+    throw new CmisContentAlreadyExistsException("Content already exists!");
+  }
+  try {
+    OutputStream out=new BufferedOutputStream(new FileOutputStream(file),BUFFER_SIZE);
+    if ((contentStream == null) || (contentStream.getStream() == null)) {
+      out.write(new byte[0]);
+    }
+ else {
+      InputStream in=new BufferedInputStream(contentStream.getStream(),BUFFER_SIZE);
+      byte[] buffer=new byte[BUFFER_SIZE];
+      int b;
+      while ((b=in.read(buffer)) > -1) {
+        out.write(buffer,0,b);
+      }
+      in.close();
+    }
+    out.close();
+  }
+ catch (  Exception e) {
+    throw new CmisStorageException("Could not write content: " + e.getMessage(),e);
+  }
+}
