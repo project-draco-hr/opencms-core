@@ -1,6 +1,6 @@
 {
   if (file == null) {
-    throw new IllegalArgumentException("File must not be null!");
+    throw new IllegalArgumentException("Resource may not be null.");
   }
   Set<String> filter=(orgfilter == null ? null : new HashSet<String>(orgfilter));
   String typeId=null;
@@ -10,7 +10,7 @@
     objectInfo.setTypeId(typeId);
     objectInfo.setContentType(null);
     objectInfo.setFileName(null);
-    objectInfo.setHasAcl(true);
+    objectInfo.setHasAcl(false);
     objectInfo.setHasContent(false);
     objectInfo.setVersionSeriesId(null);
     objectInfo.setIsCurrentVersion(true);
@@ -28,7 +28,7 @@
     typeId=CmsCmisTypeManager.DOCUMENT_TYPE_ID;
     objectInfo.setBaseType(BaseTypeId.CMIS_DOCUMENT);
     objectInfo.setTypeId(typeId);
-    objectInfo.setHasAcl(true);
+    objectInfo.setHasAcl(false);
     objectInfo.setHasContent(true);
     objectInfo.setHasParent(true);
     objectInfo.setVersionSeriesId(null);
@@ -52,13 +52,30 @@
     String name=file.getName();
     addPropertyString(result,typeId,filter,PropertyIds.NAME,name);
     objectInfo.setName(name);
-    addPropertyString(result,typeId,filter,PropertyIds.CREATED_BY,"<unknown>");
-    addPropertyString(result,typeId,filter,PropertyIds.LAST_MODIFIED_BY,"<unknown>");
-    objectInfo.setCreatedBy("<unknown>");
+    CmsUUID creatorId=file.getUserCreated();
+    CmsUUID modifierId=file.getUserLastModified();
+    String creatorName=creatorId.toString();
+    String modifierName=modifierId.toString();
+    try {
+      CmsUser user=cms.readUser(creatorId);
+      creatorName=user.getName();
+    }
+ catch (    CmsException e) {
+    }
+    try {
+      CmsUser user=cms.readUser(modifierId);
+      modifierName=user.getName();
+    }
+ catch (    CmsException e) {
+    }
+    addPropertyString(result,typeId,filter,PropertyIds.CREATED_BY,creatorName);
+    addPropertyString(result,typeId,filter,PropertyIds.LAST_MODIFIED_BY,modifierName);
+    objectInfo.setCreatedBy(creatorName);
     GregorianCalendar lastModified=millisToCalendar(file.getDateLastModified());
-    addPropertyDateTime(result,typeId,filter,PropertyIds.CREATION_DATE,lastModified);
+    GregorianCalendar created=millisToCalendar(file.getDateCreated());
+    addPropertyDateTime(result,typeId,filter,PropertyIds.CREATION_DATE,created);
     addPropertyDateTime(result,typeId,filter,PropertyIds.LAST_MODIFICATION_DATE,lastModified);
-    objectInfo.setCreationDate(lastModified);
+    objectInfo.setCreationDate(created);
     objectInfo.setLastModificationDate(lastModified);
     addPropertyString(result,typeId,filter,PropertyIds.CHANGE_TOKEN,null);
     if (file.isFolder()) {

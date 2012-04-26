@@ -4,7 +4,10 @@
     if (file == null) {
       throw new IllegalArgumentException("File must not be null!");
     }
-    boolean isReadOnly=!(cms.hasPermissions(file,CmsPermissionSet.ACCESS_WRITE));
+    CmsLock lock=cms.getLock(file);
+    CmsUser user=cms.getRequestContext().getCurrentUser();
+    boolean canWrite=!cms.getRequestContext().getCurrentProject().isOnlineProject() && (lock.isOwnedBy(user) || lock.isLockableBy(user)) && cms.hasPermissions(file,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.DEFAULT);
+    boolean isReadOnly=!canWrite;
     boolean isFolder=file.isFolder();
     boolean isRoot=m_root.equals(file);
     Set<Action> aas=new HashSet<Action>();
@@ -26,7 +29,6 @@
  else {
       addAction(aas,Action.CAN_GET_CONTENT_STREAM,true);
       addAction(aas,Action.CAN_SET_CONTENT_STREAM,!isReadOnly);
-      addAction(aas,Action.CAN_DELETE_CONTENT_STREAM,!isReadOnly);
       addAction(aas,Action.CAN_GET_ALL_VERSIONS,true);
     }
     AllowableActionsImpl result=new AllowableActionsImpl();
