@@ -1,0 +1,38 @@
+{
+  CmsUUID structureId=null;
+  if (!changedEntities.isEmpty()) {
+    structureId=CmsContentDefinition.entityIdToUuid(changedEntities.get(0).getId());
+  }
+  if ((structureId == null) && !deletedEntities.isEmpty()) {
+    structureId=CmsContentDefinition.entityIdToUuid(deletedEntities.get(0));
+  }
+  if (structureId != null) {
+    CmsObject cms=getCmsObject();
+    try {
+      CmsResource resource=cms.readResource(structureId);
+      ensureLock(resource);
+      CmsFile file=cms.readFile(resource);
+      CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,file);
+      for (      Entity entity : changedEntities) {
+        String entityId=entity.getId();
+        Locale contentLocale=CmsLocaleManager.getLocale(CmsContentDefinition.getLocaleFromId(entityId));
+        if (content.hasLocale(contentLocale)) {
+          content.removeLocale(contentLocale);
+        }
+        content.addLocale(cms,contentLocale);
+        addEntityAttributes(cms,content,"",entity,contentLocale);
+      }
+      for (      String deleteId : deletedEntities) {
+        Locale contentLocale=CmsLocaleManager.getLocale(CmsContentDefinition.getLocaleFromId(deleteId));
+        if (content.hasLocale(contentLocale)) {
+          content.removeLocale(contentLocale);
+        }
+      }
+      writeContent(cms,file,content,getFileEncoding(cms,file));
+      tryUnlock(resource);
+    }
+ catch (    Exception e) {
+      error(e);
+    }
+  }
+}
