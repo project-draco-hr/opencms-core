@@ -1,0 +1,40 @@
+{
+  try {
+    if (file == null) {
+      throw new IllegalArgumentException("File must not be null!");
+    }
+    CmsLock lock=cms.getLock(file);
+    CmsUser user=cms.getRequestContext().getCurrentUser();
+    boolean canWrite=!cms.getRequestContext().getCurrentProject().isOnlineProject() && (lock.isOwnedBy(user) || lock.isLockableBy(user)) && cms.hasPermissions(file,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.DEFAULT);
+    boolean isReadOnly=!canWrite;
+    boolean isFolder=file.isFolder();
+    boolean isRoot=m_root.equals(file);
+    Set<Action> aas=new HashSet<Action>();
+    addAction(aas,Action.CAN_GET_OBJECT_PARENTS,!isRoot);
+    addAction(aas,Action.CAN_GET_PROPERTIES,true);
+    addAction(aas,Action.CAN_UPDATE_PROPERTIES,!isReadOnly);
+    addAction(aas,Action.CAN_MOVE_OBJECT,!isReadOnly);
+    addAction(aas,Action.CAN_DELETE_OBJECT,!isReadOnly && !isRoot);
+    if (isFolder) {
+      addAction(aas,Action.CAN_GET_DESCENDANTS,true);
+      addAction(aas,Action.CAN_GET_CHILDREN,true);
+      addAction(aas,Action.CAN_GET_FOLDER_PARENT,!isRoot);
+      addAction(aas,Action.CAN_GET_FOLDER_TREE,true);
+      addAction(aas,Action.CAN_CREATE_DOCUMENT,!isReadOnly);
+      addAction(aas,Action.CAN_CREATE_FOLDER,!isReadOnly);
+      addAction(aas,Action.CAN_DELETE_TREE,!isReadOnly);
+    }
+ else {
+      addAction(aas,Action.CAN_GET_CONTENT_STREAM,true);
+      addAction(aas,Action.CAN_SET_CONTENT_STREAM,!isReadOnly);
+      addAction(aas,Action.CAN_GET_ALL_VERSIONS,true);
+    }
+    AllowableActionsImpl result=new AllowableActionsImpl();
+    result.setAllowableActions(aas);
+    return result;
+  }
+ catch (  CmsException e) {
+    handleCmsException(e);
+    return null;
+  }
+}
