@@ -41,11 +41,22 @@
       if (path.startsWith(OpenCms.getSystemInfo().getOpenCmsContext())) {
         path=path.substring(OpenCms.getSystemInfo().getOpenCmsContext().length());
       }
-      String ignoreWorkplaceStr=(String)cms.getRequestContext().getAttribute(DONT_USE_CURRENT_SITE_FOR_WORKPLACE_REQUESTS);
-      boolean ignoreWorkplace=Boolean.parseBoolean(ignoreWorkplaceStr);
-      cms.getRequestContext().setAttribute(DONT_USE_CURRENT_SITE_FOR_WORKPLACE_REQUESTS,"false");
-      if (OpenCms.getSiteManager().isWorkplaceRequest(matcher) && !ignoreWorkplace) {
-        return cms.getRequestContext().addSiteRoot(path + suffix);
+      boolean isWorkplaceServer=OpenCms.getSiteManager().isWorkplaceRequest(matcher);
+      if (isWorkplaceServer) {
+        String pathForCurrentSite=cms.getRequestContext().addSiteRoot(path);
+        String pathForMatchedSite=cms.getRequestContext().addSiteRoot(OpenCms.getSiteManager().matchSite(matcher).getSiteRoot(),path);
+        String originalSiteRoot=cms.getRequestContext().getSiteRoot();
+        String selectedPath=pathForCurrentSite;
+        try {
+          cms.getRequestContext().setSiteRoot("");
+          if (!cms.existsResource(pathForCurrentSite,CmsResourceFilter.ALL) && cms.existsResource(pathForMatchedSite,CmsResourceFilter.ALL)) {
+            selectedPath=pathForMatchedSite;
+          }
+        }
+  finally {
+          cms.getRequestContext().setSiteRoot(originalSiteRoot);
+        }
+        return selectedPath + suffix;
       }
  else {
         return cms.getRequestContext().addSiteRoot(OpenCms.getSiteManager().matchSite(matcher).getSiteRoot(),path + suffix);
