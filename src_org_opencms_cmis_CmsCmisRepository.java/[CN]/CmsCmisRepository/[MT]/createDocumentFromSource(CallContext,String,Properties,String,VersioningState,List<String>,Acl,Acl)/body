@@ -1,0 +1,48 @@
+{
+  checkWriteAccess();
+  if ((addAces != null) || (removeAces != null)) {
+    throw new CmisConstraintException("createDocument: ACEs not allowed");
+  }
+  try {
+    CmsObject cms=getCmsObject(context);
+    Map<String,PropertyData<?>> properties=new HashMap<String,PropertyData<?>>();
+    if (propertiesObj != null) {
+      properties=propertiesObj.getProperties();
+    }
+    List<CmsProperty> cmsProperties=getOpenCmsProperties(properties);
+    CmsUUID parentFolderId=new CmsUUID(folderId);
+    CmsResource parentFolder=cms.readResource(parentFolderId);
+    CmsUUID sourceUuid=new CmsUUID(sourceId);
+    CmsResource source=cms.readResource(sourceUuid);
+    String sourcePath=source.getRootPath();
+    PropertyData<?> nameProp=properties.get(PropertyIds.NAME);
+    String newDocName;
+    if (nameProp != null) {
+      newDocName=(String)nameProp.getFirstValue();
+      checkResourceName(newDocName);
+    }
+ else {
+      newDocName=CmsResource.getName(source.getRootPath());
+    }
+    String targetPath=CmsStringUtil.joinPaths(parentFolder.getRootPath(),newDocName);
+    try {
+      cms.copyResource(sourcePath,targetPath);
+    }
+ catch (    CmsVfsResourceAlreadyExistsException e) {
+      throw new CmisNameConstraintViolationException(e.getLocalizedMessage(),e);
+    }
+    CmsResource targetResource=cms.readResource(targetPath);
+    cms.setDateLastModified(targetResource.getRootPath(),targetResource.getDateCreated(),false);
+    cms.unlockResource(targetResource);
+    boolean wasLocked=ensureLock(cms,targetResource);
+    cms.writePropertyObjects(targetResource,cmsProperties);
+    if (wasLocked) {
+      cms.unlockResource(targetResource);
+    }
+    return targetResource.getStructureId().toString();
+  }
+ catch (  CmsException e) {
+    handleCmsException(e);
+    return null;
+  }
+}

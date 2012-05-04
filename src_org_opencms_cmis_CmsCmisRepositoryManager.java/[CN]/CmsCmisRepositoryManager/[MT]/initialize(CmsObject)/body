@@ -1,15 +1,28 @@
 {
   try {
+    m_typeManager=new CmsCmisTypeManager(adminCms);
+    m_timer.purge();
+    m_timer.schedule(new TimerTask(){
+      @Override public void run(){
+        try {
+          m_typeManager.setup();
+        }
+ catch (        CmsException e) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+,REFRESH_DELAY,REFRESH_DELAY);
     CmsResource root=adminCms.readResource("/");
-    CmsCmisRepository onlineRepository=new CmsCmisRepository(adminCms,root,"online");
+    CmsCmisRepository onlineRepository=new CmsCmisRepository(m_typeManager,adminCms,root,"online",true);
     CmsObject offlineCms=OpenCms.initCmsObject(adminCms);
     CmsProject offline=adminCms.readProject("Offline");
     offlineCms.getRequestContext().setCurrentProject(offline);
-    CmsCmisRepository offlineRepository=new CmsCmisRepository(offlineCms,root,"offline");
-    m_repositoryMap.put("offline",offlineRepository);
-    m_repositoryMap.put("online",onlineRepository);
+    CmsCmisRepository offlineRepository=new CmsCmisRepository(m_typeManager,offlineCms,root,"offline",false);
+    addRepository(offlineRepository);
+    addRepository(onlineRepository);
   }
  catch (  CmsException e) {
-    System.out.println("Repository could not be initialized!");
+    LOG.error("Repository could not be initialized!");
   }
 }

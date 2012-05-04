@@ -1,0 +1,30 @@
+{
+  checkWriteAccess();
+  try {
+    CmsObject cms=getCmsObject(context);
+    CmsUUID structureId=new CmsUUID(objectId.getValue());
+    boolean overwrite=(overwriteFlag == null) || overwriteFlag.booleanValue();
+    if (!overwrite) {
+      throw new CmisContentAlreadyExistsException();
+    }
+    CmsResource resource=cms.readResource(structureId);
+    if (resource.isFolder()) {
+      throw new CmisStreamNotSupportedException("Folders may not have content streams.");
+    }
+    CmsFile file=cms.readFile(resource);
+    InputStream contentInput=contentStream.getStream();
+    byte[] newContent=CmsFileUtil.readFully(contentInput);
+    file.setContents(newContent);
+    boolean wasLocked=ensureLock(cms,resource);
+    CmsFile newFile=cms.writeFile(file);
+    if (wasLocked) {
+      cms.unlockResource(newFile);
+    }
+  }
+ catch (  CmsException e) {
+    handleCmsException(e);
+  }
+catch (  IOException e) {
+    throw new CmisRuntimeException(e.getLocalizedMessage(),e);
+  }
+}

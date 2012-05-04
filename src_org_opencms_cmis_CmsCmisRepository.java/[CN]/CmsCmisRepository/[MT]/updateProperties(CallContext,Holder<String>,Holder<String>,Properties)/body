@@ -1,0 +1,31 @@
+{
+  checkWriteAccess();
+  try {
+    CmsObject cms=getCmsObject(context);
+    CmsUUID structureId=new CmsUUID(objectId.getValue());
+    CmsResource resource=cms.readResource(structureId);
+    Map<String,PropertyData<?>> propertyMap=properties.getProperties();
+    List<CmsProperty> cmsProperties=getOpenCmsProperties(propertyMap);
+    boolean wasLocked=ensureLock(cms,resource);
+    try {
+      cms.writePropertyObjects(resource,cmsProperties);
+      @SuppressWarnings("unchecked") PropertyData<String> nameProperty=(PropertyData<String>)propertyMap.get(PropertyIds.NAME);
+      if (nameProperty != null) {
+        String newName=nameProperty.getFirstValue();
+        checkResourceName(newName);
+        String parentFolder=CmsResource.getParentFolder(resource.getRootPath());
+        String newPath=CmsStringUtil.joinPaths(parentFolder,newName);
+        cms.moveResource(resource.getRootPath(),newPath);
+        resource=cms.readResource(resource.getStructureId());
+      }
+    }
+  finally {
+      if (wasLocked) {
+        cms.unlockResource(resource);
+      }
+    }
+  }
+ catch (  CmsException e) {
+    handleCmsException(e);
+  }
+}

@@ -1,0 +1,57 @@
+{
+  try {
+    Set<String> filterCollection=splitFilter(filter);
+    boolean iaa=(includeAllowableActions == null ? false : includeAllowableActions.booleanValue());
+    boolean ips=(includePathSegment == null ? false : includePathSegment.booleanValue());
+    int skip=(skipCount == null ? 0 : skipCount.intValue());
+    if (skip < 0) {
+      skip=0;
+    }
+    int max=(maxItems == null ? Integer.MAX_VALUE : maxItems.intValue());
+    if (max < 0) {
+      max=Integer.MAX_VALUE;
+    }
+    CmsObject cms=getCmsObject(context);
+    CmsUUID structureId=new CmsUUID(folderId);
+    CmsResource folder=cms.readResource(structureId);
+    if (!folder.isFolder()) {
+      throw new CmisObjectNotFoundException("Not a folder!");
+    }
+    if (context.isObjectInfoRequired()) {
+      collectObjectData(context,cms,folder,null,false,false,objectInfos);
+    }
+    ObjectInFolderListImpl result=new ObjectInFolderListImpl();
+    result.setObjects(new ArrayList<ObjectInFolderData>());
+    result.setHasMoreItems(Boolean.FALSE);
+    int count=0;
+    List<CmsResource> children=new ArrayList<CmsResource>();
+    String folderSitePath=cms.getRequestContext().getSitePath(folder);
+    List<CmsResource> fileChildren=cms.getFilesInFolder(folderSitePath);
+    List<CmsResource> folderChildren=cms.getSubFolders(folderSitePath);
+    children.addAll(folderChildren);
+    children.addAll(fileChildren);
+    for (    CmsResource child : children) {
+      count++;
+      if (skip > 0) {
+        skip--;
+        continue;
+      }
+      if (result.getObjects().size() >= max) {
+        result.setHasMoreItems(Boolean.TRUE);
+        continue;
+      }
+      ObjectInFolderDataImpl objectInFolder=new ObjectInFolderDataImpl();
+      objectInFolder.setObject(collectObjectData(context,cms,child,filterCollection,iaa,false,objectInfos));
+      if (ips) {
+        objectInFolder.setPathSegment(child.getName());
+      }
+      result.getObjects().add(objectInFolder);
+    }
+    result.setNumItems(BigInteger.valueOf(count));
+    return result;
+  }
+ catch (  CmsException e) {
+    handleCmsException(e);
+    return null;
+  }
+}

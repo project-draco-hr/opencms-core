@@ -1,0 +1,42 @@
+{
+  checkWriteAccess();
+  if ((addAces != null) || (removeAces != null)) {
+    throw new CmisConstraintException("createDocument: ACEs not allowed");
+  }
+  if (contentStream == null) {
+    throw new CmisConstraintException("createDocument: no content stream given");
+  }
+  try {
+    CmsObject cms=getCmsObject(context);
+    Map<String,PropertyData<?>> properties=propertiesObj.getProperties();
+    String newDocName=(String)properties.get(PropertyIds.NAME).getFirstValue();
+    String defaultType=OpenCms.getResourceManager().getDefaultTypeForName(newDocName).getTypeName();
+    String resTypeName=getResourceTypeFromProperties(properties,defaultType);
+    I_CmsResourceType cmsResourceType=OpenCms.getResourceManager().getResourceType(resTypeName);
+    if (cmsResourceType.isFolder()) {
+      throw new CmisConstraintException("Not a document type: " + resTypeName);
+    }
+    List<CmsProperty> cmsProperties=getOpenCmsProperties(properties);
+    checkResourceName(newDocName);
+    InputStream stream=contentStream.getStream();
+    byte[] content=CmsFileUtil.readFully(stream);
+    CmsUUID parentFolderId=new CmsUUID(folderId);
+    CmsResource parentFolder=cms.readResource(parentFolderId);
+    String newFolderPath=CmsStringUtil.joinPaths(parentFolder.getRootPath(),newDocName);
+    try {
+      CmsResource newDocument=cms.createResource(newFolderPath,cmsResourceType.getTypeId(),content,cmsProperties);
+      cms.unlockResource(newDocument.getRootPath());
+      return newDocument.getStructureId().toString();
+    }
+ catch (    CmsVfsResourceAlreadyExistsException e) {
+      throw new CmisNameConstraintViolationException(e.getLocalizedMessage(),e);
+    }
+  }
+ catch (  CmsException e) {
+    handleCmsException(e);
+    return null;
+  }
+catch (  IOException e) {
+    throw new CmisRuntimeException(e.getLocalizedMessage(),e);
+  }
+}
