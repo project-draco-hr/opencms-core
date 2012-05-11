@@ -1,0 +1,72 @@
+{
+  CmsCmisTypeManager tm=m_repository.getTypeManager();
+  if (resource == null) {
+    throw new IllegalArgumentException("Resource may not be null.");
+  }
+  Set<String> filter=(orgfilter == null ? null : new LinkedHashSet<String>(orgfilter));
+  String typeId="opencms:" + relation.getType().getName();
+  objectInfo.setBaseType(BaseTypeId.CMIS_RELATIONSHIP);
+  objectInfo.setTypeId(typeId);
+  objectInfo.setContentType(null);
+  objectInfo.setFileName(null);
+  objectInfo.setHasAcl(false);
+  objectInfo.setHasContent(false);
+  objectInfo.setVersionSeriesId(null);
+  objectInfo.setIsCurrentVersion(true);
+  objectInfo.setRelationshipSourceIds(null);
+  objectInfo.setRelationshipTargetIds(null);
+  objectInfo.setRenditionInfos(null);
+  objectInfo.setSupportsDescendants(false);
+  objectInfo.setSupportsFolderTree(false);
+  objectInfo.setSupportsPolicies(false);
+  objectInfo.setSupportsRelationships(false);
+  objectInfo.setWorkingCopyId(null);
+  objectInfo.setWorkingCopyOriginalId(null);
+  try {
+    PropertiesImpl result=new PropertiesImpl();
+    String id=createKey(relation);
+    addPropertyId(tm,result,typeId,filter,PropertyIds.OBJECT_ID,id);
+    objectInfo.setId(id);
+    String name=createReadableName(relation);
+    addPropertyString(tm,result,typeId,filter,PropertyIds.NAME,name);
+    objectInfo.setName(name);
+    CmsUUID creatorId=resource.getUserCreated();
+    CmsUUID modifierId=resource.getUserLastModified();
+    String creatorName=creatorId.toString();
+    String modifierName=modifierId.toString();
+    try {
+      CmsUser user=cms.readUser(creatorId);
+      creatorName=user.getName();
+    }
+ catch (    CmsException e) {
+    }
+    try {
+      CmsUser user=cms.readUser(modifierId);
+      modifierName=user.getName();
+    }
+ catch (    CmsException e) {
+    }
+    addPropertyString(tm,result,typeId,filter,PropertyIds.CREATED_BY,creatorName);
+    addPropertyString(tm,result,typeId,filter,PropertyIds.LAST_MODIFIED_BY,modifierName);
+    objectInfo.setCreatedBy(creatorName);
+    addPropertyId(tm,result,typeId,filter,PropertyIds.SOURCE_ID,relation.getSourceId().toString());
+    addPropertyId(tm,result,typeId,filter,PropertyIds.TARGET_ID,relation.getTargetId().toString());
+    GregorianCalendar lastModified=millisToCalendar(resource.getDateLastModified());
+    GregorianCalendar created=millisToCalendar(resource.getDateCreated());
+    addPropertyDateTime(tm,result,typeId,filter,PropertyIds.CREATION_DATE,created);
+    addPropertyDateTime(tm,result,typeId,filter,PropertyIds.LAST_MODIFICATION_DATE,lastModified);
+    objectInfo.setCreationDate(created);
+    objectInfo.setLastModificationDate(lastModified);
+    addPropertyString(tm,result,typeId,filter,PropertyIds.CHANGE_TOKEN,null);
+    addPropertyId(tm,result,typeId,filter,PropertyIds.BASE_TYPE_ID,BaseTypeId.CMIS_RELATIONSHIP.value());
+    addPropertyId(tm,result,typeId,filter,PropertyIds.OBJECT_TYPE_ID,typeId);
+    objectInfo.setHasParent(false);
+    return result;
+  }
+ catch (  Exception e) {
+    if (e instanceof CmisBaseException) {
+      throw (CmisBaseException)e;
+    }
+    throw new CmisRuntimeException(e.getMessage(),e);
+  }
+}

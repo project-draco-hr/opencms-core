@@ -1,5 +1,6 @@
 {
   try {
+    CmsCmisResourceHelper helper=new CmsCmisResourceHelper(this);
     Set<String> filterCollection=splitFilter(filter);
     boolean iaa=(includeAllowableActions == null ? false : includeAllowableActions.booleanValue());
     boolean ips=(includePathSegment == null ? false : includePathSegment.booleanValue());
@@ -18,36 +19,24 @@
       throw new CmisObjectNotFoundException("Not a folder!");
     }
     if (context.isObjectInfoRequired()) {
-      collectObjectData(context,cms,folder,null,false,false,objectInfos);
+      helper.collectObjectData(context,cms,folder,null,false,false,includeRelationships,objectInfos);
     }
     ObjectInFolderListImpl result=new ObjectInFolderListImpl();
-    result.setObjects(new ArrayList<ObjectInFolderData>());
-    result.setHasMoreItems(Boolean.FALSE);
-    int count=0;
-    List<CmsResource> children=new ArrayList<CmsResource>();
     String folderSitePath=cms.getRequestContext().getSitePath(folder);
-    List<CmsResource> fileChildren=cms.getFilesInFolder(folderSitePath);
-    List<CmsResource> folderChildren=cms.getSubFolders(folderSitePath);
-    children.addAll(folderChildren);
-    children.addAll(fileChildren);
-    for (    CmsResource child : children) {
-      count++;
-      if (skip > 0) {
-        skip--;
-        continue;
-      }
-      if (result.getObjects().size() >= max) {
-        result.setHasMoreItems(Boolean.TRUE);
-        continue;
-      }
+    List<CmsResource> children=cms.getResourcesInFolder(folderSitePath,CmsResourceFilter.DEFAULT);
+    CmsObjectListLimiter<CmsResource> limiter=new CmsObjectListLimiter<CmsResource>(children,maxItems,skipCount);
+    List<ObjectInFolderData> resultObjects=new ArrayList<ObjectInFolderData>();
+    for (    CmsResource child : limiter) {
       ObjectInFolderDataImpl objectInFolder=new ObjectInFolderDataImpl();
-      objectInFolder.setObject(collectObjectData(context,cms,child,filterCollection,iaa,false,objectInfos));
+      objectInFolder.setObject(helper.collectObjectData(context,cms,child,filterCollection,iaa,false,includeRelationships,objectInfos));
       if (ips) {
         objectInFolder.setPathSegment(child.getName());
       }
-      result.getObjects().add(objectInFolder);
+      resultObjects.add(objectInFolder);
     }
-    result.setNumItems(BigInteger.valueOf(count));
+    result.setObjects(resultObjects);
+    result.setNumItems(BigInteger.valueOf(children.size()));
+    result.setHasMoreItems(Boolean.valueOf(limiter.hasMore()));
     return result;
   }
  catch (  CmsException e) {

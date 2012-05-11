@@ -1,0 +1,31 @@
+{
+  try {
+    CmsObject cms=getCmsObject(context);
+    Map<String,PropertyData<?>> propertyMap=properties.getProperties();
+    String sourceProp=(String)(propertyMap.get(PropertyIds.SOURCE_ID).getFirstValue());
+    String targetProp=(String)(propertyMap.get(PropertyIds.TARGET_ID).getFirstValue());
+    String typeId=(String)(propertyMap.get(PropertyIds.OBJECT_TYPE_ID).getFirstValue());
+    if (!typeId.startsWith("opencms:")) {
+      throw new CmisConstraintException("Can't create this relationship type.");
+    }
+    String cmsTypeName=typeId.substring("opencms:".length());
+    CmsUUID sourceId=new CmsUUID(sourceProp);
+    CmsUUID targetId=new CmsUUID(targetProp);
+    CmsResource sourceRes=cms.readResource(sourceId);
+    boolean wasLocked=ensureLock(cms,sourceRes);
+    try {
+      CmsResource targetRes=cms.readResource(targetId);
+      cms.addRelationToResource(sourceRes.getRootPath(),targetRes.getRootPath(),cmsTypeName);
+      return "REL_" + sourceRes.getStructureId() + "_"+ targetRes.getStructureId()+ "_"+ cmsTypeName;
+    }
+  finally {
+      if (wasLocked) {
+        cms.unlockResource(sourceRes);
+      }
+    }
+  }
+ catch (  CmsException e) {
+    CmsCmisUtil.handleCmsException(e);
+    return null;
+  }
+}

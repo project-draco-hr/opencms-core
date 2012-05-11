@@ -1,0 +1,153 @@
+{
+  CmsCmisTypeManager tm=m_repository.getTypeManager();
+  if (resource == null) {
+    throw new IllegalArgumentException("Resource may not be null.");
+  }
+  Set<String> filter=(orgfilter == null ? null : new LinkedHashSet<String>(orgfilter));
+  String typeId=null;
+  List<String> relationSourceIds=new ArrayList<String>();
+  List<String> relationTargetIds=new ArrayList<String>();
+  try {
+    List<CmsRelation> relations=cms.getRelationsForResource(resource,CmsRelationFilter.ALL);
+    for (    CmsRelation relation : relations) {
+      if (resource.getStructureId().equals(relation.getSourceId())) {
+        relationTargetIds.add(relation.getTargetId().toString());
+      }
+      if (resource.getStructureId().equals(relation.getTargetId())) {
+        relationSourceIds.add(relation.getSourceId().toString());
+      }
+    }
+  }
+ catch (  CmsException e) {
+    throw new CmisStorageException(e.getLocalizedMessage(),e);
+  }
+  if (resource.isFolder()) {
+    typeId=CmsCmisTypeManager.FOLDER_TYPE_ID;
+    objectInfo.setBaseType(BaseTypeId.CMIS_FOLDER);
+    objectInfo.setTypeId(typeId);
+    objectInfo.setContentType(null);
+    objectInfo.setFileName(null);
+    objectInfo.setHasAcl(true);
+    objectInfo.setHasContent(false);
+    objectInfo.setVersionSeriesId(null);
+    objectInfo.setIsCurrentVersion(true);
+    objectInfo.setRelationshipSourceIds(relationSourceIds);
+    objectInfo.setRelationshipTargetIds(relationTargetIds);
+    objectInfo.setRenditionInfos(null);
+    objectInfo.setSupportsDescendants(true);
+    objectInfo.setSupportsFolderTree(true);
+    objectInfo.setSupportsPolicies(false);
+    objectInfo.setSupportsRelationships(true);
+    objectInfo.setWorkingCopyId(null);
+    objectInfo.setWorkingCopyOriginalId(null);
+  }
+ else {
+    typeId=CmsCmisTypeManager.DOCUMENT_TYPE_ID;
+    objectInfo.setBaseType(BaseTypeId.CMIS_DOCUMENT);
+    objectInfo.setTypeId(typeId);
+    objectInfo.setHasAcl(true);
+    objectInfo.setHasContent(true);
+    objectInfo.setHasParent(true);
+    objectInfo.setVersionSeriesId(null);
+    objectInfo.setIsCurrentVersion(true);
+    objectInfo.setRelationshipSourceIds(relationSourceIds);
+    objectInfo.setRelationshipTargetIds(relationTargetIds);
+    objectInfo.setRenditionInfos(null);
+    objectInfo.setSupportsDescendants(false);
+    objectInfo.setSupportsFolderTree(false);
+    objectInfo.setSupportsPolicies(false);
+    objectInfo.setSupportsRelationships(true);
+    objectInfo.setWorkingCopyId(null);
+    objectInfo.setWorkingCopyOriginalId(null);
+  }
+  try {
+    PropertiesImpl result=new PropertiesImpl();
+    String id=resource.getStructureId().toString();
+    addPropertyId(tm,result,typeId,filter,PropertyIds.OBJECT_ID,id);
+    objectInfo.setId(id);
+    String name=resource.getName();
+    addPropertyString(tm,result,typeId,filter,PropertyIds.NAME,name);
+    objectInfo.setName(name);
+    CmsUUID creatorId=resource.getUserCreated();
+    CmsUUID modifierId=resource.getUserLastModified();
+    String creatorName=creatorId.toString();
+    String modifierName=modifierId.toString();
+    try {
+      CmsUser user=cms.readUser(creatorId);
+      creatorName=user.getName();
+    }
+ catch (    CmsException e) {
+    }
+    try {
+      CmsUser user=cms.readUser(modifierId);
+      modifierName=user.getName();
+    }
+ catch (    CmsException e) {
+    }
+    addPropertyString(tm,result,typeId,filter,PropertyIds.CREATED_BY,creatorName);
+    addPropertyString(tm,result,typeId,filter,PropertyIds.LAST_MODIFIED_BY,modifierName);
+    objectInfo.setCreatedBy(creatorName);
+    GregorianCalendar lastModified=millisToCalendar(resource.getDateLastModified());
+    GregorianCalendar created=millisToCalendar(resource.getDateCreated());
+    addPropertyDateTime(tm,result,typeId,filter,PropertyIds.CREATION_DATE,created);
+    addPropertyDateTime(tm,result,typeId,filter,PropertyIds.LAST_MODIFICATION_DATE,lastModified);
+    objectInfo.setCreationDate(created);
+    objectInfo.setLastModificationDate(lastModified);
+    addPropertyString(tm,result,typeId,filter,PropertyIds.CHANGE_TOKEN,null);
+    if (resource.isFolder()) {
+      addPropertyId(tm,result,typeId,filter,PropertyIds.BASE_TYPE_ID,BaseTypeId.CMIS_FOLDER.value());
+      addPropertyId(tm,result,typeId,filter,PropertyIds.OBJECT_TYPE_ID,TypeManager.FOLDER_TYPE_ID);
+      String path=resource.getRootPath();
+      addPropertyString(tm,result,typeId,filter,PropertyIds.PATH,(path.length() == 0 ? "/" : path));
+      if (resource.getRootPath().length() > 1) {
+        CmsResource parent=cms.readParentFolder(resource.getStructureId());
+        addPropertyId(tm,result,typeId,filter,PropertyIds.PARENT_ID,(parent.getStructureId().toString()));
+        objectInfo.setHasParent(true);
+      }
+ else {
+        addPropertyId(tm,result,typeId,filter,PropertyIds.PARENT_ID,null);
+        objectInfo.setHasParent(false);
+      }
+      addPropertyIdList(tm,result,typeId,filter,PropertyIds.ALLOWED_CHILD_OBJECT_TYPE_IDS,null);
+    }
+ else {
+      addPropertyId(tm,result,typeId,filter,PropertyIds.BASE_TYPE_ID,BaseTypeId.CMIS_DOCUMENT.value());
+      addPropertyId(tm,result,typeId,filter,PropertyIds.OBJECT_TYPE_ID,TypeManager.DOCUMENT_TYPE_ID);
+      addPropertyBoolean(tm,result,typeId,filter,PropertyIds.IS_IMMUTABLE,false);
+      addPropertyBoolean(tm,result,typeId,filter,PropertyIds.IS_LATEST_VERSION,true);
+      addPropertyBoolean(tm,result,typeId,filter,PropertyIds.IS_MAJOR_VERSION,true);
+      addPropertyBoolean(tm,result,typeId,filter,PropertyIds.IS_LATEST_MAJOR_VERSION,true);
+      addPropertyString(tm,result,typeId,filter,PropertyIds.VERSION_LABEL,resource.getName());
+      addPropertyId(tm,result,typeId,filter,PropertyIds.VERSION_SERIES_ID,resource.getStructureId().toString());
+      addPropertyBoolean(tm,result,typeId,filter,PropertyIds.IS_VERSION_SERIES_CHECKED_OUT,false);
+      addPropertyString(tm,result,typeId,filter,PropertyIds.VERSION_SERIES_CHECKED_OUT_BY,null);
+      addPropertyString(tm,result,typeId,filter,PropertyIds.VERSION_SERIES_CHECKED_OUT_ID,null);
+      addPropertyString(tm,result,typeId,filter,PropertyIds.CHECKIN_COMMENT,"");
+      addPropertyInteger(tm,result,typeId,filter,PropertyIds.CONTENT_STREAM_LENGTH,resource.getLength());
+      addPropertyString(tm,result,typeId,filter,PropertyIds.CONTENT_STREAM_MIME_TYPE,OpenCms.getResourceManager().getMimeType(resource.getRootPath(),null,CmsResourceManager.MIMETYPE_TEXT));
+      addPropertyString(tm,result,typeId,filter,PropertyIds.CONTENT_STREAM_FILE_NAME,resource.getName());
+      objectInfo.setHasContent(true);
+      objectInfo.setContentType(OpenCms.getResourceManager().getMimeType(resource.getRootPath(),null,CmsResourceManager.MIMETYPE_TEXT));
+      objectInfo.setFileName(resource.getName());
+      addPropertyId(tm,result,typeId,filter,PropertyIds.CONTENT_STREAM_ID,null);
+    }
+    List<CmsProperty> props=cms.readPropertyObjects(resource,false);
+    Set<String> propertiesToAdd=new LinkedHashSet<String>(m_repository.getTypeManager().getCmsPropertyNames());
+    for (    CmsProperty prop : props) {
+      addPropertyString(tm,result,typeId,filter,CmsCmisTypeManager.PROPERTY_PREFIX + prop.getName(),prop.getValue());
+      propertiesToAdd.remove(prop.getName());
+    }
+    for (    String propName : propertiesToAdd) {
+      addPropertyString(tm,result,typeId,filter,CmsCmisTypeManager.PROPERTY_PREFIX + propName,null);
+    }
+    I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(resource);
+    addPropertyString(tm,result,typeId,filter,CmsCmisTypeManager.PROPERTY_RESOURCE_TYPE,resType.getTypeName());
+    return result;
+  }
+ catch (  Exception e) {
+    if (e instanceof CmisBaseException) {
+      throw (CmisBaseException)e;
+    }
+    throw new CmisRuntimeException(e.getMessage(),e);
+  }
+}
