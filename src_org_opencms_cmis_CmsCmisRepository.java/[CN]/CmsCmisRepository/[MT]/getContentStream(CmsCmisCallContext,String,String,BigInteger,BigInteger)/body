@@ -1,30 +1,28 @@
 {
   try {
     CmsObject cms=getCmsObject(context);
-    if ((offset != null) || (length != null)) {
-      throw new CmisInvalidArgumentException("Offset and Length are not supported!");
-    }
     CmsResource resource=cms.readResource(new CmsUUID(objectId));
-    if ((streamId != null) && CmsUUID.isValidUUID(objectId)) {
+    byte[] contents=null;
+    if (streamId != null) {
       I_CmsCmisRenditionProvider renditionProvider=m_renditionProviders.get(streamId);
       if (renditionProvider == null) {
         throw new CmisRuntimeException("Invalid stream id " + streamId);
       }
-      ContentStream result=renditionProvider.getContentStream(cms,resource);
-      return result;
+      contents=renditionProvider.getContent(cms,resource);
     }
-    if (resource.isFolder()) {
+ else     if (resource.isFolder()) {
       throw new CmisStreamNotSupportedException("Not a file!");
     }
-    CmsFile file=cms.readFile(resource);
-    byte[] contents;
-    contents=file.getContents();
+ else {
+      CmsFile file=cms.readFile(resource);
+      contents=file.getContents();
+    }
     contents=extractRange(contents,offset,length);
     InputStream stream=new ByteArrayInputStream(contents);
     ContentStreamImpl result=new ContentStreamImpl();
-    result.setFileName(file.getName());
+    result.setFileName(resource.getName());
     result.setLength(BigInteger.valueOf(contents.length));
-    result.setMimeType(OpenCms.getResourceManager().getMimeType(file.getRootPath(),null,"text/plain"));
+    result.setMimeType(OpenCms.getResourceManager().getMimeType(resource.getRootPath(),null,"text/plain"));
     result.setStream(stream);
     return result;
   }
