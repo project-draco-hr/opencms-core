@@ -1,0 +1,46 @@
+{
+  final Set<String> initCalls=new HashSet<String>();
+  for (  CmsExternalWidgetConfiguration widgetConfiguration : externalWidgetConfigurations) {
+    if (!m_widgetRegistry.containsKey(widgetConfiguration.getWidgetName())) {
+      for (      String cssResource : widgetConfiguration.getCssResourceLinks()) {
+        ensureStyleSheetIncluded(cssResource);
+      }
+      for (      String javaScriptResource : widgetConfiguration.getJavaScriptResourceLinks()) {
+        ensureJavaScriptIncluded(javaScriptResource);
+      }
+      initCalls.add(widgetConfiguration.getInitCall());
+    }
+  }
+  if (initCalls.isEmpty()) {
+    callback.execute();
+  }
+ else {
+    Scheduler.get().scheduleFixedDelay(new RepeatingCommand(){
+      /** 
+ * The number of repeats. 
+ */
+      private int m_repeats;
+      /** 
+ * @see com.google.gwt.core.client.Scheduler.RepeatingCommand#execute()
+ */
+      public boolean execute(){
+        m_repeats++;
+        Iterator<String> it=initCalls.iterator();
+        while (it.hasNext()) {
+          String initCall=it.next();
+          if (tryInitCall(initCall)) {
+            it.remove();
+          }
+        }
+        if (initCalls.isEmpty()) {
+          callback.execute();
+          return false;
+        }
+ else {
+          return m_repeats < 100;
+        }
+      }
+    }
+,50);
+  }
+}
