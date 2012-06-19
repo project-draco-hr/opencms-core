@@ -1,0 +1,33 @@
+{
+  CmsAliasEditValidationReply reply=validateAliases(saveRequest);
+  if (m_hasErrors) {
+    return reply;
+  }
+ else {
+    Set<CmsUUID> allTouchedIds=new HashSet<CmsUUID>();
+    List<CmsAliasTableRow> rows=saveRequest.getEditedData();
+    for (    CmsAliasTableRow row : rows) {
+      if (row.isEdited()) {
+        allTouchedIds.add(row.getStructureId());
+        if (row.getOriginalStructureId() != null) {
+          allTouchedIds.add(row.getOriginalStructureId());
+        }
+      }
+    }
+    allTouchedIds.addAll(saveRequest.getDeletedIds());
+    CmsAliasManager aliasManager=OpenCms.getAliasManager();
+    String siteRoot=saveRequest.getSiteRoot();
+    List<CmsAlias> aliases=aliasManager.getAliasesForSite(m_cms,siteRoot);
+    Set<CmsAlias> aliasSet=new HashSet<CmsAlias>();
+    Set<CmsAlias> editedAliasSet=new HashSet<CmsAlias>();
+    aliasSet.addAll(aliases);
+    for (    CmsAliasTableRow row : rows) {
+      CmsAlias editedAlias=new CmsAlias(row.getStructureId(),siteRoot,row.getAliasPath(),row.getMode());
+      editedAliasSet.add(editedAlias);
+    }
+    Set<CmsAlias> toDelete=Sets.difference(aliasSet,editedAliasSet);
+    Set<CmsAlias> toAdd=Sets.difference(editedAliasSet,aliasSet);
+    aliasManager.updateAliases(m_cms,toDelete,toAdd);
+    return null;
+  }
+}

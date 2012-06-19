@@ -1,0 +1,43 @@
+{
+  List<CmsAliasTableRow> editedData=validationRequest.getEditedData();
+  CmsAliasTableRow newEntry=validationRequest.getNewEntry();
+  if (newEntry != null) {
+    newEntry.setKey((new CmsUUID()).toString());
+    editedData.add(newEntry);
+  }
+  CmsObject cms=m_cms;
+  for (  CmsAliasTableRow row : editedData) {
+    row.clearErrors();
+    validateSingleAliasRow(cms,row);
+  }
+  Set<String> foundAliasPaths=new HashSet<String>();
+  Set<String> duplicateAliasPaths=new HashSet<String>();
+  for (  CmsAliasTableRow row : editedData) {
+    String aliasPath=row.getAliasPath();
+    if (foundAliasPaths.contains(aliasPath)) {
+      duplicateAliasPaths.add(aliasPath);
+    }
+    foundAliasPaths.add(aliasPath);
+  }
+  for (  CmsAliasTableRow row : editedData) {
+    if (duplicateAliasPaths.contains(row.getAliasPath())) {
+      if (row.getPathError() == null) {
+        row.setAliasError("Duplicate alias path!");
+        m_hasErrors=true;
+      }
+    }
+  }
+  CmsAliasEditValidationReply result=new CmsAliasEditValidationReply();
+  List<CmsAliasTableRow> changedRows=new ArrayList<CmsAliasTableRow>();
+  for (  CmsAliasTableRow row : editedData) {
+    if (row.isChanged()) {
+      changedRows.add(row);
+    }
+  }
+  if (newEntry != null) {
+    changedRows.remove(newEntry);
+  }
+  result.setChangedRows(changedRows);
+  result.setValidatedNewEntry(newEntry);
+  return result;
+}

@@ -1,0 +1,31 @@
+{
+  CmsResource resource;
+  String originalSiteRoot=cms.getRequestContext().getSiteRoot();
+  try {
+    cms.getRequestContext().setSiteRoot(siteRoot);
+    resource=cms.readResource(vfsPath);
+  }
+ catch (  CmsException e) {
+    return new CmsAliasImportResult(CmsAliasImportStatus.aliasError,"Could not read resource: " + vfsPath);
+  }
+ finally {
+    cms.getRequestContext().setSiteRoot(originalSiteRoot);
+  }
+  if (!CmsAlias.ALIAS_PATTERN.matcher(aliasPath).matches()) {
+    return new CmsAliasImportResult(CmsAliasImportStatus.aliasError,"Invalid alias path: " + aliasPath);
+  }
+  List<CmsAlias> maybeAlias=getAliasesForPath(cms,siteRoot,aliasPath);
+  if (maybeAlias.isEmpty()) {
+    CmsAlias newAlias=new CmsAlias(resource.getStructureId(),siteRoot,aliasPath,mode);
+    m_securityManager.addAlias(cms.getRequestContext(),newAlias);
+    return new CmsAliasImportResult(CmsAliasImportStatus.aliasNew,"OK");
+  }
+ else {
+    CmsAlias existingAlias=maybeAlias.get(0);
+    CmsAliasFilter deleteFilter=new CmsAliasFilter(siteRoot,existingAlias.getAliasPath(),existingAlias.getStructureId());
+    m_securityManager.deleteAliases(cms.getRequestContext(),deleteFilter);
+    CmsAlias newAlias=new CmsAlias(resource.getStructureId(),siteRoot,aliasPath,mode);
+    m_securityManager.addAlias(cms.getRequestContext(),newAlias);
+    return new CmsAliasImportResult(CmsAliasImportStatus.aliasChanged,"OK");
+  }
+}
