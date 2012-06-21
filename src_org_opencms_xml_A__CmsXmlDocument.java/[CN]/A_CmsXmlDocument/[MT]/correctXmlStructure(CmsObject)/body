@@ -23,50 +23,58 @@
       validValues.add(value);
     }
     if (isAutoCorrectionEnabled()) {
-      List<Element> roots=new ArrayList<Element>();
-      List<CmsXmlContentDefinition> rootCds=new ArrayList<CmsXmlContentDefinition>();
-      List<Element> validElements=new ArrayList<Element>();
-      Iterator<I_CmsXmlContentValue> it=validValues.iterator();
-      while (it.hasNext()) {
-        I_CmsXmlContentValue value=it.next();
-        Element element=value.getElement();
-        validElements.add(element);
-        if (element.supportsParent()) {
-          Element root=element.getParent();
-          if ((root != null) && !roots.contains(root)) {
-            CmsXmlContentDefinition rcd=value.getContentDefinition();
-            if (rcd != null) {
-              roots.add(root);
-              rootCds.add(rcd);
-            }
- else {
-              throw new CmsXmlException(Messages.get().container(Messages.ERR_CORRECT_NO_CONTENT_DEF_3,value.getName(),value.getTypeName(),value.getPath()));
-            }
-          }
+      if (validValues.size() < 1) {
+        if (hasLocale(locale)) {
+          removeLocale(locale);
         }
+        addLocale(cms,locale);
       }
-      for (int le=0; le < roots.size(); le++) {
-        Element root=roots.get(le);
-        CmsXmlContentDefinition cd=rootCds.get(le);
-        List<List<Element>> nodeLists=new ArrayList<List<Element>>();
-        for (        I_CmsXmlSchemaType type : cd.getTypeSequence()) {
-          List<Element> elements=CmsXmlGenericWrapper.elements(root,type.getName());
-          int maxOccures=cd.getChoiceMaxOccurs() > 0 ? cd.getChoiceMaxOccurs() : type.getMaxOccurs();
-          if (elements.size() > maxOccures) {
-            for (int lo=(elements.size() - 1); lo >= type.getMaxOccurs(); lo--) {
-              elements.remove(lo);
+ else {
+        List<Element> roots=new ArrayList<Element>();
+        List<CmsXmlContentDefinition> rootCds=new ArrayList<CmsXmlContentDefinition>();
+        List<Element> validElements=new ArrayList<Element>();
+        Iterator<I_CmsXmlContentValue> it=validValues.iterator();
+        while (it.hasNext()) {
+          I_CmsXmlContentValue value=it.next();
+          Element element=value.getElement();
+          validElements.add(element);
+          if (element.supportsParent()) {
+            Element root=element.getParent();
+            if ((root != null) && !roots.contains(root)) {
+              CmsXmlContentDefinition rcd=value.getContentDefinition();
+              if (rcd != null) {
+                roots.add(root);
+                rootCds.add(rcd);
+              }
+ else {
+                throw new CmsXmlException(Messages.get().container(Messages.ERR_CORRECT_NO_CONTENT_DEF_3,value.getName(),value.getTypeName(),value.getPath()));
+              }
             }
           }
-          nodeLists.add(elements);
         }
-        List<Element> nodeList=CmsXmlGenericWrapper.elements(root);
-        nodeList.clear();
-        Iterator<List<Element>> in=nodeLists.iterator();
-        while (in.hasNext()) {
-          List<Element> elements=in.next();
-          nodeList.addAll(elements);
+        for (int le=0; le < roots.size(); le++) {
+          Element root=roots.get(le);
+          CmsXmlContentDefinition cd=rootCds.get(le);
+          List<List<Element>> nodeLists=new ArrayList<List<Element>>();
+          for (          I_CmsXmlSchemaType type : cd.getTypeSequence()) {
+            List<Element> elements=CmsXmlGenericWrapper.elements(root,type.getName());
+            int maxOccures=cd.getChoiceMaxOccurs() > 0 ? cd.getChoiceMaxOccurs() : type.getMaxOccurs();
+            if (elements.size() > maxOccures) {
+              for (int lo=(elements.size() - 1); lo >= type.getMaxOccurs(); lo--) {
+                elements.remove(lo);
+              }
+            }
+            nodeLists.add(elements);
+          }
+          List<Element> nodeList=CmsXmlGenericWrapper.elements(root);
+          nodeList.clear();
+          Iterator<List<Element>> in=nodeLists.iterator();
+          while (in.hasNext()) {
+            List<Element> elements=in.next();
+            nodeList.addAll(elements);
+          }
+          cd.addDefaultXml(cms,this,root,locale);
         }
-        cd.addDefaultXml(cms,this,root,locale);
       }
     }
   }
