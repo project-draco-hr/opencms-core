@@ -24,7 +24,7 @@ break;
 case undelete:
 case create:
 CmsClientSitemapEntry newEntry=change.getUpdatedEntry();
-getEntryById(change.getParentId()).insertSubEntry(newEntry,change.getPosition());
+getEntryById(change.getParentId()).insertSubEntry(newEntry,change.getPosition(),this);
 newEntry.initializeAll(this);
 if (isDetailPage(newEntry)) {
 CmsDetailPageInfo info=getDetailPageInfo(newEntry.getId());
@@ -45,17 +45,22 @@ CmsClientSitemapEntry sourceParent=getEntry(CmsResource.getParentFolder(oldSitep
 sourceParent.removeSubEntry(moved.getId());
 CmsClientSitemapEntry destParent=change.hasNewParent() ? getEntryById(change.getParentId()) : sourceParent;
 if (change.getPosition() < destParent.getSubEntries().size()) {
-destParent.insertSubEntry(moved,change.getPosition());
+destParent.insertSubEntry(moved,change.getPosition(),this);
 }
  else {
-destParent.addSubEntry(moved);
+destParent.addSubEntry(moved,this);
+}
+if (change.hasNewParent()) {
+cleanupOldPaths(oldSitepath,destParent.getSitePath());
 }
 }
 if (change.hasChangedName()) {
 CmsClientSitemapEntry changed=getEntryById(change.getEntryId());
 String oldSitepath=changed.getSitePath();
 CmsClientSitemapEntry parent=getEntry(CmsResource.getParentFolder(oldSitepath));
-changed.updateSitePath(CmsStringUtil.joinPaths(parent.getSitePath(),change.getName()));
+String newSitepath=CmsStringUtil.joinPaths(parent.getSitePath(),change.getName());
+changed.updateSitePath(newSitepath,this);
+cleanupOldPaths(oldSitepath,newSitepath);
 }
 if (change.hasChangedProperties()) {
 for (CmsPropertyModification modification : change.getPropertyChanges()) {
@@ -67,7 +72,7 @@ if (change.getUpdatedEntry() != null) {
 CmsClientSitemapEntry oldEntry=getEntryById(change.getEntryId());
 CmsClientSitemapEntry parent=getEntry(CmsResource.getParentFolder(oldEntry.getSitePath()));
 removeEntry(change.getEntryId(),parent.getId());
-parent.insertSubEntry(change.getUpdatedEntry(),oldEntry.getPosition());
+parent.insertSubEntry(change.getUpdatedEntry(),oldEntry.getPosition(),this);
 change.getUpdatedEntry().initializeAll(this);
 }
 break;
