@@ -1,8 +1,29 @@
 {
-  if (shouldUseLogForUserPublishLists()) {
-    return getUsersPubListLog(dbc,userId);
-  }
- else {
-    return readUserPublishListEntries(dbc,userId);
+  List<CmsResource> result=new ArrayList<CmsResource>();
+synchronized (m_userPublishListLock) {
+    Connection conn=null;
+    PreparedStatement stmt=null;
+    ResultSet res=null;
+    try {
+      conn=m_sqlManager.getConnection(dbc);
+      String sql=m_sqlManager.readQuery("C_USER_PUBLISH_LIST_READ_1");
+      sql=sql.replace("${PROJECT}","OFFLINE");
+      stmt=m_sqlManager.getPreparedStatementForSql(conn,sql);
+      stmt.setString(1,userId.toString());
+      res=stmt.executeQuery();
+      while (res.next()) {
+        CmsResource resource=m_driverManager.getVfsDriver(dbc).createResource(res,dbc.currentProject().getUuid());
+        long date=res.getLong("DATE_CHANGED");
+        resource.setDateLastModified(date);
+        result.add(resource);
+      }
+      return result;
+    }
+ catch (    SQLException e) {
+      throw new CmsDbSqlException(Messages.get().container(Messages.ERR_GENERIC_SQL_1,CmsDbSqlException.getErrorQuery(stmt)),e);
+    }
+ finally {
+      m_sqlManager.closeAll(dbc,conn,stmt,res);
+    }
   }
 }
