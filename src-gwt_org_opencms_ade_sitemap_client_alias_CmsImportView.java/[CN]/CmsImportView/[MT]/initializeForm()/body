@@ -8,15 +8,27 @@
   m_formPanelContents.add(siteRootField);
   m_formPanel.addSubmitCompleteHandler(new SubmitCompleteHandler(){
     public void onSubmitComplete(    SubmitCompleteEvent event){
-      String results=event.getResults();
-      handleImportResults(results);
-      Timer resizeTimer=new Timer(){
-        @Override public void run(){
-          m_scrollPanel.onResize();
+      final String formPostResults=event.getResults();
+      final I_CmsSitemapServiceAsync service=CmsSitemapView.getInstance().getController().getService();
+      CmsRpcAction<List<CmsAliasImportResult>> action=new CmsRpcAction<List<CmsAliasImportResult>>(){
+        @Override public void execute(){
+          start(200,false);
+          service.getAliasImportResult(formPostResults.trim(),this);
+        }
+        @Override public void onResponse(        List<CmsAliasImportResult> result){
+          stop(false);
+          handleImportResults(result);
+          Timer resizeTimer=new Timer(){
+            @Override public void run(){
+              m_scrollPanel.onResize();
+            }
+          }
+;
+          resizeTimer.schedule(100);
         }
       }
 ;
-      resizeTimer.schedule(100);
+      action.execute();
     }
   }
 );
