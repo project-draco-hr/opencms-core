@@ -1,0 +1,46 @@
+{
+  try {
+    CmsResource res=getCmsObject().readResource(id);
+    List<CmsProperty> properties=getCmsObject().readPropertyObjects(res,false);
+    String title=CmsProperty.get(CmsPropertyDefinition.PROPERTY_TITLE,properties).getValue();
+    if (title == null) {
+      title=res.getName();
+    }
+    String description=CmsProperty.get(CmsPropertyDefinition.PROPERTY_DESCRIPTION,properties).getValue();
+    if (description == null) {
+      description=getCmsObject().getSitePath(res);
+    }
+    CmsVfsService vfsService=new CmsVfsService();
+    vfsService.setCms(getCmsObject());
+    vfsService.setRequest(getThreadLocalRequest());
+    CmsListInfoBean listInfo=vfsService.getPageInfo(id);
+    CmsPostUploadDialogPanelBean result=new CmsPostUploadDialogPanelBean(id,listInfo);
+    I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(res.getTypeId());
+    String typeName=type.getTypeName();
+    listInfo.setResourceType(typeName);
+    CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(typeName);
+    List<String> defaultproperties=settings.getProperties();
+    while (properties.isEmpty() && !CmsStringUtil.isEmptyOrWhitespaceOnly(settings.getReference())) {
+      settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(settings.getReference());
+      defaultproperties=settings.getProperties();
+    }
+    Map<String,CmsXmlContentProperty> propertyDefinitions=new LinkedHashMap<String,CmsXmlContentProperty>();
+    Map<String,CmsClientProperty> clientProperties=new LinkedHashMap<String,CmsClientProperty>();
+    for (    String propertyName : defaultproperties) {
+      CmsXmlContentProperty propDef=new CmsXmlContentProperty(propertyName,"string","string","","","","",null,"","","false");
+      propertyDefinitions.put(propertyName,propDef);
+      CmsProperty property=CmsProperty.get(propertyName,properties);
+      if (property != null) {
+        CmsClientProperty clientProperty=new CmsClientProperty(propertyName,property.getStructureValue(),property.getResourceValue());
+        clientProperties.put(clientProperty.getName(),clientProperty);
+      }
+    }
+    result.setPropertyDefinitions(propertyDefinitions);
+    result.setProperties(clientProperties);
+    return result;
+  }
+ catch (  CmsException e) {
+    error(e);
+    return null;
+  }
+}
