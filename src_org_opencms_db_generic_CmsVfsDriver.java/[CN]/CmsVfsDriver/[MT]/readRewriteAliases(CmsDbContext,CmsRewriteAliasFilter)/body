@@ -1,0 +1,33 @@
+{
+  Connection conn=null;
+  PreparedStatement stmt=null;
+  ResultSet res=null;
+  List<CmsRewriteAlias> result=new ArrayList<CmsRewriteAlias>();
+  try {
+    conn=m_sqlManager.getConnection(dbc);
+    CmsPair<String,List<Object>> conditionAndParams=prepareRewriteAliasConditions(filter);
+    String condition=conditionAndParams.getFirst();
+    List<Object> params=conditionAndParams.getSecond();
+    String query=m_sqlManager.readQuery("C_REWRITE_ALIAS_READ") + condition;
+    stmt=m_sqlManager.getPreparedStatementForSql(conn,query);
+    CmsDbUtil.fillParameters(stmt,params);
+    res=stmt.executeQuery();
+    while (res.next()) {
+      int col=1;
+      String id=res.getString(col++);
+      String siteRoot=res.getString(col++);
+      String patternString=res.getString(col++);
+      String replacementString=res.getString(col++);
+      int mode=res.getInt(col++);
+      CmsRewriteAlias alias=new CmsRewriteAlias(new CmsUUID(id),siteRoot,patternString,replacementString,CmsAliasMode.fromInt(mode));
+      result.add(alias);
+    }
+    return result;
+  }
+ catch (  SQLException e) {
+    throw wrapException(stmt,e);
+  }
+ finally {
+    m_sqlManager.closeAll(dbc,conn,stmt,res);
+  }
+}
