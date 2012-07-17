@@ -1,0 +1,55 @@
+{
+  Locale locale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
+  line=line.trim();
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(line) || line.startsWith("#")) {
+    return null;
+  }
+  CSVParser parser=new CSVParser(separator.charAt(0));
+  String[] tokens=null;
+  try {
+    tokens=parser.parseLine(line);
+    for (int i=0; i < tokens.length; i++) {
+      tokens[i]=tokens[i].trim();
+    }
+  }
+ catch (  IOException e) {
+    return new CmsAliasImportResult(line,CmsAliasImportStatus.aliasParseError,messageImportInvalidFormat(locale));
+  }
+  int numTokens=tokens.length;
+  String alias=null;
+  String vfsPath=null;
+  if (numTokens >= 2) {
+    alias=tokens[0];
+    vfsPath=tokens[1];
+  }
+  CmsAliasMode mode=CmsAliasMode.permanentRedirect;
+  if (numTokens >= 3) {
+    try {
+      mode=CmsAliasMode.valueOf(tokens[2].trim());
+    }
+ catch (    Exception e) {
+      return new CmsAliasImportResult(line,CmsAliasImportStatus.aliasParseError,messageImportInvalidFormat(locale));
+    }
+  }
+  boolean isRewrite=false;
+  if (numTokens == 4) {
+    if (!tokens[3].equals("rewrite")) {
+      return new CmsAliasImportResult(line,CmsAliasImportStatus.aliasParseError,messageImportInvalidFormat(locale));
+    }
+ else {
+      isRewrite=true;
+    }
+  }
+  if ((numTokens < 2) || (numTokens > 4)) {
+    return new CmsAliasImportResult(line,CmsAliasImportStatus.aliasParseError,messageImportInvalidFormat(locale));
+  }
+  CmsAliasImportResult returnValue=null;
+  if (isRewrite) {
+    returnValue=processRewriteImport(cms,siteRoot,alias,vfsPath,mode);
+  }
+ else {
+    returnValue=processAliasImport(cms,siteRoot,alias,vfsPath,mode);
+  }
+  returnValue.setLine(line);
+  return returnValue;
+}

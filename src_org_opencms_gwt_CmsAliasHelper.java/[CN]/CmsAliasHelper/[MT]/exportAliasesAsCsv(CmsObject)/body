@@ -1,18 +1,27 @@
 {
   String siteRoot=cms.getRequestContext().getSiteRoot();
   List<CmsAlias> aliases=OpenCms.getAliasManager().getAliasesForSite(cms,siteRoot);
-  StringBuffer resultBuffer=new StringBuffer();
+  StringWriter writer=new StringWriter();
+  @SuppressWarnings("resource") CSVWriter csvWriter=new CSVWriter(writer);
+  StringBuffer resultBuffer=writer.getBuffer();
   for (  CmsAlias alias : aliases) {
     try {
       CmsResource resource=cms.readResource(alias.getStructureId());
-      String line=alias.getAliasPath() + "," + cms.getSitePath(resource)+ ","+ alias.getMode().toString();
-      resultBuffer.append(line);
-      resultBuffer.append("\n");
+      csvWriter.writeNext(new String[]{alias.getAliasPath(),cms.getSitePath(resource),alias.getMode().toString()});
     }
  catch (    CmsException e) {
       LOG.warn("Could not read alias resource",e);
       continue;
     }
+  }
+  List<CmsRewriteAlias> rewriteAliases=OpenCms.getAliasManager().getRewriteAliases(cms,siteRoot);
+  for (  CmsRewriteAlias rewrite : rewriteAliases) {
+    csvWriter.writeNext(new String[]{rewrite.getPatternString(),rewrite.getReplacementString(),rewrite.getMode().toString(),"rewrite"});
+  }
+  try {
+    csvWriter.flush();
+  }
+ catch (  IOException e) {
   }
   return resultBuffer.toString();
 }
