@@ -1,0 +1,28 @@
+{
+  List<CmsResource> result=new ArrayList<CmsResource>();
+  result.addAll(getNavigationPages());
+  Set<String> includeRoots=m_includeExcludeSet.getIncludeRoots();
+  for (  String includeRoot : includeRoots) {
+    try {
+      CmsResource resource=m_guestCms.readResource(includeRoot);
+      if (resource.isFile()) {
+        result.add(resource);
+      }
+ else {
+        List<CmsResource> subtreeFiles=m_guestCms.readResources(includeRoot,CmsResourceFilter.DEFAULT_FILES,true);
+        result.addAll(subtreeFiles);
+      }
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      LOG.warn("Could not read include resource: " + includeRoot);
+    }
+  }
+  Iterator<CmsResource> filterIter=result.iterator();
+  while (filterIter.hasNext()) {
+    CmsResource currentResource=filterIter.next();
+    if (currentResource.isInternal() || m_includeExcludeSet.isExcluded(currentResource.getRootPath())) {
+      filterIter.remove();
+    }
+  }
+  return result;
+}

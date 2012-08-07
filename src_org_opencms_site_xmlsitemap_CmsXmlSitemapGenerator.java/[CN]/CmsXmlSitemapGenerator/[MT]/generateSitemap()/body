@@ -1,0 +1,33 @@
+{
+  String baseSitePath=m_siteGuestCms.getRequestContext().removeSiteRoot(m_baseFolderRootPath);
+  initializeFileData(baseSitePath);
+  for (  CmsResource resource : getDirectPages()) {
+    String sitePath=m_siteGuestCms.getSitePath(resource);
+    List<CmsProperty> propertyList=m_siteGuestCms.readPropertyObjects(resource,true);
+    String onlineLink=OpenCms.getLinkManager().getOnlineLink(m_siteGuestCms,sitePath);
+    boolean isContainerPage=CmsResourceTypeXmlContainerPage.isContainerPage(resource);
+    long dateModified=resource.getDateLastModified();
+    if (isContainerPage) {
+      if (m_computeContainerPageDates) {
+        dateModified=computeContainerPageModificationDate(resource);
+      }
+ else {
+        dateModified=-1;
+      }
+    }
+    CmsXmlSitemapUrlBean urlBean=new CmsXmlSitemapUrlBean(onlineLink,dateModified,getChangeFrequency(propertyList),getPriority(propertyList));
+    addResult(urlBean,3);
+    if (isContainerPage) {
+      Locale locale=getLocale(resource,propertyList);
+      addDetailLinks(resource,locale);
+    }
+  }
+  for (  CmsUUID aliasStructureId : m_pageAliasesBelowBaseFolderByStructureId.keySet()) {
+    addAliasLinks(aliasStructureId);
+  }
+  List<CmsXmlSitemapUrlBean> result=new ArrayList<CmsXmlSitemapUrlBean>();
+  for (  ResultEntry resultEntry : m_resultMap.values()) {
+    result.add(resultEntry.getUrlBean());
+  }
+  return result;
+}
