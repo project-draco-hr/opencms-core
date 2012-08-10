@@ -1,0 +1,46 @@
+{
+  super.initialize();
+  m_solrConfig=OpenCms.getSearchManager().getSolrServerConfiguration();
+  if (m_solrConfig == null) {
+    throw new CmsSearchException(Messages.get().container(Messages.ERR_INDEX_SOLR_CONFIGURATION_MISS_2,getName(),getPath()));
+  }
+ else   if (m_solrConfig.isEmbedded()) {
+    try {
+      CoreContainer coreContainer;
+      if ((m_solr instanceof EmbeddedSolrServer) && (((EmbeddedSolrServer)m_solr).getCoreContainer() != null)) {
+        coreContainer=((EmbeddedSolrServer)m_solr).getCoreContainer();
+      }
+ else {
+        coreContainer=new CoreContainer(m_solrConfig.getHome(),m_solrConfig.getSolrFile());
+        LOG.info(Messages.get().getBundle().key(Messages.LOG_INDEX_SOLR_CORE_CREATE_2,getName(),m_solrConfig.getHome() + File.separatorChar + m_solrConfig.getSolrFile()));
+      }
+      SolrCore core=coreContainer.getCore(getName());
+      if (core == null) {
+        File dataDir=new File(getPath());
+        if (!dataDir.exists()) {
+          if (!dataDir.exists()) {
+            dataDir.mkdirs();
+            LOG.info(Messages.get().getBundle().key(Messages.LOG_INDEX_SOLR_INDEX_DIR_CREATED_2,getName(),getPath()));
+          }
+        }
+        CoreDescriptor descriptor=new CoreDescriptor(coreContainer,"descriptor",m_solrConfig.getHome());
+        descriptor.setDataDir(dataDir.getAbsolutePath());
+        core=new SolrCore(getName(),null,m_solrConfig.getSolrConfig(),m_solrConfig.getSolrSchema(),descriptor);
+      }
+      coreContainer.register(core,false);
+      if (m_solr == null) {
+        m_solr=new EmbeddedSolrServer(coreContainer,getName());
+        LOG.info(Messages.get().getBundle().key(Messages.LOG_INDEX_SOLR_EMBEDDED_CREATED_1,getName()));
+      }
+    }
+ catch (    Exception e) {
+      throw new CmsSearchException(Messages.get().container(Messages.ERR_INDEX_SOLR_EMBEDDED_START_2,getPath(),getName()),e);
+    }
+  }
+ else   if (m_solrConfig.getServerUrl() != null) {
+    m_solr=new HttpSolrServer(m_solrConfig.getServerUrl().toString());
+  }
+ else {
+    throw new CmsSearchException(Messages.get().container(Messages.ERR_INDEX_SOLR_CONFIGURATION_INVALID_0));
+  }
+}

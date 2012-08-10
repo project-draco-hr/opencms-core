@@ -1,0 +1,33 @@
+{
+  EmbeddedSolrServer server=null;
+  File config=new File(SOLR_HOME + "/conf/solrconfig.xml");
+  CoreContainer coreContainer=new CoreContainer(SOLR_HOME,new File(SOLR_HOME + "/solr.xml"));
+  InputSource solrConfig=new InputSource(new FileInputStream(config));
+  SolrConfig defaultConfig=new SolrConfig(SOLR_HOME,null,solrConfig);
+  InputSource solrSchema=new InputSource(new FileInputStream(new File(SOLR_HOME + "/conf/schema.xml")));
+  IndexSchema defaultSchema=new IndexSchema(defaultConfig,null,solrSchema);
+  CoreDescriptor defaultDescriptor=new CoreDescriptor(coreContainer,"descriptor",SOLR_HOME);
+  defaultDescriptor.setDataDir(SOLR_HOME + "/data");
+  SolrCore core1=new SolrCore("default",null,defaultConfig,defaultSchema,defaultDescriptor);
+  InputSource testSolrConfig=new InputSource(new FileInputStream(config));
+  SolrConfig testConfig=new SolrConfig(SOLR_HOME,null,testSolrConfig);
+  InputSource testSolrSchema=new InputSource(new FileInputStream(new File(SOLR_HOME + "/conf/schema.xml")));
+  IndexSchema testSchema=new IndexSchema(testConfig,null,testSolrSchema);
+  CoreDescriptor testDescriptor=new CoreDescriptor(coreContainer,"descriptor",SOLR_HOME);
+  testDescriptor.setDataDir(SOLR_HOME + "/data");
+  SolrCore core2=new SolrCore("test",null,testConfig,testSchema,testDescriptor);
+  coreContainer.register(core1,false);
+  coreContainer.register(core2,false);
+  server=new EmbeddedSolrServer(coreContainer,"test");
+  SolrQuery query=new SolrQuery("*:*");
+  query.setQueryType("dismax");
+  query.setFacet(true);
+  query.addFacetField("category_exact");
+  query.addFacetField("resourceType");
+  query.setFacetMinCount(2);
+  query.setIncludeScore(true);
+  query.setRows(new Integer(100));
+  QueryResponse qr=server.query(query);
+  printResultCount(qr,coreContainer.getCoreNames());
+  server.shutdown();
+}
