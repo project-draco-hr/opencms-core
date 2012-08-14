@@ -6,6 +6,20 @@
   if (!m_searchManager.getClass().equals(CmsSearchManager.class)) {
     searchElement.addAttribute(A_CLASS,m_searchManager.getClass().getName());
   }
+  if (m_searchManager.getSolrServerConfiguration() != null) {
+    Element solr=searchElement.addElement(N_SOLR);
+    CmsSolrConfiguration conf=m_searchManager.getSolrServerConfiguration();
+    solr.addAttribute(A_ENABLED,new Boolean(conf.isEnabled()).toString());
+    if (conf.getServerUrl() != null) {
+      solr.addAttribute(A_SERVER_URL,conf.getServerUrl().toString());
+    }
+    if (conf.getHomeFolderPath() != null) {
+      solr.addElement(N_HOME).addText(conf.getHomeFolderPath());
+    }
+    if (conf.getSolrFileName() != null) {
+      solr.addElement(N_CONFIG_FILE).addText(conf.getSolrFileName());
+    }
+  }
   searchElement.addElement(N_DIRECTORY).addText(m_searchManager.getDirectory());
   searchElement.addElement(N_TIMEOUT).addText(String.valueOf(m_searchManager.getTimeout()));
   searchElement.addElement(N_OFFLINE_UPDATE_FREQUENCY).addText(String.valueOf(m_searchManager.getOfflineUpdateFrequency()));
@@ -46,9 +60,9 @@
     analyzerElement.addElement(N_LOCALE).addText(searchAnalyzer.getLocale().toString());
   }
   Element indexesElement=searchElement.addElement(N_INDEXES);
-  for (  CmsSearchIndex searchIndex : m_searchManager.getSearchIndexes()) {
+  for (  A_CmsSearchIndex searchIndex : m_searchManager.getSearchIndexes()) {
     Element indexElement=indexesElement.addElement(N_INDEX);
-    if (!searchIndex.getClass().equals(CmsSearchIndex.class)) {
+    if (!searchIndex.getClass().equals(CmsLuceneIndex.class)) {
       indexElement.addAttribute(A_CLASS,searchIndex.getClass().getName());
     }
     indexElement.addElement(N_NAME).addText(searchIndex.getName());
@@ -89,7 +103,7 @@
     }
   }
   Element fieldConfigurationsElement=searchElement.addElement(N_FIELDCONFIGURATIONS);
-  for (  CmsSearchFieldConfiguration fieldConfiguration : m_searchManager.getFieldConfigurations()) {
+  for (  I_CmsSearchFieldConfiguration fieldConfiguration : m_searchManager.getFieldConfigurations()) {
     Element fieldConfigurationElement=fieldConfigurationsElement.addElement(N_FIELDCONFIGURATION);
     if (!fieldConfiguration.getClass().equals(CmsSearchFieldConfiguration.class)) {
       fieldConfigurationElement.addAttribute(A_CLASS,fieldConfiguration.getClass().getName());
@@ -99,7 +113,8 @@
       fieldConfigurationElement.addElement(N_DESCRIPTION).setText(fieldConfiguration.getDescription());
     }
     Element fieldsElement=fieldConfigurationElement.addElement(N_FIELDS);
-    for (    CmsSearchField field : fieldConfiguration.getFields()) {
+    for (    I_CmsSearchField sfield : fieldConfiguration.getFields()) {
+      CmsSearchField field=(CmsSearchField)sfield;
       Element fieldElement=fieldsElement.addElement(N_FIELD);
       fieldElement.addAttribute(A_NAME,field.getName());
       if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(field.getDisplayNameForConfiguration())) {
@@ -124,7 +139,7 @@
         index=CmsStringUtil.FALSE;
       }
       fieldElement.addAttribute(A_INDEX,index);
-      if (field.getBoost() != CmsSearchField.BOOST_DEFAULT) {
+      if (field.getBoost() != I_CmsSearchField.BOOST_DEFAULT) {
         fieldElement.addAttribute(A_BOOST,String.valueOf(field.getBoost()));
       }
       if (field.isInExcerptAndStored()) {
@@ -140,7 +155,7 @@
         }
         fieldElement.addAttribute(A_ANALYZER,className);
       }
-      for (      CmsSearchFieldMapping mapping : field.getMappings()) {
+      for (      I_CmsSearchFieldMapping mapping : field.getMappings()) {
         Element mappingElement=fieldElement.addElement(N_MAPPING);
         mappingElement.addAttribute(A_TYPE,mapping.getType().toString());
         if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(mapping.getDefaultValue())) {

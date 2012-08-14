@@ -1,0 +1,32 @@
+{
+  I_CmsExtractionResult content=null;
+  if (index.isExtractingContent()) {
+    CmsExtractionResultCache cache=getCache();
+    String cacheName=null;
+    if ((cache != null) && (resource.getSiblingCount() > 1)) {
+      cacheName=cache.getCacheName(resource,isLocaleDependend() ? index.getLocaleForResource(cms,resource,null) : null);
+      content=cache.getCacheObject(cacheName);
+    }
+    if (content == null) {
+      I_CmsSearchDocument oldDoc=index.getDocument(I_CmsSearchField.FIELD_PATH,resource.getRootPath());
+      if ((oldDoc != null) && (oldDoc.getFieldValueAsDate(I_CmsSearchField.FIELD_DATE_CONTENT) != null)) {
+        long contentDateIndex=oldDoc.getFieldValueAsDate(I_CmsSearchField.FIELD_DATE_CONTENT).getTime();
+        if (contentDateIndex == resource.getDateContent()) {
+          content=CmsExtractionResult.fromBytes(oldDoc.getContentBlob());
+        }
+      }
+    }
+    if (content == null) {
+      try {
+        content=extractContent(cms,resource,index);
+        if ((cache != null) && (resource.getSiblingCount() > 1)) {
+          cache.saveCacheObject(cacheName,content);
+        }
+      }
+ catch (      Exception e) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_TEXT_EXTRACTION_1,resource.getRootPath()),e);
+      }
+    }
+  }
+  return index.getFieldConfiguration().createDocument(cms,resource,index,content);
+}
