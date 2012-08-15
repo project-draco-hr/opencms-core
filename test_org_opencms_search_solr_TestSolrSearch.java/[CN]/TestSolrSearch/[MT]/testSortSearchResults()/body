@@ -1,0 +1,49 @@
+{
+  CmsObject cms=getCmsObject();
+  echo("Testing sorting of search results");
+  CmsSolrIndex index=OpenCms.getSearchManager().getIndexSolr(AllSolrTests.SOLR_OFFLINE);
+  OpenCms.getSearchManager().rebuildIndex(AllSolrTests.SOLR_OFFLINE,new CmsShellReport(cms.getRequestContext().getLocale()));
+  String query="q=content_en:opencms meta_en:opencms";
+  CmsSolrResultList results=index.search(getCmsObject(),query);
+  System.out.println("Result sorted by relevance:");
+  AllSolrTests.printResults(getCmsObject(),results,false);
+  float maxScore=results.getMaxScore().floatValue();
+  int score=results.get(0).getScore(maxScore);
+  assertTrue("Best match by score must always be 100 but is " + score,score == 100);
+  for (int i=1; i < results.size(); i++) {
+    assertTrue("Resource " + results.get(i - 1).getRootPath() + " not sorted as expected - index ["+ (i - 1)+ "/"+ i+ "]",results.get(i - 1).getScore(maxScore) >= results.get(i).getScore(maxScore));
+  }
+  String lastTitle=null;
+  SolrQuery q=new SolrQuery(query);
+  q.addSortField("title-key",ORDER.asc);
+  q.addSortField("score",ORDER.asc);
+  results=index.search(getCmsObject(),q.getQuery());
+  System.out.println("Result sorted by title:");
+  AllSolrTests.printResults(getCmsObject(),results,false);
+  Iterator<CmsSearchResource> i=results.iterator();
+  while (i.hasNext()) {
+    CmsSearchResource res=i.next();
+    if (lastTitle != null) {
+      assertTrue(lastTitle.compareTo(res.getField(I_CmsSearchField.FIELD_TITLE)) <= 0);
+    }
+    lastTitle=res.getField(I_CmsSearchField.FIELD_TITLE);
+  }
+  long lastTime=0;
+  q=new SolrQuery(query);
+  q.setQueryType("dismax");
+  q.addField("*,score");
+  q.setRows(new Integer(100));
+  q.addSortField("lastmodified",ORDER.desc);
+  results=index.search(getCmsObject(),q);
+  System.out.println("Result sorted by date last modified:");
+  AllSolrTests.printResults(getCmsObject(),results,false);
+  i=results.iterator();
+  while (i.hasNext()) {
+    CmsSearchResource res=i.next();
+    if (lastTime > 0) {
+      assertTrue(lastTime >= res.getDateLastModified());
+      assertTrue(res.getScore(results.getMaxScore().floatValue()) <= 100);
+    }
+    lastTime=res.getDateLastModified();
+  }
+}
