@@ -7,11 +7,20 @@
     Map<String,String> items=new HashMap<String,String>();
     StringBuffer locales=new StringBuffer();
     for (    Locale locale : xmlContent.getLocales()) {
+      List<Locale> otherLocales=new ArrayList<Locale>(xmlContent.getLocales());
+      otherLocales.remove(locale);
       locales.append(locale.toString());
       locales.append(' ');
       StringBuffer content=new StringBuffer();
       for (      String xpath : xmlContent.getNames(locale)) {
         I_CmsXmlContentValue value=xmlContent.getValue(xpath,locale);
+        List<Locale> valuesNotAvailableInLocale=new ArrayList<Locale>();
+        for (        Locale oLocale : otherLocales) {
+          I_CmsXmlContentValue valueNA=xmlContent.getValue(xpath,oLocale);
+          if (valueNA == null) {
+            valuesNotAvailableInLocale.add(oLocale);
+          }
+        }
         String extracted=value.getPlainText(cms);
         if (value.isSimpleType()) {
           if (value.getContentDefinition().getContentHandler().isSearchable(value) && CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
@@ -27,11 +36,18 @@
  catch (            CmsRuntimeException re) {
             }
           }
-          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
-            CmsSolrField field=xmlContent.getHandler().getSolrField(value);
-            if (field != null) {
+          CmsSolrField field=xmlContent.getHandler().getSolrField(value);
+          if (field != null) {
+            if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
               items.put(A_CmsSearchFieldConfiguration.getLocaleExtendedName(CmsXmlUtils.removeXpath(xpath),locale),extracted);
               fields.add(field);
+            }
+            for (            Locale naLocale : valuesNotAvailableInLocale) {
+              items.put(A_CmsSearchFieldConfiguration.getLocaleExtendedName(CmsXmlUtils.removeXpath(xpath),naLocale),null);
+              int ind=field.getTargetField().lastIndexOf("_" + locale.toString());
+              String newFieldName=A_CmsSearchFieldConfiguration.getLocaleExtendedName(field.getTargetField().substring(0,ind),naLocale);
+              CmsSolrField naField=new CmsSolrField(newFieldName,field.getCopyFields(),naLocale,field.getDefaultValue(),field.getBoost());
+              fields.add(naField);
             }
           }
         }
