@@ -3,24 +3,14 @@
   try {
     CmsFile file=readFile(cms,resource);
     A_CmsXmlDocument xmlContent=CmsXmlContentFactory.unmarshal(cms,file);
-    Set<I_CmsSearchField> fields=new HashSet<I_CmsSearchField>();
     Map<String,String> items=new HashMap<String,String>();
     StringBuffer locales=new StringBuffer();
     for (    Locale locale : xmlContent.getLocales()) {
-      List<Locale> otherLocales=new ArrayList<Locale>(xmlContent.getLocales());
-      otherLocales.remove(locale);
       locales.append(locale.toString());
       locales.append(' ');
       StringBuffer content=new StringBuffer();
       for (      String xpath : xmlContent.getNames(locale)) {
         I_CmsXmlContentValue value=xmlContent.getValue(xpath,locale);
-        List<Locale> valuesNotAvailableInLocale=new ArrayList<Locale>();
-        for (        Locale oLocale : otherLocales) {
-          I_CmsXmlContentValue valueNA=xmlContent.getValue(xpath,oLocale);
-          if (valueNA == null) {
-            valuesNotAvailableInLocale.add(oLocale);
-          }
-        }
         String extracted=value.getPlainText(cms);
         if (value.isSimpleType()) {
           if (value.getContentDefinition().getContentHandler().isSearchable(value) && CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
@@ -36,19 +26,8 @@
  catch (            CmsRuntimeException re) {
             }
           }
-          CmsSolrField field=xmlContent.getHandler().getSolrField(value);
-          if (field != null) {
-            if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
-              items.put(A_CmsSearchFieldConfiguration.getLocaleExtendedName(CmsXmlUtils.removeXpath(xpath),locale),extracted);
-              fields.add(field);
-            }
-            for (            Locale naLocale : valuesNotAvailableInLocale) {
-              items.put(A_CmsSearchFieldConfiguration.getLocaleExtendedName(CmsXmlUtils.removeXpath(xpath),naLocale),null);
-              int ind=field.getTargetField().lastIndexOf("_" + locale.toString());
-              String newFieldName=A_CmsSearchFieldConfiguration.getLocaleExtendedName(field.getTargetField().substring(0,ind),naLocale);
-              CmsSolrField naField=new CmsSolrField(newFieldName,field.getCopyFields(),naLocale,field.getDefaultValue(),field.getBoost());
-              fields.add(naField);
-            }
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
+            items.put(A_CmsSearchFieldConfiguration.getLocaleExtendedName(CmsXmlUtils.removeXpath(xpath),locale),extracted);
           }
         }
       }
@@ -59,7 +38,7 @@
       }
       items.put(I_CmsSearchField.FIELD_RESOURCE_LOCALES,locales.toString());
     }
-    return new CmsExtractionResult(null,items,fields);
+    return new CmsExtractionResult(null,items,new HashSet<I_CmsSearchField>(xmlContent.getHandler().getSearchFields()));
   }
  catch (  Exception e) {
     throw new CmsIndexException(Messages.get().container(Messages.ERR_TEXT_EXTRACTION_1,resource.getRootPath()),e);
