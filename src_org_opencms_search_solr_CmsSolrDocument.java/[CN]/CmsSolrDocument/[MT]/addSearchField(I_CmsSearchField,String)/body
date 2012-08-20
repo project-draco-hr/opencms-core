@@ -1,19 +1,21 @@
 {
   CmsSolrField field=(CmsSolrField)sfield;
-  IndexSchema schema=OpenCms.getSearchManager().getSolrServerConfiguration().getSolrSchema();
-  if (!schema.hasExplicitField(field.getName())) {
-    Fieldable fieldable=field.createField(value);
-    if (fieldable != null) {
-      m_doc.addField(fieldable.name(),fieldable.stringValue(),fieldable.getBoost());
-    }
+  List<String> fieldsToAdd=new ArrayList<String>(Collections.singletonList(field.getName()));
+  if ((field.getCopyFields() != null) && !field.getCopyFields().isEmpty()) {
+    fieldsToAdd.addAll(field.getCopyFields());
   }
- else {
-    SolrInputField exfield=m_doc.getField(field.getName());
+  for (  String fieldName : fieldsToAdd) {
+    IndexSchema schema=OpenCms.getSearchManager().getSolrServerConfiguration().getSolrSchema();
+    FieldType type=schema.getFieldType(fieldName);
+    if (type instanceof DateField) {
+      value=DateField.formatExternal(new Date(new Long(value).longValue()));
+    }
+    SolrInputField exfield=m_doc.getField(fieldName);
     if (exfield == null) {
-      m_doc.addField(field.getName(),value,field.getBoost());
+      m_doc.addField(fieldName,value,field.getBoost());
     }
  else {
-      m_doc.setField(field.getName(),value,field.getBoost());
+      m_doc.setField(fieldName,value,field.getBoost());
     }
   }
 }
