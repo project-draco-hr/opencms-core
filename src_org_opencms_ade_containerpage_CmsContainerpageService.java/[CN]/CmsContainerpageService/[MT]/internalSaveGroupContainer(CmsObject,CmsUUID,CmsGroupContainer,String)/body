@@ -14,15 +14,26 @@
     CmsUUID id=convertToServerId(groupContainer.getClientId());
     groupContainerResource=cms.readResource(id,CmsResourceFilter.ONLY_VISIBLE_NO_DELETED);
   }
-  CmsGroupContainerBean groupContainerBean=getGroupContainerBean(groupContainer,pageResource.getStructureId(),locale);
+  CmsGroupContainerBean groupContainerBean=getGroupContainerBean(groupContainer,pageResource.getStructureId(),localeStr);
   cms.lockResourceTemporary(groupContainerResource);
   CmsFile groupContainerFile=cms.readFile(groupContainerResource);
+  Locale locale=CmsLocaleManager.getLocale(localeStr);
   CmsXmlGroupContainer xmlGroupContainer=CmsXmlGroupContainerFactory.unmarshal(cms,groupContainerFile);
-  xmlGroupContainer.save(cms,groupContainerBean,CmsLocaleManager.getLocale(locale));
+  Set<CmsUUID> oldElementIds=getGroupElementIds(xmlGroupContainer,locale);
+  xmlGroupContainer.save(cms,groupContainerBean,locale);
   cms.unlockResource(groupContainerResource);
+  Set<CmsUUID> newElementIds=getGroupElementIds(xmlGroupContainer,locale);
+  Set<CmsUUID> removedElementIds=Sets.difference(oldElementIds,newElementIds);
+  List<CmsRemovedElementStatus> deletionCandidateStatuses=new ArrayList<CmsRemovedElementStatus>();
+  for (  CmsUUID removedId : removedElementIds) {
+    CmsRemovedElementStatus status=internalGetRemovedElementStatus(removedId);
+    if (status.isDeletionCandidate()) {
+      deletionCandidateStatuses.add(status);
+    }
+  }
   CmsContainerElement element=new CmsContainerElement();
   element.setClientId(groupContainerFile.getStructureId().toString());
   element.setSitePath(cms.getSitePath(groupContainerFile));
   element.setResourceType(CmsResourceTypeXmlContainerPage.GROUP_CONTAINER_TYPE_NAME);
-  return element;
+  return CmsPair.create(element,deletionCandidateStatuses);
 }
