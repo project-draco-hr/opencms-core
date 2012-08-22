@@ -6,16 +6,31 @@
   }
   for (  String fieldName : fieldsToAdd) {
     IndexSchema schema=OpenCms.getSearchManager().getSolrServerConfiguration().getSolrSchema();
-    FieldType type=schema.getFieldType(fieldName);
-    if (type instanceof DateField) {
-      value=DateField.formatExternal(new Date(new Long(value).longValue()));
-    }
-    SolrInputField exfield=m_doc.getField(fieldName);
-    if (exfield == null) {
-      m_doc.addField(fieldName,value,field.getBoost());
-    }
+    try {
+      FieldType type=schema.getFieldType(fieldName);
+      if (type instanceof DateField) {
+        value=DateField.formatExternal(new Date(new Long(value).longValue()));
+      }
+      SolrInputField exfield=m_doc.getField(fieldName);
+      if (exfield == null) {
+        if (schema.hasExplicitField(fieldName)) {
+          m_doc.addField(fieldName,value);
+        }
  else {
-      m_doc.setField(fieldName,value,field.getBoost());
+          m_doc.addField(fieldName,value,field.getBoost());
+        }
+      }
+ else {
+        if (schema.hasExplicitField(fieldName)) {
+          m_doc.setField(fieldName,value);
+        }
+ else {
+          m_doc.setField(fieldName,value,field.getBoost());
+        }
+      }
+    }
+ catch (    SolrException e) {
+      LOG.error(e.getMessage(),e);
     }
   }
 }
