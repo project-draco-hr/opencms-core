@@ -5,14 +5,10 @@
   if (m_solrConfig.getServerUrl() != null) {
     return registerOnHttpServer(index);
   }
-  CoreContainer coreContainer;
-  if ((m_solr instanceof EmbeddedSolrServer) && (((EmbeddedSolrServer)m_solr).getCoreContainer() != null)) {
-    coreContainer=((EmbeddedSolrServer)m_solr).getCoreContainer();
+  if (m_coreContainer == null) {
+    m_coreContainer=createCoreContainer();
   }
- else {
-    coreContainer=createCoreContainer();
-  }
-  SolrCore core=coreContainer.getCore(index.getName());
+  SolrCore core=m_coreContainer.getCore(index.getName());
   if (core == null) {
     File dataDir=new File(index.getPath());
     if (!dataDir.exists()) {
@@ -21,14 +17,18 @@
         LOG.info(Messages.get().getBundle().key(Messages.LOG_SOLR_CREATED_INDEX_DIR_2,index.getName(),index.getPath()));
       }
     }
-    CoreDescriptor descriptor=new CoreDescriptor(coreContainer,"descriptor",m_solrConfig.getHome());
+    CoreDescriptor descriptor=new CoreDescriptor(m_coreContainer,"descriptor",m_solrConfig.getHome());
     descriptor.setDataDir(dataDir.getAbsolutePath());
-    core=new SolrCore(index.getName(),null,m_solrConfig.getSolrConfig(),m_solrConfig.getSolrSchema(),descriptor);
+    try {
+      core=m_coreContainer.create(descriptor);
+      core.setName(index.getName());
+      m_coreContainer.register(core,false);
+    }
+ catch (    Exception e) {
+      throw new CmsConfigurationException(Messages.get().container(Messages.ERR_SOLR_SERVER_NOT_CREATED_3,index.getName(),index.getPath(),m_solrConfig.getSolrConfigFile().getAbsolutePath()));
+    }
   }
-  coreContainer.register(core,false);
-  if (m_solr == null) {
-    m_solr=new EmbeddedSolrServer(coreContainer,index.getName());
-    LOG.info(Messages.get().getBundle().key(Messages.LOG_SOLR_CREATED_EMBEDDED_SERVER_1,m_solrConfig.getSolrFile().getAbsolutePath()));
-  }
-  return m_solr;
+  SolrServer server=new EmbeddedSolrServer(m_coreContainer,index.getName());
+  LOG.info(Messages.get().getBundle().key(Messages.LOG_SOLR_CREATED_EMBEDDED_SERVER_1,OpenCms.getSearchManager().getSolrServerConfiguration().getSolrFile().getAbsolutePath()));
+  return server;
 }
