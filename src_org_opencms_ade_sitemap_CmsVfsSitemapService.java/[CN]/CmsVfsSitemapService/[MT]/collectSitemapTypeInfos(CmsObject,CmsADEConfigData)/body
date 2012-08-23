@@ -1,0 +1,42 @@
+{
+  List<CmsListInfoBean> subsitemapFolderTypeInfos=new ArrayList<CmsListInfoBean>();
+  List<Integer> sitemapTypeIds=CmsResourceTypeFolderSubSitemap.getSubSitemapResourceTypeIds();
+  String checkPath=configData.getBasePath();
+  if (checkPath != null) {
+    checkPath=cms.getRequestContext().removeSiteRoot(checkPath);
+  }
+ else {
+    checkPath="/";
+  }
+  CmsResource checkResource=null;
+  try {
+    checkResource=cms.readResource(checkPath);
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+  for (  Integer typeId : sitemapTypeIds) {
+    try {
+      I_CmsResourceType sitemapType=OpenCms.getResourceManager().getResourceType(typeId.intValue());
+      String typeName=sitemapType.getTypeName();
+      CmsExplorerTypeSettings explorerType=OpenCms.getWorkplaceManager().getExplorerTypeSetting(typeName);
+      if ((explorerType != null) && (checkResource != null)) {
+        try {
+          CmsExplorerTypeAccess access=explorerType.getAccess();
+          if (!access.getPermissions(cms,checkResource).requiresControlPermission()) {
+            continue;
+          }
+        }
+ catch (        Exception e) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+      }
+      CmsListInfoBean infoBean=buildSitemapTypeInfo(sitemapType);
+      subsitemapFolderTypeInfos.add(infoBean);
+    }
+ catch (    CmsLoaderException e) {
+      LOG.warn("Could not read sitemap folder type " + typeId + ": "+ e.getLocalizedMessage(),e);
+    }
+  }
+  return subsitemapFolderTypeInfos;
+}
