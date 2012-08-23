@@ -1,0 +1,38 @@
+{
+  CmsObject cms=getCmsObject();
+  try {
+    ensureSession();
+    CmsResource subSitemapFolder=cms.readResource(entryId);
+    ensureLock(subSitemapFolder);
+    String sitePath=cms.getSitePath(subSitemapFolder);
+    String folderName=CmsStringUtil.joinPaths(sitePath,CmsADEManager.CONTENT_FOLDER_NAME + "/");
+    String sitemapConfigName=CmsStringUtil.joinPaths(folderName,CmsADEManager.CONFIG_FILE_NAME);
+    if (!cms.existsResource(folderName)) {
+      cms.createResource(folderName,OpenCms.getResourceManager().getResourceType(CmsADEManager.CONFIG_FOLDER_TYPE).getTypeId());
+    }
+    I_CmsResourceType configType=OpenCms.getResourceManager().getResourceType(CmsADEManager.CONFIG_TYPE);
+    if (cms.existsResource(sitemapConfigName)) {
+      CmsResource configFile=cms.readResource(sitemapConfigName);
+      if (configFile.getTypeId() != configType.getTypeId()) {
+        throw new CmsException(Messages.get().container(Messages.ERR_CREATING_SUB_SITEMAP_WRONG_CONFIG_FILE_TYPE_2,sitemapConfigName,CmsADEManager.CONFIG_TYPE));
+      }
+    }
+ else {
+      cms.createResource(sitemapConfigName,OpenCms.getResourceManager().getResourceType(CmsADEManager.CONFIG_TYPE).getTypeId());
+    }
+    subSitemapFolder.setType(typeId);
+    cms.writeResource(subSitemapFolder);
+    tryUnlock(subSitemapFolder);
+    CmsSitemapClipboardData clipboard=getClipboardData();
+    CmsClientSitemapEntry entry=toClientEntry(getNavBuilder().getNavigationForResource(sitePath,CmsResourceFilter.ONLY_VISIBLE),false);
+    clipboard.addModified(entry);
+    setClipboardData(clipboard);
+    CmsSitemapChange result=new CmsSitemapChange(entry.getId(),entry.getSitePath(),ChangeType.modify);
+    result.setUpdatedEntry(entry);
+    return result;
+  }
+ catch (  Exception e) {
+    error(e);
+  }
+  return null;
+}
