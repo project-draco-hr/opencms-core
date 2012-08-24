@@ -1,27 +1,41 @@
 {
-  Entity result=new Entity(entityId + parentPath,typeName);
+  Entity newEntity=new Entity(entityId + parentPath,typeName);
+  Entity result=newEntity;
   @SuppressWarnings("unchecked") List<Element> elements=element.elements();
   I_Type type=registeredTypes.get(typeName);
-  int counter=1;
+  boolean isChoice=type.isChoice();
+  String choiceTypeName=null;
+  if (isChoice) {
+    choiceTypeName=type.getAttributeTypeName(Type.CHOICE_ATTRIBUTE_NAME);
+    type=registeredTypes.get(type.getAttributeTypeName(Type.CHOICE_ATTRIBUTE_NAME));
+  }
+  int counter=0;
   CmsObject cms=getCmsObject();
   String previousName=null;
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(parentPath)) {
+    parentPath+="/";
+  }
   for (  Element child : elements) {
+    if (isChoice) {
+      result=new Entity(entityId + "/" + Type.CHOICE_ATTRIBUTE_NAME+ "["+ counter+ "]",choiceTypeName);
+      newEntity.addAttributeValue(Type.CHOICE_ATTRIBUTE_NAME,result);
+    }
     String attributeName=getAttributeName(child.getName(),typeName);
-    if (!attributeName.equals(previousName)) {
-      counter=1;
+    if (!isChoice && !attributeName.equals(previousName)) {
+      counter=0;
       previousName=attributeName;
     }
     String subTypeName=type.getAttributeTypeName(attributeName);
-    String path=parentPath + "/" + child.getName()+ "["+ counter+ "]";
+    String path=parentPath + child.getName();
     if (registeredTypes.get(subTypeName).isSimpleType()) {
-      I_CmsXmlContentValue value=content.getValue(path,locale);
+      I_CmsXmlContentValue value=content.getValue(path,locale,counter);
       result.addAttributeValue(attributeName,value.getStringValue(cms));
     }
  else {
-      Entity subEntity=readEntity(content,child,locale,entityId,path,subTypeName,registeredTypes);
+      Entity subEntity=readEntity(content,child,locale,entityId,path + "[" + (counter + 1)+ "]",subTypeName,registeredTypes);
       result.addAttributeValue(attributeName,subEntity);
     }
     counter++;
   }
-  return result;
+  return newEntity;
 }
