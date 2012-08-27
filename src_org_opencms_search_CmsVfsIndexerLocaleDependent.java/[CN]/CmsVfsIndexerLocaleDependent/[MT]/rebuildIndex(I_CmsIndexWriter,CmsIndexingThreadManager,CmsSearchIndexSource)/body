@@ -1,0 +1,28 @@
+{
+  List<String> resourceNames=source.getResourcesNames();
+  Iterator<String> i=resourceNames.iterator();
+  while (i.hasNext()) {
+    String resourceName=i.next();
+    List<CmsResource> resources=null;
+    try {
+      resources=m_cms.readResources(resourceName,CmsResourceFilter.IGNORE_EXPIRATION.addRequireFile());
+    }
+ catch (    CmsException e) {
+      if (m_report != null) {
+        m_report.println(Messages.get().container(Messages.RPT_UNABLE_TO_READ_SOURCE_2,resourceName,e.getLocalizedMessage()),I_CmsReport.FORMAT_WARNING);
+      }
+      if (LOG.isWarnEnabled()) {
+        LOG.warn(Messages.get().getBundle().key(Messages.LOG_UNABLE_TO_READ_SOURCE_2,resourceName,m_index.getName()),e);
+      }
+    }
+    if (resources != null) {
+      Map<String,List<CmsResource>> folderLookupMap=createFolderLookupMap(resources);
+      for (      CmsResource resource : resources) {
+        List<CmsResource> folderContent=folderLookupMap.get(CmsResource.getFolderPath(resource.getRootPath()));
+        CmsDocumentLocaleDependency dep=CmsDocumentLocaleDependency.load(m_cms,resource,folderContent);
+        dep.storeInContext(m_cms);
+        updateResource(writer,threadManager,resource);
+      }
+    }
+  }
+}
