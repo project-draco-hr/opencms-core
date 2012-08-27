@@ -1,9 +1,22 @@
 {
   List<CmsRelation> brokenRelations=new ArrayList<CmsRelation>();
   Map<String,Boolean> validatedLinks=new HashMap<String,Boolean>();
-  List<CmsRelation> relations=null;
+  List<CmsRelation> incomingRelationsOnline=new ArrayList<CmsRelation>();
+  List<CmsRelation> outgoingRelationsOffline=new ArrayList<CmsRelation>();
   try {
-    relations=getLinkRelations(dbc,project,resource);
+    if (!resource.getState().isDeleted()) {
+      outgoingRelationsOffline=m_driverManager.getRelationsForResource(dbc,resource,CmsRelationFilter.TARGETS);
+    }
+ else {
+      CmsProject currentProject=dbc.currentProject();
+      dbc.getRequestContext().setCurrentProject(project);
+      try {
+        incomingRelationsOnline=m_driverManager.getRelationsForResource(dbc,resource,CmsRelationFilter.SOURCES);
+      }
+  finally {
+        dbc.getRequestContext().setCurrentProject(currentProject);
+      }
+    }
   }
  catch (  CmsException e) {
     LOG.error(Messages.get().getBundle().key(Messages.LOG_LINK_SEARCH_1,resource),e);
@@ -11,6 +24,17 @@
       report.println(Messages.get().container(Messages.LOG_LINK_SEARCH_1,dbc.removeSiteRoot(resource.getRootPath())),I_CmsReport.FORMAT_ERROR);
     }
     return brokenRelations;
+  }
+  List<CmsRelation> relations=new ArrayList<CmsRelation>();
+  relations.addAll(incomingRelationsOnline);
+  relations.addAll(outgoingRelationsOffline);
+  HashMultimap<String,String> outgoingRelationTargets=HashMultimap.create();
+  for (  CmsRelation outRelation : outgoingRelationsOffline) {
+    String sourcePath=outRelation.getSourcePath();
+    String targetId=outRelation.getTargetId().toString();
+    String targetPath=outRelation.getTargetPath();
+    outgoingRelationTargets.put(sourcePath,targetId);
+    outgoingRelationTargets.put(sourcePath,targetPath);
   }
   boolean first=true;
   Iterator<CmsRelation> itRelations=relations.iterator();
@@ -32,7 +56,14 @@
       }
       continue;
     }
-    boolean isValidLink=checkLinkValid(dbc,resource,relation,link,project,fileLookup);
+    boolean result;
+    if (resource.getState().isDeleted()) {
+      result=checkLinkForDeletedLinkTarget(relation,link,fileLookup,outgoingRelationTargets);
+    }
+ else {
+      result=checkLinkForNewOrChangedLinkSource(dbc,resource,relation,link,project,fileLookup);
+    }
+    boolean isValidLink=result;
     if (!isValidLink) {
       if (first) {
         if (report != null) {
