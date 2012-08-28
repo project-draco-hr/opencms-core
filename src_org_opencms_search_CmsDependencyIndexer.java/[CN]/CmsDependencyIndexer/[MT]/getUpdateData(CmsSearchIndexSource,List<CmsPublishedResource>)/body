@@ -1,0 +1,35 @@
+{
+  try {
+    CmsSearchIndexUpdateData result=new CmsSearchIndexUpdateData(source,this);
+    Iterator<CmsPublishedResource> i=publishedResources.iterator();
+    while (i.hasNext()) {
+      CmsPublishedResource pubRes=i.next();
+      if (!pubRes.getStructureId().isNullUUID() && pubRes.isFile()) {
+        if (CmsProject.isInsideProject(source.getResourcesNames(),pubRes.getRootPath())) {
+          CmsPublishedResource pub=pubRes;
+          CmsDocumentDependency dep=CmsDocumentDependency.load(m_cms,pub);
+          List<CmsDocumentDependency> depsAvailable=dep.getDependencies();
+          Iterator<CmsDocumentDependency> depIt=depsAvailable.iterator();
+          do {
+            addResourceToUpdateData(pub,result);
+            if (!pub.getState().isDeleted()) {
+              dep.storeInContext(m_cms);
+            }
+            if (depIt.hasNext()) {
+              pub=depIt.next().getResource();
+            }
+ else {
+              dep=null;
+            }
+          }
+ while (dep != null);
+        }
+      }
+    }
+    return result;
+  }
+ catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+  return null;
+}
