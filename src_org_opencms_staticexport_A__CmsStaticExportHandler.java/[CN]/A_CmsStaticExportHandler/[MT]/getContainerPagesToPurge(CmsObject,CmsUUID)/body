@@ -1,0 +1,31 @@
+{
+  try {
+    List<File> purgePages=new ArrayList<File>();
+    List<CmsRelation> relations=cms.readRelations(CmsRelationFilter.relationsToStructureId(targetId));
+    for (    CmsRelation relation : relations) {
+      CmsResource source=null;
+      try {
+        source=relation.getSource(cms,CmsResourceFilter.ALL);
+      }
+ catch (      CmsPermissionViolationException e) {
+        continue;
+      }
+      if (CmsResourceTypeXmlContainerPage.isContainerPage(source)) {
+        String vfsName=source.getRootPath();
+        String rfsName=OpenCms.getStaticExportManager().getRfsName(cms,vfsName);
+        String exportPath=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName));
+        String rfsExportFileName=exportPath + rfsName.substring(OpenCms.getStaticExportManager().getRfsPrefix(vfsName).length());
+        File file=new File(rfsExportFileName);
+        purgePages.add(file);
+      }
+ else       if (OpenCms.getResourceManager().getResourceType(source.getTypeId()).getTypeName().equals(CmsResourceTypeXmlContainerPage.GROUP_CONTAINER_TYPE_NAME)) {
+        purgePages.addAll(getContainerPagesToPurge(cms,source.getStructureId()));
+      }
+    }
+    return purgePages;
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    return Collections.emptyList();
+  }
+}
