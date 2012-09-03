@@ -1,8 +1,6 @@
 {
   CmsSolrField field=(CmsSolrField)sfield;
   try {
-    CmsObject clone=OpenCms.initCmsObject(cms);
-    clone.getRequestContext().setLocale(field.getLocale());
     StringBuffer text=new StringBuffer();
     for (    I_CmsSearchFieldMapping mapping : field.getMappings()) {
       if (extractionResult != null) {
@@ -10,9 +8,16 @@
         if ((field.getLocale() != null) && mapping.getType().equals(CmsSearchFieldMappingType.CONTENT)) {
           String key=A_CmsSearchFieldConfiguration.getLocaleExtendedName(I_CmsSearchField.FIELD_CONTENT,field.getLocale());
           mapResult=extractionResult.getContentItems().get(key);
+          if (mapResult == null) {
+            if (!(CmsResourceTypeXmlContent.isXmlContent(resource) || CmsResourceTypeXmlPage.isXmlPage(resource))) {
+              if (getContentLocales(cms,resource).contains(field.getLocale())) {
+                mapResult=extractionResult.getContent();
+              }
+            }
+          }
         }
  else {
-          mapResult=mapping.getStringValue(clone,resource,extractionResult,properties,propertiesSearched);
+          mapResult=mapping.getStringValue(cms,resource,extractionResult,properties,propertiesSearched);
         }
         if (mapResult != null) {
           if (text.length() > 0) {
@@ -32,8 +37,8 @@
       document.addSearchField(field,text.toString());
     }
   }
- catch (  CmsException e) {
-    LOG.debug(e);
+ catch (  Exception e) {
+    LOG.error(e);
   }
   return document;
 }

@@ -1,0 +1,50 @@
+{
+  Map<Integer,CmsDocumentDependency> attachments=new HashMap<Integer,CmsDocumentDependency>();
+  if (isAttachment()) {
+    attachments.put(new Integer(this.getAttachmentNumber()),this);
+  }
+  Iterator<CmsResource> i=folderContent.iterator();
+  while (i.hasNext()) {
+    CmsResource r=i.next();
+    if (r.isFile() && !getResource().getRootPath().equals(r.getRootPath())) {
+      CmsPublishedResource pubRes=new CmsPublishedResource(r,getResource().getPublishTag(),CmsResourceState.STATE_CHANGED);
+      CmsDocumentDependency dep=new CmsDocumentDependency(pubRes);
+      if (getDocumentName().equals(dep.getDocumentName())) {
+        if (isAttachment()) {
+          if (dep.isAttachment()) {
+            if (getAttachmentNumber() == dep.getAttachmentNumber()) {
+              addVariant(dep);
+            }
+ else {
+              Integer attNum=new Integer(dep.getAttachmentNumber());
+              CmsDocumentDependency att=attachments.get(attNum);
+              if (att != null) {
+                att.addVariant(dep);
+              }
+ else {
+                attachments.put(attNum,dep);
+              }
+            }
+          }
+ else {
+            setMainDocument(dep);
+          }
+        }
+ else {
+          if (dep.isAttachment()) {
+            addAttachment(dep);
+          }
+ else           if (CmsStringUtil.isEqual(getDocumentSuffix(),dep.getDocumentSuffix())) {
+            addVariant(dep);
+          }
+        }
+      }
+    }
+  }
+  if (m_mainDocument != null) {
+    for (    CmsDocumentDependency att : attachments.values()) {
+      m_mainDocument.addAttachment(att);
+    }
+    addDependency(m_mainDocument);
+  }
+}
