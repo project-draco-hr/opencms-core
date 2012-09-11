@@ -1,0 +1,54 @@
+{
+  m_solrQueryResponse=new SolrQueryResponse();
+  m_solrQueryResponse.setAllValues(m_queryResponse.getResponse());
+  m_solrQueryResponse.setEndTime(m_queryResponse.getQTime());
+  int paramsIndex=m_queryResponse.getResponseHeader().indexOf(HEADER_PARAMS_NAME,0);
+  NamedList header=null;
+  Object o=m_queryResponse.getResponseHeader().getVal(paramsIndex);
+  if (o instanceof NamedList) {
+    header=(NamedList)o;
+    header.setVal(header.indexOf(CommonParams.ROWS,0),m_rows);
+    header.setVal(header.indexOf(CommonParams.START,0),getStart());
+  }
+  m_solrQueryRequest=new LocalSolrQueryRequest(core,m_queryResponse.getResponseHeader());
+  m_solrQueryRequest.setParams(m_query);
+  SearchComponent highlightComponenet=core.getSearchComponent("highlight");
+  if ((header != null) && (m_query.getHighlight()) && (highlightComponenet != null)) {
+    header.add(HighlightParams.HIGHLIGHT,"on");
+    if ((m_query.getHighlightFields() != null) && (m_query.getHighlightFields().length > 0)) {
+      header.add(HighlightParams.FIELDS,CmsStringUtil.arrayAsString(m_query.getHighlightFields(),","));
+    }
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(m_query.getHighlightFormatter())) {
+      header.add(HighlightParams.FORMATTER,m_query.getHighlightFormatter());
+    }
+    if (m_query.getHighlightFragsize() != 100) {
+      header.add(HighlightParams.FRAGSIZE,new Integer(m_query.getHighlightFragsize()));
+    }
+    if (m_query.getHighlightRequireFieldMatch()) {
+      header.add(HighlightParams.FIELD_MATCH,new Boolean(m_query.getHighlightRequireFieldMatch()));
+    }
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_query.getHighlightSimplePost())) {
+      header.add(HighlightParams.SIMPLE_POST,m_query.getHighlightSimplePost());
+    }
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_query.getHighlightSimplePre())) {
+      header.add(HighlightParams.SIMPLE_PRE,m_query.getHighlightSimplePre());
+    }
+    if (m_query.getHighlightSnippets() != 1) {
+      header.add(HighlightParams.SNIPPETS,new Integer(m_query.getHighlightSnippets()));
+    }
+    ResponseBuilder rb=new ResponseBuilder(m_solrQueryRequest,m_solrQueryResponse,Collections.singletonList(highlightComponenet));
+    try {
+      rb.doHighlights=true;
+      DocListAndSet res=new DocListAndSet();
+      res.docList=solrDocumentListToDocList(m_resultDocuments);
+      rb.setResults(res);
+      rb.setQuery(QParser.getParser(getQuery().getQuery(),null,m_solrQueryRequest).getQuery());
+      rb.setQueryString(getQuery().getQuery());
+      highlightComponenet.prepare(rb);
+      highlightComponenet.process(rb);
+    }
+ catch (    Exception e) {
+      LOG.error(e);
+    }
+  }
+}
