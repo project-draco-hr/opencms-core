@@ -1,45 +1,15 @@
 {
-  int pos=m_paramNewLink.indexOf('|');
-  String collectorName=m_paramNewLink.substring(0,pos);
-  String collectorParams=m_paramNewLink.substring(pos + 1);
-  String param;
-  String templateFileName;
-  pos=collectorParams.indexOf(A_CmsResourceCollector.SEPARATOR_TEMPLATEFILE);
-  if (pos != -1) {
-    param=collectorParams.substring(0,pos);
-    templateFileName=collectorParams.substring(pos + A_CmsResourceCollector.SEPARATOR_TEMPLATEFILE.length());
-  }
- else {
-    param=collectorParams;
-    templateFileName=getParamResource();
-  }
-  I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(collectorName);
   String newFileName="";
   try {
-    CmsFile templateFile=getCms().readFile(templateFileName,CmsResourceFilter.IGNORE_EXPIRATION);
-    CmsXmlContent template=CmsXmlContentFactory.unmarshal(getCloneCms(),templateFile);
-    Locale locale=getElementLocale();
-    CmsXmlContent newContent=CmsXmlContentFactory.createDocument(getCms(),locale,template.getEncoding(),template.getContentDefinition());
-    newFileName=collector.getCreateLink(getCms(),collectorName,param);
-    boolean useModelFile=false;
-    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getParamModelFile())) {
-      getCms().getRequestContext().setAttribute(CmsRequestContext.ATTRIBUTE_MODEL,getParamModelFile());
-      useModelFile=true;
-    }
-    getCms().createResource(newFileName,templateFile.getTypeId());
-    CmsFile newFile=getCms().readFile(newFileName,CmsResourceFilter.ALL);
-    if (!useModelFile) {
-      newFile.setContents(newContent.marshal());
-      getCloneCms().writeFile(newFile);
-    }
+    newFileName=A_CmsResourceCollector.createResourceForCollector(getCms(),m_paramNewLink,getElementLocale(),getParamResource(),getParamModelFile());
     setParamNewLink(null);
     setParamAction(null);
     setParamResource(newFileName);
     setAction(ACTION_DEFAULT);
     setParamTempfile(createTempFile());
     m_file=getCms().readFile(getParamTempfile(),CmsResourceFilter.ALL);
-    if (!useModelFile) {
-      m_content=newContent;
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getParamModelFile())) {
+      m_content=CmsXmlContentFactory.unmarshal(getCms(),getCms().readFile(newFileName,CmsResourceFilter.ALL));
     }
  else {
       m_content=CmsXmlContentFactory.unmarshal(getCms(),m_file);
