@@ -1,5 +1,6 @@
 {
-  LOG.debug("### START SRARCH (time in ms) ###");
+  String currentTime=DateFormat.getTimeInstance(DateFormat.FULL,Locale.ENGLISH).format(new Date());
+  debug("### START SRARCH with " + query.getRows() + " requested rows at",currentTime,0);
   int previousPriority=Thread.currentThread().getPriority();
   long startTime=System.currentTimeMillis();
   SolrQuery initQuery=query.clone();
@@ -24,11 +25,25 @@
     query.setStart(new Integer(0));
     query.setRows(new Integer((5 * rows * page) + start));
     QueryResponse queryResponse=m_solr.query(query);
-    LOG.debug("### Query Time After Execution  : " + (System.currentTimeMillis() - startTime));
     long hitCount=queryResponse.getResults().getNumFound();
+    debug("--- Query Executed " + "(hitCount=" + hitCount + ")",null,System.currentTimeMillis() - startTime);
+    start=-1;
+    end=-1;
+    if ((rows > 0) && (page > 0) && (hitCount > 0)) {
+      start=rows * (page - 1);
+      end=start + rows;
+      start=new Long((start > hitCount) ? hitCount : start).intValue();
+      end=new Long((end > hitCount) ? hitCount : end).intValue();
+    }
+ else {
+      start=0;
+      end=new Long(hitCount).intValue();
+    }
     long visibleHitCount=hitCount;
     float maxScore=0;
-    for (int i=0, cnt=0; (i < hitCount) && (cnt < end); i++) {
+    List<CmsSearchResource> allDocs=new ArrayList<CmsSearchResource>();
+    int cnt=0;
+    for (int i=0; (i < queryResponse.getResults().size()) && (cnt < end); i++) {
       try {
         SolrDocument doc=queryResponse.getResults().get(i);
         CmsSolrDocument searchDoc=new CmsSolrDocument(doc);
@@ -43,6 +58,7 @@
               solrDocumentList.add(doc);
               maxScore=maxScore < searchDoc.getScore() ? searchDoc.getScore() : maxScore;
             }
+            allDocs.add(new CmsSearchResource(resource,searchDoc));
             cnt++;
           }
  else {
@@ -54,12 +70,28 @@
         LOG.warn(Messages.get().getBundle().key(Messages.LOG_RESULT_ITERATION_FAILED_0),e);
       }
     }
+    if (resourceDocumentList.isEmpty() && allDocs.size() > 0) {
+      page=Math.round(allDocs.size() / rows) + 1;
+      int showCount=allDocs.size() % rows;
+      showCount=showCount == 0 ? rows : showCount;
+      start=allDocs.size() - new Long(showCount).intValue();
+      end=allDocs.size();
+      if (allDocs.size() > start) {
+        resourceDocumentList=allDocs.subList(start,end);
+        for (        CmsSearchResource r : resourceDocumentList) {
+          maxScore=maxScore < r.getDocument().getScore() ? r.getDocument().getScore() : maxScore;
+          solrDocumentList.add(((CmsSolrDocument)r.getDocument()).getSolrDocument());
+        }
+      }
+    }
     SolrCore core=null;
     if (m_solr instanceof EmbeddedSolrServer) {
       core=((EmbeddedSolrServer)m_solr).getCoreContainer().getCore(getName());
     }
-    LOG.debug("### Query Time After Permission : " + (System.currentTimeMillis() - startTime));
-    return new CmsSolrResultList(core,initQuery,queryResponse,solrDocumentList,resourceDocumentList,start,new Integer(rows),end,page,visibleHitCount,new Float(maxScore),startTime);
+    debug("--- Permissions Checked for " + cnt + " Resources",null,System.currentTimeMillis() - startTime);
+    CmsSolrResultList result=new CmsSolrResultList(core,initQuery,queryResponse,solrDocumentList,resourceDocumentList,start,new Integer(rows),end,page,visibleHitCount,new Float(maxScore),startTime);
+    debug("### FINISH SEARCH in",null,System.currentTimeMillis() - startTime);
+    return result;
   }
  catch (  Exception e) {
     throw new CmsSearchException(Messages.get().container(Messages.ERR_SEARCH_INVALID_SEARCH_1,CmsEncoder.decode(query.toString())),e);
