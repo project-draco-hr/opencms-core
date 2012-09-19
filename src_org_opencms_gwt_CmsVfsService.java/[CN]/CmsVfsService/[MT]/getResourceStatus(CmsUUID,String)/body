@@ -4,6 +4,14 @@
     Locale locale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
     cms.getRequestContext().setLocale(locale);
     CmsResource resource=cms.readResource(structureId);
+    String localizedTitle=null;
+    if (!CmsStringUtil.isEmptyOrWhitespaceOnly(contentLocale)) {
+      Locale realLocale=CmsLocaleManager.getLocale(contentLocale);
+      CmsGallerySearchResult result=CmsGallerySearch.searchById(cms,structureId,realLocale);
+      if (!CmsStringUtil.isEmptyOrWhitespaceOnly(result.getTitle())) {
+        localizedTitle=result.getTitle();
+      }
+    }
     CmsResourceUtil resourceUtil=new CmsResourceUtil(cms,resource);
     List<CmsProperty> properties=cms.readPropertyObjects(resource,false);
     CmsResourceStatusBean result=new CmsResourceStatusBean();
@@ -40,7 +48,11 @@
     result.setSize(resource.getLength());
     result.setStateBean(resource.getState());
     CmsProperty title=CmsProperty.get(CmsPropertyDefinition.PROPERTY_TITLE,properties);
-    if (title != null) {
+    if (localizedTitle != null) {
+      result.setTitle(localizedTitle);
+      result.getListInfo().setTitle(localizedTitle);
+    }
+ else     if (title != null) {
       result.setTitle(title.getValue());
     }
     result.setUserCreated(resourceUtil.getUserCreated());
@@ -59,7 +71,7 @@
     }
     return result;
   }
- catch (  CmsException e) {
+ catch (  Throwable e) {
     error(e);
     return null;
   }
