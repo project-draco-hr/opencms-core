@@ -1,0 +1,64 @@
+{
+  CmsResultItemBean result=null;
+  CmsObject cms=getCmsObject();
+  try {
+    if (new CmsUriSplitter(linkPath).getProtocol() != null) {
+      result=new CmsResultItemBean();
+      result.setTitle(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_EXTERNAL_LINK_0));
+      result.setSubTitle("");
+      result.setType("externallink");
+    }
+ else {
+      boolean notFound=false;
+      String path=linkPath;
+      String siteRoot=OpenCms.getSiteManager().getSiteRoot(linkPath);
+      String oldSite=cms.getRequestContext().getSiteRoot();
+      try {
+        if (siteRoot != null) {
+          cms.getRequestContext().setSiteRoot(siteRoot);
+          path=cms.getRequestContext().removeSiteRoot(linkPath);
+        }
+        int pos=path.indexOf(CmsRequestUtil.URL_DELIMITER);
+        int anchorPos=path.indexOf('#');
+        if ((pos == -1) || ((anchorPos > -1) && (pos > anchorPos))) {
+          pos=anchorPos;
+        }
+        if (pos > -1) {
+          path=path.substring(0,pos);
+        }
+        path=OpenCms.getLinkManager().getRootPath(cms,path);
+      }
+ catch (      Exception e) {
+        notFound=true;
+      }
+ finally {
+        if (siteRoot != null) {
+          cms.getRequestContext().setSiteRoot(oldSite);
+        }
+      }
+      notFound=notFound || (path == null);
+      if (!notFound) {
+        CmsGallerySearchResult resultItem=null;
+        try {
+          resultItem=CmsGallerySearch.searchByPath(getCmsObject(),path,CmsLocaleManager.getLocale(locale));
+        }
+ catch (        CmsVfsResourceNotFoundException ex) {
+        }
+        notFound=resultItem == null;
+        if (!notFound) {
+          result=buildSingleSearchResultItem(getCmsObject(),resultItem,null);
+        }
+      }
+      if (notFound) {
+        result=new CmsResultItemBean();
+        result.setTitle(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_RESOURCE_NOT_FOUND_0));
+        result.setSubTitle("");
+        result.setType("brokenlink");
+      }
+    }
+  }
+ catch (  Throwable t) {
+    error(t);
+  }
+  return result;
+}
