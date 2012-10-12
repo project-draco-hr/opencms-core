@@ -1,0 +1,45 @@
+{
+  m_handler=handler;
+  m_handler.m_galleryDialog.setUseFormats(conf.isUseFormats());
+  m_handler.m_galleryDialog.setImageFormats(conf.getImageFormats());
+  m_handler.m_galleryDialog.setImageFormatNames(conf.getImageFormatNames());
+  m_eventBus=new SimpleEventBus();
+  addValueChangeHandler(m_handler);
+  CmsRpcAction<CmsGalleryDataBean> initAction=new CmsRpcAction<CmsGalleryDataBean>(){
+    @Override public void execute(){
+      getGalleryService().getInitialSettings(new CmsGalleryConfiguration(conf),this);
+    }
+    @Override protected void onResponse(    CmsGalleryDataBean result){
+      m_dialogBean=result;
+      m_dialogMode=m_dialogBean.getMode();
+      if (m_dialogBean.getStartTab() == GalleryTabId.cms_tab_results) {
+        initialSearch();
+      }
+ else {
+        m_searchObject=new CmsGallerySearchBean();
+        m_searchObject.setIgnoreSearchExclude(m_dialogMode != GalleryMode.ade);
+        m_searchObject.setLocale(m_dialogBean.getLocale());
+        m_searchObject.setScope(m_dialogBean.getScope());
+        List<GalleryTabId> tabs=Arrays.asList(getTabIds());
+        if (!tabs.contains(m_dialogBean.getStartTab())) {
+          if ((m_dialogMode == GalleryMode.widget) && tabs.contains(GalleryTabId.cms_tab_vfstree)) {
+            m_dialogBean.setStartTab(GalleryTabId.cms_tab_vfstree);
+          }
+ else {
+            m_dialogBean.setStartTab(tabs.get(0));
+          }
+        }
+        m_handler.onInitialSearch(m_searchObject,m_dialogBean,CmsGalleryController.this);
+      }
+    }
+  }
+;
+  initAction.execute();
+  if (conf.getTabIds() != null) {
+    m_tabIds=conf.getTabIds();
+  }
+  setShowSiteSelector(conf.isShowSiteSelector());
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(conf.getStartSite())) {
+    setStartSite(conf.getStartSite());
+  }
+}
