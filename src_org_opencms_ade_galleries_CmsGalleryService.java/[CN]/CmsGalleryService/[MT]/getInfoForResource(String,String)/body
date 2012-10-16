@@ -6,7 +6,7 @@
       result=new CmsResultItemBean();
       result.setTitle(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_EXTERNAL_LINK_0));
       result.setSubTitle("");
-      result.setType("externallink");
+      result.setType(CmsResourceTypePointer.getStaticTypeName());
     }
  else {
       boolean notFound=false;
@@ -38,22 +38,48 @@
       }
       notFound=notFound || (path == null);
       if (!notFound) {
-        CmsGallerySearchResult resultItem=null;
-        try {
-          resultItem=CmsGallerySearch.searchByPath(getCmsObject(),path,CmsLocaleManager.getLocale(locale));
+        if (CmsResource.isFolder(path)) {
+          CmsObject rootCms=OpenCms.initCmsObject(cms);
+          rootCms.getRequestContext().setSiteRoot("");
+          try {
+            CmsResource folder=rootCms.readResource(path);
+            result=new CmsResultItemBean();
+            String title=rootCms.readPropertyObject(folder,CmsPropertyDefinition.PROPERTY_NAVTEXT,false).getValue();
+            if (CmsStringUtil.isEmptyOrWhitespaceOnly(title)) {
+              title=rootCms.readPropertyObject(folder,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
+            }
+ else             if (CmsStringUtil.isEmptyOrWhitespaceOnly(title)) {
+              title=CmsResource.getName(path);
+              if (title.contains("/")) {
+                title=title.substring(0,title.indexOf("/"));
+              }
+            }
+            result.setTitle(title);
+            result.setSubTitle("");
+            result.setType(OpenCms.getResourceManager().getResourceType(folder).getTypeName());
+          }
+ catch (          CmsException ex) {
+            notFound=true;
+          }
         }
- catch (        CmsVfsResourceNotFoundException ex) {
-        }
-        notFound=resultItem == null;
-        if (!notFound) {
-          result=buildSingleSearchResultItem(getCmsObject(),resultItem,null);
+ else {
+          CmsGallerySearchResult resultItem=null;
+          try {
+            resultItem=CmsGallerySearch.searchByPath(cms,path,CmsLocaleManager.getLocale(locale));
+          }
+ catch (          CmsVfsResourceNotFoundException ex) {
+          }
+          notFound=resultItem == null;
+          if (!notFound) {
+            result=buildSingleSearchResultItem(getCmsObject(),resultItem,null);
+          }
         }
       }
       if (notFound) {
         result=new CmsResultItemBean();
         result.setTitle(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_RESOURCE_NOT_FOUND_0));
         result.setSubTitle("");
-        result.setType("brokenlink");
+        result.setType(CmsIconUtil.TYPE_RESOURCE_NOT_FOUND);
       }
     }
   }
