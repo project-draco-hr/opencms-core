@@ -28,9 +28,11 @@
     try {
       int resTypeId=OpenCms.getResourceManager().getDefaultTypeForName(newResname).getTypeId();
       createdResource=getCmsObject().createResource(newResname,resTypeId,content,properties);
+      getCmsObject().unlockResource(newResname);
     }
  catch (    CmsSecurityException e) {
       createdResource=getCmsObject().createResource(newResname,plainId,content,properties);
+      getCmsObject().unlockResource(newResname);
     }
 catch (    CmsDbSqlException sqlExc) {
       getCmsObject().lockResource(newResname);
@@ -46,25 +48,34 @@ catch (    OutOfMemoryError e) {
   }
  else {
     CmsResource res=getCmsObject().readResource(newResname,CmsResourceFilter.ALL);
-    if (!getCmsObject().getLock(res).isOwnedBy(getCmsObject().getRequestContext().getCurrentUser())) {
-      getCmsObject().lockResource(res);
-    }
-    CmsFile file=getCmsObject().readFile(res);
-    byte[] contents=file.getContents();
+    boolean wasLocked=false;
     try {
-      getCmsObject().replaceResource(newResname,res.getTypeId(),content,null);
-      createdResource=res;
+      if (!getCmsObject().getLock(res).isOwnedBy(getCmsObject().getRequestContext().getCurrentUser())) {
+        getCmsObject().lockResource(res);
+        wasLocked=true;
+      }
+      CmsFile file=getCmsObject().readFile(res);
+      byte[] contents=file.getContents();
+      try {
+        getCmsObject().replaceResource(newResname,res.getTypeId(),content,null);
+        createdResource=res;
+      }
+ catch (      CmsDbSqlException sqlExc) {
+        file.setContents(contents);
+        getCmsObject().writeFile(file);
+        throw sqlExc;
+      }
+catch (      OutOfMemoryError e) {
+        content=null;
+        file.setContents(contents);
+        getCmsObject().writeFile(file);
+        throw e;
+      }
     }
- catch (    CmsDbSqlException sqlExc) {
-      file.setContents(contents);
-      getCmsObject().writeFile(file);
-      throw sqlExc;
-    }
-catch (    OutOfMemoryError e) {
-      content=null;
-      file.setContents(contents);
-      getCmsObject().writeFile(file);
-      throw e;
+  finally {
+      if (wasLocked) {
+        getCmsObject().unlockResource(res);
+      }
     }
   }
   return createdResource;
