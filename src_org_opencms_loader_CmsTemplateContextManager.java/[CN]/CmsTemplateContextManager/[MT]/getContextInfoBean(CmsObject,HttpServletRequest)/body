@@ -1,0 +1,28 @@
+{
+  CmsTemplateContextInfo result=new CmsTemplateContextInfo();
+  CmsTemplateContext context=(CmsTemplateContext)request.getAttribute(ATTR_TEMPLATE_CONTEXT);
+  if (context != null) {
+    result.setCurrentContext(context.getKey());
+    I_CmsTemplateContextProvider provider=context.getProvider();
+    Locale locale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
+    CmsXmlContentProperty settingDefinition=createTemplateContextsPropertyDefinition(provider,locale);
+    result.setSettingDefinition(settingDefinition);
+    String cookieName=context.getProvider().getOverrideCookieName();
+    if (cookieName != null) {
+      String cookieValue=CmsRequestUtil.getCookieValue(request.getCookies(),cookieName);
+      result.setSelectedContext(cookieValue);
+    }
+    result.setCookieName(cookieName);
+    Map<String,String> niceNames=new HashMap<String,String>();
+    for (    Map.Entry<String,CmsTemplateContext> entry : provider.getAllContexts().entrySet()) {
+      CmsTemplateContext otherContext=entry.getValue();
+      String niceName=otherContext.getLocalizedName(locale);
+      niceNames.put(otherContext.getKey(),niceName);
+    }
+    result.setContextLabels(niceNames);
+    result.setContextProvider(provider.getClass().getName());
+  }
+  Map<String,List<String>> forbiddenContextMap=safeGetForbiddenContextMap();
+  result.setForbiddenContexts(forbiddenContextMap);
+  return result;
+}
