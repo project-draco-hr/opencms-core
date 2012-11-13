@@ -1,0 +1,63 @@
+{
+  List<String> filenames=new ArrayList<String>();
+  filenames.add("search_rabbit.pdf");
+  filenames.add("search_rabbit_vi.pdf");
+  filenames.add("search_rabbit_pt.pdf");
+  filenames.add("search_rabbit_fr.pdf");
+  filenames.add("search_rabbit_fr_001.pdf");
+  filenames.add("search_rabbit_fr_002.pdf");
+  String folderName="/testLocaleVariants/";
+  CmsObject cms=getCmsObject();
+  cms.createResource(folderName,CmsResourceTypeFolder.RESOURCE_TYPE_ID,null,null);
+  cms.unlockResource(folderName);
+  for (  String filename : filenames) {
+    importTestResource(cms,"org/opencms/search/pdf-test-112.pdf",folderName + filename,CmsResourceTypeBinary.getStaticTypeId(),Collections.<CmsProperty>emptyList());
+  }
+  OpenCms.getPublishManager().publishProject(cms,new CmsShellReport(cms.getRequestContext().getLocale()));
+  OpenCms.getPublishManager().waitWhileRunning();
+  CmsSolrIndex index=OpenCms.getSearchManager().getIndexSolr(AllTests.SOLR_ONLINE);
+  CmsSolrQuery query=new CmsSolrQuery();
+  query.setSearchRoots(Collections.singletonList(cms.getRequestContext().addSiteRoot(folderName)));
+  CmsSolrResultList results=index.search(cms,query,false);
+  AllTests.printResults(cms,results,false);
+  int count=0;
+  for (  CmsSearchResource res : results) {
+    System.out.println("---------------------");
+    System.out.println("DOCUMENT: " + ++count);
+    System.out.println("---------------------");
+    System.out.println("TYPE: " + res.getField("dependencyType"));
+    String depField=res.getField("dep_document");
+    if (depField != null) {
+      System.out.println("DEP_DOC: " + depField);
+      CmsDocumentDependency d=CmsDocumentDependency.fromDependencyString(depField,res.getRootPath());
+      String depCreated=d.toDependencyString(cms);
+      assertEquals(depField,depCreated);
+    }
+    List<String> variants=res.getMultivaluedField("dep_variant");
+    if (variants != null) {
+      System.out.println("---");
+      System.out.println("VARIANTS");
+      for (      String varField : variants) {
+        System.out.println("DEP_VAR: " + varField);
+        JSONObject varJson=new JSONObject(varField);
+        String path=varJson.getString("path");
+        CmsDocumentDependency var=CmsDocumentDependency.fromDependencyString(varField,path);
+        String varCreated=var.toDependencyString(cms);
+        assertEquals(varField,varCreated);
+      }
+    }
+    List<String> attachments=res.getMultivaluedField("dep_attachment");
+    if (attachments != null) {
+      System.out.println("---");
+      System.out.println("ATTACHMENTS");
+      for (      String attField : attachments) {
+        System.out.println("DEP_ATT: " + attField);
+        JSONObject attJson=new JSONObject(attField);
+        String path=attJson.getString("path");
+        CmsDocumentDependency att=CmsDocumentDependency.fromDependencyString(attField,path);
+        String varCreated=att.toDependencyString(cms);
+        assertEquals(attField,varCreated);
+      }
+    }
+  }
+}
