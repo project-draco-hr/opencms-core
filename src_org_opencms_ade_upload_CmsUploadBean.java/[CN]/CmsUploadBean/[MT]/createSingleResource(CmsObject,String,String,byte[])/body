@@ -1,5 +1,5 @@
 {
-  String newResname=getNewResourceName(getCmsObject(),fileName,targetFolder);
+  String newResname=getNewResourceName(cms,fileName,targetFolder);
   CmsResource createdResource=null;
   String title=fileName;
   if (title.lastIndexOf('.') != -1) {
@@ -24,57 +24,62 @@
   }
   properties.add(titleProp);
   int plainId=OpenCms.getResourceManager().getResourceType(CmsResourceTypePlain.getStaticTypeName()).getTypeId();
-  if (!getCmsObject().existsResource(newResname,CmsResourceFilter.IGNORE_EXPIRATION)) {
+  if (!cms.existsResource(newResname,CmsResourceFilter.IGNORE_EXPIRATION)) {
     try {
       int resTypeId=OpenCms.getResourceManager().getDefaultTypeForName(newResname).getTypeId();
-      createdResource=getCmsObject().createResource(newResname,resTypeId,content,properties);
-      getCmsObject().unlockResource(newResname);
+      createdResource=cms.createResource(newResname,resTypeId,content,properties);
+      try {
+        cms.unlockResource(newResname);
+      }
+ catch (      CmsLockException e) {
+        LOG.info("Couldn't unlock uploaded file",e);
+      }
     }
  catch (    CmsSecurityException e) {
-      createdResource=getCmsObject().createResource(newResname,plainId,content,properties);
-      getCmsObject().unlockResource(newResname);
+      createdResource=cms.createResource(newResname,plainId,content,properties);
+      cms.unlockResource(newResname);
     }
 catch (    CmsDbSqlException sqlExc) {
-      getCmsObject().lockResource(newResname);
-      getCmsObject().deleteResource(newResname,CmsResource.DELETE_PRESERVE_SIBLINGS);
+      cms.lockResource(newResname);
+      cms.deleteResource(newResname,CmsResource.DELETE_PRESERVE_SIBLINGS);
       throw sqlExc;
     }
 catch (    OutOfMemoryError e) {
       content=null;
-      getCmsObject().lockResource(newResname);
-      getCmsObject().deleteResource(newResname,CmsResource.DELETE_PRESERVE_SIBLINGS);
+      cms.lockResource(newResname);
+      cms.deleteResource(newResname,CmsResource.DELETE_PRESERVE_SIBLINGS);
       throw e;
     }
   }
  else {
-    CmsResource res=getCmsObject().readResource(newResname,CmsResourceFilter.ALL);
+    CmsResource res=cms.readResource(newResname,CmsResourceFilter.ALL);
     boolean wasLocked=false;
     try {
-      if (!getCmsObject().getLock(res).isOwnedBy(getCmsObject().getRequestContext().getCurrentUser())) {
-        getCmsObject().lockResource(res);
+      if (!cms.getLock(res).isOwnedBy(cms.getRequestContext().getCurrentUser())) {
+        cms.lockResource(res);
         wasLocked=true;
       }
-      CmsFile file=getCmsObject().readFile(res);
+      CmsFile file=cms.readFile(res);
       byte[] contents=file.getContents();
       try {
-        getCmsObject().replaceResource(newResname,res.getTypeId(),content,null);
+        cms.replaceResource(newResname,res.getTypeId(),content,null);
         createdResource=res;
       }
  catch (      CmsDbSqlException sqlExc) {
         file.setContents(contents);
-        getCmsObject().writeFile(file);
+        cms.writeFile(file);
         throw sqlExc;
       }
 catch (      OutOfMemoryError e) {
         content=null;
         file.setContents(contents);
-        getCmsObject().writeFile(file);
+        cms.writeFile(file);
         throw e;
       }
     }
   finally {
       if (wasLocked) {
-        getCmsObject().unlockResource(res);
+        cms.unlockResource(res);
       }
     }
   }
