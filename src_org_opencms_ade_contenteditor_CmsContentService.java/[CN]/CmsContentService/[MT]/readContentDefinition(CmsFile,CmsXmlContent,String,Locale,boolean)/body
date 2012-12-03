@@ -1,0 +1,52 @@
+{
+  long timer=0;
+  if (LOG.isDebugEnabled()) {
+    timer=System.currentTimeMillis();
+  }
+  CmsObject cms=getCmsObject();
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(entityId)) {
+    entityId=CmsContentDefinition.uuidToEntityId(file.getStructureId(),locale.toString());
+  }
+  boolean performedAutoCorrection=checkAutoCorrection(cms,content);
+  if (performedAutoCorrection) {
+    content.initDocument();
+  }
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_UNMARSHALING_TIME_1,"" + (System.currentTimeMillis() - timer)));
+  }
+  CmsContentTypeVisitor visitor=new CmsContentTypeVisitor(cms,file,locale);
+  if (LOG.isDebugEnabled()) {
+    timer=System.currentTimeMillis();
+  }
+  visitor.visitTypes(content.getContentDefinition(),getWorkplaceLocale(cms));
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_VISITING_TYPES_TIME_1,"" + (System.currentTimeMillis() - timer)));
+  }
+  Entity entity=null;
+  if (content.hasLocale(locale) && newLocale) {
+    content.removeLocale(locale);
+  }
+  if (!content.hasLocale(locale)) {
+    content.addLocale(cms,locale);
+  }
+  Element element=content.getLocaleNode(locale);
+  if (LOG.isDebugEnabled()) {
+    timer=System.currentTimeMillis();
+  }
+  entity=readEntity(content,element,locale,entityId,"",getTypeUri(content.getContentDefinition()),visitor.getTypes());
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_READING_ENTITY_TIME_1,"" + (System.currentTimeMillis() - timer)));
+  }
+  List<String> contentLocales=new ArrayList<String>();
+  for (  Locale contentLocale : content.getLocales()) {
+    contentLocales.add(contentLocale.toString());
+  }
+  Locale workplaceLocale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
+  TreeMap<String,String> availableLocales=new TreeMap<String,String>();
+  for (  Locale availableLocale : OpenCms.getLocaleManager().getAvailableLocales(cms,file)) {
+    availableLocales.put(availableLocale.toString(),availableLocale.getDisplayName(workplaceLocale));
+  }
+  String title=cms.readPropertyObject(file,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
+  String typeName=OpenCms.getResourceManager().getResourceType(file.getTypeId()).getTypeName();
+  return new CmsContentDefinition(entity,visitor.getAttributeConfigurations(),visitor.getWidgetConfigurations(),visitor.getTypes(),visitor.getTabInfos(),locale.toString(),contentLocales,availableLocales,title,cms.getSitePath(file),typeName,performedAutoCorrection);
+}

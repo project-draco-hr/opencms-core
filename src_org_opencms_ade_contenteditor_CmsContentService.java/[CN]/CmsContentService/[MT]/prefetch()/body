@@ -1,24 +1,34 @@
 {
   String paramResource=getRequest().getParameter(CmsDialog.PARAM_RESOURCE);
   String paramNewLink=getRequest().getParameter(CmsXmlContentEditor.PARAM_NEWLINK);
-  paramNewLink=decodeNewLink(paramNewLink);
+  boolean createNew=false;
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(paramNewLink)) {
+    createNew=true;
+    paramNewLink=decodeNewLink(paramNewLink);
+  }
   String paramLocale=getRequest().getParameter(CmsEditor.PARAM_ELEMENTLANGUAGE);
-  Locale locale;
+  Locale locale=null;
+  CmsObject cms=getCmsObject();
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(paramResource)) {
     try {
-      CmsResource resource=getCmsObject().readResource(paramResource,CmsResourceFilter.IGNORE_EXPIRATION);
+      CmsResource resource=cms.readResource(paramResource,CmsResourceFilter.IGNORE_EXPIRATION);
       if (CmsResourceTypeXmlContent.isXmlContent(resource)) {
         if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(paramLocale)) {
           locale=CmsLocaleManager.getLocale(paramLocale);
         }
- else {
-          locale=OpenCms.getLocaleManager().getDefaultLocale(getCmsObject(),paramResource);
-        }
-        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(paramNewLink)) {
+        if (createNew) {
+          if (locale == null) {
+            locale=OpenCms.getLocaleManager().getDefaultLocale(cms,paramResource);
+          }
           return readContentDefnitionForNew(paramNewLink,resource,null,locale);
         }
- else         if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(paramResource)) {
-          return readContentDefinition(resource,null,locale,false);
+ else {
+          CmsFile file=cms.readFile(resource);
+          CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,file);
+          if (locale == null) {
+            locale=getBestAvailableLocale(resource,content);
+          }
+          return readContentDefinition(file,content,null,locale,false);
         }
       }
     }
