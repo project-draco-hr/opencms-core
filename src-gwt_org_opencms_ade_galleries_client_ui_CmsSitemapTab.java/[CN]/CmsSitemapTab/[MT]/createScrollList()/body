@@ -1,13 +1,13 @@
 {
-  return new CmsLazyTree<CmsLazyTreeItem>(new A_CmsLazyOpenHandler<CmsLazyTreeItem>(){
+  CmsLazyTree<CmsLazyTreeItem> result=new CmsLazyTree<CmsLazyTreeItem>(new A_CmsLazyOpenHandler<CmsLazyTreeItem>(){
     /** 
  * @see org.opencms.gwt.client.ui.tree.I_CmsLazyOpenHandler#load(org.opencms.gwt.client.ui.tree.CmsLazyTreeItem)
  */
     public void load(    final CmsLazyTreeItem target){
-      CmsSitemapEntryBean entry=m_entryMap.get(target);
+      CmsSitemapEntryBean entry=target.getData();
       I_CmsSimpleCallback<List<CmsSitemapEntryBean>> callback=new I_CmsSimpleCallback<List<CmsSitemapEntryBean>>(){
-        public void execute(        List<CmsSitemapEntryBean> result){
-          for (          CmsSitemapEntryBean childEntry : result) {
+        public void execute(        List<CmsSitemapEntryBean> loadedEntries){
+          for (          CmsSitemapEntryBean childEntry : loadedEntries) {
             CmsLazyTreeItem item=createItem(childEntry);
             target.addChild(item);
           }
@@ -19,4 +19,25 @@
     }
   }
 );
+  result.addOpenHandler(new OpenHandler<CmsLazyTreeItem>(){
+    public void onOpen(    OpenEvent<CmsLazyTreeItem> event){
+      CmsLazyTreeItem target=event.getTarget();
+      CmsSitemapEntryBean entry=target.getData();
+      Set<CmsUUID> openItemIds=getOpenItemIds();
+      openItemIds.add(entry.getStructureId());
+      m_handler.onChangeTreeState(openItemIds);
+    }
+  }
+);
+  result.addCloseHandler(new CloseHandler<CmsLazyTreeItem>(){
+    public void onClose(    CloseEvent<CmsLazyTreeItem> event){
+      CmsLazyTreeItem target=event.getTarget();
+      Set<CmsUUID> openItemIds=getOpenItemIds();
+      CmsSitemapEntryBean entry=target.getData();
+      openItemIds.remove(entry.getStructureId());
+      m_handler.onChangeTreeState(openItemIds);
+    }
+  }
+);
+  return result;
 }

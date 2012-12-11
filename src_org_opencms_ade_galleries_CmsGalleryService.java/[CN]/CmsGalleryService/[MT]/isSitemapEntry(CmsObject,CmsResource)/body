@@ -1,0 +1,47 @@
+{
+  CmsResourceFilter filter=CmsResourceFilter.ONLY_VISIBLE_NO_DELETED;
+  List<CmsResource> ancestors=new ArrayList<CmsResource>();
+  CmsResource currentResource=resource;
+  String siteRoot=OpenCms.getSiteManager().getSiteRoot(resource.getRootPath());
+  while (true) {
+    CmsResource parent=cms.readParentFolder(currentResource.getStructureId());
+    if ((parent == null) || !cms.existsResource(parent.getStructureId(),filter)) {
+      break;
+    }
+    ancestors.add(parent);
+    if (CmsStringUtil.comparePaths(siteRoot,parent.getRootPath())) {
+      break;
+    }
+    currentResource=parent;
+  }
+  Collections.reverse(ancestors);
+  boolean first=true;
+  for (  CmsResource ancestor : ancestors) {
+    if (first) {
+      if (null == OpenCms.getSiteManager().getSiteRoot(ancestor.getRootPath())) {
+        return false;
+      }
+    }
+ else {
+      if (!hasNavigationProperty(cms,ancestor)) {
+        return false;
+      }
+    }
+    first=false;
+  }
+  if (resource.isFile()) {
+    if (ancestors.isEmpty()) {
+      return false;
+    }
+    CmsResource defaultFile=cms.readDefaultFile(ancestors.get(ancestors.size() - 1),filter);
+    if (!resource.equals(defaultFile)) {
+      return false;
+    }
+  }
+ else {
+    if (!hasNavigationProperty(cms,resource)) {
+      return false;
+    }
+  }
+  return true;
+}

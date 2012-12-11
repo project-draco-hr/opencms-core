@@ -10,6 +10,9 @@ case view:
 case widget:
     String currentelement=data.getCurrentElement();
   try {
+    CmsSitemapEntryBean sitemapPreloadData=null;
+    CmsVfsEntryBean vfsPreloadData=null;
+    GalleryTabId startTab=null;
     if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(currentelement)) {
       log("looking up:" + currentelement);
       if (currentelement.startsWith(OpenCms.getSystemInfo().getOpenCmsContext())) {
@@ -17,6 +20,43 @@ case widget:
         log("removed context - result: " + currentelement);
       }
       result=findResourceInGallery(currentelement,data);
+      sitemapPreloadData=result.getSitemapPreloadData();
+      if (sitemapPreloadData != null) {
+        startTab=GalleryTabId.cms_tab_sitemap;
+      }
+    }
+ else {
+      CmsTreeOpenState vfsState=getVfsTreeState(data.getTreeToken());
+      if (vfsState != null) {
+        A_CmsTreeTabDataPreloader<CmsVfsEntryBean> vfsloader=new A_CmsTreeTabDataPreloader<CmsVfsEntryBean>(){
+          @Override protected CmsVfsEntryBean createEntry(          CmsObject cms,          CmsResource resource) throws CmsException {
+            String title=cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
+            return internalCreateVfsEntryBean(resource.getRootPath(),resource.getStructureId(),title,true,isEditable(cms,resource),null);
+          }
+        }
+;
+        vfsPreloadData=vfsloader.preloadData(getCmsObject(),readAll(vfsState.getOpenItems(),CmsResourceFilter.ONLY_VISIBLE_NO_DELETED));
+        startTab=GalleryTabId.cms_tab_vfstree;
+      }
+      CmsTreeOpenState sitemapState=getSitemapTreeState(data.getTreeToken());
+      if (sitemapState != null) {
+        A_CmsTreeTabDataPreloader<CmsSitemapEntryBean> sitemaploader=new A_CmsTreeTabDataPreloader<CmsSitemapEntryBean>(){
+          @Override protected CmsSitemapEntryBean createEntry(          CmsObject cms,          CmsResource resource) throws CmsException {
+            return internalCreateSitemapEntryBean(cms,resource);
+          }
+          /** 
+ * @see org.opencms.ade.galleries.A_CmsTreeTabDataPreloader#getChildren(org.opencms.file.CmsResource)
+ */
+          @Override protected List<CmsResource> getChildren(          CmsResource resource) throws CmsException {
+            return getSitemapSubEntryResources(resource.getRootPath());
+          }
+        }
+;
+        sitemapPreloadData=sitemaploader.preloadData(getCmsObject(),readAll(sitemapState.getOpenItems(),CmsResourceFilter.ONLY_VISIBLE_NO_DELETED));
+        if ((vfsState == null) || (vfsState.getTimestamp() < sitemapState.getTimestamp())) {
+          startTab=GalleryTabId.cms_tab_sitemap;
+        }
+      }
     }
     if ((result == null) || (result.getResults() == null) || result.getResults().isEmpty()) {
       result=new CmsGallerySearchBean();
@@ -37,6 +77,9 @@ case widget:
       result.setScope(CmsGallerySearchScope.everything);
       result=search(result);
     }
+    result.setSitemapPreloadData(sitemapPreloadData);
+    result.setVfsPreloadData(vfsPreloadData);
+    result.setInitialTabId(startTab);
     if (types.size() > 1) {
       result.setTypes(null);
     }
