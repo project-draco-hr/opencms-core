@@ -1,9 +1,25 @@
 {
-  List<Locale> contentLocales=new ArrayList<Locale>();
-  Locale fileNameLocale=getLocaleFromFileName(resource.getRootPath());
-  contentLocales.add(fileNameLocale);
-  if (fileNameLocale == null) {
-    contentLocales=OpenCms.getLocaleManager().getDefaultLocales(cms,resource);
+  Locale detectedLocale=getLocaleFromFileName(resource.getRootPath());
+  if ((detectedLocale == null) && (extraction != null) && (extraction.getContent() != null)) {
+    try {
+      Detector detector=DetectorFactory.create();
+      detector.append(extraction.getContent());
+      String lang=detector.detect();
+      Locale loc=new Locale(lang);
+      if (OpenCms.getLocaleManager().getAvailableLocales().contains(loc)) {
+        detectedLocale=loc;
+      }
+    }
+ catch (    LangDetectException e) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_LANGUAGE_DETECTION_FAILED_1,resource),e);
+    }
   }
-  return contentLocales;
+  List<Locale> result=new ArrayList<Locale>();
+  if (detectedLocale != null) {
+    result.add(detectedLocale);
+  }
+ else {
+    result.add(OpenCms.getLocaleManager().getDefaultLocales(cms,resource).get(0));
+  }
+  return result;
 }
