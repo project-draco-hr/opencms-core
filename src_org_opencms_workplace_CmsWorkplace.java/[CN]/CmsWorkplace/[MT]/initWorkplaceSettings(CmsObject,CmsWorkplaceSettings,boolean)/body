@@ -1,57 +1,22 @@
 {
   settings=initUserSettings(cms,settings,update);
   settings.setProject(cms.getRequestContext().getCurrentProject().getUuid());
-  String siteRoot=settings.getUserSettings().getStartSite();
-  if (siteRoot.endsWith("/")) {
-    siteRoot=siteRoot.substring(0,siteRoot.length() - 1);
-  }
-  if (CmsStringUtil.isNotEmpty(siteRoot) && (OpenCms.getSiteManager().getSiteForSiteRoot(siteRoot) == null)) {
-    siteRoot=OpenCms.getWorkplaceManager().getDefaultUserSettings().getStartSite();
-    if (siteRoot.endsWith("/")) {
-      siteRoot=siteRoot.substring(0,siteRoot.length() - 1);
-    }
-  }
-  boolean access=false;
-  CmsResource res=null;
   String currentSite=cms.getRequestContext().getSiteRoot();
-  cms.getRequestContext().setSiteRoot(siteRoot);
+  settings.setSite(currentSite);
+  String startSiteRoot=getStartSiteRoot(cms,settings);
+  cms.getRequestContext().setSiteRoot(startSiteRoot);
   try {
-    res=cms.readResource("/");
-    access=cms.hasPermissions(res,CmsPermissionSet.ACCESS_VIEW,false,CmsResourceFilter.ONLY_VISIBLE);
-  }
- catch (  CmsException e) {
-    if (LOG.isInfoEnabled()) {
-      LOG.info(e.getLocalizedMessage(),e);
+    String startFolder=settings.getUserSettings().getStartFolder();
+    if (!cms.existsResource(startFolder,CmsResourceFilter.IGNORE_EXPIRATION)) {
+      startFolder="/";
+      settings.getUserSettings().setStartFolder(startFolder);
     }
-  }
- finally {
-    cms.getRequestContext().setSiteRoot(currentSite);
-  }
-  if ((res == null) || !access) {
-    List<CmsSite> sites=OpenCms.getSiteManager().getAvailableSites(cms,true);
-    if (sites.size() > 0) {
-      siteRoot=sites.get(0).getSiteRoot();
-      cms.getRequestContext().setSiteRoot(siteRoot);
-    }
-  }
-  settings.setSite(siteRoot);
-  String startFolder=settings.getUserSettings().getStartFolder();
-  if (!cms.existsResource(startFolder,CmsResourceFilter.IGNORE_EXPIRATION)) {
-    startFolder="/";
-    settings.getUserSettings().setStartFolder(startFolder);
-  }
-  if (OpenCms.getSiteManager().startsWithShared(cms.getRequestContext().getSiteRoot())) {
-    String contextSiteRoot=cms.getRequestContext().getSiteRoot();
-    try {
-      cms.getRequestContext().setSiteRoot(siteRoot);
-      settings.setExplorerResource(startFolder,cms);
-    }
-  finally {
-      cms.getRequestContext().setSiteRoot(contextSiteRoot);
-    }
-  }
- else {
+    settings.setSite(startSiteRoot);
     settings.setExplorerResource(startFolder,cms);
+  }
+  finally {
+    settings.setSite(currentSite);
+    cms.getRequestContext().setSiteRoot(currentSite);
   }
   settings.setViewUri(OpenCms.getLinkManager().substituteLink(cms,settings.getUserSettings().getStartView()));
   return settings;
