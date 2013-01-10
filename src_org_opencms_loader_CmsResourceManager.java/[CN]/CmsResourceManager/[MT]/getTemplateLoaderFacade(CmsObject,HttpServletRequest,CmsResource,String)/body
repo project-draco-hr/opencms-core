@@ -1,11 +1,14 @@
 {
   String templateProp=cms.readPropertyObject(resource,templateProperty,true).getValue();
   CmsTemplateContext templateContext=null;
+  String templateName=null;
   if (templateProp == null) {
     templateProp=DEFAULT_TEMPLATE;
-    if (!cms.existsResource(templateProp,CmsResourceFilter.IGNORE_EXPIRATION)) {
+    NamedTemplate namedTemplate=readTemplateWithName(cms,templateProp);
+    if (namedTemplate == null) {
       throw new CmsLoaderException(Messages.get().container(Messages.ERR_NONDEF_PROP_2,templateProperty,cms.getSitePath(resource)));
     }
+    templateName=namedTemplate.getName();
   }
  else {
     if ((request != null) && templateProp.startsWith(CmsTemplateContextManager.DYNAMIC_TEMPLATE_PREFIX)) {
@@ -14,14 +17,21 @@
         templateProp=templateContext.getTemplatePath();
       }
     }
-    if (!cms.existsResource(templateProp,CmsResourceFilter.IGNORE_EXPIRATION)) {
-      if (cms.existsResource(DEFAULT_TEMPLATE,CmsResourceFilter.IGNORE_EXPIRATION)) {
+    NamedTemplate namedTemplate=readTemplateWithName(cms,templateProp);
+    if (namedTemplate == null) {
+      namedTemplate=readTemplateWithName(cms,DEFAULT_TEMPLATE);
+      if (namedTemplate != null) {
         templateProp=DEFAULT_TEMPLATE;
+        templateName=namedTemplate.getName();
       }
+    }
+ else {
+      templateName=namedTemplate.getName();
     }
   }
   CmsResource template=cms.readFile(templateProp,CmsResourceFilter.IGNORE_EXPIRATION);
   CmsTemplateLoaderFacade result=new CmsTemplateLoaderFacade(getLoader(template),resource,template);
   result.setTemplateContext(templateContext);
+  result.setTemplateName(templateName);
   return result;
 }
