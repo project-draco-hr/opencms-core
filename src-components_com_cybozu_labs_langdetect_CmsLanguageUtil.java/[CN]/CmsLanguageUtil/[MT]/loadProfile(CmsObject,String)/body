@@ -1,0 +1,73 @@
+{
+  CmsFile file=null;
+  try {
+    file=cms.readFile(path);
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getMessage(),e);
+  }
+  if (file != null) {
+    ZipInputStream zipInput=new ZipInputStream(new ByteArrayInputStream(file.getContents()));
+    List<LangProfile> profiles=new ArrayList<LangProfile>();
+    try {
+      while (true) {
+        ZipEntry entry=zipInput.getNextEntry();
+        if (entry == null) {
+          break;
+        }
+        if (entry.isDirectory() || entry.getName().startsWith(".")) {
+          continue;
+        }
+        ByteArrayInputStream is=null;
+        try {
+          byte[] content;
+          int fileByteSize=Long.valueOf(entry.getSize()).intValue();
+          if (fileByteSize == -1) {
+            content=CmsFileUtil.readFully(zipInput,false);
+          }
+ else {
+            content=CmsFileUtil.readFully(zipInput,fileByteSize,false);
+          }
+          is=new ByteArrayInputStream(content);
+          LangProfile profile=JSON.decode(is,LangProfile.class);
+          profiles.add(profile);
+        }
+ catch (        JSONException e) {
+          throw new LangDetectException(ErrorCode.FormatError,"profile format error in '" + file.getName() + "'");
+        }
+catch (        IOException e) {
+          throw new LangDetectException(ErrorCode.FileLoadError,"can't open '" + file.getName() + "'");
+        }
+ finally {
+          try {
+            if (is != null) {
+              is.close();
+            }
+          }
+ catch (          IOException e) {
+          }
+        }
+        zipInput.closeEntry();
+      }
+    }
+ catch (    IOException e) {
+      LOG.error(e.getMessage(),e);
+    }
+ finally {
+      try {
+        zipInput.close();
+      }
+ catch (      IOException e) {
+      }
+    }
+    if (!profiles.isEmpty()) {
+      DetectorFactory.clear();
+      int count=0;
+      int langsize=profiles.size();
+      for (      LangProfile profile : profiles) {
+        DetectorFactory.addProfile(profile,count,langsize);
+        count++;
+      }
+    }
+  }
+}
