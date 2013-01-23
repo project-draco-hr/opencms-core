@@ -9,9 +9,21 @@
   SerializationPolicy serializationPolicy=null;
   InputStream is;
   try {
-    is=new ByteArrayInputStream(cms.readFile(m_serializationPolicyPath).getContents());
+    String rfsPath=m_serializationPolicyPath;
+    if (rfsPath.startsWith(OpenCms.getSystemInfo().getContextPath())) {
+      rfsPath=rfsPath.substring(OpenCms.getSystemInfo().getContextPath().length());
+    }
+    rfsPath=CmsStringUtil.joinPaths(OpenCms.getSystemInfo().getWebApplicationRfsPath(),rfsPath);
+    File policyFile=new File(rfsPath);
+    if (policyFile.exists() && policyFile.canRead()) {
+      is=new FileInputStream(policyFile);
+    }
+ else {
+      String policyPath=OpenCms.getLinkManager().getRootPath(cms,rfsPath);
+      is=new ByteArrayInputStream(cms.readFile(policyPath).getContents());
+    }
   }
- catch (  CmsException ex) {
+ catch (  Exception ex) {
     String message="ERROR: The serialization policy file '" + m_serializationPolicyPath + "' was not found; did you forget to include it in this deployment?";
     LOG.warn(message);
     LOG.warn(ex.getLocalizedMessage(),ex);
