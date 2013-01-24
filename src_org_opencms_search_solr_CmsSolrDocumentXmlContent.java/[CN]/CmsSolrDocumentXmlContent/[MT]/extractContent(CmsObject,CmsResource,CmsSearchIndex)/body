@@ -1,9 +1,40 @@
 {
-  I_CmsXmlContentHandler handler=CmsXmlContentDefinition.getContentHandlerForResource(cms,resource);
-  if (handler.isContainerPageOnly()) {
-    return new CmsExtractionResult(true);
+  logContentExtraction(resource,index);
+  try {
+    A_CmsXmlDocument xmlContent=CmsXmlContentFactory.unmarshal(cms,readFile(cms,resource));
+    Map<String,String> items=new HashMap<String,String>();
+    StringBuffer locales=new StringBuffer();
+    Locale resLocale=index.getLocaleForResource(cms,resource,xmlContent.getLocales());
+    String defaultContent=null;
+    for (    Locale locale : xmlContent.getLocales()) {
+      locales.append(locale.toString());
+      locales.append(' ');
+      StringBuffer content=new StringBuffer();
+      List<String> paths=xmlContent.getNames(locale);
+      for (      String xpath : paths) {
+        String extracted=extractValue(cms,xmlContent,xpath,locale);
+        I_CmsXmlContentValue value=xmlContent.getValue(xpath,locale);
+        if (value.getContentDefinition().getContentHandler().isSearchable(value) && CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
+          content.append(extracted);
+          content.append('\n');
+        }
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
+          items.put(CmsSearchFieldConfiguration.getLocaleExtendedName(CmsXmlUtils.removeXpath(xpath),locale),extracted);
+        }
+      }
+      if (content.length() > 0) {
+        String contentKey=CmsSearchFieldConfiguration.getLocaleExtendedName(CmsSearchField.FIELD_CONTENT,locale);
+        items.put(contentKey,content.toString());
+        if (resLocale.equals(locale)) {
+          defaultContent=content.toString();
+        }
+      }
+      items.put(CmsSearchField.FIELD_RESOURCE_LOCALES,locales.toString());
+    }
+    Set<CmsSearchField> fields=new HashSet<CmsSearchField>(xmlContent.getHandler().getSearchFields());
+    return new CmsExtractionResult(defaultContent,items,fields);
   }
- else {
-    return extractElementContent(cms,resource,index);
+ catch (  Exception e) {
+    throw new CmsIndexException(Messages.get().container(Messages.ERR_TEXT_EXTRACTION_1,resource.getRootPath()),e);
   }
 }
