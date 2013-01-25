@@ -1,0 +1,31 @@
+{
+  CmsObject cms=OpenCms.initCmsObject(getCmsObject());
+  CmsLanguageUtil.loadProfile(cms,CmsLanguageUtil.LANGUAGE_PROFILE_ZIP_PATH);
+  String folderName="/folder1/subfolder12/subsubfolder121/";
+  List<CmsProperty> props=new ArrayList<CmsProperty>();
+  props.add(new CmsProperty(CmsPropertyDefinition.PROPERTY_LOCALE,"de","de"));
+  CmsResource master=importTestResource(cms,"org/opencms/search/solr/lang-detect-doc.pdf",folderName + "lang-detect-doc.pdf",CmsResourceTypeBinary.getStaticTypeId(),props);
+  OpenCms.getPublishManager().publishProject(cms,new CmsShellReport(cms.getRequestContext().getLocale()));
+  OpenCms.getPublishManager().waitWhileRunning();
+  CmsSolrIndex index=OpenCms.getSearchManager().getIndexSolr(AllTests.SOLR_ONLINE);
+  CmsSolrQuery query=new CmsSolrQuery(cms,null);
+  query.setText("Language Detection Document");
+  query.setLocales(Collections.singletonList(Locale.GERMAN));
+  CmsSolrResultList result=index.search(cms,query);
+  assertTrue(!result.contains(master));
+  query.setLocales(Collections.singletonList(Locale.ENGLISH));
+  result=index.search(cms,query);
+  assertTrue(result.contains(master));
+  index.setLanguageDetection(false);
+  props.add(new CmsProperty(CmsPropertyDefinition.PROPERTY_LOCALE,"de","de"));
+  CmsResource master2=importTestResource(cms,"org/opencms/search/solr/lang-detect-doc.pdf",folderName + "lang-detect-doc2.pdf",CmsResourceTypeBinary.getStaticTypeId(),props);
+  OpenCms.getPublishManager().publishProject(cms,new CmsShellReport(cms.getRequestContext().getLocale()));
+  OpenCms.getPublishManager().waitWhileRunning();
+  query.setLocales(Collections.singletonList(Locale.GERMAN));
+  result=index.search(cms,query);
+  assertTrue(result.contains(master2));
+  query.setLocales(Collections.singletonList(Locale.ENGLISH));
+  result=index.search(cms,query);
+  assertTrue(!result.contains(master2));
+  index.setLanguageDetection(true);
+}
