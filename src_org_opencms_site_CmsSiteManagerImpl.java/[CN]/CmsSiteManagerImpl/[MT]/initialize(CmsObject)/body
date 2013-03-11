@@ -2,15 +2,18 @@
   if (CmsLog.INIT.isInfoEnabled()) {
     CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_NUM_SITE_ROOTS_CONFIGURED_1,new Integer((m_siteMatcherSites.size() + ((m_defaultUri != null) ? 1 : 0)))));
   }
-  Iterator<CmsSite> i=m_siteMatcherSites.values().iterator();
-  while (i.hasNext()) {
-    CmsSite site=i.next();
-    if (site != null) {
+  CmsObject clone;
+  try {
+    clone=OpenCms.initCmsObject(cms);
+    clone.getRequestContext().setSiteRoot("");
+    for (    CmsSite site : m_siteMatcherSites.values()) {
       try {
-        CmsResource siteRes=cms.readResource(site.getSiteRoot());
-        String title=cms.readPropertyObject(siteRes,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
-        if ((title != null) && !title.isEmpty()) {
-          site.setTitle(title);
+        CmsResource siteRes=clone.readResource(site.getSiteRoot());
+        if (CmsStringUtil.isEmptyOrWhitespaceOnly(site.getTitle())) {
+          String title=clone.readPropertyObject(siteRes,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(title)) {
+            site.setTitle(title);
+          }
         }
       }
  catch (      Throwable t) {
@@ -19,50 +22,49 @@
         }
       }
     }
-  }
-  if (CmsStringUtil.isEmptyOrWhitespaceOnly(m_defaultUri)) {
-    m_defaultSite=null;
-  }
- else {
-    m_defaultSite=new CmsSite(m_defaultUri,CmsSiteMatcher.DEFAULT_MATCHER);
-    try {
-      cms.readResource(m_defaultSite.getSiteRoot());
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(m_defaultUri)) {
+      m_defaultSite=null;
     }
- catch (    Throwable t) {
-      if (CmsLog.INIT.isWarnEnabled()) {
-        CmsLog.INIT.warn(Messages.get().getBundle().key(Messages.INIT_NO_ROOT_FOLDER_DEFAULT_SITE_1,m_defaultSite));
+ else {
+      m_defaultSite=new CmsSite(m_defaultUri,CmsSiteMatcher.DEFAULT_MATCHER);
+      try {
+        clone.readResource(m_defaultSite.getSiteRoot());
+      }
+ catch (      Throwable t) {
+        if (CmsLog.INIT.isWarnEnabled()) {
+          CmsLog.INIT.warn(Messages.get().getBundle().key(Messages.INIT_NO_ROOT_FOLDER_DEFAULT_SITE_1,m_defaultSite));
+        }
       }
     }
-  }
-  if (m_defaultSite == null) {
-    m_defaultSite=new CmsSite("/",CmsSiteMatcher.DEFAULT_MATCHER);
-  }
-  if (CmsLog.INIT.isInfoEnabled()) {
-    if (m_defaultSite != null) {
-      CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_DEFAULT_SITE_ROOT_1,m_defaultSite));
+    if (m_defaultSite == null) {
+      m_defaultSite=new CmsSite("/",CmsSiteMatcher.DEFAULT_MATCHER);
     }
+    if (CmsLog.INIT.isInfoEnabled()) {
+      if (m_defaultSite != null) {
+        CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_DEFAULT_SITE_ROOT_1,m_defaultSite));
+      }
  else {
-      CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_DEFAULT_SITE_ROOT_0));
+        CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_DEFAULT_SITE_ROOT_0));
+      }
     }
-  }
-  m_workplaceSiteMatcher=new CmsSiteMatcher(m_workplaceServer);
-  if (CmsLog.INIT.isInfoEnabled()) {
-    if (m_workplaceSiteMatcher != null) {
-      CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_WORKPLACE_SITE_1,m_workplaceSiteMatcher));
-    }
+    m_workplaceSiteMatcher=new CmsSiteMatcher(m_workplaceServer);
+    if (CmsLog.INIT.isInfoEnabled()) {
+      if (m_workplaceSiteMatcher != null) {
+        CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_WORKPLACE_SITE_1,m_workplaceSiteMatcher));
+      }
  else {
-      CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_WORKPLACE_SITE_0));
+        CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_WORKPLACE_SITE_0));
+      }
     }
-  }
-  m_siteMatcherSites=Collections.unmodifiableMap(m_siteMatcherSites);
-  m_matchers=Collections.unmodifiableList(m_matchers);
-  m_siteRoots=Collections.unmodifiableSet(m_siteRootSites.keySet());
-  Iterator<String> j=m_siteRoots.iterator();
-  while (j.hasNext()) {
-    String root=j.next();
-    if (!root.startsWith(SITES_FOLDER)) {
-      m_additionalSiteRoots.add(root);
+    m_siteMatcherSites=Collections.unmodifiableMap(m_siteMatcherSites);
+    for (    String root : m_siteRootSites.keySet()) {
+      if (!root.startsWith(SITES_FOLDER)) {
+        m_additionalSiteRoots.add(root);
+      }
     }
+    m_frozen=true;
   }
-  m_frozen=true;
+ catch (  CmsException e) {
+    e.printStackTrace();
+  }
 }
