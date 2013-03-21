@@ -5,16 +5,21 @@
       aliases.add(new CmsSiteMatcher(ali));
     }
     m_site.setAliases(aliases);
-    OpenCms.getSiteManager().updateSite(getCms(),m_site.getOriginalSite(),m_site.toCmsSite());
-  }
- catch (  CmsException e) {
-    addCommitError(e);
-  }
-  if (!hasCommitErrors()) {
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(m_site.getServer())) {
+      throw new CmsException(Messages.get().container(Messages.ERR_EMPTY_SERVER_URL_0));
+    }
+    CmsSite site=m_site.toCmsSite();
+    CmsObject cms=OpenCms.initCmsObject(getCms());
+    cms.getRequestContext().setSiteRoot("");
+    cms.readResource(site.getSiteRoot());
+    OpenCms.getSiteManager().updateSite(getCms(),m_site.getOriginalSite(),site);
     OpenCms.writeConfiguration(CmsSystemConfiguration.class);
     Map<?,?> objects=(Map<?,?>)getSettings().getListObject();
     if (objects != null) {
       objects.remove(CmsSitesList.class.getName());
     }
+  }
+ catch (  Exception e) {
+    addCommitError(e);
   }
 }
