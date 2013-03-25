@@ -1,0 +1,39 @@
+{
+  String site=getParamSites();
+  try {
+    CmsObject cms=OpenCms.initCmsObject(getCms());
+    cms.getRequestContext().setSiteRoot("");
+    cms.existsResource(site + "/");
+    copyFileToServer(OpenCms.getSystemInfo().getPackagesRfsPath());
+    if ((getParamImportfile() == null) || !getParamImportfile().equals(FILE_NAME_FAV_ICON)) {
+      throw new CmsException(Messages.get().container(Messages.ERR_INVALID_FAVICON_FILE_1,getParamImportfile()));
+    }
+    String importpath=OpenCms.getSystemInfo().getPackagesRfsPath();
+    importpath=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf(importpath + getParamImportfile());
+    RandomAccessFile f=new RandomAccessFile(importpath,"r");
+    byte[] content=new byte[(int)f.length()];
+    f.read(content);
+    f.close();
+    String favCreatePath=site + "/" + FILE_NAME_FAV_ICON;
+    int imageResId=CmsResourceTypeImage.getStaticTypeId();
+    if (cms.existsResource(favCreatePath)) {
+      cms.replaceResource(favCreatePath,imageResId,content,new ArrayList<CmsProperty>());
+    }
+ else {
+      cms.createResource(favCreatePath,imageResId,content,new ArrayList<CmsProperty>());
+    }
+    String title=OpenCms.getSiteManager().getSiteForSiteRoot(site).getTitle();
+    Map<String,String[]> params=new HashMap<String,String[]>();
+    params.put(CmsSitesList.PARAM_SITES,new String[]{getParamSites()});
+    params.put(CmsSitesList.PARAM_SITE_TITLE,new String[]{title});
+    params.put(PARAM_ACTION,new String[]{DIALOG_INITIAL});
+    getToolManager().jspForwardTool(this,"/sites/detail",params);
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(getLocale()),e);
+    }
+    setException(e);
+    return;
+  }
+}
