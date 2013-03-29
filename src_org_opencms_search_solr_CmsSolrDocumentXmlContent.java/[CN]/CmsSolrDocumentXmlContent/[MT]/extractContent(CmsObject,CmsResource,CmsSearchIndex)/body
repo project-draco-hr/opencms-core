@@ -4,37 +4,46 @@
     A_CmsXmlDocument xmlContent=CmsXmlContentFactory.unmarshal(cms,readFile(cms,resource));
     Map<String,String> items=new HashMap<String,String>();
     StringBuffer locales=new StringBuffer();
-    Locale resLocale=index.getLocaleForResource(cms,resource,xmlContent.getLocales());
+    Locale resourceLocale=index.getLocaleForResource(cms,resource,xmlContent.getLocales());
     String defaultContent=null;
+    StringBuffer textContent=new StringBuffer();
     for (    Locale locale : xmlContent.getLocales()) {
       locales.append(locale.toString());
       locales.append(' ');
-      StringBuffer content=new StringBuffer();
       List<String> paths=xmlContent.getNames(locale);
       for (      String xpath : paths) {
-        String extracted=extractValue(cms,xmlContent,xpath,locale);
+        String extracted=null;
         I_CmsXmlContentValue value=xmlContent.getValue(xpath,locale);
+        try {
+          extracted=value.getPlainText(cms);
+          if (CmsStringUtil.isEmptyOrWhitespaceOnly(extracted) && value.isSimpleType()) {
+            extracted=value.getStringValue(cms);
+          }
+        }
+ catch (        Exception e) {
+          LOG.warn(Messages.get().container(Messages.LOG_VALUE_EXTRACTION_2,xpath,resource),e);
+        }
         if (value.getContentDefinition().getContentHandler().isSearchable(value) && CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
-          content.append(extracted);
-          content.append('\n');
+          textContent.append(extracted);
+          textContent.append('\n');
         }
         if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
-          items.put(CmsSearchFieldConfiguration.getLocaleExtendedName(xpath,locale),extracted);
+          items.put(CmsXmlUtils.addLocalePrefixToXpath(xpath,locale),extracted);
         }
       }
-      if (content.length() > 0) {
-        String contentKey=CmsSearchFieldConfiguration.getLocaleExtendedName(CmsSearchField.FIELD_CONTENT,locale);
-        items.put(contentKey,content.toString());
-        if (resLocale.equals(locale)) {
-          defaultContent=content.toString();
+      if (textContent.length() > 0) {
+        String key=CmsSearchFieldConfiguration.getLocaleExtendedName(CmsSearchField.FIELD_CONTENT,locale);
+        items.put(key,textContent.toString());
+        if (resourceLocale.equals(locale)) {
+          defaultContent=textContent.toString();
         }
       }
-      items.put(CmsSearchField.FIELD_RESOURCE_LOCALES,locales.toString());
     }
+    items.put(CmsSearchField.FIELD_RESOURCE_LOCALES,locales.toString().trim());
     Set<CmsSearchField> fields=new HashSet<CmsSearchField>(xmlContent.getHandler().getSearchFields());
     return new CmsExtractionResult(defaultContent,items,fields);
   }
  catch (  Exception e) {
-    throw new CmsIndexException(Messages.get().container(Messages.ERR_TEXT_EXTRACTION_1,resource.getRootPath()),e);
+    throw new CmsIndexException(Messages.get().container(Messages.ERR_TEXT_EXTRACTION_1,resource),e);
   }
 }
