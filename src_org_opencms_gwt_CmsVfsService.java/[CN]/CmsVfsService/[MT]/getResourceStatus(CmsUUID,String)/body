@@ -71,17 +71,28 @@
     }
     List<CmsRelation> relations=cms.readRelations(CmsRelationFilter.relationsToStructureId(resource.getStructureId()));
     for (    CmsRelation relation : relations) {
-      CmsResource source=relation.getSource(cms,CmsResourceFilter.IGNORE_EXPIRATION);
-      CmsListInfoBean sourceBean=getPageInfo(source);
-      String link=null;
       try {
-        link=OpenCms.getLinkManager().substituteLink(cms,source);
+        CmsResource source=relation.getSource(cms,CmsResourceFilter.IGNORE_EXPIRATION);
+        CmsListInfoBean sourceBean=getPageInfo(source);
+        String link=null;
+        try {
+          link=OpenCms.getLinkManager().substituteLink(cms,source);
+        }
+ catch (        Exception e) {
+          LOG.warn(e.getLocalizedMessage(),e);
+        }
+        CmsResourceStatusRelationBean relationBean=new CmsResourceStatusRelationBean(sourceBean,link,source.getStructureId());
+        if (CmsResourceTypeXmlContent.isXmlContent(source)) {
+          relationBean.setIsXmlContent(true);
+        }
+        String sitePath=cms.getSitePath(source);
+        relationBean.setSitePath(sitePath);
+        result.getRelationSources().add(relationBean);
       }
- catch (      Exception e) {
-        LOG.warn(e.getLocalizedMessage(),e);
+ catch (      CmsVfsResourceNotFoundException notfound) {
+        LOG.error(notfound.getLocalizedMessage(),notfound);
+        continue;
       }
-      sourceBean.setLink(link);
-      result.getRelationSources().add(sourceBean);
     }
     return result;
   }
