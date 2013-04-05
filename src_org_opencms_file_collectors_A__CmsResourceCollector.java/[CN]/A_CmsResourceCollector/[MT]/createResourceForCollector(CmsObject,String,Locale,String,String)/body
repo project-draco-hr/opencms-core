@@ -15,20 +15,29 @@
   }
   I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(collectorName);
   String newFileName="";
-  CmsFile templateFile=cms.readFile(templateFileName,CmsResourceFilter.IGNORE_EXPIRATION);
+  CmsResource templateResource=cms.readResource(templateFileName,CmsResourceFilter.IGNORE_EXPIRATION);
+  CmsXmlContent newContent=null;
+  int typeId;
   CmsObject cloneCms=OpenCms.initCmsObject(cms);
   cloneCms.getRequestContext().setRequestTime(CmsResource.DATE_RELEASED_EXPIRED_IGNORE);
-  CmsXmlContent template=CmsXmlContentFactory.unmarshal(cloneCms,templateFile);
-  CmsXmlContent newContent=CmsXmlContentFactory.createDocument(cms,locale,template.getEncoding(),template.getContentDefinition());
+  if (!templateResource.isFolder()) {
+    typeId=templateResource.getTypeId();
+    CmsFile templateFile=cms.readFile(templateResource);
+    CmsXmlContent template=CmsXmlContentFactory.unmarshal(cloneCms,templateFile);
+    newContent=CmsXmlContentFactory.createDocument(cms,locale,template.getEncoding(),template.getContentDefinition());
+  }
+ else {
+    typeId=new CmsCollectorData(param).getType();
+  }
   newFileName=collector.getCreateLink(cms,collectorName,param);
   boolean useModelFile=false;
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(modelFile)) {
     cms.getRequestContext().setAttribute(CmsRequestContext.ATTRIBUTE_MODEL,modelFile);
     useModelFile=true;
   }
-  cms.createResource(newFileName,templateFile.getTypeId());
+  cms.createResource(newFileName,typeId);
   CmsFile newFile=cms.readFile(newFileName,CmsResourceFilter.ALL);
-  if (!useModelFile) {
+  if (!useModelFile && (newContent != null)) {
     newFile.setContents(newContent.marshal());
     cloneCms.writeFile(newFile);
   }
