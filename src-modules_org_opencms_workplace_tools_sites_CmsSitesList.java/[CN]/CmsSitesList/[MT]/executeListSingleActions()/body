@@ -1,15 +1,31 @@
 {
-  String site=getSelectedItem().getId();
+  String siteId=getSelectedItem().getId();
   Map<String,String[]> params=new HashMap<String,String[]>();
-  params.put(PARAM_SITES,new String[]{site});
+  CmsSite site=OpenCms.getSiteManager().getSiteForSiteRoot(siteId);
+  params.put(PARAM_SITES,new String[]{siteId});
   params.put(PARAM_ACTION,new String[]{DIALOG_INITIAL});
-  params.put(PARAM_SITE_TITLE,new String[]{OpenCms.getSiteManager().getSiteForSiteRoot(site).getTitle()});
+  params.put(PARAM_SITE_TITLE,new String[]{site.getTitle()});
   if (getParamListAction().equals(LIST_ACTION_EDIT)) {
     params.put(PARAM_EDIT_ACTION,new String[]{CmsSiteDialog.DIALOG_EDIT});
     getToolManager().jspForwardTool(this,"/sites/detail/edit",params);
   }
  else   if (getParamListAction().equals(LIST_ACTION_DEFAULT)) {
     getToolManager().jspForwardTool(this,"/sites/detail",params);
+  }
+ else   if (getParamListAction().equals(LIST_ACTION_ACTIVATE) || getParamListAction().equals(LIST_ACTION_DEACTIVATE)) {
+    if (getParamListAction().equals(LIST_ACTION_ACTIVATE)) {
+      site.setWebserver(true);
+    }
+ else {
+      site.setWebserver(false);
+    }
+    try {
+      OpenCms.getSiteManager().updateSite(getCms(),site,site);
+      OpenCms.writeConfiguration(CmsSystemConfiguration.class);
+    }
+ catch (    CmsException e) {
+      throw new CmsRuntimeException(Messages.get().container(Messages.ERR_SITES_WEBSERVER_1,site),e);
+    }
   }
  else   if (getParamListAction().equals(LIST_ACTION_REMOVE)) {
     params.put(PARAM_STYLE,new String[]{CmsToolDialog.STYLE_NEW});
