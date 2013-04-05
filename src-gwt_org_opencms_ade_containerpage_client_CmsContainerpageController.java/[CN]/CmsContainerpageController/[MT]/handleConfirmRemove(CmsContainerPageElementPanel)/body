@@ -1,0 +1,47 @@
+{
+  if (element.isNew()) {
+    element.removeFromParent();
+    setPageChanged();
+    return;
+  }
+  checkElementReferences(element,new AsyncCallback<Boolean>(){
+    public void onFailure(    Throwable caught){
+    }
+    public void onSuccess(    Boolean hasOtherReferences){
+      boolean showDeleteCheckbox=!hasOtherReferences.booleanValue();
+      CmsConfirmRemoveDialog removeDialog=new CmsConfirmRemoveDialog(showDeleteCheckbox,new AsyncCallback<Boolean>(){
+        public void onFailure(        Throwable caught){
+          element.removeHighlighting();
+        }
+        public void onSuccess(        Boolean shouldDeleteResource){
+          Runnable[] nextActions=new Runnable[]{};
+          if (shouldDeleteResource.booleanValue()) {
+            final CmsRpcAction<Void> deleteAction=new CmsRpcAction<Void>(){
+              @Override public void execute(){
+                start(200,true);
+                CmsUUID id=new CmsUUID(getServerId(element.getId()));
+                CmsCoreProvider.getVfsService().deleteResource(id,this);
+              }
+              @Override public void onResponse(              Void result){
+                stop(true);
+              }
+            }
+;
+            nextActions=new Runnable[]{null};
+            nextActions[0]=new Runnable(){
+              public void run(){
+                deleteAction.execute();
+              }
+            }
+;
+          }
+          element.removeFromParent();
+          setPageChanged(nextActions);
+        }
+      }
+);
+      removeDialog.center();
+    }
+  }
+);
+}

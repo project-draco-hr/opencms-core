@@ -1,0 +1,45 @@
+{
+  if (m_frozen) {
+    throw new CmsRuntimeException(Messages.get().container(Messages.ERR_CONFIG_FROZEN_0));
+  }
+  if (getSiteRoots().contains(uri)) {
+    throw new CmsRuntimeException(Messages.get().container(Messages.ERR_SITE_ALREADY_CONFIGURED_1,uri));
+  }
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(server)) {
+    throw new CmsRuntimeException(Messages.get().container(Messages.ERR_EMPTY_SERVER_URL_0));
+  }
+  CmsSiteMatcher matcher=new CmsSiteMatcher(server);
+  CmsSite site=new CmsSite(uri,matcher);
+  site.setTitle(title);
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(position)) {
+    float pos=Float.MAX_VALUE;
+    try {
+      pos=Float.parseFloat(position);
+    }
+ catch (    Throwable e) {
+    }
+    site.setPosition(pos);
+  }
+  site.setErrorPage(errorPage);
+  site.setWebserver(Boolean.valueOf(webserver).booleanValue());
+  addServer(matcher,site);
+  if (CmsStringUtil.isNotEmpty(secureServer)) {
+    matcher=new CmsSiteMatcher(secureServer);
+    site.setSecureServer(matcher);
+    site.setExclusiveUrl(Boolean.valueOf(exclusive).booleanValue());
+    site.setExclusiveError(Boolean.valueOf(error).booleanValue());
+    addServer(matcher,site);
+  }
+  site.setAliases(m_aliases);
+  Iterator<CmsSiteMatcher> i=m_aliases.iterator();
+  while (i.hasNext()) {
+    matcher=i.next();
+    addServer(matcher,site);
+  }
+  m_aliases=new ArrayList<CmsSiteMatcher>();
+  m_siteRootSites=new HashMap<String,CmsSite>(m_siteRootSites);
+  m_siteRootSites.put(site.getSiteRoot(),site);
+  if (CmsLog.INIT.isInfoEnabled()) {
+    CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_SITE_ROOT_ADDED_1,site.toString()));
+  }
+}

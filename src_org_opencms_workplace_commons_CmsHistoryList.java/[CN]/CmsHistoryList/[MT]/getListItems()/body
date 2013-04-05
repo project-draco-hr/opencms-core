@@ -1,9 +1,18 @@
 {
-  List result=new ArrayList();
-  List historicalVersions=getCms().readAllAvailableVersions(getParamResource());
-  Iterator itVersions=historicalVersions.iterator();
+  List<CmsListItem> result=new ArrayList<CmsListItem>();
+  List<I_CmsHistoryResource> historicalVersions=getCms().readAllAvailableVersions(getParamResource());
+  Iterator<I_CmsHistoryResource> itVersions=historicalVersions.iterator();
   while (itVersions.hasNext()) {
-    I_CmsHistoryResource histRes=(I_CmsHistoryResource)itVersions.next();
+    I_CmsHistoryResource histRes=itVersions.next();
+    boolean isEnabled=true;
+    CmsResource resource=(CmsResource)getCms().readResource(getCms().readResource(histRes.getStructureId(),CmsResourceFilter.IGNORE_EXPIRATION).getStructureId(),histRes.getVersion());
+    if (resource.isFile()) {
+      CmsFile file=getCms().readFile(resource);
+      byte[] content=file.getContents();
+      if (content.length < 1) {
+        isEnabled=false;
+      }
+    }
     int publishTag=histRes.getPublishTag();
     CmsHistoryProject project=getCms().readHistoryProject(publishTag);
     String filetype=String.valueOf(histRes.getTypeId());
@@ -30,6 +39,7 @@
     item.set(LIST_COLUMN_SIZE,new Integer(histRes.getLength()).toString());
     item.set(LIST_COLUMN_PUBLISH_TAG,new Integer(publishTag));
     item.set(LIST_COLUMN_STRUCTURE_ID,histRes.getStructureId().toString());
+    item.set(LIST_COLUMN_VERSION_ENABLE,new Boolean(isEnabled));
     result.add(item);
   }
   if (result.isEmpty()) {
@@ -53,6 +63,7 @@
       item.set(LIST_COLUMN_SIZE,new Integer(onlineResource.getLength()).toString());
       item.set(LIST_COLUMN_RESOURCE_PATH,getCms().getSitePath(onlineResource));
       item.set(LIST_COLUMN_STRUCTURE_ID,onlineResource.getStructureId().toString());
+      item.set(LIST_COLUMN_VERSION_ENABLE,new Boolean(true));
       result.add(item);
     }
  catch (    CmsVfsResourceNotFoundException e) {
@@ -80,6 +91,7 @@
     item.set(LIST_COLUMN_SIZE,new Integer(offlineResource.getLength()).toString());
     item.set(LIST_COLUMN_RESOURCE_PATH,getCms().getSitePath(offlineResource));
     item.set(LIST_COLUMN_STRUCTURE_ID,offlineResource.getStructureId().toString());
+    item.set(LIST_COLUMN_VERSION_ENABLE,new Boolean(true));
     result.add(item);
   }
   boolean comparable=(result.size() > 1);
