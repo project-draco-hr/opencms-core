@@ -1,28 +1,44 @@
 {
-  String template=FileUtils.readFileToString(new File(m_templatePath));
+  StringTemplate config=new StringTemplate(FileUtils.readFileToString(new File(m_templatePath)));
   List<CmsSite> sites=OpenCms.getSiteManager().getAvailableSites(getCms(),true);
   for (  CmsSite site : sites) {
     if ((site.getSiteMatcher() != null) && site.isWebserver()) {
-      String filename=generateWebserverConfigFilename(site);
+      String filename=m_targetPath + m_filePrefix + "_"+ generateWebserverConfigName(site.getSiteMatcher(),"_");
       getReport().println(Messages.get().container(Messages.RPT_CREATING_CONFIG_FOR_SITE_2,filename,site),I_CmsReport.FORMAT_OK);
       File newFile=new File(filename);
       if (!newFile.exists()) {
         newFile.createNewFile();
       }
-      String conf=template.replaceAll(SERVER_NAME_PLACE_HOLDER,site.getSiteMatcher().getServerName());
+      config.setAttribute("DOCUMENT_ROOT",OpenCms.getSystemInfo().getWebApplicationRfsPath());
+      config.setAttribute("WEBAPP_NAME",OpenCms.getSystemInfo().getWebApplicationName());
+      config.setAttribute("SERVLET_PATH",OpenCms.getSystemInfo().getServletPath());
+      config.setAttribute("DEFAULT_ENCODING",OpenCms.getSystemInfo().getDefaultEncoding());
+      config.setAttribute("SERVER_URL",site.getUrl());
+      config.setAttribute("SERVER_PROTOCOL",site.getSiteMatcher().getServerProtocol());
+      config.setAttribute("SERVER_NAME",site.getSiteMatcher().getServerName());
+      config.setAttribute("SERVER_PORT",site.getSiteMatcher().getServerPort());
+      config.setAttribute("SERVER_NAME_WITH_PORT",generateWebserverConfigName(site.getSiteMatcher(),":"));
+      config.setAttribute("SITE_TITLE",site.getTitle());
+      if (site.getErrorPage() != null) {
+        config.setAttribute("ERROR_PAGE",site.getErrorPage());
+      }
       if ((site.getAliases() != null) && !site.getAliases().isEmpty()) {
-        StringBuffer buf=new StringBuffer();
-        buf.append("ServerAlias");
+        config.setAttribute("ALIAS_DIRECTIVE","ServerAlias");
         for (        CmsSiteMatcher alias : site.getAliases()) {
-          buf.append(" ");
-          buf.append(alias.getServerName());
+          config.setAttribute("SERVER_ALIASES",generateWebserverConfigName(alias,":") + " ");
         }
-        conf=template.replaceAll(ALIASES_PLACE_HOLDER,buf.toString());
       }
- else {
-        conf=template.replaceAll(ALIASES_PLACE_HOLDER,"");
+      if (site.hasSecureServer()) {
+        if (site.getSecureUrl() != null) {
+          config.setAttribute("SECURE_URL",site.getSecureUrl());
+        }
+        if (site.getSecureServer() != null) {
+          config.setAttribute("SECURE_SERVER_NAME",site.getSecureServer().getServerName());
+          config.setAttribute("SECURE_SERVER_PORT",site.getSecureServer().getServerPort());
+          config.setAttribute("SECURE_SERVER_PROTOCOL",site.getSecureServer().getServerProtocol());
+        }
       }
-      FileUtils.writeStringToFile(newFile,conf);
+      FileUtils.writeStringToFile(newFile,config.toString());
       m_writtenFiles.add(newFile.getAbsolutePath());
     }
   }
