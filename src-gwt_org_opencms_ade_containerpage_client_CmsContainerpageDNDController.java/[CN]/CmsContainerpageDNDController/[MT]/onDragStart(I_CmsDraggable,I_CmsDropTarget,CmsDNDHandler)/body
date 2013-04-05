@@ -1,5 +1,6 @@
 {
   installDragOverlay();
+  m_draggableId=draggable.getId();
   m_isNew=false;
   m_originalIndex=-1;
   m_initialDropTarget=target;
@@ -24,7 +25,7 @@
     CmsDebugLog.getInstance().printLine("draggable has no id, canceling drop");
     return false;
   }
-  I_CmsSimpleCallback<CmsContainerElementData> callback=new I_CmsSimpleCallback<CmsContainerElementData>(){
+  final I_CmsSimpleCallback<CmsContainerElementData> callback=new I_CmsSimpleCallback<CmsContainerElementData>(){
     /** 
  * Execute on success.<p>
  * @param arg the container element data
@@ -39,7 +40,21 @@
     m_controller.getNewElement(clientId,callback);
   }
  else {
-    m_controller.getElement(clientId,callback);
+    if (isCopyModel(draggable)) {
+      m_controller.copyElement(draggable.getId(),new AsyncCallback<CmsUUID>(){
+        public void onFailure(        Throwable caught){
+        }
+        public void onSuccess(        CmsUUID result){
+          String idString=result.toString();
+          m_draggableId=idString;
+          m_controller.getElement(idString,callback);
+        }
+      }
+);
+    }
+ else {
+      m_controller.getElement(clientId,callback);
+    }
   }
   if (target instanceof CmsContainerPageContainer) {
     String id=((CmsContainerPageContainer)target).getContainerId();
