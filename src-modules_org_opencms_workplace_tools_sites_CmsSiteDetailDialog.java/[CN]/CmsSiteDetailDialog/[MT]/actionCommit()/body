@@ -1,10 +1,21 @@
 {
   try {
-    CmsSite site=m_site.toCmsSite();
+    validateDialog();
     CmsObject cms=OpenCms.initCmsObject(getCms());
     cms.getRequestContext().setSiteRoot("");
-    cms.readResource(site.getSiteRoot());
-    OpenCms.getSiteManager().updateSite(getCms(),m_site.getOriginalSite(),site);
+    String siteRoot="/sites".concat(m_sitename);
+    m_site.setSiteRoot(siteRoot);
+    CmsResource siteRootResource=null;
+    try {
+      siteRootResource=cms.readResource(siteRoot);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      siteRootResource=cms.createResource(siteRoot,CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+      if (m_createou) {
+        OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,"/" + siteRootResource.getName(),m_ouDescription.replace("%(site)",m_site.getTitle() + " [" + m_site.getSiteRoot()+ "]"),0,siteRootResource.getRootPath());
+      }
+    }
+    OpenCms.getSiteManager().updateSite(getCms(),m_site.getOriginalSite(),m_site.toCmsSite());
     OpenCms.writeConfiguration(CmsSystemConfiguration.class);
     Map<?,?> objects=(Map<?,?>)getSettings().getListObject();
     if (objects != null) {
