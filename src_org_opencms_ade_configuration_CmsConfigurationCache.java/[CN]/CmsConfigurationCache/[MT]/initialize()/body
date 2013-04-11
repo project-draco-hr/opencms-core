@@ -1,23 +1,31 @@
 {
-  m_siteConfigurations.clear();
-  if (m_cms.existsResource("/")) {
-    try {
-      List<CmsResource> configFileCandidates=m_cms.readResources("/",CmsResourceFilter.DEFAULT.addRequireType(m_configType.getTypeId()));
-      for (      CmsResource candidate : configFileCandidates) {
-        if (isSitemapConfiguration(candidate.getRootPath(),candidate.getTypeId())) {
-          update(candidate);
+  m_lock.writeLock().lock();
+  try {
+    m_siteConfigurations.clear();
+    m_isDetailPageCache.clear();
+    m_pathCache.clear();
+    if (m_cms.existsResource("/")) {
+      try {
+        List<CmsResource> configFileCandidates=m_cms.readResources("/",CmsResourceFilter.DEFAULT.addRequireType(m_configType.getTypeId()));
+        for (        CmsResource candidate : configFileCandidates) {
+          if (isSitemapConfiguration(candidate.getRootPath(),candidate.getTypeId())) {
+            update(candidate);
+          }
         }
       }
+ catch (      Exception e) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+    }
+    refreshModuleConfiguration();
+    try {
+      initializeFolderTypes();
     }
  catch (    Exception e) {
       LOG.error(e.getLocalizedMessage(),e);
     }
   }
-  refreshModuleConfiguration();
-  try {
-    initializeFolderTypes();
-  }
- catch (  Exception e) {
-    LOG.error(e.getLocalizedMessage(),e);
+  finally {
+    m_lock.writeLock().unlock();
   }
 }
