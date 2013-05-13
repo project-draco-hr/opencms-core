@@ -1,0 +1,72 @@
+{
+  List<CmsContextMenuEntryBean> result=new ArrayList<CmsContextMenuEntryBean>();
+  CmsWorkplaceManager wpManager=OpenCms.getWorkplaceManager();
+  CmsMessages messages=wpManager.getMessages(wpManager.getWorkplaceLocale(cms));
+  for (  CmsExplorerContextMenuItem item : items) {
+    CmsContextMenuEntryBean bean=new CmsContextMenuEntryBean();
+    if (!CmsExplorerContextMenuItem.TYPE_SEPARATOR.equals(item.getType())) {
+      if (item.getKey() != null) {
+        bean.setLabel(messages.key(item.getKey()));
+      }
+      CmsMenuItemVisibilityMode mode=CmsMenuItemVisibilityMode.VISIBILITY_INVISIBLE;
+      String itemRuleName=item.getRule();
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(itemRuleName)) {
+        CmsMenuRule rule=wpManager.getMenuRule(itemRuleName);
+        if (rule != null) {
+          I_CmsMenuItemRule itemRule=rule.getMatchingRule(cms,resUtil);
+          if (itemRule != null) {
+            if (item.isParentItem()) {
+              List<I_CmsMenuItemRule> itemRules=new ArrayList<I_CmsMenuItemRule>(item.getSubItems().size());
+              getSubItemRules(cms,item,itemRules,resUtil);
+              I_CmsMenuItemRule[] itemRulesArray=new I_CmsMenuItemRule[itemRules.size()];
+              mode=itemRule.getVisibility(cms,resUtil,itemRules.toArray(itemRulesArray));
+            }
+ else {
+              if (itemRule instanceof A_CmsMenuItemRule) {
+                mode=((A_CmsMenuItemRule)itemRule).getVisibility(cms,resUtil,item);
+              }
+ else {
+                mode=itemRule.getVisibility(cms,resUtil);
+              }
+            }
+          }
+        }
+      }
+      bean.setVisible(!mode.isInVisible());
+      if (item.isParentItem()) {
+        bean.setActive(true);
+      }
+ else {
+        bean.setActive(mode.isActive());
+        if (CmsStringUtil.isNotEmpty(mode.getMessageKey())) {
+          bean.setReason(messages.key(CmsEncoder.escapeXml(mode.getMessageKey())));
+        }
+      }
+      String jspPath=item.getUri();
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(jspPath)) {
+        if (item.getUri().startsWith("/")) {
+          jspPath=OpenCms.getLinkManager().substituteLink(cms,item.getUri());
+        }
+ else {
+          jspPath=OpenCms.getLinkManager().substituteLink(cms,CmsWorkplace.PATH_WORKPLACE + item.getUri());
+        }
+      }
+      bean.setJspPath(jspPath);
+      String params=item.getParams();
+      if (params != null) {
+        params=CmsVfsService.prepareFileNameForEditor(cms,resUtil[0].getResource(),params);
+        bean.setParams(CmsStringUtil.splitAsMap(params,"|","="));
+      }
+      bean.setName(item.getName());
+    }
+    if (item.isParentItem()) {
+      bean.setSubMenu(transformToMenuEntries(cms,item.getSubItems(),resUtil));
+    }
+    if (CmsExplorerContextMenuItem.TYPE_SEPARATOR.equals(item.getType())) {
+      bean.setVisible(true);
+      bean.setSeparator(true);
+    }
+    result.add(bean);
+  }
+  return result;
+}
