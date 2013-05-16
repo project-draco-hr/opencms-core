@@ -1,0 +1,38 @@
+{
+  CmsObject cms=OpenCms.initCmsObject(getCmsObject());
+  int typePlain=CmsResourceTypePlain.getStaticTypeId();
+  int typeFolder=CmsResourceTypeFolder.getStaticTypeId();
+  try {
+    OpenCmsTestLogAppender.setBreakOnError(true);
+    OpenCmsTestLogAppender.setHandler(new I_CmsLogHandler(){
+      public void handleLogEvent(      LoggingEvent event){
+        if (event.getLevel().toString().contains("ERROR")) {
+          storeError(event.getMessage().toString());
+        }
+      }
+    }
+);
+    cms.createResource("/publishRepair2",typeFolder);
+    String baseCategories="/publishRepair2" + "/" + "_categories";
+    cms.createResource(baseCategories,typeFolder);
+    cms.createResource(baseCategories + "/" + "publishRepair_cat2",typeFolder);
+    String filePath="/publishRepair2" + "/testpublishrepair.txt";
+    cms.createResource(filePath,typePlain);
+    CmsCategoryService service=CmsCategoryService.getInstance();
+    service.addResourceToCategory(cms,filePath,"/" + "publishRepair_cat2");
+    OpenCms.getPublishManager().publishProject(cms);
+    OpenCms.getPublishManager().waitWhileRunning();
+    cms.lockResource(baseCategories + "/" + "publishRepair_cat2");
+    cms.deleteResource(baseCategories + "/" + "publishRepair_cat2",CmsResource.DELETE_PRESERVE_SIBLINGS);
+    OpenCms.getPublishManager().publishProject(cms);
+    OpenCms.getPublishManager().waitWhileRunning();
+    cms.lockResource(filePath);
+    cms.moveResource(filePath,filePath + "_x");
+    OpenCms.getPublishManager().publishProject(cms);
+    OpenCms.getPublishManager().waitWhileRunning();
+  }
+  finally {
+    OpenCmsTestLogAppender.setBreakOnError(false);
+    OpenCmsTestLogAppender.setHandler(null);
+  }
+}
