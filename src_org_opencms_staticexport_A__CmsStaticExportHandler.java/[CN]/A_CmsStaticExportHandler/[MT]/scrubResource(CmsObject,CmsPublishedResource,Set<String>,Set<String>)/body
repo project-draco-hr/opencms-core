@@ -3,64 +3,84 @@
   if (LOG.isDebugEnabled()) {
     LOG.debug(Messages.get().getBundle().key(Messages.LOG_SCRUB_EXPORT_START_RESOURCE_1,res.getRootPath()));
   }
-  String resPath=cms.getRequestContext().removeSiteRoot(res.getRootPath());
-  List<String> siblings=getSiblingsList(cms,resPath);
-  for (  String vfsName : siblings) {
-    String rfsName=OpenCms.getStaticExportManager().getRfsName(cms,vfsName);
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(Messages.get().getBundle().key(Messages.LOG_CHECKING_STATIC_EXPORT_2,vfsName,rfsName));
-    }
-    if (rfsName.startsWith(OpenCms.getStaticExportManager().getRfsPrefix(vfsName)) && (!scrubbedFiles.contains(rfsName)) && (!scrubbedFolders.contains(CmsResource.getFolderPath(rfsName)))) {
-      if (res.isFolder()) {
-        if (res.getState().isDeleted()) {
-          String exportFolderName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName) + rfsName.substring(OpenCms.getStaticExportManager().getRfsPrefix(vfsName).length()));
-          try {
-            File exportFolder=new File(exportFolderName);
-            if (exportFolder.exists() && exportFolder.canWrite()) {
-              CmsFileUtil.purgeDirectory(exportFolder);
-              if (LOG.isInfoEnabled()) {
-                LOG.info(Messages.get().getBundle().key(Messages.LOG_FOLDER_DELETED_1,exportFolderName));
-              }
-              scrubbedFolders.add(rfsName);
-              continue;
-            }
-          }
- catch (          Throwable t) {
-            if (LOG.isWarnEnabled()) {
-              LOG.warn(Messages.get().getBundle().key(Messages.LOG_FOLDER_DELETION_FAILED_2,vfsName,exportFolderName));
-            }
-          }
-        }
-      }
- else {
-        try {
-          CmsResource defaultFile=cms.readDefaultFile(CmsResource.getFolderPath(vfsName));
-          if (defaultFile != null) {
-            String defaultfilePath=cms.getRequestContext().removeSiteRoot(defaultFile.getRootPath());
-            if (vfsName.equals(defaultfilePath)) {
-              String rfsNameDefault=CmsResource.getFolderPath(rfsName) + CmsStaticExportManager.EXPORT_DEFAULT_FILE;
-              String rfsExportFileName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName) + rfsNameDefault.substring(OpenCms.getStaticExportManager().getRfsPrefix(vfsName).length()));
-              purgeFile(rfsExportFileName,vfsName);
-            }
-          }
-        }
- catch (        CmsException e) {
-        }
-      }
-      rfsName=OpenCms.getStaticExportManager().addDefaultFileNameToFolder(rfsName,res.isFolder());
+  try {
+    String resPath=cms.getRequestContext().removeSiteRoot(res.getRootPath());
+    List<String> siblings=getSiblingsList(cms,resPath);
+    for (    String vfsName : siblings) {
+      String rfsName=OpenCms.getStaticExportManager().getRfsName(cms,vfsName);
       if (LOG.isDebugEnabled()) {
-        LOG.debug(Messages.get().getBundle().key(Messages.LOG_RFSNAME_1,rfsName));
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_CHECKING_STATIC_EXPORT_2,vfsName,rfsName));
       }
-      String rfsExportFileName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName) + rfsName.substring(OpenCms.getStaticExportManager().getRfsPrefix(vfsName).length()));
-      List<File> relFilesToPurge=getRelatedFilesToPurge(rfsExportFileName,vfsName);
-      purgeFiles(relFilesToPurge,vfsName,scrubbedFiles);
-      List<File> detailPageFiles=getDetailPageFiles(cms,res,vfsName);
-      purgeFiles(detailPageFiles,vfsName,scrubbedFiles);
-      List<File> referencingContainerPages=getContainerPagesToPurge(cms,res.getStructureId());
-      purgeFiles(referencingContainerPages,vfsName,scrubbedFiles);
-      purgeFile(rfsExportFileName,vfsName);
-      scrubbedFiles.add(rfsName);
+      if (rfsName.startsWith(OpenCms.getStaticExportManager().getRfsPrefix(vfsName)) && (!scrubbedFiles.contains(rfsName)) && (!scrubbedFolders.contains(CmsResource.getFolderPath(rfsName)))) {
+        if (res.isFolder()) {
+          if (res.getState().isDeleted()) {
+            String exportFolderName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName) + rfsName.substring(OpenCms.getStaticExportManager().getRfsPrefix(vfsName).length()));
+            try {
+              File exportFolder=new File(exportFolderName);
+              if (exportFolder.exists() && exportFolder.canWrite()) {
+                CmsFileUtil.purgeDirectory(exportFolder);
+                if (LOG.isInfoEnabled()) {
+                  LOG.info(Messages.get().getBundle().key(Messages.LOG_FOLDER_DELETED_1,exportFolderName));
+                }
+                scrubbedFolders.add(rfsName);
+                continue;
+              }
+            }
+ catch (            Throwable t) {
+              if (LOG.isWarnEnabled()) {
+                LOG.warn(Messages.get().getBundle().key(Messages.LOG_FOLDER_DELETION_FAILED_2,vfsName,exportFolderName));
+              }
+            }
+          }
+        }
+ else {
+          try {
+            CmsResource defaultFile=cms.readDefaultFile(CmsResource.getFolderPath(vfsName));
+            if (defaultFile != null) {
+              String defaultfilePath=cms.getRequestContext().removeSiteRoot(defaultFile.getRootPath());
+              if (vfsName.equals(defaultfilePath)) {
+                String rfsNameDefault=CmsResource.getFolderPath(rfsName) + CmsStaticExportManager.EXPORT_DEFAULT_FILE;
+                String rfsExportFileName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName) + rfsNameDefault.substring(OpenCms.getStaticExportManager().getRfsPrefix(vfsName).length()));
+                purgeFile(rfsExportFileName,vfsName);
+              }
+            }
+          }
+ catch (          CmsException e) {
+          }
+        }
+        rfsName=OpenCms.getStaticExportManager().addDefaultFileNameToFolder(rfsName,res.isFolder());
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_RFSNAME_1,rfsName));
+        }
+        String rfsExportFileName=CmsFileUtil.normalizePath(OpenCms.getStaticExportManager().getExportPath(vfsName) + rfsName.substring(OpenCms.getStaticExportManager().getRfsPrefix(vfsName).length()));
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_EXPORT_RFSNAME_1,rfsName));
+        }
+        List<File> relFilesToPurge=getRelatedFilesToPurge(rfsExportFileName,vfsName);
+        purgeFiles(relFilesToPurge,vfsName,scrubbedFiles);
+        if (!res.isFolder()) {
+          I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(res.getType());
+          I_CmsResourceLoader resLoader=OpenCms.getResourceManager().getLoader(resType.getLoaderId());
+          if ((resLoader instanceof CmsXmlContentLoader) && !(resLoader instanceof CmsXmlContainerPageLoader)) {
+            List<File> detailPageFiles=getDetailPageFiles(cms,res,vfsName);
+            purgeFiles(detailPageFiles,vfsName,scrubbedFiles);
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(Messages.get().getBundle().key(Messages.LOG_PURGED_DETAILPAGES_0));
+            }
+            List<File> referencingContainerPages=getContainerPagesToPurge(cms,res.getStructureId());
+            purgeFiles(referencingContainerPages,vfsName,scrubbedFiles);
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(Messages.get().getBundle().key(Messages.LOG_PURGED_CONTAINERPAGES_0));
+            }
+          }
+        }
+        purgeFile(rfsExportFileName,vfsName);
+        scrubbedFiles.add(rfsName);
+      }
     }
+  }
+ catch (  Throwable e) {
+    LOG.error(e.getLocalizedMessage(),e);
   }
   if (LOG.isDebugEnabled()) {
     LOG.debug(Messages.get().getBundle().key(Messages.LOG_SCRUB_EXPORT_FINISH_RESOURCE_2,res.getRootPath(),(System.currentTimeMillis() - timer) + ""));
