@@ -17,6 +17,28 @@
         containerPage=xmlContainerPage.getContainerPage(cms,locale);
         standardContext.setPage(containerPage);
       }
+      CmsResource detailContent=standardContext.getDetailContent();
+      CmsContainerBean container=null;
+      if (m_detailOnly) {
+        if (detailContent == null) {
+          return SKIP_BODY;
+        }
+ else {
+          CmsContainerPageBean detailOnlyPage=standardContext.getDetailOnlyPage();
+          if (detailOnlyPage == null) {
+            String resourceName=getDetailOnlyPageName(cms.getSitePath(detailContent));
+            if (cms.existsResource(resourceName)) {
+              CmsXmlContainerPage xmlContainerPage=CmsXmlContainerPageFactory.unmarshal(cms,cms.readResource(resourceName),req);
+              detailOnlyPage=xmlContainerPage.getContainerPage(cms,locale);
+              standardContext.setDetailOnlyPage(detailOnlyPage);
+              container=detailOnlyPage.getContainers().get(m_name);
+            }
+          }
+        }
+      }
+ else       if (containerPage != null) {
+        container=containerPage.getContainers().get(getName());
+      }
       boolean createTag=false;
       String tagName=CmsStringUtil.isEmptyOrWhitespaceOnly(getTag()) ? DEFAULT_TAG_NAME : getTag();
       if (!CREATE_NO_TAG.equals(getTag())) {
@@ -24,13 +46,8 @@
         pageContext.getOut().print(getTagOpen(tagName,getName(),getTagClass()));
       }
       int maxElements=getMaxElements(requestUri);
-      CmsContainerBean container=null;
-      if (containerPage != null) {
-        container=containerPage.getContainers().get(getName());
-      }
       boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
       boolean isUsedAsDetailView=false;
-      CmsResource detailContent=standardContext.getDetailContent();
       if (m_detailView && (detailContent != null)) {
         isUsedAsDetailView=true;
       }
@@ -41,7 +58,7 @@
           }
           if (!isOnline) {
             try {
-              pageContext.getOut().print(getContainerDataTag(new CmsContainerBean(getName(),getType(),maxElements,null),getWidth(),isUsedAsDetailView));
+              pageContext.getOut().print(getContainerDataTag(new CmsContainerBean(getName(),getType(),maxElements,null),getWidth(),isUsedAsDetailView,m_detailOnly));
             }
  catch (            JSONException e) {
               throw new JspException(e);
@@ -76,7 +93,7 @@
         if (!isOnline) {
           try {
             CmsContainerBean cntBean=new CmsContainerBean(getName(),getType(),maxElements,allElements);
-            pageContext.getOut().print(getContainerDataTag(cntBean,getWidth(),isUsedAsDetailView));
+            pageContext.getOut().print(getContainerDataTag(cntBean,getWidth(),isUsedAsDetailView,m_detailOnly));
           }
  catch (          JSONException e) {
             throw new JspException(e);

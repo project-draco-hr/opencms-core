@@ -9,10 +9,28 @@
     CmsADESessionCache sessionCache=CmsADESessionCache.getCache(getRequest(),cms);
     sessionCache.setTemplateBean(containerPage.getRootPath(),templateBean);
     long lastModified=containerPage.getDateLastModified();
-    String cntPageUri=cms.getSitePath(containerPage);
     String editorUri=OpenCms.getWorkplaceManager().getEditorHandler().getEditorUri(cms,"xmlcontent","User agent",false);
     boolean useClassicEditor=(editorUri == null) || !editorUri.contains("acacia");
-    data=new CmsCntPageData(cms.getSitePath(containerPage),getNoEditReason(cms,containerPage),CmsRequestUtil.encodeParams(request),CmsADEManager.PATH_SITEMAP_EDITOR_JSP,cntPageUri,CmsDetailPageResourceHandler.getDetailId(getRequest()),getNewTypes(cms,request),lastModified,getLockInfo(containerPage),cms.getRequestContext().getLocale().toString(),useClassicEditor,info,isEditSmallElements(request,cms));
+    CmsResource detailResource=CmsDetailPageResourceHandler.getDetailResource(request);
+    String noEditReason;
+    String detailContainerPage=null;
+    if (detailResource != null) {
+      detailContainerPage=CmsJspTagContainer.getDetailOnlyPageName(cms.getSitePath(detailResource));
+      if (cms.existsResource(detailContainerPage)) {
+        noEditReason=getNoEditReason(cms,cms.readResource(detailContainerPage));
+      }
+ else {
+        String permissionFolder=CmsResource.getFolderPath(detailContainerPage);
+        if (!cms.existsResource(permissionFolder)) {
+          permissionFolder=CmsResource.getParentFolder(permissionFolder);
+        }
+        noEditReason=getNoEditReason(cms,cms.readResource(permissionFolder));
+      }
+    }
+ else {
+      noEditReason=getNoEditReason(cms,containerPage);
+    }
+    data=new CmsCntPageData(noEditReason,CmsRequestUtil.encodeParams(request),CmsADEManager.PATH_SITEMAP_EDITOR_JSP,detailResource != null ? detailResource.getStructureId() : null,detailContainerPage,getNewTypes(cms,request),lastModified,getLockInfo(containerPage),cms.getRequestContext().getLocale().toString(),useClassicEditor,info,isEditSmallElements(request,cms));
   }
  catch (  Throwable e) {
     error(e);

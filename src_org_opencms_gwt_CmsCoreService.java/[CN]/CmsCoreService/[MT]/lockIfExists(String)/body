@@ -1,0 +1,35 @@
+{
+  CmsObject cms=getCmsObject();
+  String errorMessage=null;
+  try {
+    if (cms.existsResource(sitePath,CmsResourceFilter.IGNORE_EXPIRATION)) {
+      try {
+        ensureLock(cms.readResource(sitePath,CmsResourceFilter.IGNORE_EXPIRATION));
+      }
+ catch (      CmsException e) {
+        errorMessage=e.getLocalizedMessage(OpenCms.getWorkplaceManager().getWorkplaceLocale(cms));
+      }
+    }
+ else {
+      String parentFolder=CmsResource.getParentFolder(sitePath);
+      while ((parentFolder != null) && !cms.existsResource(parentFolder,CmsResourceFilter.IGNORE_EXPIRATION)) {
+        parentFolder=CmsResource.getParentFolder(parentFolder);
+      }
+      if (parentFolder != null) {
+        CmsResource ancestorFolder=cms.readResource(parentFolder,CmsResourceFilter.IGNORE_EXPIRATION);
+        CmsUser user=cms.getRequestContext().getCurrentUser();
+        CmsLock lock=cms.getLock(ancestorFolder);
+        if (!lock.isLockableBy(user)) {
+          errorMessage="Can not lock parent folder '" + parentFolder + "'.";
+        }
+      }
+ else {
+        errorMessage="Can not access any parent folder.";
+      }
+    }
+  }
+ catch (  Throwable e) {
+    error(e);
+  }
+  return errorMessage;
+}
