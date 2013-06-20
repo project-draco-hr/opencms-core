@@ -84,12 +84,19 @@
     }
     long processTime=System.currentTimeMillis() - startTime - solrTime;
     SolrCore core=m_solr instanceof EmbeddedSolrServer ? ((EmbeddedSolrServer)m_solr).getCoreContainer().getCore(getName()) : null;
-    CmsSolrResultList result=new CmsSolrResultList(core,initQuery,queryResponse,solrDocumentList,resourceDocumentList,start,new Integer(rows),end,page,visibleHitCount,new Float(maxScore),startTime);
-    if (LOG.isDebugEnabled()) {
-      Object[] logParams=new Object[]{new Long(System.currentTimeMillis() - startTime),new Long(result.getNumFound()),new Long(solrTime),new Long(processTime),new Long(result.getHighlightEndTime() != 0 ? result.getHighlightEndTime() - startTime : 0)};
-      LOG.debug(query.toString() + "\n" + Messages.get().getBundle().key(Messages.LOG_SOLR_SEARCH_EXECUTED_5,logParams));
+    try {
+      CmsSolrResultList result=new CmsSolrResultList(core,initQuery,queryResponse,solrDocumentList,resourceDocumentList,start,new Integer(rows),end,page,visibleHitCount,new Float(maxScore),startTime);
+      if (LOG.isDebugEnabled()) {
+        Object[] logParams=new Object[]{new Long(System.currentTimeMillis() - startTime),new Long(result.getNumFound()),new Long(solrTime),new Long(processTime),new Long(result.getHighlightEndTime() != 0 ? result.getHighlightEndTime() - startTime : 0)};
+        LOG.debug(query.toString() + "\n" + Messages.get().getBundle().key(Messages.LOG_SOLR_SEARCH_EXECUTED_5,logParams));
+      }
+      return result;
     }
-    return result;
+  finally {
+      if (core != null) {
+        core.close();
+      }
+    }
   }
  catch (  Exception e) {
     throw new CmsSearchException(Messages.get().container(Messages.LOG_SOLR_ERR_SEARCH_EXECUTION_FAILD_1,CmsEncoder.decode(query.toString())),e);

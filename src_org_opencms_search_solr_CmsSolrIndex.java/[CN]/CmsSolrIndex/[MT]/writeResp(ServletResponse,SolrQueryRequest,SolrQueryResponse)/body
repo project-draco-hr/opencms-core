@@ -1,21 +1,26 @@
 {
   if (m_solr instanceof EmbeddedSolrServer) {
     SolrCore core=((EmbeddedSolrServer)m_solr).getCoreContainer().getCore(getName());
-    QueryResponseWriter responseWriter=core.getQueryResponseWriter(queryRequest);
-    final String ct=responseWriter.getContentType(queryRequest,queryResponse);
-    if (null != ct) {
-      response.setContentType(ct);
-    }
-    if (responseWriter instanceof BinaryQueryResponseWriter) {
-      BinaryQueryResponseWriter binWriter=(BinaryQueryResponseWriter)responseWriter;
-      binWriter.write(response.getOutputStream(),queryRequest,queryResponse);
-    }
+    try {
+      QueryResponseWriter responseWriter=core.getQueryResponseWriter(queryRequest);
+      final String ct=responseWriter.getContentType(queryRequest,queryResponse);
+      if (null != ct) {
+        response.setContentType(ct);
+      }
+      if (responseWriter instanceof BinaryQueryResponseWriter) {
+        BinaryQueryResponseWriter binWriter=(BinaryQueryResponseWriter)responseWriter;
+        binWriter.write(response.getOutputStream(),queryRequest,queryResponse);
+      }
  else {
-      String charset=ContentStreamBase.getCharsetFromContentType(ct);
-      Writer out=((charset == null) || charset.equalsIgnoreCase(UTF8.toString())) ? new OutputStreamWriter(response.getOutputStream(),UTF8) : new OutputStreamWriter(response.getOutputStream(),charset);
-      out=new FastWriter(out);
-      responseWriter.write(out,queryRequest,queryResponse);
-      out.flush();
+        String charset=ContentStreamBase.getCharsetFromContentType(ct);
+        Writer out=((charset == null) || charset.equalsIgnoreCase(UTF8.toString())) ? new OutputStreamWriter(response.getOutputStream(),UTF8) : new OutputStreamWriter(response.getOutputStream(),charset);
+        out=new FastWriter(out);
+        responseWriter.write(out,queryRequest,queryResponse);
+        out.flush();
+      }
+    }
+  finally {
+      core.close();
     }
   }
  else {
