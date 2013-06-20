@@ -107,8 +107,6 @@
     }
     timeLucene+=System.currentTimeMillis();
     timeResultProcessing=-System.currentTimeMillis();
-    Document doc;
-    CmsSearchResult searchResult;
     if (hits != null) {
       int hitCount=hits.totalHits > hits.scoreDocs.length ? hits.scoreDocs.length : hits.totalHits;
       int page=params.getSearchPage();
@@ -123,23 +121,24 @@
         start=0;
         end=hitCount;
       }
-      Set<String> retFields=((CmsLuceneFieldConfiguration)m_fieldConfiguration).getReturnFields();
+      Set<String> returnFields=((CmsLuceneFieldConfiguration)m_fieldConfiguration).getReturnFields();
+      Set<String> excerptFields=((CmsLuceneFieldConfiguration)m_fieldConfiguration).getExcerptFields();
       int visibleHitCount=hitCount;
       for (int i=0, cnt=0; (i < hitCount) && (cnt < end); i++) {
         try {
-          doc=searcher.doc(hits.scoreDocs[i].doc,retFields);
-          doc=searcher.doc(hits.scoreDocs[i].doc);
+          Document doc=searcher.doc(hits.scoreDocs[i].doc,returnFields);
           I_CmsSearchDocument searchDoc=new CmsLuceneDocument(doc);
           searchDoc.setScore(hits.scoreDocs[i].score);
           if ((isInTimeRange(doc,params)) && (hasReadPermission(searchCms,searchDoc))) {
             if (cnt >= start) {
               String excerpt=null;
               if (isCreatingExcerpt() && (fieldsQuery != null)) {
+                Document exDoc=searcher.doc(hits.scoreDocs[i].doc,excerptFields);
                 I_CmsTermHighlighter highlighter=OpenCms.getSearchManager().getHighlighter();
-                excerpt=highlighter.getExcerpt(doc,this,params,fieldsQuery,getAnalyzer());
+                excerpt=highlighter.getExcerpt(exDoc,this,params,fieldsQuery,getAnalyzer());
               }
-              searchResult=new CmsSearchResult(Math.round((hits.scoreDocs[i].score / hits.getMaxScore()) * 100f),doc,excerpt);
-              searchResults.add(searchResult);
+              int score=Math.round((hits.scoreDocs[i].score / hits.getMaxScore()) * 100f);
+              searchResults.add(new CmsSearchResult(score,doc,excerpt));
             }
             cnt++;
           }
