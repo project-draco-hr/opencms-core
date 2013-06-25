@@ -1,0 +1,142 @@
+{
+  String conStr=getReqValue(request,"dbCreateConStr");
+  m_provider=provider;
+  if (getFullDatabaseKey().toLowerCase().endsWith(JPA_PROVIDER) || JPA_PROVIDER.equalsIgnoreCase(m_provider)) {
+    m_driverType=DRIVER_TYPE_JPA;
+  }
+ else {
+    m_driverType=DRIVER_TYPE_SQL;
+  }
+  boolean isFormSubmitted=((getReqValue(request,"submit") != null) && (conStr != null));
+  if (conStr == null) {
+    conStr="";
+  }
+  String database="";
+  if (provider.equals(MYSQL_PROVIDER) || provider.equals(MSSQL_PROVIDER) || provider.equals(DB2_PROVIDER)|| provider.equals(AS400_PROVIDER)) {
+    database=getReqValue(request,"db");
+  }
+ else   if (provider.equals(POSTGRESQL_PROVIDER)) {
+    database=getReqValue(request,"dbName");
+  }
+  if (provider.equals(MYSQL_PROVIDER) || provider.equals(MSSQL_PROVIDER) || provider.equals(POSTGRESQL_PROVIDER)|| provider.equals(AS400_PROVIDER)|| provider.equals(DB2_PROVIDER)) {
+    isFormSubmitted=(isFormSubmitted && (database != null));
+  }
+  if (isInitialized()) {
+    String createDb=getReqValue(request,"createDb");
+    if ((createDb == null) || provider.equals(DB2_PROVIDER) || provider.equals(AS400_PROVIDER)) {
+      createDb="";
+    }
+    String createTables=getReqValue(request,"createTables");
+    if (createTables == null) {
+      createTables="";
+    }
+    if (isFormSubmitted) {
+      if (m_driverType == DRIVER_TYPE_JPA) {
+        if (isJpaSupported(m_databaseKey) && !isSqlSupported(m_databaseKey)) {
+          String driverName=getReqValue(request,"jdbcDriver");
+          setDbDriver(driverName);
+        }
+      }
+      if (provider.equals(POSTGRESQL_PROVIDER)) {
+        setDb(database);
+        String templateDb=getReqValue(request,"templateDb");
+        setDbProperty(getDatabase() + ".templateDb",templateDb);
+        setDbProperty(getDatabase() + ".newDb",database);
+        if (!conStr.endsWith("/")) {
+          conStr+="/";
+        }
+        setDbProperty(getDatabase() + ".constr",conStr + getDbProperty(getDatabase() + ".templateDb"));
+        setDbProperty(getDatabase() + ".constr.newDb",conStr + getDbProperty(getDatabase() + ".newDb"));
+        conStr+=database;
+      }
+ else       if (provider.equals(MYSQL_PROVIDER) || provider.equals(DB2_PROVIDER) || provider.equals(MSSQL_PROVIDER)|| provider.equals(POSTGRESQL_PROVIDER)) {
+        if (!conStr.endsWith("/")) {
+          conStr+="/";
+        }
+        conStr+=database;
+      }
+ else       if (provider.equals(AS400_PROVIDER)) {
+        if (conStr.endsWith("/")) {
+          conStr=conStr.substring(0,conStr.length() - 1);
+        }
+        if (!conStr.endsWith(";")) {
+          conStr+=";";
+        }
+        conStr+="libraries='" + database + "'";
+      }
+ else       if (isJpaSupported(m_databaseKey) && !isSqlSupported(m_databaseKey)) {
+        conStr=getReqValue(request,"dbCreateConStr") + getDbProperty(m_databaseKey + "." + "separator") + getReqValue(request,"db");
+        setDbProperty(getDatabase() + ".constr",conStr + getDbProperty(getDatabase() + ".newDb"));
+        setDbWorkConStr(conStr);
+        boolean createTbls="true".equalsIgnoreCase(getReqValue(request,"createTables")) ? true : false;
+        if (session != null) {
+          session.setAttribute("createTables",Boolean.valueOf(createTbls));
+        }
+      }
+      setDbWorkConStr(conStr);
+      if (provider.equals(POSTGRESQL_PROVIDER)) {
+        setDb(database);
+      }
+      String dbCreateUser=getReqValue(request,"dbCreateUser");
+      String dbCreatePwd=getReqValue(request,"dbCreatePwd");
+      String dbWorkUser=getReqValue(request,"dbWorkUser");
+      String dbWorkPwd=getReqValue(request,"dbWorkPwd");
+      if ((dbCreateUser != null) && !provider.equals(DB2_PROVIDER) && !provider.equals(AS400_PROVIDER)) {
+        setDbCreateUser(dbCreateUser);
+      }
+      setDbCreatePwd(dbCreatePwd);
+      if (dbWorkUser.equals("")) {
+        dbWorkUser=contextPath;
+      }
+      if (dbWorkUser.equals("")) {
+        dbWorkUser="opencms";
+      }
+      if (dbWorkUser.startsWith("/")) {
+        dbWorkUser=dbWorkUser.substring(1,dbWorkUser.length());
+      }
+      setDbWorkUser(dbWorkUser);
+      setDbWorkPwd(dbWorkPwd);
+      if (provider.equals(ORACLE_PROVIDER)) {
+        String dbDefaultTablespace=getReqValue(request,"dbDefaultTablespace");
+        String dbTemporaryTablespace=getReqValue(request,"dbTemporaryTablespace");
+        String dbIndexTablespace=getReqValue(request,"dbIndexTablespace");
+        setDbProperty(getDatabase() + ".defaultTablespace",dbDefaultTablespace);
+        setDbProperty(getDatabase() + ".temporaryTablespace",dbTemporaryTablespace);
+        setDbProperty(getDatabase() + ".indexTablespace",dbIndexTablespace);
+      }
+      Map<String,String> replacer=new HashMap<String,String>();
+      if (!provider.equals(MYSQL_PROVIDER) || provider.equals(MSSQL_PROVIDER)) {
+        replacer.put("${user}",dbWorkUser);
+        replacer.put("${password}",dbWorkPwd);
+      }
+      if (provider.equals(MYSQL_PROVIDER) || provider.equals(MSSQL_PROVIDER) || provider.equals(POSTGRESQL_PROVIDER)) {
+        replacer.put("${database}",database);
+      }
+      if (provider.equals(ORACLE_PROVIDER)) {
+        replacer.put("${defaultTablespace}",getDbProperty(getDatabase() + ".defaultTablespace"));
+        replacer.put("${indexTablespace}",getDbProperty(getDatabase() + ".indexTablespace"));
+        replacer.put("${temporaryTablespace}",getDbProperty(getDatabase() + ".temporaryTablespace"));
+      }
+      setReplacer(replacer);
+      if (session != null) {
+        if (provider.equals(GENERIC_PROVIDER) || provider.equals(ORACLE_PROVIDER) || provider.equals(DB2_PROVIDER)|| provider.equals(AS400_PROVIDER)|| provider.equals(MAXDB_PROVIDER)) {
+          session.setAttribute("createTables",createTables);
+        }
+        session.setAttribute("createDb",createDb);
+      }
+    }
+ else {
+      String dbName="opencms";
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(contextPath)) {
+        dbName=contextPath.substring(1);
+      }
+      if (provider.equals(ORACLE_PROVIDER) || provider.equals(POSTGRESQL_PROVIDER) || provider.equals(MAXDB_PROVIDER)) {
+        setDbWorkUser(dbName);
+      }
+ else       if (dbName != null) {
+        setDb(dbName);
+      }
+    }
+  }
+  return isFormSubmitted;
+}
