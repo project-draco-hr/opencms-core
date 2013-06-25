@@ -1,0 +1,63 @@
+{
+  String widgetName=null;
+  String widgetConfig=null;
+  CmsObject cms=getCmsObject();
+  String label=getLabel(schemaType);
+  DisplayType configuredType=DisplayType.none;
+  DisplayType defaultType=DisplayType.none;
+  EvaluationRule rule=EvaluationRule.none;
+  try {
+    I_CmsXmlContentHandler contentHandler=schemaType.getContentDefinition().getContentHandler();
+    I_CmsWidget widget=contentHandler.getWidget(schemaType);
+    configuredType=contentHandler.getDisplayType(schemaType);
+    if (configuredType.equals(DisplayType.none) && schemaType.isSimpleType()) {
+      if (isTabRootLevel(path)) {
+        rule=EvaluationRule.rootLevel;
+      }
+ else       if (label.length() > 15) {
+        rule=EvaluationRule.labelLength;
+      }
+ else       if ((schemaType.getMinOccurs() == 0)) {
+        rule=EvaluationRule.optional;
+      }
+    }
+    if (widget != null) {
+      widgetName=widget.getClass().getName();
+      if ((configuredType == DisplayType.column) && !(schemaType.isSimpleType() && (schemaType.getMaxOccurs() == 1) && widget.isCompactViewEnabled())) {
+        configuredType=DisplayType.singleline;
+      }
+      long timer=0;
+      if (widget instanceof I_CmsADEWidget) {
+        if (CmsContentService.LOG.isDebugEnabled()) {
+          timer=System.currentTimeMillis();
+        }
+        I_CmsADEWidget adeWidget=(I_CmsADEWidget)widget;
+        defaultType=adeWidget.getDefaultDisplayType();
+        widgetName=adeWidget.getWidgetName();
+        widgetConfig=adeWidget.getConfiguration(cms,schemaType,m_messages,m_file,m_locale);
+        if (!adeWidget.isInternal() && !m_widgetConfigurations.containsKey(widgetName)) {
+          CmsExternalWidgetConfiguration externalConfiguration=new CmsExternalWidgetConfiguration(widgetName,adeWidget.getInitCall(),adeWidget.getJavaScriptResourceLinks(cms),adeWidget.getCssResourceLinks(cms));
+          m_widgetConfigurations.put(widgetName,externalConfiguration);
+        }
+        if (CmsContentService.LOG.isDebugEnabled()) {
+          CmsContentService.LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_READING_WIDGET_CONFIGURATION_TIME_2,widgetName,"" + (System.currentTimeMillis() - timer)));
+        }
+      }
+      m_widgets.add(widget);
+    }
+ else     if (contentHandler.getComplexWidget(schemaType) != null) {
+      I_CmsComplexWidget complexWidget=contentHandler.getComplexWidget(schemaType);
+      CmsComplexWidgetData widgetData=complexWidget.getWidgetData(m_cms);
+      CmsExternalWidgetConfiguration externalConfig=widgetData.getExternalWidgetConfiguration();
+      if (externalConfig != null) {
+        m_widgetConfigurations.put(complexWidget.getName(),externalConfig);
+      }
+      m_complexWidgets.put(CmsContentService.getAttributeName(schemaType),widgetData);
+    }
+  }
+ catch (  Exception e) {
+    CmsContentService.LOG.debug(e.getMessage(),e);
+  }
+  AttributeConfiguration result=new AttributeConfiguration(label,getHelp(schemaType),widgetName,widgetConfig,readDefaultValue(schemaType,path),configuredType.name());
+  return new DisplayTypeEvaluator(result,configuredType,defaultType,rule);
+}
