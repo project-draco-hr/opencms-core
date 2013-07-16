@@ -1,0 +1,76 @@
+{
+  m_list.clear();
+  List<CmsResourceStatusRelationBean> relationBeans=getRelationBeans();
+  if (relationBeans.isEmpty()) {
+    CmsSimpleListItem item=new CmsSimpleListItem();
+    item.add(new Label(getEmptyMessage()));
+    m_list.add(item);
+  }
+ else {
+    for (    CmsResourceStatusRelationBean relationBean : relationBeans) {
+      CmsListItemWidget itemWidget=new CmsListItemWidget(relationBean.getInfoBean());
+      CmsListItem item=new CmsListItem(itemWidget);
+      CmsContextMenuButton button=new CmsContextMenuButton(relationBean.getStructureId(),new CmsContextMenuHandler(){
+        @Override public void refreshResource(        CmsUUID structureId){
+          Window.Location.reload();
+        }
+        @Override protected I_CmsContextMenuEntry transformSingleEntry(        CmsContextMenuEntryBean entryBean,        CmsUUID structureId){
+          if (m_filteredActions.contains(entryBean.getName())) {
+            return null;
+          }
+ else {
+            return super.transformSingleEntry(entryBean,structureId);
+          }
+        }
+      }
+);
+      item.getListItemWidget().addButton(button);
+      final boolean isContainerpage=CmsGwtConstants.TYPE_CONTAINERPAGE.equals(relationBean.getInfoBean().getResourceType());
+      final boolean isXmlContent=relationBean.isXmlContent();
+      final boolean isEditable=isXmlContent || isContainerpage;
+      if (isEditable) {
+        final CmsResourceStatusRelationBean currentRelationBean=relationBean;
+        m_editButton=new CmsPushButton();
+        m_editButton.setImageClass(I_CmsImageBundle.INSTANCE.style().editIcon());
+        m_editButton.setButtonStyle(ButtonStyle.TRANSPARENT,null);
+        m_editButton.setTitle(org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_BUTTON_ELEMENT_EDIT_0));
+        m_editButton.setEnabled(true);
+        item.getListItemWidget().addButton(m_editButton);
+        m_editButton.addClickHandler(new ClickHandler(){
+          public void onClick(          ClickEvent event){
+            if (isContainerpage) {
+              Window.open(currentRelationBean.getLink(),"_blank","");
+            }
+ else {
+              CmsEditableData editableData=new CmsEditableData();
+              editableData.setElementLanguage(CmsCoreProvider.get().getLocale());
+              editableData.setStructureId(currentRelationBean.getStructureId());
+              editableData.setSitePath(currentRelationBean.getSitePath());
+              CmsDomUtil.ensureMouseOut((Widget)event.getSource());
+              FormElement form=CmsContentEditorDialog.generateForm(editableData,false,"_blank");
+              RootPanel.get().getElement().appendChild(form);
+              form.submit();
+              if (m_popup != null) {
+                m_popup.hide();
+              }
+            }
+          }
+        }
+);
+      }
+      if (isContainerpage) {
+        if (relationBean.getLink() != null) {
+          final String link=relationBean.getLink();
+          itemWidget.setIconCursor(Cursor.POINTER);
+          itemWidget.addIconClickHandler(new ClickHandler(){
+            public void onClick(            ClickEvent e){
+              Window.open(link,"_blank","");
+            }
+          }
+);
+        }
+      }
+      m_list.add(item);
+    }
+  }
+}

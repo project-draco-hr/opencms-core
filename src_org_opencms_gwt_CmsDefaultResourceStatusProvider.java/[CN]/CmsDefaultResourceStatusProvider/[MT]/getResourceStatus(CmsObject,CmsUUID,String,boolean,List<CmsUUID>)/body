@@ -1,0 +1,90 @@
+{
+  Locale locale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
+  cms.getRequestContext().setLocale(locale);
+  CmsResource resource=cms.readResource(structureId,CmsResourceFilter.IGNORE_EXPIRATION);
+  String localizedTitle=null;
+  if (!CmsStringUtil.isEmptyOrWhitespaceOnly(contentLocale)) {
+    Locale realLocale=CmsLocaleManager.getLocale(contentLocale);
+    CmsGallerySearchResult result=CmsGallerySearch.searchById(cms,structureId,realLocale);
+    if (!CmsStringUtil.isEmptyOrWhitespaceOnly(result.getTitle())) {
+      localizedTitle=result.getTitle();
+    }
+  }
+  CmsResourceUtil resourceUtil=new CmsResourceUtil(cms,resource);
+  List<CmsProperty> properties=cms.readPropertyObjects(resource,false);
+  CmsResourceStatusBean result=new CmsResourceStatusBean();
+  result.setDateCreated(CmsVfsService.formatDateTime(cms,resource.getDateCreated()));
+  long dateExpired=resource.getDateExpired();
+  if (dateExpired != CmsResource.DATE_EXPIRED_DEFAULT) {
+    result.setDateExpired(CmsVfsService.formatDateTime(cms,dateExpired));
+  }
+  result.setDateLastModified(CmsVfsService.formatDateTime(cms,resource.getDateLastModified()));
+  long dateReleased=resource.getDateReleased();
+  if (dateReleased != CmsResource.DATE_RELEASED_DEFAULT) {
+    result.setDateReleased(CmsVfsService.formatDateTime(cms,dateReleased));
+  }
+  String lastProject=resourceUtil.getLockedInProjectName();
+  if ("".equals(lastProject)) {
+    lastProject=null;
+  }
+  result.setLastProject(lastProject);
+  result.setListInfo(CmsVfsService.getPageInfo(cms,resource));
+  CmsLock lock=cms.getLock(resource);
+  CmsUser lockOwner=null;
+  if (!lock.isUnlocked()) {
+    lockOwner=cms.readUser(lock.getUserId());
+    result.setLockState(org.opencms.workplace.list.Messages.get().getBundle(locale).key(org.opencms.workplace.list.Messages.GUI_EXPLORER_LIST_ACTION_LOCK_NAME_2,lockOwner.getName(),lastProject));
+  }
+ else {
+    result.setLockState(org.opencms.workplace.list.Messages.get().getBundle(locale).key(org.opencms.workplace.list.Messages.GUI_EXPLORER_LIST_ACTION_UNLOCK_NAME_0));
+  }
+  CmsProperty navText=CmsProperty.get(CmsPropertyDefinition.PROPERTY_NAVTEXT,properties);
+  if (navText != null) {
+    result.setNavText(navText.getValue());
+  }
+  result.setPermissions(resourceUtil.getPermissionString());
+  result.setSize(resource.getLength());
+  result.setStateBean(resource.getState());
+  CmsProperty title=CmsProperty.get(CmsPropertyDefinition.PROPERTY_TITLE,properties);
+  if (localizedTitle != null) {
+    result.setTitle(localizedTitle);
+    result.getListInfo().setTitle(localizedTitle);
+  }
+ else   if (title != null) {
+    result.setTitle(title.getValue());
+  }
+  result.setUserCreated(resourceUtil.getUserCreated());
+  result.setUserLastModified(resourceUtil.getUserLastModified());
+  I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(resource.getTypeId());
+  result.setResourceType(resType.getTypeName());
+  if (resType instanceof CmsResourceTypeXmlContent) {
+    CmsFile file=cms.readFile(resource);
+    CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,file);
+    List<Locale> locales=content.getLocales();
+    List<String> localeStrings=new ArrayList<String>();
+    for (    Locale l : locales) {
+      localeStrings.add(l.toString());
+    }
+    result.setLocales(localeStrings);
+  }
+  List<CmsRelation> relations=cms.readRelations(CmsRelationFilter.relationsToStructureId(resource.getStructureId()));
+  Map<CmsUUID,CmsResource> relationSources=new HashMap<CmsUUID,CmsResource>();
+  for (  CmsRelation relation : relations) {
+    CmsResource currentSource=relation.getSource(cms,CmsResourceFilter.IGNORE_EXPIRATION);
+    relationSources.put(currentSource.getStructureId(),currentSource);
+  }
+  for (  CmsResource relationResource : relationSources.values()) {
+    try {
+      CmsResourceStatusRelationBean relationBean=createRelationBean(cms,relationResource);
+      result.getRelationSources().add(relationBean);
+    }
+ catch (    CmsVfsResourceNotFoundException notfound) {
+      LOG.error(notfound.getLocalizedMessage(),notfound);
+      continue;
+    }
+  }
+  if (includeTargets) {
+    result.getRelationTargets().addAll(getTargets(cms,structureId,additionalStructureIds));
+  }
+  return result;
+}
