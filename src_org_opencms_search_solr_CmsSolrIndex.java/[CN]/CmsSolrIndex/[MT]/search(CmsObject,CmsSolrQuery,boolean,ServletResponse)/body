@@ -1,0 +1,189 @@
+{
+  int previousPriority=Thread.currentThread().getPriority();
+  long startTime=System.currentTimeMillis();
+  SolrQuery initQuery=query.clone();
+  query.setHighlight(false);
+  LocalSolrQueryRequest solrQueryRequest=null;
+  try {
+    CmsObject searchCms=OpenCms.initCmsObject(cms);
+    if (getPriority() > 0) {
+      Thread.currentThread().setPriority(getPriority());
+    }
+    List<CmsSearchResource> resourceDocumentList=new ArrayList<CmsSearchResource>();
+    SolrDocumentList solrDocumentList=new SolrDocumentList();
+    int rows=query.getRows() != null ? query.getRows().intValue() : CmsSolrQuery.DEFAULT_ROWS.intValue();
+    if (!ignoreMaxRows && (rows > ROWS_MAX)) {
+      rows=ROWS_MAX;
+    }
+    int start=query.getStart() != null ? query.getStart().intValue() : 0;
+    int end=start + rows;
+    int page=0;
+    if (rows > 0) {
+      page=Math.round(start / rows) + 1;
+    }
+    query.setStart(new Integer(0));
+    query.setRows(new Integer((5 * rows * page) + start));
+    QueryResponse queryResponse=m_solr.query(query);
+    long solrTime=System.currentTimeMillis() - startTime;
+    long hitCount=queryResponse.getResults().getNumFound();
+    start=-1;
+    end=-1;
+    if ((rows > 0) && (page > 0) && (hitCount > 0)) {
+      start=rows * (page - 1);
+      end=start + rows;
+      start=new Long((start > hitCount) ? hitCount : start).intValue();
+      end=new Long((end > hitCount) ? hitCount : end).intValue();
+    }
+ else {
+      start=0;
+      end=new Long(hitCount).intValue();
+    }
+    long visibleHitCount=hitCount;
+    float maxScore=0;
+    List<CmsSearchResource> allDocs=new ArrayList<CmsSearchResource>();
+    int cnt=0;
+    for (int i=0; (i < queryResponse.getResults().size()) && (cnt < end); i++) {
+      try {
+        SolrDocument doc=queryResponse.getResults().get(i);
+        CmsSolrDocument searchDoc=new CmsSolrDocument(doc);
+        if (needsPermissionCheck(searchDoc)) {
+          CmsResource resource=getResource(searchCms,searchDoc);
+          if (resource != null) {
+            if (cnt >= start) {
+              if (m_postProcessor != null) {
+                doc=m_postProcessor.process(searchCms,resource,(SolrInputDocument)searchDoc.getDocument());
+              }
+              resourceDocumentList.add(new CmsSearchResource(resource,searchDoc));
+              solrDocumentList.add(doc);
+              maxScore=maxScore < searchDoc.getScore() ? searchDoc.getScore() : maxScore;
+            }
+            allDocs.add(new CmsSearchResource(resource,searchDoc));
+            cnt++;
+          }
+ else {
+            visibleHitCount--;
+          }
+        }
+      }
+ catch (      Exception e) {
+        LOG.warn(Messages.get().getBundle().key(Messages.LOG_SOLR_ERR_RESULT_ITERATION_FAILED_0),e);
+      }
+    }
+    if (resourceDocumentList.isEmpty() && (allDocs.size() > 0)) {
+      page=Math.round(allDocs.size() / rows) + 1;
+      int showCount=allDocs.size() % rows;
+      showCount=showCount == 0 ? rows : showCount;
+      start=allDocs.size() - new Long(showCount).intValue();
+      end=allDocs.size();
+      if (allDocs.size() > start) {
+        resourceDocumentList=allDocs.subList(start,end);
+        for (        CmsSearchResource r : resourceDocumentList) {
+          maxScore=maxScore < r.getDocument().getScore() ? r.getDocument().getScore() : maxScore;
+          solrDocumentList.add(((CmsSolrDocument)r.getDocument()).getSolrDocument());
+        }
+      }
+    }
+    long processTime=System.currentTimeMillis() - startTime - solrTime;
+    solrDocumentList.setStart(start);
+    solrDocumentList.setMaxScore(new Float(maxScore));
+    solrDocumentList.setNumFound(visibleHitCount);
+    queryResponse.getResponse().setVal(queryResponse.getResponse().indexOf(QUERY_RESPONSE_NAME,0),solrDocumentList);
+    queryResponse.getResponseHeader().setVal(queryResponse.getResponseHeader().indexOf(QUERY_TIME_NAME,0),new Integer(new Long(System.currentTimeMillis() - startTime).intValue()));
+    long highlightEndTime=System.currentTimeMillis();
+    SolrCore core=m_solr instanceof EmbeddedSolrServer ? ((EmbeddedSolrServer)m_solr).getCoreContainer().getCore(getName()) : null;
+    CmsSolrResultList result=null;
+    try {
+      SearchComponent highlightComponenet=null;
+      if (core != null) {
+        highlightComponenet=core.getSearchComponent("highlight");
+        solrQueryRequest=new LocalSolrQueryRequest(core,queryResponse.getResponseHeader());
+      }
+      SolrQueryResponse solrQueryResponse=null;
+      if (solrQueryRequest != null) {
+        solrQueryResponse=new SolrQueryResponse();
+        solrQueryResponse.setAllValues(queryResponse.getResponse());
+        solrQueryResponse.setEndTime(queryResponse.getQTime());
+        int paramsIndex=queryResponse.getResponseHeader().indexOf(HEADER_PARAMS_NAME,0);
+        NamedList<Object> header=null;
+        Object o=queryResponse.getResponseHeader().getVal(paramsIndex);
+        if (o instanceof NamedList) {
+          header=(NamedList<Object>)o;
+          header.setVal(header.indexOf(CommonParams.ROWS,0),new Integer(rows));
+          header.setVal(header.indexOf(CommonParams.START,0),new Long(start));
+        }
+        solrQueryRequest.setParams(initQuery);
+        if ((header != null) && (initQuery.getHighlight()) && (highlightComponenet != null)) {
+          header.add(HighlightParams.HIGHLIGHT,"on");
+          if ((initQuery.getHighlightFields() != null) && (initQuery.getHighlightFields().length > 0)) {
+            header.add(HighlightParams.FIELDS,CmsStringUtil.arrayAsString(initQuery.getHighlightFields(),","));
+          }
+          String formatter=initQuery.getParams(HighlightParams.FORMATTER) != null ? initQuery.getParams(HighlightParams.FORMATTER)[0] : null;
+          if (formatter != null) {
+            header.add(HighlightParams.FORMATTER,formatter);
+          }
+          if (initQuery.getHighlightFragsize() != 100) {
+            header.add(HighlightParams.FRAGSIZE,new Integer(initQuery.getHighlightFragsize()));
+          }
+          if (initQuery.getHighlightRequireFieldMatch()) {
+            header.add(HighlightParams.FIELD_MATCH,new Boolean(initQuery.getHighlightRequireFieldMatch()));
+          }
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(initQuery.getHighlightSimplePost())) {
+            header.add(HighlightParams.SIMPLE_POST,initQuery.getHighlightSimplePost());
+          }
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(initQuery.getHighlightSimplePre())) {
+            header.add(HighlightParams.SIMPLE_PRE,initQuery.getHighlightSimplePre());
+          }
+          if (initQuery.getHighlightSnippets() != 1) {
+            header.add(HighlightParams.SNIPPETS,new Integer(initQuery.getHighlightSnippets()));
+          }
+          ResponseBuilder rb=new ResponseBuilder(solrQueryRequest,solrQueryResponse,Collections.singletonList(highlightComponenet));
+          try {
+            rb.doHighlights=true;
+            DocListAndSet res=new DocListAndSet();
+            SchemaField idField=OpenCms.getSearchManager().getSolrServerConfiguration().getSolrSchema().getUniqueKeyField();
+            int[] luceneIds=new int[rows];
+            int docs=0;
+            for (            SolrDocument doc : solrDocumentList) {
+              String idString=(String)doc.getFirstValue(CmsSearchField.FIELD_ID);
+              int id=solrQueryRequest.getSearcher().getFirstMatch(new Term(idField.getName(),idField.getType().toInternal(idString)));
+              luceneIds[docs++]=id;
+            }
+            res.docList=new DocSlice(0,docs,luceneIds,null,docs,0);
+            rb.setResults(res);
+            rb.setQuery(QParser.getParser(initQuery.getQuery(),null,solrQueryRequest).getQuery());
+            rb.setQueryString(initQuery.getQuery());
+            highlightComponenet.prepare(rb);
+            highlightComponenet.process(rb);
+          }
+ catch (          Exception e) {
+            LOG.error(e);
+          }
+          highlightEndTime=System.currentTimeMillis();
+        }
+      }
+      result=new CmsSolrResultList(initQuery,queryResponse,solrDocumentList,resourceDocumentList,start,new Integer(rows),end,page,visibleHitCount,new Float(maxScore),startTime,highlightEndTime);
+      if (LOG.isDebugEnabled()) {
+        Object[] logParams=new Object[]{new Long(System.currentTimeMillis() - startTime),new Long(result.getNumFound()),new Long(solrTime),new Long(processTime),new Long(result.getHighlightEndTime() != 0 ? result.getHighlightEndTime() - startTime : 0)};
+        LOG.debug(query.toString() + "\n" + Messages.get().getBundle().key(Messages.LOG_SOLR_SEARCH_EXECUTED_5,logParams));
+      }
+      if (response != null) {
+        writeResp(response,solrQueryRequest,solrQueryResponse);
+      }
+    }
+  finally {
+      if (solrQueryRequest != null) {
+        solrQueryRequest.close();
+      }
+      if (core != null) {
+        core.close();
+      }
+    }
+    return result;
+  }
+ catch (  Exception e) {
+    throw new CmsSearchException(Messages.get().container(Messages.LOG_SOLR_ERR_SEARCH_EXECUTION_FAILD_1,CmsEncoder.decode(query.toString())),e);
+  }
+ finally {
+    Thread.currentThread().setPriority(previousPriority);
+  }
+}
