@@ -1,0 +1,119 @@
+{
+  CmsGalleryDataBean data=new CmsGalleryDataBean();
+  data.setMode(conf.getGalleryMode());
+  data.setLocales(buildLocalesMap());
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(conf.getLocale())) {
+    data.setLocale(conf.getLocale());
+  }
+ else {
+    data.setLocale(getCmsObject().getRequestContext().getLocale().toString());
+  }
+  data.setVfsRootFolders(getRootEntries());
+  data.setScope(getWorkplaceSettings().getLastSearchScope());
+  List<CmsResourceTypeBean> types=null;
+switch (conf.getGalleryMode()) {
+case editor:
+case view:
+case adeView:
+case widget:
+    data.setTabIds(conf.getTabIds());
+  data.setCurrentElement(conf.getCurrentElement());
+String referencePath=conf.getReferencePath();
+if (CmsStringUtil.isEmptyOrWhitespaceOnly(referencePath)) {
+referencePath=conf.getGalleryPath();
+}
+data.setReferenceSitePath(referencePath);
+types=getResourceTypeBeans(conf.getGalleryMode(),data.getReferenceSitePath(),conf.getResourceTypes());
+data.setTypes(types);
+Map<String,CmsGalleryTypeInfo> galleryTypeInfos=readGalleryInfosByTypeBeans(types);
+if (conf.getGalleryTypes() != null) {
+Map<String,CmsGalleryTypeInfo> infos=new HashMap<String,CmsGalleryTypeInfo>();
+for (int i=0; i < conf.getGalleryTypes().length; i++) {
+CmsGalleryTypeInfo typeInfo=galleryTypeInfos.get(conf.getGalleryTypes()[i]);
+if (typeInfo != null) {
+infos.put(conf.getGalleryTypes()[i],typeInfo);
+}
+}
+galleryTypeInfos=infos;
+}
+data.setGalleries(buildGalleriesList(galleryTypeInfos));
+String startGallery=conf.getGalleryPath();
+boolean galleryAvailable=false;
+for (CmsGalleryFolderBean folderBean : data.getGalleries()) {
+if (folderBean.getPath().equals(startGallery)) {
+galleryAvailable=true;
+break;
+}
+}
+data.setStartGallery(galleryAvailable ? startGallery : null);
+if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(conf.getStartFolder())) {
+try {
+CmsObject cloneCms=OpenCms.initCmsObject(getCmsObject());
+if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(conf.getStartSite())) {
+cloneCms.getRequestContext().setSiteRoot(conf.getStartSite());
+}
+if (cloneCms.existsResource(conf.getStartFolder(),CmsResourceFilter.ONLY_VISIBLE_NO_DELETED)) {
+data.setStartFolder(cloneCms.getRequestContext().addSiteRoot(conf.getStartFolder()));
+}
+}
+ catch (CmsException e) {
+log(e.getMessage(),e);
+}
+}
+data.setStartTab(GalleryTabId.cms_tab_results);
+if (CmsStringUtil.isEmptyOrWhitespaceOnly(data.getStartGallery()) && !types.isEmpty()) {
+String key;
+if (conf.getGalleryMode() == GalleryMode.adeView) {
+key=KEY_LAST_USED_GALLERY_ADEVIEW;
+}
+ else {
+key="" + types.get(0).getTypeId();
+}
+String lastGallery=getWorkplaceSettings().getLastUsedGallery(key);
+if (CmsStringUtil.isEmptyOrWhitespaceOnly(lastGallery) && !data.getGalleries().isEmpty()) {
+String galleryTypeName=data.getGalleries().get(0).getType();
+lastGallery=getWorkplaceSettings().getUserSettings().getStartGallery(galleryTypeName,getCmsObject());
+if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(lastGallery) && !CmsPreferences.INPUT_DEFAULT.equals(lastGallery)) {
+lastGallery=getCmsObject().getRequestContext().removeSiteRoot(lastGallery);
+}
+}
+if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(lastGallery) && getCmsObject().existsResource(lastGallery)) {
+data.setStartGallery(lastGallery);
+}
+ else {
+data.setStartGallery(null);
+}
+}
+if (CmsStringUtil.isEmptyOrWhitespaceOnly(data.getStartGallery()) && CmsStringUtil.isEmptyOrWhitespaceOnly(data.getCurrentElement()) && CmsStringUtil.isEmptyOrWhitespaceOnly(data.getStartFolder())&& (data.getTypes().size() > 1)) {
+data.setStartTab(GalleryTabId.cms_tab_galleries);
+}
+if (!conf.isIncludeFiles()) {
+data.setStartTab(GalleryTabId.cms_tab_vfstree);
+}
+if ((conf.getGalleryMode() == GalleryMode.adeView) && CmsStringUtil.isEmptyOrWhitespaceOnly(data.getStartGallery())) {
+data.setStartTab(GalleryTabId.cms_tab_galleries);
+}
+break;
+case ade:
+data.setReferenceSitePath(getCmsObject().getRequestContext().getUri());
+types=getResourceTypeBeans(conf.getGalleryMode(),data.getReferenceSitePath(),conf.getResourceTypes());
+data.setTypes(types);
+Map<String,CmsGalleryTypeInfo> adeGalleryTypeInfos=readGalleryInfosByTypeBeans(types);
+data.setGalleries(buildGalleriesList(adeGalleryTypeInfos));
+data.setStartTab(GalleryTabId.cms_tab_types);
+break;
+default :
+break;
+}
+CmsSiteSelectorOptionBuilder optionBuilder=new CmsSiteSelectorOptionBuilder(getCmsObject());
+optionBuilder.addNormalSites(true,getWorkplaceSettings().getUserSettings().getStartFolder());
+optionBuilder.addSharedSite();
+data.setVfsSiteSelectorOptions(optionBuilder.getOptions());
+CmsSiteSelectorOptionBuilder sitemapOptionBuilder=new CmsSiteSelectorOptionBuilder(getCmsObject());
+sitemapOptionBuilder.addNormalSites(false,null);
+if (data.getReferenceSitePath() != null) {
+sitemapOptionBuilder.addCurrentSubsite(getCmsObject().addSiteRoot(data.getReferenceSitePath()));
+}
+data.setSitemapSiteSelectorOptions(sitemapOptionBuilder.getOptions());
+return data;
+}
