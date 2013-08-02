@@ -1,0 +1,29 @@
+{
+  final Set<String> manifestPaths=new HashSet<String>();
+  final Set<String> filePaths=new HashSet<String>();
+  final String basePath=new File(baseFolder).getAbsolutePath();
+  SAXReader reader=new SAXReader();
+  Document doc=reader.read(new File(manifest));
+  List<?> nodes=doc.selectNodes("//export/files/file/source");
+  for (  Object node : nodes) {
+    Element elem=(Element)node;
+    String path=elem.getText().trim();
+    path=CmsStringUtil.joinPaths("/",path);
+    manifestPaths.add(path);
+  }
+  CmsFileUtil.walkFileSystem(new File(baseFolder),new Closure(){
+    public void execute(    Object obj){
+      FileWalkState state=(FileWalkState)obj;
+      for (      File file : state.getFiles()) {
+        String path=file.getAbsolutePath().substring(basePath.length());
+        path=path.replace('\\','/');
+        filePaths.add(path);
+      }
+    }
+  }
+);
+  Set<String> diff=new HashSet<String>(filePaths);
+  diff.removeAll(manifestPaths);
+  diff.remove("/manifest.xml");
+  return diff;
+}
