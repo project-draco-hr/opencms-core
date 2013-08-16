@@ -1,8 +1,10 @@
 {
   FlowPanel main=new FlowPanel();
+  m_scrollPanel=GWT.create(CmsScrollPanel.class);
+  m_scrollPanel.addStyleName(I_CmsLayoutBundle.INSTANCE.widgetCss().radioButtonPanel());
   Map<String,CmsPair<String,Boolean>> list=parse(config);
-  m_arrayCheckbox=new CmsCheckBox[list.size()];
-  int j=0;
+  m_defaultCheckBox=new LinkedList<CmsCheckBox>();
+  m_checkboxes=new LinkedList<CmsCheckBox>();
   if (m_requiresactivation) {
     buildActivationButton();
     SimplePanel activation=new SimplePanel(m_activation);
@@ -10,30 +12,34 @@
     activation.getElement().getStyle().setMarginBottom(5,Unit.PX);
     main.add(activation);
   }
-  for (  Map.Entry<String,CmsPair<String,Boolean>> entry : list.entrySet()) {
-    m_arrayCheckbox[j]=new CmsCheckBox(entry.getKey());
-    m_arrayCheckbox[j].setInternalValue(entry.getValue().getFirst());
-    if ((entry.getValue().getSecond()).booleanValue()) {
-      m_defaultCheckBox.add(m_arrayCheckbox[j]);
+  FocusHandler focusHandler=new FocusHandler(){
+    public void onFocus(    FocusEvent event){
+      CmsDomUtil.fireFocusEvent(CmsMultiSelectWidget.this);
     }
-    m_arrayCheckbox[j].addValueChangeHandler(new ValueChangeHandler<Boolean>(){
+  }
+;
+  for (  Map.Entry<String,CmsPair<String,Boolean>> entry : list.entrySet()) {
+    CmsCheckBox checkbox=new CmsCheckBox(entry.getKey());
+    checkbox.setInternalValue(entry.getValue().getFirst());
+    if ((entry.getValue().getSecond()).booleanValue()) {
+      m_defaultCheckBox.add(checkbox);
+    }
+    checkbox.addValueChangeHandler(new ValueChangeHandler<Boolean>(){
       public void onValueChange(      ValueChangeEvent<Boolean> event){
         fireChangeEvent();
       }
     }
 );
-    j++;
-  }
-  m_scrollPanel.addStyleName(I_CmsLayoutBundle.INSTANCE.widgetCss().radioButtonPanel());
-  for (int i=0; i < m_arrayCheckbox.length; i++) {
-    m_arrayCheckbox[i].addStyleName(I_CmsLayoutBundle.INSTANCE.widgetCss().checkboxlabel());
-    m_panel.add(m_arrayCheckbox[i]);
+    checkbox.addStyleName(I_CmsLayoutBundle.INSTANCE.widgetCss().checkboxlabel());
+    checkbox.getButton().addFocusHandler(focusHandler);
+    m_checkboxes.add(checkbox);
+    m_panel.add(checkbox);
   }
   m_scrollPanel.add(m_panel);
   m_scrollPanel.setResizable(false);
   int height=(m_rowsToShow * 17);
-  if (m_arrayCheckbox.length < m_rowsToShow) {
-    height=(m_arrayCheckbox.length * 17);
+  if (m_checkboxes.size() < m_rowsToShow) {
+    height=(m_checkboxes.size() * 17);
   }
   m_scrollPanel.setDefaultHeight(height);
   m_scrollPanel.setHeight(height + "px");
