@@ -1,0 +1,60 @@
+{
+  CmsPublishData result=null;
+  CmsObject cms=getCmsObject();
+  try {
+    Map<String,CmsWorkflow> workflows=OpenCms.getWorkflowManager().getWorkflows(cms);
+    if (workflows.isEmpty()) {
+      throw new Exception("No workflow available for the current user");
+    }
+    String workflowId=getRequest().getParameter(PARAM_WORKFLOW_ID);
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(workflowId) || !workflows.containsKey(workflowId)) {
+      workflowId=getLastWorklowForUser();
+      if (CmsStringUtil.isEmptyOrWhitespaceOnly(workflowId) || !workflows.containsKey(workflowId)) {
+        workflowId=workflows.values().iterator().next().getId();
+      }
+    }
+    setLastWorkflowForUser(workflowId);
+    String projectParam=getRequest().getParameter(PARAM_PUBLISH_PROJECT_ID);
+    boolean useCurrentPage=params.containsKey(CmsPublishOptions.PARAM_START_WITH_CURRENT_PAGE);
+    CmsPublishOptions options=getCachedOptions();
+    List<CmsProjectBean> projects=getProjects(params);
+    boolean foundProject=false;
+    CmsUUID selectedProject=null;
+    if (useCurrentPage) {
+      selectedProject=CmsCurrentPageProject.ID;
+      foundProject=true;
+    }
+ else {
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(projectParam) && CmsUUID.isValidUUID(projectParam)) {
+        selectedProject=new CmsUUID(projectParam);
+        for (        CmsProjectBean project : projects) {
+          if (selectedProject.equals(project.getId())) {
+            foundProject=true;
+            break;
+          }
+        }
+      }
+      if (!foundProject) {
+        selectedProject=options.getProjectId();
+        for (        CmsProjectBean project : projects) {
+          if (selectedProject.equals(project.getId())) {
+            foundProject=true;
+            break;
+          }
+        }
+      }
+    }
+    if (foundProject) {
+      options.setProjectId(selectedProject);
+    }
+ else {
+      options.setProjectId(CmsUUID.getNullUUID());
+    }
+    options.setParameters(params);
+    result=new CmsPublishData(options,projects,getResourceGroups(workflows.get(workflowId),options),workflows,workflowId);
+  }
+ catch (  Throwable e) {
+    error(e);
+  }
+  return result;
+}
