@@ -1,0 +1,49 @@
+{
+  Set<CmsUUID> followedRelations=new HashSet<CmsUUID>();
+  LinkedList<CmsUUID> toFollow=new LinkedList<CmsUUID>();
+  Set<CmsResource> result=new HashSet<CmsResource>();
+  toFollow.addAll(startIds);
+  while (toFollow.size() > 0) {
+    CmsUUID currentId=toFollow.removeFirst();
+    LOG.info("Visiting: " + currentId);
+    if (followedRelations.contains(currentId)) {
+      continue;
+    }
+    followedRelations.add(currentId);
+    if (currentId.isNullUUID()) {
+      continue;
+    }
+    try {
+      CmsResource currentResource=m_cms.readResource(currentId,CmsResourceFilter.ALL);
+      LOG.info("adding resource with root path: " + currentResource.getRootPath());
+      result.add(currentResource);
+      List<CmsRelation> relations=m_cms.readRelations(CmsRelationFilter.relationsFromStructureId(currentId));
+      for (      CmsRelation relation : relations) {
+        LOG.info("got relation to " + relation.getTargetPath() + " ("+ relation.getTargetId()+ ")");
+        if (relation.getType().isStrong()) {
+          LOG.info("(strong relation)");
+          toFollow.add(relation.getTargetId());
+        }
+ else {
+          LOG.info("(weak relation)");
+          try {
+            CmsResource weakResource=relation.getTarget(m_cms,CmsResourceFilter.ALL);
+            for (            String typeName : new String[]{CmsResourceTypePlain.getStaticTypeName(),CmsResourceTypeImage.getStaticTypeName(),CmsResourceTypePointer.getStaticTypeName(),CmsResourceTypeBinary.getStaticTypeName()}) {
+              if (OpenCms.getResourceManager().matchResourceType(typeName,weakResource.getTypeId())) {
+                LOG.info("Of document type -> adding " + weakResource.getRootPath());
+                result.add(weakResource);
+              }
+            }
+          }
+ catch (          CmsException e) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+    }
+ catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+  return filterChanged(result);
+}
