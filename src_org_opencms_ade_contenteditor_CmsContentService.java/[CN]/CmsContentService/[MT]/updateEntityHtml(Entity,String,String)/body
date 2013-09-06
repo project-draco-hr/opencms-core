@@ -1,0 +1,31 @@
+{
+  CmsUUID structureId=CmsContentDefinition.entityIdToUuid(entity.getId());
+  if (structureId != null) {
+    CmsObject cms=getCmsObject();
+    try {
+      CmsResource resource=cms.readResource(structureId,CmsResourceFilter.IGNORE_EXPIRATION);
+      CmsFile file=cms.readFile(resource);
+      CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,file);
+      String entityId=entity.getId();
+      Locale contentLocale=CmsLocaleManager.getLocale(CmsContentDefinition.getLocaleFromId(entityId));
+      if (content.hasLocale(contentLocale)) {
+        content.removeLocale(contentLocale);
+      }
+      content.addLocale(cms,contentLocale);
+      addEntityAttributes(cms,content,"",entity,contentLocale);
+      ValidationResult validationResult=validateContent(cms,structureId,content);
+      String htmlContent=null;
+      if (!validationResult.hasErrors()) {
+        file.setContents(content.marshal());
+        CmsElementUtil elementUtil=new CmsElementUtil(cms,contextUri,getThreadLocalRequest(),getThreadLocalResponse(),contentLocale);
+        JSONObject contextInfo=new JSONObject(htmlContextInfo);
+        htmlContent=elementUtil.getContentByContainer(file,contextInfo.getString("elementId"),contextInfo.getString("containerName"),contextInfo.getString("containerType"),contextInfo.getInt("containerWidth"));
+      }
+      return new EntityHtml(htmlContent,validationResult);
+    }
+ catch (    Exception e) {
+      error(e);
+    }
+  }
+  return null;
+}
