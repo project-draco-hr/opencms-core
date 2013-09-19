@@ -8,41 +8,65 @@
  else {
     infoId=entry.getId();
   }
+  Set<CmsUUID> idsForPropertyConfig=new HashSet<CmsUUID>();
+  if (entry.getDefaultFileId() != null) {
+    idsForPropertyConfig.add(entry.getDefaultFileId());
+  }
+  if (entry.getId() != null) {
+    idsForPropertyConfig.add(entry.getId());
+  }
+  final List<CmsUUID> propertyConfigIds=new ArrayList<CmsUUID>(idsForPropertyConfig);
   CmsRpcAction<CmsListInfoBean> action=new CmsRpcAction<CmsListInfoBean>(){
     @Override public void execute(){
       start(0,true);
       CmsCoreProvider.getVfsService().getPageInfo(infoId,this);
     }
-    @Override protected void onResponse(    CmsListInfoBean result){
+    @Override protected void onResponse(    CmsListInfoBean infoResult){
       stop(false);
-      CmsEditEntryHandler handler=new CmsEditEntryHandler(controller,entry,CmsSitemapView.getInstance().isNavigationMode());
-      handler.setPageInfo(result);
-      A_CmsPropertyEditor editor=createEntryEditor(handler);
-      editor.setPropertyNames(CmsSitemapView.getInstance().getController().getData().getAllPropertyNames());
-      final CmsFormDialog dialog=new CmsFormDialog(handler.getDialogTitle(),editor.getForm());
-      CmsPropertyDefinitionButton defButton=new CmsPropertyDefinitionButton(){
-        /** 
+      final CmsEditEntryHandler handler=new CmsEditEntryHandler(controller,entry,CmsSitemapView.getInstance().isNavigationMode());
+      handler.setPageInfo(infoResult);
+      CmsRpcAction<Map<CmsUUID,Map<String,CmsXmlContentProperty>>> propertyAction=new CmsRpcAction<Map<CmsUUID,Map<String,CmsXmlContentProperty>>>(){
+        @Override public void execute(){
+          start(0,true);
+          CmsCoreProvider.getVfsService().getDefaultProperties(propertyConfigIds,this);
+        }
+        @Override protected void onResponse(        Map<CmsUUID,Map<String,CmsXmlContentProperty>> propertyResult){
+          stop(false);
+          Map<String,CmsXmlContentProperty> propConfig=new LinkedHashMap<String,CmsXmlContentProperty>();
+          for (          Map<String,CmsXmlContentProperty> defaultProps : propertyResult.values()) {
+            propConfig.putAll(defaultProps);
+          }
+          propConfig.putAll(CmsSitemapView.getInstance().getController().getData().getProperties());
+          A_CmsPropertyEditor editor=createEntryEditor(handler,propConfig);
+          editor.setPropertyNames(CmsSitemapView.getInstance().getController().getData().getAllPropertyNames());
+          final CmsFormDialog dialog=new CmsFormDialog(handler.getDialogTitle(),editor.getForm());
+          CmsPropertyDefinitionButton defButton=new CmsPropertyDefinitionButton(){
+            /** 
  * @see org.opencms.gwt.client.property.definition.CmsPropertyDefinitionButton#onBeforeEditPropertyDefinition()
  */
-        @Override public void onBeforeEditPropertyDefinition(){
-          dialog.hide();
+            @Override public void onBeforeEditPropertyDefinition(){
+              dialog.hide();
+            }
+          }
+;
+          defButton.installOnDialog(dialog);
+          CmsDialogFormHandler formHandler=new CmsDialogFormHandler();
+          formHandler.setDialog(dialog);
+          I_CmsFormSubmitHandler submitHandler=new CmsPropertySubmitHandler(handler);
+          formHandler.setSubmitHandler(submitHandler);
+          dialog.setFormHandler(formHandler);
+          editor.initializeWidgets(dialog);
+          dialog.centerHorizontally(50);
+          dialog.catchNotifications();
+          String noEditReason=controller.getNoEditReason(entry);
+          if (noEditReason != null) {
+            editor.disableInput(noEditReason);
+            dialog.getOkButton().disable(noEditReason);
+          }
         }
       }
 ;
-      defButton.installOnDialog(dialog);
-      CmsDialogFormHandler formHandler=new CmsDialogFormHandler();
-      formHandler.setDialog(dialog);
-      I_CmsFormSubmitHandler submitHandler=new CmsPropertySubmitHandler(handler);
-      formHandler.setSubmitHandler(submitHandler);
-      dialog.setFormHandler(formHandler);
-      editor.initializeWidgets(dialog);
-      dialog.centerHorizontally(50);
-      dialog.catchNotifications();
-      String noEditReason=controller.getNoEditReason(entry);
-      if (noEditReason != null) {
-        editor.disableInput(noEditReason);
-        dialog.getOkButton().disable(noEditReason);
-      }
+      propertyAction.execute();
     }
   }
 ;
