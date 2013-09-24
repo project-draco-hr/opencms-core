@@ -23,10 +23,27 @@
     for (    Map.Entry<String,String> entry : contextNames.entrySet()) {
       final String key=entry.getKey();
       final String label=entry.getValue();
-      CmsContextMenuEntry menuEntry=createMenuEntryForTemplateContext(info.getCookieName(),key,label,info.getSelectedContext(),this,structureId);
-      templateContextEntries.add(menuEntry);
+      if (info.hasClientVariants(key)) {
+        CmsContextMenuEntry singleContextEntry=createRawMenuEntry(structureId,DO_NOTHING);
+        decorateMenuEntry(singleContextEntry,label,Objects.equal(info.getSelectedContext(),entry.getValue()));
+        List<I_CmsContextMenuEntry> variantEntries=new ArrayList<I_CmsContextMenuEntry>();
+        CmsContextMenuEntry editVariantEntry=createMenuEntryForTemplateContext(info.getCookieName(),key,org.opencms.ade.containerpage.client.Messages.get().key(org.opencms.ade.containerpage.client.Messages.GUI_TEMPLATE_CONTEXT_NO_VARIANT_0),false,this,structureId);
+        variantEntries.add(editVariantEntry);
+        Map<String,CmsClientVariantInfo> variants=info.getClientVariants(key);
+        for (        CmsClientVariantInfo variant : variants.values()) {
+          CmsContextMenuEntry currentVariantEntry=createRawMenuEntry(structureId,new ClientVariantSelectAction(key,variant));
+          decorateMenuEntry(currentVariantEntry,variant.getName(),false);
+          variantEntries.add(currentVariantEntry);
+        }
+        singleContextEntry.setSubMenu(variantEntries);
+        templateContextEntries.add(singleContextEntry);
+      }
+ else {
+        CmsContextMenuEntry menuEntry=createMenuEntryForTemplateContext(info.getCookieName(),key,label,Objects.equal(key,info.getSelectedContext()),this,structureId);
+        templateContextEntries.add(menuEntry);
+      }
     }
-    templateContextEntries.add(createMenuEntryForTemplateContext(info.getCookieName(),null,org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_TEMPLATE_CONTEXT_NONE_0),info.getSelectedContext(),this,structureId));
+    templateContextEntries.add(createMenuEntryForTemplateContext(info.getCookieName(),null,org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_TEMPLATE_CONTEXT_NONE_0),Objects.equal(null,info.getSelectedContext()),this,structureId));
     parentEntry.setSubMenu(templateContextEntries);
     return parentEntry;
   }

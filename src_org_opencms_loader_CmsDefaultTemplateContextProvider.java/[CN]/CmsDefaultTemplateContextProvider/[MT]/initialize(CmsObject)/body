@@ -1,34 +1,32 @@
 {
   try {
-    InputStream stream=null;
-    if (getConfigurationPropertyPath() != null) {
-      try {
-        CmsObject clone=OpenCms.initCmsObject(cms);
-        clone.getRequestContext().setSiteRoot("");
-        CmsResource res=clone.readResource(getConfigurationPropertyPath());
-        if (res != null) {
-          CmsFile file=cms.readFile(res);
-          stream=new ByteArrayInputStream(file.getContents());
+    String path=getConfigurationPropertyPath();
+    CmsResource resource=cms.readResource(path);
+    CmsFile file=cms.readFile(resource);
+    String fileContent=new String(file.getContents(),"UTF-8");
+    JSONObject root=new JSONObject(fileContent,true);
+    for (    String templateContextName : root.keySet()) {
+      JSONObject templateContextJson=(JSONObject)(root.opt(templateContextName));
+      CmsJsonMessageContainer jsonMessage=new CmsJsonMessageContainer(templateContextJson.opt("niceName"));
+      String templatePath=(String)templateContextJson.opt(A_PATH);
+      JSONObject variantsJson=(JSONObject)templateContextJson.opt(A_VARIANTS);
+      List<CmsClientVariant> variants=new ArrayList<CmsClientVariant>();
+      if (variantsJson != null) {
+        for (        String variantName : variantsJson.keySet()) {
+          JSONObject variantJson=(JSONObject)variantsJson.opt(variantName);
+          CmsJsonMessageContainer variantMessage=new CmsJsonMessageContainer(variantJson.opt(A_NICE_NAME));
+          int width=variantJson.optInt(A_WIDTH,800);
+          int height=variantJson.optInt(A_HEIGHT,600);
+          CmsClientVariant variant=new CmsClientVariant(variantName,variantMessage,width,height,new HashMap<String,String>());
+          variants.add(variant);
         }
       }
- catch (      Exception e) {
-        LOG.error("Could not cerate input stream for given configuration path: " + getConfigurationPropertyPath(),e);
-      }
+      CmsTemplateContext templateContext=new CmsTemplateContext(templateContextName,templatePath,jsonMessage,this,variants,false);
+      m_map.put(templateContextName,templateContext);
     }
-    if (stream == null) {
-      stream=getClass().getClassLoader().getResourceAsStream("templatecontext.properties");
-    }
-    Properties properties=new Properties();
-    properties.load(stream);
-    stream.close();
-    String templateMobile=properties.getProperty("template.mobile");
-    String templateDesktop=properties.getProperty("template.desktop");
-    CmsTemplateContext mobile=new CmsTemplateContext("mobile",templateMobile,getMessageContainerMobile(),this);
-    m_map.put(mobile.getKey(),mobile);
-    CmsTemplateContext desktop=new CmsTemplateContext("desktop",templateDesktop,getMessageContainerDesktop(),this);
-    m_map.put(desktop.getKey(),desktop);
   }
- catch (  Throwable t) {
-    LOG.error(t.getLocalizedMessage(),t);
+ catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    throw new RuntimeException(e);
   }
 }
