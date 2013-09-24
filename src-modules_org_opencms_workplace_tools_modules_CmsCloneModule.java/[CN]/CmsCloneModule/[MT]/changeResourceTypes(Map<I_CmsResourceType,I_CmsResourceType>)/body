@@ -1,0 +1,19 @@
+{
+  for (  Map.Entry<I_CmsResourceType,I_CmsResourceType> mapping : resTypeMap.entrySet()) {
+    List<CmsResource> resources=getCmsObject().readResources("/",CmsResourceFilter.requireType(mapping.getKey().getTypeId()));
+    String sourceSchemaPath=mapping.getKey().getConfiguration().get("schema");
+    String targetSchemaPath=mapping.getValue().getConfiguration().get("schema");
+    for (    CmsResource res : resources) {
+      if (lockResource(getCmsObject(),res)) {
+        CmsFile file=getCmsObject().readFile(res);
+        String encoding=CmsLocaleManager.getResourceEncoding(getCmsObject(),file);
+        String content=new String(file.getContents(),encoding);
+        content=content.replaceAll(sourceSchemaPath,targetSchemaPath);
+        file.setContents(content.getBytes(encoding));
+        getCmsObject().writeFile(file);
+        res.setType(mapping.getValue().getTypeId());
+        getCmsObject().writeResource(res);
+      }
+    }
+  }
+}

@@ -1,92 +1,69 @@
 {
   CmsModule sourceModule=OpenCms.getModuleManager().getModule(m_sourceModuleName);
-  String errMessage=null;
-  if (sourceModule != null) {
-    CmsModule targetModule=(CmsModule)sourceModule.clone();
-    targetModule.setName(m_packageName);
-    targetModule.setNiceName(m_niceName);
-    targetModule.setDescription(m_description);
-    targetModule.setAuthorEmail(m_authorEmail);
-    targetModule.setAuthorName(m_authorName);
-    targetModule.setGroup(m_group);
-    targetModule.setActionClass(m_actionClass);
-    try {
-      String sourceModulePath=CmsWorkplace.VFS_PATH_MODULES + sourceModule.getName() + "/";
-      String targetModulePath=CmsWorkplace.VFS_PATH_MODULES + targetModule.getName() + "/";
-      String sourcePathPart=sourceModule.getName().replaceAll("\\.","/");
-      String targetPathPart=targetModule.getName().replaceAll("\\.","/");
-      String sourceClassesPath=targetModulePath + PATH_CLASSES + sourcePathPart+ "/";
-      String targetClassesPath=targetModulePath + PATH_CLASSES + targetPathPart+ "/";
-      getCmsObject().copyResource(sourceModulePath,targetModulePath);
-      if (getCmsObject().existsResource(sourceClassesPath)) {
-        createTargetClassesFolder(targetModule,sourceClassesPath,targetModulePath + PATH_CLASSES);
-        deleteSourceClassesFolder(targetModulePath,sourcePathPart);
-      }
-      cloneExportPoints(sourceModule,targetModule,sourcePathPart,targetPathPart);
-      Map<String,String> descKeys=new HashMap<String,String>();
-      Map<I_CmsResourceType,I_CmsResourceType> resTypeMap=cloneResourceTypes(sourceModule,targetModule,sourcePathPart,targetPathPart,descKeys);
-      Map<String,String> iconPaths=new HashMap<String,String>();
-      cloneExplorerTypes(targetModule,iconPaths,descKeys);
-      cloneExplorerTypeIcons(iconPaths);
-      adjustModuleResources(sourceModule,targetModule,sourcePathPart,targetPathPart,iconPaths);
-      replaceMessageKeys(targetClassesPath,descKeys);
-      CmsSearchReplaceThread t=initializePathThread();
-      t.start();
-      t.join();
-      t=initializeNameThread();
-      t.start();
-      t.join();
-      Charset charset=Charset.forName(OpenCms.getSystemInfo().getDefaultEncoding());
-      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_formatterTargetModule) && !targetModule.getResourceTypes().isEmpty()) {
-        CmsResource formatterSourceFolder=getCmsObject().readResource("/system/modules/" + m_formatterSourceModule + "/formatters/");
-        CmsResource formatterTargetFolder=getCmsObject().readResource("/system/modules/" + m_formatterTargetModule + "/formatters/");
-        for (        I_CmsResourceType type : targetModule.getResourceTypes()) {
-          String schemaPath=type.getConfiguration().get("schema");
-          CmsResource res=getCmsObject().readResource(schemaPath);
-          CmsFile file=getCmsObject().readFile(res);
-          String content=new String(file.getContents(),charset);
-          content=content.replaceAll(formatterSourceFolder.getRootPath(),formatterTargetFolder.getRootPath());
-          file.setContents(content.getBytes(charset));
-          getCmsObject().writeFile(file);
-        }
-      }
-      for (      String res : targetModule.getResources()) {
-        OpenCms.getPublishManager().publishResource(getCmsObject(),res);
-        OpenCms.getPublishManager().waitWhileRunning();
-      }
-      OpenCms.getModuleManager().addModule(getCmsObject(),targetModule);
-      if (Boolean.valueOf(m_changeResourceTypes).booleanValue()) {
-        for (        Map.Entry<I_CmsResourceType,I_CmsResourceType> mapping : resTypeMap.entrySet()) {
-          List<CmsResource> resources=getCmsObject().readResources("/",CmsResourceFilter.requireType(mapping.getKey().getTypeId()));
-          String sourceSchemaPath=mapping.getKey().getConfiguration().get("schema");
-          String targetSchemaPath=mapping.getValue().getConfiguration().get("schema");
-          for (          CmsResource res : resources) {
-            CmsFile file=getCmsObject().readFile(res);
-            String content=new String(file.getContents(),charset);
-            content=content.replaceAll(sourceSchemaPath,targetSchemaPath);
-            file.setContents(content.getBytes(charset));
-            getCmsObject().writeFile(file);
-            res.setType(mapping.getValue().getTypeId());
-            getCmsObject().writeResource(res);
-          }
-        }
-      }
+  CmsModule targetModule=(CmsModule)sourceModule.clone();
+  targetModule.setName(m_packageName);
+  targetModule.setNiceName(m_niceName);
+  targetModule.setDescription(m_description);
+  targetModule.setAuthorEmail(m_authorEmail);
+  targetModule.setAuthorName(m_authorName);
+  targetModule.setGroup(m_group);
+  targetModule.setActionClass(m_actionClass);
+  try {
+    String sourceModulePath=CmsWorkplace.VFS_PATH_MODULES + sourceModule.getName() + "/";
+    String targetModulePath=CmsWorkplace.VFS_PATH_MODULES + targetModule.getName() + "/";
+    String sourcePathPart=sourceModule.getName().replaceAll("\\.","/");
+    String targetPathPart=targetModule.getName().replaceAll("\\.","/");
+    String sourceClassesPath=targetModulePath + PATH_CLASSES + sourcePathPart+ "/";
+    String targetClassesPath=targetModulePath + PATH_CLASSES + targetPathPart+ "/";
+    getCmsObject().copyResource(sourceModulePath,targetModulePath);
+    if (getCmsObject().existsResource(sourceClassesPath)) {
+      createTargetClassesFolder(targetModule,sourceClassesPath,targetModulePath + PATH_CLASSES);
+      deleteSourceClassesFolder(targetModulePath,sourcePathPart,targetPathPart);
     }
- catch (    CmsIllegalArgumentException e) {
-      LOG.error(e.getMessage(),e);
+    cloneExportPoints(sourceModule,targetModule,sourcePathPart,targetPathPart);
+    Map<String,String> descKeys=new HashMap<String,String>();
+    Map<I_CmsResourceType,I_CmsResourceType> resTypeMap=cloneResourceTypes(sourceModule,targetModule,sourcePathPart,targetPathPart,descKeys);
+    Map<String,String> iconPaths=new HashMap<String,String>();
+    cloneExplorerTypes(targetModule,iconPaths,descKeys);
+    cloneExplorerTypeIcons(iconPaths);
+    adjustModuleResources(sourceModule,targetModule,sourcePathPart,targetPathPart,iconPaths);
+    replaceMessageKeys(targetClassesPath,descKeys);
+    CmsSearchReplaceThread t=initializePathThread();
+    t.start();
+    t.join();
+    t=initializeNameThread();
+    t.start();
+    t.join();
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_formatterTargetModule) && !targetModule.getResourceTypes().isEmpty()) {
+      replaceFormatterPaths(targetModule);
     }
-catch (    CmsException e) {
-      LOG.error(e.getMessage(),e);
+    for (    String res : targetModule.getResources()) {
+      OpenCms.getPublishManager().publishResource(getCmsObject(),res);
+      OpenCms.getPublishManager().waitWhileRunning();
     }
-catch (    Exception e) {
-      LOG.error(e.getMessage(),e);
+    OpenCms.getModuleManager().addModule(getCmsObject(),targetModule);
+    if (targetModule.getResourceTypes() != Collections.EMPTY_LIST) {
+      OpenCms.getResourceManager().initialize(getCmsObject());
+    }
+    if (targetModule.getExplorerTypes() != Collections.EMPTY_LIST) {
+      OpenCms.getWorkplaceManager().addExplorerTypeSettings(targetModule);
+    }
+    OpenCms.getWorkplaceManager().initialize(getCmsObject());
+    OpenCms.fireCmsEvent(I_CmsEventListener.EVENT_CLEAR_CACHES,new HashMap<String,Object>());
+    if (Boolean.valueOf(m_changeResourceTypes).booleanValue()) {
+      changeResourceTypes(resTypeMap);
+    }
+    if (Boolean.valueOf(m_deleteModule).booleanValue()) {
+      OpenCms.getModuleManager().deleteModule(getCmsObject(),sourceModule.getName(),false,null);
     }
   }
- else {
-    errMessage="Source module does not exist.";
+ catch (  CmsIllegalArgumentException e) {
+    LOG.error(e.getMessage(),e);
   }
-  if (errMessage != null) {
-    LOG.error(errMessage);
+catch (  CmsException e) {
+    LOG.error(e.getMessage(),e);
   }
-  return null;
+catch (  Exception e) {
+    LOG.error(e.getMessage(),e);
+  }
 }
