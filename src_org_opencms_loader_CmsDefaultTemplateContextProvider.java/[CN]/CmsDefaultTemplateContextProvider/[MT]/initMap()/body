@@ -1,0 +1,30 @@
+{
+  Map<String,CmsTemplateContext> result=new LinkedHashMap<String,CmsTemplateContext>();
+  String path=getConfigurationPropertyPath();
+  CmsResource resource=m_cms.readResource(path);
+  CmsFile file=m_cms.readFile(resource);
+  String fileContent=new String(file.getContents(),"UTF-8");
+  JSONTokener tok=new JSONTokener(fileContent);
+  tok.setOrdered(true);
+  JSONObject root=new JSONObject(tok,true);
+  for (  String templateContextName : root.keySet()) {
+    JSONObject templateContextJson=(JSONObject)(root.opt(templateContextName));
+    CmsJsonMessageContainer jsonMessage=new CmsJsonMessageContainer(templateContextJson.opt(A_NICE_NAME));
+    String templatePath=(String)templateContextJson.opt(A_PATH);
+    JSONObject variantsJson=(JSONObject)templateContextJson.opt(A_VARIANTS);
+    List<CmsClientVariant> variants=new ArrayList<CmsClientVariant>();
+    if (variantsJson != null) {
+      for (      String variantName : variantsJson.keySet()) {
+        JSONObject variantJson=(JSONObject)variantsJson.opt(variantName);
+        CmsJsonMessageContainer variantMessage=new CmsJsonMessageContainer(variantJson.opt(A_NICE_NAME));
+        int width=variantJson.optInt(A_WIDTH,800);
+        int height=variantJson.optInt(A_HEIGHT,600);
+        CmsClientVariant variant=new CmsClientVariant(variantName,variantMessage,width,height,new HashMap<String,String>());
+        variants.add(variant);
+      }
+    }
+    CmsTemplateContext templateContext=new CmsTemplateContext(templateContextName,templatePath,jsonMessage,this,variants,false);
+    result.put(templateContextName,templateContext);
+  }
+  return result;
+}
