@@ -27,8 +27,15 @@
     cloneExplorerTypes(targetModule,iconPaths,descKeys);
     cloneExplorerTypeIcons(iconPaths);
     adjustModuleResources(sourceModule,targetModule,sourcePathPart,targetPathPart,iconPaths);
-    replaceMessageKeys(targetClassesPath,descKeys);
-    renameXmlVfsBundles(targetModule,sourceModule.getName());
+    List<CmsResource> props=getCmsObject().readResources(targetClassesPath,CmsResourceFilter.DEFAULT_FILES);
+    replacesMessages(descKeys,props);
+    int type=OpenCms.getResourceManager().getResourceType(CmsVfsBundleManager.TYPE_XML_BUNDLE).getTypeId();
+    CmsResourceFilter filter=CmsResourceFilter.requireType(type);
+    List<CmsResource> resources=getCmsObject().readResources(targetModulePath,filter);
+    replacesMessages(descKeys,resources);
+    renameXmlVfsBundles(resources,targetModule,sourceModule.getName());
+    List<CmsResource> allModuleResources=getCmsObject().readResources(targetModulePath,CmsResourceFilter.ALL);
+    replacePath(sourceModulePath,targetModulePath,allModuleResources);
     CmsSearchReplaceThread t=initializePathThread();
     t.start();
     t.join();
@@ -38,6 +45,7 @@
     if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_formatterTargetModule) && !targetModule.getResourceTypes().isEmpty()) {
       replaceFormatterPaths(targetModule);
     }
+    adjustModuleConfig(targetModule,resTypeMap);
     for (    String res : targetModule.getResources()) {
       OpenCms.getPublishManager().publishResource(getCmsObject(),res);
       OpenCms.getPublishManager().waitWhileRunning();
