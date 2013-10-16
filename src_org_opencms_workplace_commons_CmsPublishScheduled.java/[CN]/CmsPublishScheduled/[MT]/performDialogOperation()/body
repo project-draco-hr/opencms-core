@@ -11,10 +11,20 @@
   CmsObject cmsAdmin=action.getCmsAdminObject();
   CmsObject cms=OpenCms.initCmsObject(getCms());
   cmsAdmin.getRequestContext().setSiteRoot(cms.getRequestContext().getSiteRoot());
-  String dateTime=CmsDateUtil.getDateTime(date,DateFormat.SHORT,getLocale());
-  String projectName=key(Messages.GUI_PUBLISH_SCHEDULED_PROJECT_NAME_2,new Object[]{getCms().getRequestContext().addSiteRoot(resource),dateTime});
-  projectName=projectName.replace("/","&#47;");
-  CmsProject tmpProject=cmsAdmin.createProject(projectName,"",CmsRole.WORKPLACE_USER.getGroupName(),CmsRole.PROJECT_MANAGER.getGroupName(),CmsProject.PROJECT_TYPE_TEMPORARY);
+  String rootPath=getCms().getRequestContext().addSiteRoot(resource);
+  String projectName=computeProjectName(rootPath,date);
+  CmsProject tmpProject=null;
+  try {
+    tmpProject=cmsAdmin.createProject(projectName,"",CmsRole.WORKPLACE_USER.getGroupName(),CmsRole.PROJECT_MANAGER.getGroupName(),CmsProject.PROJECT_TYPE_TEMPORARY);
+  }
+ catch (  CmsException e) {
+    String resName=CmsResource.getName(rootPath);
+    if (resName.length() > 64) {
+      resName=resName.substring(0,64) + "...";
+    }
+    projectName=computeProjectName(resName,date) + " [" + new CmsUUID()+ "]";
+    tmpProject=cmsAdmin.createProject(projectName,"",CmsRole.WORKPLACE_USER.getGroupName(),CmsRole.PROJECT_MANAGER.getGroupName(),CmsProject.PROJECT_TYPE_TEMPORARY);
+  }
   tmpProject.setHidden(true);
   cmsAdmin.writeProject(tmpProject);
   cmsAdmin.getRequestContext().setCurrentProject(tmpProject);
