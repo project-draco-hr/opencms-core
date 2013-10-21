@@ -1,26 +1,25 @@
 {
-  if (!m_previewCalculated) {
-    CmsFormatterBean result=null;
-    if (this != EMPTY_CONFIGURATION) {
-      result=m_typeFormatters.get(CmsFormatterBean.PREVIEW_TYPE);
-      if (result == null) {
-        result=getFormatter(CmsFormatterBean.WILDCARD_TYPE,CmsFormatterBean.PREVIEW_WIDTH);
-        if ((result == null) && !m_widthFormatters.isEmpty()) {
-          for (          CmsFormatterBean f : m_widthFormatters) {
-            if ((f.getMinWidth() >= CmsFormatterBean.PREVIEW_WIDTH) && (CmsFormatterBean.PREVIEW_WIDTH <= f.getMaxWidth())) {
-              if ((result == null) || (result.getMinWidth() < f.getMinWidth())) {
-                result=f;
-              }
-            }
-          }
-        }
-        if ((result == null) && !m_typeFormatters.isEmpty()) {
-          result=m_typeFormatters.values().iterator().next();
-        }
+  Optional<CmsFormatterBean> result=Iterables.tryFind(m_allFormatters,new Predicate<CmsFormatterBean>(){
+    public boolean apply(    CmsFormatterBean formatter){
+      if (formatter.isTypeFormatter()) {
+        return formatter.getContainerTypes().contains(CmsFormatterBean.PREVIEW_TYPE);
+      }
+ else {
+        return (formatter.getMinWidth() <= CmsFormatterBean.PREVIEW_WIDTH) && (CmsFormatterBean.PREVIEW_WIDTH <= formatter.getMaxWidth());
       }
     }
-    m_previewCalculated=true;
-    m_previewFormatter=result;
   }
-  return m_previewFormatter;
+);
+  if (!result.isPresent()) {
+    result=Iterables.tryFind(m_allFormatters,new Predicate<CmsFormatterBean>(){
+      public boolean apply(      CmsFormatterBean formatter){
+        return !formatter.isTypeFormatter() && (formatter.getMaxWidth() >= CmsFormatterBean.PREVIEW_WIDTH);
+      }
+    }
+);
+  }
+  if (!result.isPresent() && !m_allFormatters.isEmpty()) {
+    result=Optional.fromNullable(m_allFormatters.iterator().next());
+  }
+  return result.orNull();
 }
