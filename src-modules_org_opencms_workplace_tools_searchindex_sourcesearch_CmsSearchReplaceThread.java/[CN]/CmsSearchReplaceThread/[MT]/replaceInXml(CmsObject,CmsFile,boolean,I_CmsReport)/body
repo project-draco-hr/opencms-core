@@ -1,0 +1,51 @@
+{
+  Exception e=null;
+  CmsXmlContent xmlContent=CmsXmlContentFactory.unmarshal(cmsObject,cmsFile);
+  Pattern pattern=Pattern.compile(m_settings.getSearchpattern());
+  boolean modified=false;
+  boolean matched=false;
+  for (  Locale locale : xmlContent.getLocales()) {
+    List<String> paths=xmlContent.getNames(locale);
+    for (    String xpath : paths) {
+      I_CmsXmlContentValue value=xmlContent.getValue(xpath,locale);
+      if (value.isSimpleType()) {
+        try {
+          String currPath=value.getPath();
+          if (currPath.equals(m_settings.getXpath()) || (CmsXmlUtils.removeXpath(currPath).equals(m_settings.getXpath()))) {
+            String oldVal=value.getStringValue(cmsObject);
+            Matcher matcher=pattern.matcher(oldVal);
+            matcher=Pattern.compile(m_settings.getSearchpattern()).matcher(oldVal);
+            if (matcher.find()) {
+              matched=true;
+              m_matchedResources.add(cmsFile);
+              if (replace) {
+                String newVal=matcher.replaceAll(m_settings.getReplacepattern());
+                if (!oldVal.equals(newVal)) {
+                  value.setStringValue(cmsObject,newVal);
+                  modified=true;
+                }
+              }
+            }
+          }
+        }
+ catch (        Exception ex) {
+          LOG.error(ex.getMessage(),ex);
+          e=ex;
+        }
+      }
+    }
+  }
+  if (e != null) {
+    throw e;
+  }
+  if (matched) {
+    report.print(Messages.get().container(Messages.RPT_SOURCESEARCH_MATCHED_0),I_CmsReport.FORMAT_OK);
+  }
+ else {
+    report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_NOT_MATCHED_0),I_CmsReport.FORMAT_NOTE);
+  }
+  if (modified) {
+    return xmlContent.marshal();
+  }
+  return null;
+}
