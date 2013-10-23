@@ -1,0 +1,86 @@
+{
+  super(Messages.get().key(Messages.GUI_PROPERTY_DIALOG_TITLE_0),new CmsForm(false));
+  m_elementWidget=elementWidget;
+  m_controller=controller;
+  m_elementBean=elementBean;
+  m_contextInfo=m_controller.getData().getTemplateContextInfo();
+  m_containerId=m_elementWidget.getParentTarget().getContainerId();
+  CmsListInfoBean infoBean=new CmsListInfoBean();
+  infoBean.setTitle(elementBean.getTitle());
+  infoBean.setSubTitle(elementBean.getSitePath());
+  infoBean.setResourceType(elementBean.getResourceType());
+  m_settings=elementBean.getSettings();
+  A_CmsFormFieldPanel formFieldPanel=null;
+  if (m_contextInfo.shouldShowElementTemplateContextSelection() || m_elementBean.hasAlternativeFormatters(m_containerId)) {
+    CmsFieldsetFormFieldPanel fieldSetPanel=new CmsFieldsetFormFieldPanel(infoBean,org.opencms.ade.containerpage.client.Messages.get().key(org.opencms.ade.containerpage.client.Messages.GUI_SETTINGS_LEGEND_0));
+    formFieldPanel=fieldSetPanel;
+    if (m_elementBean.hasAlternativeFormatters(m_containerId)) {
+      CmsFieldSet formatterFieldset=new CmsFieldSet();
+      fieldSetPanel.getMainPanel().insert(formatterFieldset,1);
+      formatterFieldset.setLegend("Formatters");
+      formatterFieldset.getElement().getStyle().setMarginTop(10,Style.Unit.PX);
+      LinkedHashMap<String,String> formatters=new LinkedHashMap<String,String>();
+      for (      CmsFormatterConfig formatter : m_elementBean.getFormatters().get(m_containerId).values()) {
+        formatters.put(formatter.getId(),formatter.getLabel());
+      }
+      m_formatterSelect=new CmsSelectBox(formatters,false);
+      m_formatterSelect.selectValue(m_elementBean.getFormatterConfig(m_containerId).getId());
+      m_formatterSelect.addValueChangeHandler(new ValueChangeHandler<String>(){
+        public void onValueChange(        ValueChangeEvent<String> event){
+          onFormatterChange(event.getValue());
+        }
+      }
+);
+      formatterFieldset.add(m_formatterSelect);
+    }
+    if (m_contextInfo.shouldShowElementTemplateContextSelection()) {
+      String templateContexts=m_settings.get(CmsTemplateContextInfo.SETTING);
+      if (templateContexts == null) {
+        templateContexts=CmsStringUtil.listAsString(new ArrayList<String>(CmsContainerpageController.get().getData().getTemplateContextInfo().getContextLabels().keySet()),"|");
+      }
+ else       if (templateContexts.equals(CmsTemplateContextInfo.EMPTY_VALUE)) {
+        templateContexts="";
+      }
+      m_settings.put(CmsTemplateContextInfo.SETTING,templateContexts);
+      CmsFieldSet contextsFieldset=new CmsFieldSet();
+      contextsFieldset.setLegend(m_contextInfo.getSettingDefinition().getNiceName());
+      contextsFieldset.getElement().getStyle().setMarginTop(10,Style.Unit.PX);
+      m_contextsWidget=new CmsMultiCheckBox(CmsStringUtil.splitAsMap(m_contextInfo.getSettingDefinition().getWidgetConfiguration(),"|",":"));
+      for (      CmsCheckBox checkbox : m_contextsWidget.getCheckboxes()) {
+        Style checkboxStyle=checkbox.getElement().getStyle();
+        checkbox.getButton().getElement().getStyle().setFontWeight(Style.FontWeight.NORMAL);
+        checkboxStyle.setMarginTop(7,Style.Unit.PX);
+      }
+      m_contextsWidget.setFormValueAsString(m_settings.get(CmsTemplateContextInfo.SETTING));
+      m_contextsWidget.addValueChangeHandler(new ValueChangeHandler<String>(){
+        public void onValueChange(        ValueChangeEvent<String> event){
+          setTemplateContextChanged(true);
+        }
+      }
+);
+      contextsFieldset.add(m_contextsWidget);
+      fieldSetPanel.getMainPanel().add(contextsFieldset);
+    }
+    if (m_elementBean.getSettingConfig(m_containerId).isEmpty()) {
+      fieldSetPanel.getFieldSet().setVisible(false);
+    }
+  }
+ else {
+    formFieldPanel=new CmsInfoBoxFormFieldPanel(infoBean);
+  }
+  getForm().setWidget(formFieldPanel);
+  I_CmsFormSubmitHandler submitHandler=new I_CmsFormSubmitHandler(){
+    /** 
+ * @see org.opencms.gwt.client.ui.input.form.I_CmsFormSubmitHandler#onSubmitForm(org.opencms.gwt.client.ui.input.form.CmsForm,java.util.Map,java.util.Set)
+ */
+    public void onSubmitForm(    CmsForm formParam,    final Map<String,String> fieldValues,    Set<String> editedFields){
+      submitForm(formParam,fieldValues,editedFields);
+    }
+  }
+;
+  CmsDialogFormHandler formHandler=new CmsDialogFormHandler();
+  formHandler.setSubmitHandler(submitHandler);
+  getForm().setFormHandler(formHandler);
+  formHandler.setDialog(this);
+  renderSettingsForm(m_elementBean.getSettingConfig(m_containerId));
+}

@@ -15,14 +15,10 @@
     title=searchResult.getTitle();
   }
   elementData.setTitle(title);
-  Set<String> cssResources=new LinkedHashSet<String>();
-  for (  String cssSitePath : CmsJspTagHeadIncludes.getCSSHeadIncludes(m_cms,element.getResource())) {
-    cssResources.add(OpenCms.getLinkManager().getOnlineLink(m_cms,cssSitePath));
-  }
-  elementData.setCssResources(cssResources);
   Map<String,CmsXmlContentProperty> settingConfig=CmsXmlContentPropertyHelper.getPropertyInfo(m_cms,element.getResource());
   elementData.setSettings(CmsXmlContentPropertyHelper.convertPropertiesToClientFormat(m_cms,element.getIndividualSettings(),settingConfig));
-  elementData.setSettingConfig(new LinkedHashMap<String,CmsXmlContentProperty>(settingConfig));
+  CmsFormatterConfiguration formatterConfiguraton=getFormatterConfiguration(element.getResource());
+  Map<String,Map<String,CmsFormatterConfig>> formatters=new HashMap<String,Map<String,CmsFormatterConfig>>();
   Map<String,String> contents=new HashMap<String,String>();
   if (element.isGroupContainer(m_cms)) {
     Set<String> types=new HashSet<String>();
@@ -90,10 +86,36 @@
     elementData.setInheritanceName(name);
   }
  else {
+    for (    CmsContainer cnt : containers) {
+      Map<String,CmsFormatterConfig> containerFormatters=new LinkedHashMap<String,CmsFormatterConfig>();
+      for (      CmsFormatterBean formatter : formatterConfiguraton.getAllMatchingFormatters(cnt.getType(),cnt.getWidth())) {
+        String id=formatter.getId();
+        if (id == null) {
+          id=CmsFormatterConfig.SCHEMA_FORMATTER_ID;
+        }
+        String label=formatter.getNiceName();
+        if (CmsStringUtil.isEmptyOrWhitespaceOnly(label)) {
+          label=id;
+        }
+        CmsFormatterConfig config=new CmsFormatterConfig(id);
+        Set<String> cssResources=new LinkedHashSet<String>();
+        for (        String cssSitePath : formatter.getCssHeadIncludes()) {
+          cssResources.add(OpenCms.getLinkManager().getOnlineLink(m_cms,cssSitePath));
+        }
+        config.setCssResources(cssResources);
+        config.setLabel(label);
+        config.setSettingConfig(new LinkedHashMap<String,CmsXmlContentProperty>(formatter.getSettings()));
+        config.setJspRootPath(formatter.getJspRootPath());
+        containerFormatters.put(id,config);
+      }
+      containerFormatters.put("generic_" + cnt.getName(),generateDummyFormatter("generic_" + cnt.getName()));
+      formatters.put(cnt.getName(),containerFormatters);
+    }
     Map<String,String> contentsByName=getContentsByContainerName(element,containers);
     contents=contentsByName;
   }
   elementData.setContents(contents);
+  elementData.setFormatters(formatters);
   m_cms.getRequestContext().setLocale(requestLocale);
   return elementData;
 }
