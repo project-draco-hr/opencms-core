@@ -9,20 +9,32 @@
     }
   }
   if ((containerPage != null) && (containerPage.getElements() != null)) {
-    for (    CmsContainerElementBean element : containerPage.getElements()) {
-      try {
-        element.initResource(cms);
-        jsIncludes.addAll(getJSHeadIncludes(cms,element.getResource()));
-      }
- catch (      CmsException e) {
-        LOG.error(Messages.get().getBundle().key(Messages.ERR_READING_REQUIRED_RESOURCE_1,element.getSitePath()),e);
+    Map<CmsUUID,CmsFormatterBean> formatters=OpenCms.getADEManager().getCachedFormatters(standardContext.isOnline()).getFormatters();
+    for (    CmsContainerBean container : containerPage.getContainers().values()) {
+      for (      CmsContainerElementBean element : container.getElements()) {
+        String formatterConfigId=element.getSettings().get(CmsFormatterConfig.FORMATTER_SETTINGS_KEY + container.getName());
+        if (CmsUUID.isValidUUID(formatterConfigId) && formatters.containsKey(new CmsUUID(formatterConfigId))) {
+          jsIncludes.addAll(formatters.get(new CmsUUID(formatterConfigId)).getJavascriptHeadIncludes());
+        }
+ else {
+          try {
+            element.initResource(cms);
+            jsIncludes.addAll(getJSHeadIncludes(cms,element.getResource()));
+          }
+ catch (          CmsException e) {
+            LOG.error(Messages.get().getBundle().key(Messages.ERR_READING_REQUIRED_RESOURCE_1,element.getSitePath()),e);
+          }
+        }
       }
     }
   }
   if (standardContext.getDetailContentId() != null) {
     try {
       CmsResource detailContent=cms.readResource(standardContext.getDetailContentId());
-      jsIncludes.addAll(getJSHeadIncludes(cms,detailContent));
+      CmsFormatterConfiguration config=OpenCms.getADEManager().lookupConfiguration(cms,cms.getRequestContext().getRootUri()).getFormatters(cms,detailContent);
+      for (      I_CmsFormatterBean formatter : config.getAllFormatters()) {
+        jsIncludes.addAll(formatter.getJavascriptHeadIncludes());
+      }
     }
  catch (    CmsException e) {
       LOG.error(Messages.get().getBundle().key(Messages.ERR_READING_REQUIRED_RESOURCE_1,standardContext.getDetailContentId()),e);
