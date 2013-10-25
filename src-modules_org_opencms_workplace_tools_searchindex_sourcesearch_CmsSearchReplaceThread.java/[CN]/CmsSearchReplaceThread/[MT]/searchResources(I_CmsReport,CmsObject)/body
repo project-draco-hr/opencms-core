@@ -1,0 +1,52 @@
+{
+  report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_START_COLLECTING_FILES_TO_SEARCH_IN_0),I_CmsReport.FORMAT_HEADLINE);
+  List<CmsResource> resources=new ArrayList<CmsResource>();
+  if (m_settings.isSolrSearch()) {
+    CmsSolrIndex index=OpenCms.getSearchManager().getIndexSolr(m_settings.getSource());
+    if (index != null) {
+      CmsSolrQuery query=new CmsSolrQuery(null,CmsRequestUtil.createParameterMap(m_settings.getQuery() + "&fl=path,type"));
+      query.setSearchRoots(m_settings.getPaths());
+      if ((m_settings.getTypesArray() != null) && (m_settings.getTypesArray().length > 0)) {
+        query.setResourceTypes(m_settings.getTypesArray());
+      }
+      query.ensureParameters();
+      query.setRows(new Integer(999999999));
+      try {
+        resources.addAll(index.search(cmsObject,query,true));
+      }
+ catch (      CmsSearchException e) {
+        LOG.error(e.getMessage(),e);
+      }
+    }
+  }
+ else {
+    CmsResourceFilter filter=CmsResourceFilter.ALL.addRequireFile().addExcludeState(CmsResource.STATE_DELETED).addRequireTimerange().addRequireVisible();
+    if ((m_settings.getTypesArray() != null) && (m_settings.getTypesArray().length > 0)) {
+      for (      String resTypeName : m_settings.getTypesArray()) {
+        try {
+          int typeId=OpenCms.getResourceManager().getResourceType(resTypeName).getTypeId();
+          filter=filter.addRequireType(typeId);
+        }
+ catch (        CmsLoaderException e) {
+        }
+catch (        NullPointerException e) {
+        }
+      }
+    }
+    Iterator<String> iterPaths=m_settings.getPaths().iterator();
+    while (iterPaths.hasNext()) {
+      String path=iterPaths.next();
+      try {
+        List<CmsResource> tmpResources=getCms().readResources(path,filter);
+        if ((tmpResources != null) && !tmpResources.isEmpty()) {
+          resources.addAll(tmpResources);
+        }
+      }
+ catch (      CmsException e) {
+        LOG.error(Messages.get().container(Messages.RPT_SOURCESEARCH_ERROR_READING_RESOURCES_1,path),e);
+        report.println(Messages.get().container(Messages.RPT_SOURCESEARCH_ERROR_READING_RESOURCES_1,path),I_CmsReport.FORMAT_ERROR);
+      }
+    }
+  }
+  return resources;
+}
