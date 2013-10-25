@@ -3,18 +3,28 @@
   try {
     I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(resTypeId);
     String typeName=resType.getTypeName();
-    CmsResourceTypeConfig typeConfig=getResourceType(typeName);
-    if ((typeConfig != null) && (typeConfig.getFormatterConfiguration() != null) && !typeConfig.getFormatterConfiguration().getAllFormatters().isEmpty()) {
-      return typeConfig.getFormatterConfiguration();
-    }
     CmsFormatterConfigurationCacheState formatterCacheState=OpenCms.getADEManager().getCachedFormatters(cms.getRequestContext().getCurrentProject().isOnlineProject());
     CmsFormatterConfiguration schemaFormatters=getFormattersFromSchema(cms,res);
     List<I_CmsFormatterBean> formatters=new ArrayList<I_CmsFormatterBean>();
-    for (    I_CmsFormatterBean formatter : schemaFormatters.getAllFormatters()) {
-      formatters.add(formatter);
+    Set<String> types=new HashSet<String>();
+    types.add(typeName);
+    for (    CmsFormatterChangeSet changeSet : getFormatterChangeSets()) {
+      changeSet.applyToTypes(types);
     }
+    if (!types.isEmpty()) {
+      for (      I_CmsFormatterBean formatter : schemaFormatters.getAllFormatters()) {
+        formatters.add(formatter);
+      }
+    }
+    Map<CmsUUID,I_CmsFormatterBean> externalFormattersById=Maps.newHashMap();
     for (    I_CmsFormatterBean formatter : formatterCacheState.getFormattersForType(typeName,true)) {
-      formatters.add(formatter);
+      externalFormattersById.put(new CmsUUID(formatter.getId()),formatter);
+    }
+    applyAllFormatterChanges(externalFormattersById,formatterCacheState);
+    for (    I_CmsFormatterBean formatter : externalFormattersById.values()) {
+      if (typeName.equals(formatter.getResourceTypeName())) {
+        formatters.add(formatter);
+      }
     }
     return CmsFormatterConfiguration.create(cms,formatters);
   }

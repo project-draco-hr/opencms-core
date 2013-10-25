@@ -1,0 +1,50 @@
+{
+  String path=getResourcePath(cms,widgetDialog);
+  try {
+    cms=OpenCms.initCmsObject(cms);
+    cms.getRequestContext().setSiteRoot("");
+    CmsADEConfigData adeConfig=OpenCms.getADEManager().lookupConfiguration(cms,path);
+    if (adeConfig.parent() != null) {
+      adeConfig=adeConfig.parent();
+    }
+    Map<CmsUUID,I_CmsFormatterBean> activeFormatters=adeConfig.getActiveFormatters();
+    Set<String> added=new HashSet<String>();
+    List<CmsSelectWidgetOption> options=Lists.newArrayList();
+    for (    I_CmsFormatterBean formatterBean : activeFormatters.values()) {
+      CmsSelectWidgetOption option=new CmsSelectWidgetOption(formatterBean.getId(),false,formatterBean.getNiceName());
+      added.add(option.getValue());
+      options.add(option);
+    }
+    Set<String> types=adeConfig.getTypesWithModifiableFormatters();
+    Set<String> activeTypes=adeConfig.getTypesWithActiveSchemaFormatters();
+    Set<String> inactiveTypes=new HashSet<String>(types);
+    inactiveTypes.removeAll(activeTypes);
+    for (    String activeType : activeTypes) {
+      CmsSelectWidgetOption option=new CmsSelectWidgetOption(CmsFormatterChangeSet.keyForType(activeType),false,"Schema: " + activeType);
+      added.add(option.getValue());
+      options.add(option);
+    }
+    try {
+      CmsResource content=cms.readResource(path);
+      CmsFile contentFile=cms.readFile(content);
+      CmsXmlContent xmlContent=CmsXmlContentFactory.unmarshal(cms,contentFile);
+      CmsConfigurationReader reader=new CmsConfigurationReader(cms);
+      CmsXmlContentRootLocation root=new CmsXmlContentRootLocation(xmlContent,Locale.ENGLISH);
+      Set<String> removeFormatters=reader.parseRemoveFormatters(root);
+      for (      String removeFormatter : removeFormatters) {
+        CmsSelectWidgetOption option=new CmsSelectWidgetOption(removeFormatter,false,removeFormatter);
+        if (!added.contains(option.getValue())) {
+          options.add(option);
+        }
+      }
+    }
+ catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+    return options;
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    return null;
+  }
+}
