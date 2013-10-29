@@ -2,6 +2,7 @@
   CmsJspStandardContextBean standardContext=getStandardContext(cms,req);
   CmsContainerPageBean containerPage=standardContext.getPage();
   Set<String> cssIncludes=new LinkedHashSet<String>();
+  Map<String,String> inlineCss=new LinkedHashMap<String,String>();
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_defaults)) {
     String[] defaults=m_defaults.split("\\|");
     for (int i=0; i < defaults.length; i++) {
@@ -19,6 +20,9 @@
           I_CmsFormatterBean formatter=getFormatterBeanForElement(element,container,formatters);
           if (formatter != null) {
             cssIncludes.addAll(formatter.getCssHeadIncludes());
+            if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter.getInlineCss())) {
+              inlineCss.put(formatter.getId(),formatter.getInlineCss());
+            }
           }
  else {
             try {
@@ -41,7 +45,11 @@
       if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getDetailtype()) && CmsStringUtil.isNotEmptyOrWhitespaceOnly(getDetailwidth())) {
         try {
           int width=Integer.parseInt(getDetailwidth());
-          cssIncludes.addAll(config.getDetailFormatter(getDetailtype(),width).getCssHeadIncludes());
+          I_CmsFormatterBean formatter=config.getDetailFormatter(getDetailtype(),width);
+          cssIncludes.addAll(formatter.getCssHeadIncludes());
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter.getInlineCss())) {
+            inlineCss.put(formatter.getId(),formatter.getInlineCss());
+          }
           requiresAllIncludes=false;
         }
  catch (        NumberFormatException ne) {
@@ -50,6 +58,9 @@
       if (requiresAllIncludes) {
         for (        I_CmsFormatterBean formatter : config.getDetailFormatters()) {
           cssIncludes.addAll(formatter.getCssHeadIncludes());
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter.getInlineCss())) {
+            inlineCss.put(formatter.getId(),formatter.getInlineCss());
+          }
         }
       }
     }
@@ -58,9 +69,27 @@
     }
   }
   for (  String cssUri : cssIncludes) {
-    pageContext.getOut().print("<link href=\"" + CmsJspTagLink.linkTagAction(cssUri,req) + generateReqParams()+ "\" rel=\"stylesheet\" type=\"text/css\">");
+    pageContext.getOut().print("\n<link href=\"" + CmsJspTagLink.linkTagAction(cssUri,req) + generateReqParams()+ "\" rel=\"stylesheet\" type=\"text/css\">");
     if (shouldCloseTags()) {
       pageContext.getOut().print("</link>");
     }
+  }
+  if (cms.getRequestContext().getCurrentProject().isOnlineProject()) {
+    StringBuffer inline=new StringBuffer("\n<style type=\"text/css\">\n");
+    for (    Entry<String,String> cssEntry : inlineCss.entrySet()) {
+      inline.append("\n// CSS for formatter '" + cssEntry.getKey() + "'\n");
+      inline.append(cssEntry.getValue()).append("\n\n");
+    }
+    inline.append("\n</style>\n");
+    pageContext.getOut().print(inline.toString());
+  }
+ else {
+    StringBuffer inline=new StringBuffer();
+    for (    Entry<String,String> cssEntry : inlineCss.entrySet()) {
+      inline.append("\n<style type=\"text/css\" rel=\"" + cssEntry.getKey() + "\">\n");
+      inline.append(cssEntry.getValue()).append("\n\n");
+      inline.append("\n</style>\n");
+    }
+    pageContext.getOut().print(inline.toString());
   }
 }
