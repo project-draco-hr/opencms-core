@@ -13,26 +13,45 @@
     Map<CmsUUID,I_CmsFormatterBean> formatters=OpenCms.getADEManager().getCachedFormatters(standardContext.isOnline()).getFormatters();
     for (    CmsContainerBean container : containerPage.getContainers().values()) {
       for (      CmsContainerElementBean element : container.getElements()) {
-        element.initResource(cms);
-        if (element.isGroupContainer(cms) || element.isInheritedContainer(cms)) {
-        }
+        try {
+          element.initResource(cms);
+          if (element.isGroupContainer(cms) || element.isInheritedContainer(cms)) {
+            List<CmsContainerElementBean> subElements;
+            if (element.isGroupContainer(cms)) {
+              subElements=CmsJspTagContainer.getGroupContainerElements(cms,element,req,container.getType());
+            }
  else {
-          I_CmsFormatterBean formatter=getFormatterBeanForElement(element,container,formatters);
-          if (formatter != null) {
-            cssIncludes.addAll(formatter.getCssHeadIncludes());
-            if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter.getInlineCss())) {
-              inlineCss.put(formatter.getId(),formatter.getInlineCss());
+              subElements=CmsJspTagContainer.getInheritedContainerElements(cms,element);
+            }
+            for (            CmsContainerElementBean subElement : subElements) {
+              subElement.initResource(cms);
+              I_CmsFormatterBean formatter=getFormatterBeanForElement(subElement,container,formatters);
+              if (formatter != null) {
+                cssIncludes.addAll(formatter.getCssHeadIncludes());
+                if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter.getInlineCss())) {
+                  inlineCss.put(formatter.getId(),formatter.getInlineCss());
+                }
+              }
+ else {
+                cssIncludes.addAll(getCSSHeadIncludes(cms,subElement.getResource()));
+              }
             }
           }
  else {
-            try {
-              element.initResource(cms);
+            I_CmsFormatterBean formatter=getFormatterBeanForElement(element,container,formatters);
+            if (formatter != null) {
+              cssIncludes.addAll(formatter.getCssHeadIncludes());
+              if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter.getInlineCss())) {
+                inlineCss.put(formatter.getId(),formatter.getInlineCss());
+              }
+            }
+ else {
               cssIncludes.addAll(getCSSHeadIncludes(cms,element.getResource()));
             }
- catch (            CmsException e) {
-              LOG.error(Messages.get().getBundle().key(Messages.ERR_READING_REQUIRED_RESOURCE_1,element.getSitePath()),e);
-            }
           }
+        }
+ catch (        CmsException e) {
+          LOG.error(Messages.get().getBundle().key(Messages.ERR_READING_REQUIRED_RESOURCE_1,element.getSitePath()),e);
         }
       }
     }
@@ -75,13 +94,14 @@
     }
   }
   if (cms.getRequestContext().getCurrentProject().isOnlineProject()) {
-    StringBuffer inline=new StringBuffer("\n<style type=\"text/css\">\n");
-    for (    Entry<String,String> cssEntry : inlineCss.entrySet()) {
-      inline.append("\n// CSS for formatter '" + cssEntry.getKey() + "'\n");
-      inline.append(cssEntry.getValue()).append("\n\n");
+    if (!inlineCss.isEmpty()) {
+      StringBuffer inline=new StringBuffer("\n<style type=\"text/css\">\n");
+      for (      Entry<String,String> cssEntry : inlineCss.entrySet()) {
+        inline.append(cssEntry.getValue()).append("\n\n");
+      }
+      inline.append("\n</style>\n");
+      pageContext.getOut().print(inline.toString());
     }
-    inline.append("\n</style>\n");
-    pageContext.getOut().print(inline.toString());
   }
  else {
     StringBuffer inline=new StringBuffer();

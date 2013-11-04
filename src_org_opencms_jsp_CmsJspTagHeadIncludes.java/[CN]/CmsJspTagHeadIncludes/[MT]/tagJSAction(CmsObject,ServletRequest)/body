@@ -2,6 +2,7 @@
   CmsJspStandardContextBean standardContext=getStandardContext(cms,req);
   CmsContainerPageBean containerPage=standardContext.getPage();
   Set<String> jsIncludes=new LinkedHashSet<String>();
+  Map<String,String> inlineJS=new LinkedHashMap<String,String>();
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_defaults)) {
     String[] defaults=m_defaults.split("\\|");
     for (int i=0; i < defaults.length; i++) {
@@ -12,23 +13,45 @@
     Map<CmsUUID,I_CmsFormatterBean> formatters=OpenCms.getADEManager().getCachedFormatters(standardContext.isOnline()).getFormatters();
     for (    CmsContainerBean container : containerPage.getContainers().values()) {
       for (      CmsContainerElementBean element : container.getElements()) {
-        element.initResource(cms);
-        if (element.isGroupContainer(cms) || element.isInheritedContainer(cms)) {
-        }
+        try {
+          element.initResource(cms);
+          if (element.isGroupContainer(cms) || element.isInheritedContainer(cms)) {
+            List<CmsContainerElementBean> subElements;
+            if (element.isGroupContainer(cms)) {
+              subElements=CmsJspTagContainer.getGroupContainerElements(cms,element,req,container.getType());
+            }
  else {
-          I_CmsFormatterBean formatter=getFormatterBeanForElement(element,container,formatters);
-          if (formatter != null) {
-            jsIncludes.addAll(formatter.getJavascriptHeadIncludes());
+              subElements=CmsJspTagContainer.getInheritedContainerElements(cms,element);
+            }
+            for (            CmsContainerElementBean subElement : subElements) {
+              subElement.initResource(cms);
+              I_CmsFormatterBean formatter=getFormatterBeanForElement(subElement,container,formatters);
+              if (formatter != null) {
+                jsIncludes.addAll(formatter.getJavascriptHeadIncludes());
+                if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter.getInlineJavascript())) {
+                  inlineJS.put(formatter.getId(),formatter.getInlineJavascript());
+                }
+              }
+ else {
+                jsIncludes.addAll(getJSHeadIncludes(cms,subElement.getResource()));
+              }
+            }
           }
  else {
-            try {
-              element.initResource(cms);
+            I_CmsFormatterBean formatter=getFormatterBeanForElement(element,container,formatters);
+            if (formatter != null) {
+              jsIncludes.addAll(formatter.getJavascriptHeadIncludes());
+              if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter.getInlineJavascript())) {
+                inlineJS.put(formatter.getId(),formatter.getInlineJavascript());
+              }
+            }
+ else {
               jsIncludes.addAll(getJSHeadIncludes(cms,element.getResource()));
             }
- catch (            CmsException e) {
-              LOG.error(Messages.get().getBundle().key(Messages.ERR_READING_REQUIRED_RESOURCE_1,element.getSitePath()),e);
-            }
           }
+        }
+ catch (        CmsException e) {
+          LOG.error(Messages.get().getBundle().key(Messages.ERR_READING_REQUIRED_RESOURCE_1,element.getSitePath()),e);
         }
       }
     }
@@ -59,5 +82,13 @@
   }
   for (  String jsUri : jsIncludes) {
     pageContext.getOut().print("<script type=\"text/javascript\" src=\"" + CmsJspTagLink.linkTagAction(jsUri,req) + generateReqParams()+ "\"></script>");
+  }
+  if (!inlineJS.isEmpty()) {
+    StringBuffer inline=new StringBuffer("\n<script type=\"text/javascript\">\n");
+    for (    Entry<String,String> jsEntry : inlineJS.entrySet()) {
+      inline.append(jsEntry.getValue()).append("\n\n");
+    }
+    inline.append("\n</script>\n");
+    pageContext.getOut().print(inline.toString());
   }
 }
