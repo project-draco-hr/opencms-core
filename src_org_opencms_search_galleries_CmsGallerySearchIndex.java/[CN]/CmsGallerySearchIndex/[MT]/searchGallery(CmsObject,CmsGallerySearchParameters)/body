@@ -14,20 +14,23 @@
       folders.addAll(params.getGalleries());
     }
     filter=appendPathFilter(searchCms,filter,folders);
-    if (folders.isEmpty()) {
-      String subsite=null;
-      if (params.getReferencePath() != null) {
-        subsite=OpenCms.getADEManager().getSubSiteRoot(cms,cms.getRequestContext().addSiteRoot(params.getReferencePath()));
-        if (subsite != null) {
-          subsite=cms.getRequestContext().removeSiteRoot(subsite);
-        }
-      }
-      List<String> scopeFolders=getSearchRootsForScope(params.getScope(),cms.getRequestContext().getSiteRoot(),subsite);
-      filter=appendPathFilter(searchCms,filter,scopeFolders);
-    }
     filter=appendCategoryFilter(searchCms,filter,params.getCategories());
     filter=appendContainerTypeFilter(searchCms,filter,params.getContainerTypes());
     filter=appendResourceTypeFilter(searchCms,filter,params.getResourceTypes());
+    if (folders.isEmpty()) {
+      if ((params.getResourceTypes() != null) && params.getResourceTypes().contains(CmsXmlDynamicFunctionHandler.TYPE_FUNCTION)) {
+        Filter functionTypeFilter=getTermQueryFilter(CmsSearchField.FIELD_TYPE,CmsXmlDynamicFunctionHandler.TYPE_FUNCTION);
+        List<String> searchRootsForOtherTypes=computeScopeFolders(cms,params);
+        List<String> searchRootsForFunctions=new ArrayList<String>(searchRootsForOtherTypes);
+        searchRootsForFunctions.add(CmsGallerySearchIndex.FOLDER_SYTEM_MODULES);
+        BooleanFilter scopeFilter=filterOr(filterAnd(functionTypeFilter,createPathFilter(searchRootsForFunctions)),filterAnd(filterNot(functionTypeFilter),createPathFilter(searchRootsForOtherTypes)));
+        filter.add(scopeFilter,Occur.MUST);
+      }
+ else {
+        List<String> scopeFolders=computeScopeFolders(cms,params);
+        filter=appendPathFilter(searchCms,filter,scopeFolders);
+      }
+    }
     filter=appendLocaleFilter(searchCms,filter,params.getLocale());
     filter=appendDateLastModifiedFilter(filter,params.getDateLastModifiedRange().getStartTime(),params.getDateLastModifiedRange().getEndTime());
     filter=appendDateCreatedFilter(filter,params.getDateCreatedRange().getStartTime(),params.getDateCreatedRange().getEndTime());
