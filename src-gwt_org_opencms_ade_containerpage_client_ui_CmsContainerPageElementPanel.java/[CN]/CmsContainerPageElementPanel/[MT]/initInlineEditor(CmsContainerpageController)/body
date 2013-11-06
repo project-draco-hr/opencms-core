@@ -3,23 +3,26 @@
     if (m_editorClickHandlerRegistration != null) {
       m_editorClickHandlerRegistration.removeHandler();
     }
-    m_editorClickHandlerRegistration=addClickHandler(new ClickHandler(){
-      public void onClick(      ClickEvent event){
-        if (controller.isContentEditing()) {
-          return;
-        }
-        Element eventTarget=event.getNativeEvent().getEventTarget().cast();
-        Element linkTag=CmsDomUtil.getAncestor(eventTarget,Tag.a);
-        if (linkTag == null) {
-          Element target=event.getNativeEvent().getEventTarget().cast();
-          while ((target != null) && (target != getElement())) {
-            if ("true".equals(target.getAttribute("contentEditable"))) {
-              controller.getHandler().openEditorForElement(CmsContainerPageElementPanel.this,true);
-              removeEditorHandler();
-              break;
-            }
+    m_editorClickHandlerRegistration=Event.addNativePreviewHandler(new NativePreviewHandler(){
+      public void onPreviewNativeEvent(      NativePreviewEvent event){
+        if (event.getTypeInt() == Event.ONCLICK) {
+          if (controller.isContentEditing()) {
+            return;
+          }
+          Element eventTarget=event.getNativeEvent().getEventTarget().cast();
+          if (getElement().isOrHasChild(eventTarget)) {
+            Element target=event.getNativeEvent().getEventTarget().cast();
+            while ((target != null) && !target.getTagName().equalsIgnoreCase("a") && (target != getElement())) {
+              if (CmsContentEditor.isEditable(target)) {
+                EditorBase.markForInlineFocus((com.google.gwt.user.client.Element)target);
+                controller.getHandler().openEditorForElement(CmsContainerPageElementPanel.this,true);
+                removeEditorHandler();
+                event.cancel();
+                break;
+              }
  else {
-              target=target.getParentElement();
+                target=target.getParentElement();
+              }
             }
           }
         }
