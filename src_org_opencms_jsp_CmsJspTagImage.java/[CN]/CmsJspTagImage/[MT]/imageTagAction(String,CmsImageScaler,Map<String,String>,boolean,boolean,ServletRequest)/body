@@ -1,0 +1,50 @@
+{
+  CmsFlexController controller=CmsFlexController.getController(req);
+  CmsObject cms=controller.getCmsObject();
+  src=CmsLinkManager.getAbsoluteUri(src,controller.getCurrentRequest().getElementUri());
+  CmsUriSplitter splitSrc=new CmsUriSplitter(src);
+  String scaleParam=null;
+  if (splitSrc.getQuery() != null) {
+    String[] scaleStr=CmsRequestUtil.createParameterMap(splitSrc.getQuery()).get(CmsImageScaler.PARAM_SCALE);
+    if (scaleStr != null) {
+      scaleParam=scaleStr[0];
+    }
+  }
+  CmsResource imageRes=cms.readResource(splitSrc.getPrefix());
+  CmsImageScaler original=new CmsImageScaler(cms,imageRes);
+  scaler=getScaler(scaler,original,scaleParam);
+  StringBuffer result=new StringBuffer(128);
+  if (!partialTag) {
+    result.append("<img");
+  }
+  result.append(" src=\"");
+  String imageLink=cms.getSitePath(imageRes);
+  if (scaler.isValid()) {
+    imageLink+=scaler.toRequestParam();
+  }
+  result.append(OpenCms.getLinkManager().substituteLink(cms,imageLink));
+  result.append("\"");
+  if (!noDim && scaler.isValid()) {
+    result.append(" width=\"");
+    result.append(scaler.getWidth());
+    result.append("\"");
+    result.append(" height=\"");
+    result.append(scaler.getHeight());
+    result.append("\"");
+  }
+  if (attributes != null) {
+    for (    Map.Entry<String,String> entry : attributes.entrySet()) {
+      String attr=entry.getKey();
+      String value=entry.getValue();
+      result.append(" ");
+      result.append(attr);
+      result.append("=\"");
+      result.append(CmsEncoder.escapeXml(value));
+      result.append("\"");
+    }
+  }
+  if (!partialTag) {
+    result.append(" />");
+  }
+  return result.toString();
+}
