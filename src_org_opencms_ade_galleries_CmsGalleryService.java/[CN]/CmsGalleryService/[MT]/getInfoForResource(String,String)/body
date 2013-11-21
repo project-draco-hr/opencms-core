@@ -1,10 +1,11 @@
 {
   CmsResultItemBean result=null;
   CmsObject cms=getCmsObject();
+  CmsMessages messageBundle=Messages.get().getBundle(getWorkplaceLocale());
   try {
     if (new CmsUriSplitter(linkPath).getProtocol() != null) {
       result=new CmsResultItemBean();
-      result.setTitle(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_EXTERNAL_LINK_0));
+      result.setTitle(messageBundle.key(Messages.GUI_EXTERNAL_LINK_0));
       result.setSubTitle("");
       result.setType(CmsResourceTypePointer.getStaticTypeName());
     }
@@ -37,11 +38,14 @@
         }
       }
       notFound=notFound || (path == null);
+      boolean isInTimeRange=true;
       if (!notFound) {
         CmsObject rootCms=OpenCms.initCmsObject(cms);
         rootCms.getRequestContext().setSiteRoot("");
         try {
-          CmsResource selectedResource=rootCms.readResource(path);
+          CmsResource selectedResource=rootCms.readResource(path,CmsResourceFilter.IGNORE_EXPIRATION);
+          long currentTime=System.currentTimeMillis();
+          isInTimeRange=selectedResource.isReleasedAndNotExpired(currentTime);
           if (selectedResource.isFolder()) {
             result=new CmsResultItemBean();
             CmsJspNavElement folderNav=new CmsJspNavBuilder(rootCms).getNavigationForResource(selectedResource.getRootPath(),CmsResourceFilter.IGNORE_EXPIRATION);
@@ -54,12 +58,8 @@
                 log(e.getMessage(),e);
               }
             }
-            if (defaultFileResource != null) {
-              result.setType(OpenCms.getResourceManager().getResourceType(defaultFileResource).getTypeName());
-            }
- else {
-              result.setType(OpenCms.getResourceManager().getResourceType(selectedResource).getTypeName());
-            }
+            CmsResource resourceForType=defaultFileResource != null ? defaultFileResource : selectedResource;
+            result.setType(OpenCms.getResourceManager().getResourceType(resourceForType).getTypeName());
             String title=folderNav.getProperty(CmsPropertyDefinition.PROPERTY_NAVTEXT);
             if (CmsStringUtil.isEmptyOrWhitespaceOnly(title)) {
               title=folderNav.getTitle();
@@ -101,9 +101,13 @@
       }
       if (notFound) {
         result=new CmsResultItemBean();
-        result.setTitle(Messages.get().getBundle(getWorkplaceLocale()).key(Messages.GUI_RESOURCE_NOT_FOUND_0));
+        result.setTitle(messageBundle.key(Messages.GUI_RESOURCE_NOT_FOUND_0));
         result.setSubTitle("");
         result.setType(CmsIconUtil.TYPE_RESOURCE_NOT_FOUND);
+      }
+ else       if (!isInTimeRange && (result != null)) {
+        result.setType(CmsIconUtil.TYPE_RESOURCE_NOT_FOUND);
+        result.setTitle(messageBundle.key(Messages.GUI_RESOURCE_OUT_OF_TIME_RANGE_1,result.getTitle()));
       }
     }
   }
