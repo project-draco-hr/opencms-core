@@ -1,0 +1,28 @@
+{
+  Map<CmsUUID,CmsPublishResourceInfo> warnings=Maps.newHashMap();
+  Set<CmsResource> resourcesWithoutErrors=new HashSet<CmsResource>(m_resources.values());
+  List<I_PublishResourceValidator> validators=getValidators();
+  List<Set<CmsResource>> excludedSetsForValidators=Lists.newArrayList();
+  for (int i=0; i < validators.size(); i++) {
+    I_PublishResourceValidator validator=validators.get(i);
+    Set<CmsResource> excluded=validator.findInvalidResources(resourcesWithoutErrors);
+    resourcesWithoutErrors.removeAll(excluded);
+    excludedSetsForValidators.add(excluded);
+  }
+  for (  CmsResource resource : m_resources.values()) {
+    CmsPublishResourceInfo info=null;
+    try {
+      for (int i=0; i < validators.size(); i++) {
+        if (excludedSetsForValidators.get(i).contains(resource)) {
+          info=validators.get(i).getInfoForResource(resource);
+          break;
+        }
+      }
+    }
+ catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+    warnings.put(resource.getStructureId(),info);
+  }
+  return warnings;
+}
