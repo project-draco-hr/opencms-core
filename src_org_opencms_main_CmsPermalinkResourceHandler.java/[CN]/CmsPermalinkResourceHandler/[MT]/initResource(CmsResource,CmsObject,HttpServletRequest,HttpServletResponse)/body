@@ -1,13 +1,14 @@
 {
   if (resource == null) {
     String uri=cms.getRequestContext().getUri();
-    Matcher matcher=m_uriPattern.matcher(uri);
+    Matcher matcher=m_simplePermalinkPattern.matcher(uri);
     if (matcher.find()) {
+      CmsResource resource1=resource;
       String id=matcher.group(1);
       String storedSiteRoot=cms.getRequestContext().getSiteRoot();
       try {
         cms.getRequestContext().setSiteRoot("/");
-        resource=cms.readDefaultFile(id);
+        resource1=cms.readDefaultFile(id);
       }
  catch (      CmsPermissionViolationException e) {
         throw e;
@@ -21,10 +22,43 @@ catch (      Throwable e) {
       }
  finally {
         cms.getRequestContext().setSiteRoot(storedSiteRoot);
-        if (resource != null) {
-          cms.getRequestContext().setUri(cms.getSitePath(resource));
+        if (resource1 != null) {
+          cms.getRequestContext().setUri(cms.getSitePath(resource1));
         }
       }
+      resource=resource1;
+    }
+ else {
+      matcher=m_detailPattern.matcher(uri);
+      if (matcher.find()) {
+        try {
+          CmsUUID pageId=new CmsUUID(matcher.group(1));
+          CmsUUID detailId=new CmsUUID(matcher.group(2));
+          CmsResource pageResource=cms.readResource(pageId);
+          if (res != null) {
+            CmsResource detailResource=cms.readResource(detailId);
+            String detailName=cms.getDetailName(detailResource,cms.getRequestContext().getLocale(),OpenCms.getLocaleManager().getDefaultLocales());
+            CmsResource parentFolder=cms.readParentFolder(pageResource.getStructureId());
+            String baseLink=OpenCms.getLinkManager().substituteLink(cms,parentFolder);
+            String redirectLink=CmsStringUtil.joinPaths(baseLink,detailName);
+            CmsResourceInitException resInitException=new CmsResourceInitException(getClass());
+            resInitException.setClearErrors(true);
+            res.sendRedirect(redirectLink);
+            throw resInitException;
+          }
+ else {
+            return pageResource;
+          }
+        }
+ catch (        CmsResourceInitException e) {
+          throw e;
+        }
+catch (        Exception e) {
+          LOG.error(e.getLocalizedMessage(),e);
+          throw new CmsResourceInitException(getClass());
+        }
+      }
+      return null;
     }
   }
   return resource;
