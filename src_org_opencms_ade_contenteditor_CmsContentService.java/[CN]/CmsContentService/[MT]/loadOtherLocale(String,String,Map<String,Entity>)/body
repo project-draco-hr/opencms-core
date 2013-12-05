@@ -1,0 +1,89 @@
+{
+  CmsContentDefinition definition=null;
+  try {
+    CmsObject cms=getCmsObject();
+    CmsUUID structureId=CmsContentDefinition.entityIdToUuid(entityId);
+    CmsResource resource=cms.readResource(structureId,CmsResourceFilter.IGNORE_EXPIRATION);
+    Locale contentLocale=CmsLocaleManager.getLocale(CmsContentDefinition.getLocaleFromId(entityId));
+    CmsFile file=cms.readFile(resource);
+    CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,file);
+    long timer=0;
+    if (LOG.isDebugEnabled()) {
+      timer=System.currentTimeMillis();
+    }
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(entityId)) {
+      entityId=CmsContentDefinition.uuidToEntityId(file.getStructureId(),contentLocale.toString());
+    }
+    boolean performedAutoCorrection=checkAutoCorrection(cms,content);
+    if (performedAutoCorrection) {
+      content.initDocument();
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_UNMARSHALING_TIME_1,"" + (System.currentTimeMillis() - timer)));
+    }
+    CmsContentTypeVisitor visitor=new CmsContentTypeVisitor(cms,file,contentLocale);
+    if (LOG.isDebugEnabled()) {
+      timer=System.currentTimeMillis();
+    }
+    visitor.visitTypes(content.getContentDefinition(),getWorkplaceLocale(cms));
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_VISITING_TYPES_TIME_1,"" + (System.currentTimeMillis() - timer)));
+    }
+    if (!visitor.getLocaleSynchronizations().isEmpty() && (editedEntities.size() > 1)) {
+      Entity lastEdited=editedEntities.get(CmsContentDefinition.uuidToEntityId(file.getStructureId(),lastLocale));
+      for (      Entity edited : editedEntities.values()) {
+        if (edited.getId().equals(lastEdited.getId())) {
+          continue;
+        }
+        CmsContentDefinition.transfereValues(lastEdited,edited,visitor.getLocaleSynchronizations(),visitor.getTypes(),visitor.getAttributeConfigurations(),false);
+      }
+    }
+    Entity entity=null;
+    if (editedEntities.containsKey(entityId)) {
+      entity=editedEntities.get(entityId);
+    }
+ else {
+      if (!content.hasLocale(contentLocale)) {
+        content.addLocale(cms,contentLocale);
+      }
+      Element element=content.getLocaleNode(contentLocale);
+      if (LOG.isDebugEnabled()) {
+        timer=System.currentTimeMillis();
+      }
+      entity=readEntity(content,element,contentLocale,entityId,"",getTypeUri(content.getContentDefinition()),visitor,false);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_READING_ENTITY_TIME_1,"" + (System.currentTimeMillis() - timer)));
+      }
+      if (!visitor.getLocaleSynchronizations().isEmpty()) {
+        for (        Entity edited : editedEntities.values()) {
+          CmsContentDefinition.transfereValues(edited,entity,visitor.getLocaleSynchronizations(),visitor.getTypes(),visitor.getAttributeConfigurations(),false);
+        }
+      }
+      editedEntities.put(entityId,entity);
+    }
+    List<String> contentLocales=new ArrayList<String>();
+    for (    Locale locale : content.getLocales()) {
+      contentLocales.add(locale.toString());
+    }
+    Locale workplaceLocale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
+    TreeMap<String,String> availableLocales=new TreeMap<String,String>();
+    for (    Locale availableLocale : OpenCms.getLocaleManager().getAvailableLocales(cms,file)) {
+      availableLocales.put(availableLocale.toString(),availableLocale.getDisplayName(workplaceLocale));
+    }
+    String title=cms.readPropertyObject(file,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
+    try {
+      CmsGallerySearchResult searchResult=CmsGallerySearch.searchById(cms,file.getStructureId(),contentLocale);
+      title=searchResult.getTitle();
+    }
+ catch (    CmsException e) {
+      LOG.warn(e.getLocalizedMessage(),e);
+    }
+    String typeName=OpenCms.getResourceManager().getResourceType(file.getTypeId()).getTypeName();
+    boolean autoUnlock=OpenCms.getWorkplaceManager().shouldAcaciaUnlock();
+    return new CmsContentDefinition(entityId,editedEntities,visitor.getAttributeConfigurations(),visitor.getWidgetConfigurations(),visitor.getComplexWidgetData(),visitor.getTypes(),visitor.getTabInfos(),contentLocale.toString(),contentLocales,availableLocales,visitor.getLocaleSynchronizations(),title,cms.getSitePath(file),typeName,performedAutoCorrection,autoUnlock);
+  }
+ catch (  Exception e) {
+    error(e);
+  }
+  return definition;
+}
