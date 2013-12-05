@@ -1,0 +1,32 @@
+{
+  CmsResource a=createElementResource();
+  CmsResource b=createElementResource();
+  CmsResource c=createElementResource();
+  CmsObject cms=OpenCms.initCmsObject(getCmsObject());
+  cms.getRequestContext().setLocale(new Locale("de"));
+  CmsResource formatter=cms.readResource("/containerpage/formatter.jsp");
+  Map<String,Map<String,List<CmsResource>>> locales=new HashMap<String,Map<String,List<CmsResource>>>();
+  Map<String,List<CmsResource>> containersDe=new HashMap<String,List<CmsResource>>();
+  Map<String,List<CmsResource>> containersEn=new HashMap<String,List<CmsResource>>();
+  locales.put("en",containersEn);
+  locales.put("de",containersDe);
+  containersEn.put("cnt",Arrays.asList(a,b));
+  containersDe.put("cnt",Arrays.asList(a,b));
+  String dataString=generateContainerPage(formatter,locales);
+  byte[] dataBytes=dataString.getBytes("UTF-8");
+  CmsResource containerPage=cms.createResource("/test3.html",CmsResourceTypeXmlContainerPage.getContainerPageTypeId(),dataBytes,new ArrayList<CmsProperty>());
+  CmsContainerpageService service=new CmsContainerpageService();
+  service.setCms(cms);
+  service.setSessionCache(new CmsADESessionCache(cms));
+  CmsContainerElement element=new CmsContainerElement();
+  element.setClientId("" + c.getStructureId());
+  CmsContainer container=new CmsContainer("cnt","content",500,999,false,Arrays.asList(element));
+  service.saveContainerpage(containerPage.getStructureId(),Arrays.asList(container));
+  CmsXmlContainerPage cntPage=CmsXmlContainerPageFactory.unmarshal(cms,containerPage);
+  assertEquals(1,cntPage.getLocales().size());
+  assertTrue(cntPage.hasLocale(Locale.ENGLISH));
+  CmsContainerPageBean pageBean=cntPage.getContainerPage(cms);
+  List<CmsContainerElementBean> elems=pageBean.getContainers().get("cnt").getElements();
+  assertEquals(1,elems.size());
+  assertEquals(c.getStructureId(),elems.get(0).getId());
+}
