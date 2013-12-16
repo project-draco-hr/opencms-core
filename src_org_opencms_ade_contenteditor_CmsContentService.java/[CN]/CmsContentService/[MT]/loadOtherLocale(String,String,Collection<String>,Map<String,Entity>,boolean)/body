@@ -21,48 +21,47 @@
     if (LOG.isDebugEnabled()) {
       LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_UNMARSHALING_TIME_1,"" + (System.currentTimeMillis() - timer)));
     }
-    CmsContentTypeVisitor visitor=new CmsContentTypeVisitor(cms,file,contentLocale);
-    if (LOG.isDebugEnabled()) {
-      timer=System.currentTimeMillis();
+    if (content.hasLocale(contentLocale) && newLocale) {
+      content.removeLocale(contentLocale);
     }
-    visitor.visitTypes(content.getContentDefinition(),getWorkplaceLocale(cms));
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_VISITING_TYPES_TIME_1,"" + (System.currentTimeMillis() - timer)));
+    if (!content.hasLocale(contentLocale)) {
+      content.addLocale(cms,contentLocale);
     }
-    if (!visitor.getLocaleSynchronizations().isEmpty() && (editedEntities.size() > 1)) {
-      Entity lastEdited=editedEntities.get(CmsContentDefinition.uuidToEntityId(file.getStructureId(),lastLocale));
-      for (      Entity edited : editedEntities.values()) {
-        if (edited.getId().equals(lastEdited.getId())) {
-          continue;
-        }
-        CmsContentDefinition.transfereValues(lastEdited,edited,visitor.getLocaleSynchronizations(),visitor.getTypes(),visitor.getAttributeConfigurations(),false);
+    Locale lastEdited=CmsLocaleManager.getLocale(lastLocale);
+    synchronizeLocaleIndependentFields(file,content,skipPaths,editedEntities.values(),lastEdited);
+    Map<String,String> syncValues=new HashMap<String,String>();
+    skipPaths=new HashSet<String>();
+    evaluateSyncLocaleValues(content,syncValues,skipPaths);
+    Set<String> entityIds=new HashSet<String>(editedEntities.keySet());
+    if (!entityIds.contains(entityId)) {
+      entityIds.add(entityId);
+    }
+    CmsContentTypeVisitor contentLocaleVisitor=new CmsContentTypeVisitor(cms,file,contentLocale);
+    for (    String localeEntityId : entityIds) {
+      Locale locale=CmsLocaleManager.getLocale(CmsContentDefinition.getLocaleFromId(localeEntityId));
+      CmsContentTypeVisitor visitor;
+      if (locale.equals(contentLocale)) {
+        visitor=contentLocaleVisitor;
       }
-    }
-    Entity entity=null;
-    if (editedEntities.containsKey(entityId) && !newLocale) {
-      entity=editedEntities.get(entityId);
-    }
  else {
-      if (content.hasLocale(contentLocale) && newLocale) {
-        content.removeLocale(contentLocale);
+        visitor=new CmsContentTypeVisitor(cms,file,locale);
       }
-      if (!content.hasLocale(contentLocale)) {
-        content.addLocale(cms,contentLocale);
-      }
-      Element element=content.getLocaleNode(contentLocale);
       if (LOG.isDebugEnabled()) {
         timer=System.currentTimeMillis();
       }
-      entity=readEntity(content,element,contentLocale,entityId,"",getTypeUri(content.getContentDefinition()),visitor,false);
+      visitor.visitTypes(content.getContentDefinition(),getWorkplaceLocale(cms));
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_VISITING_TYPES_TIME_1,"" + (System.currentTimeMillis() - timer)));
+      }
+      Element element=content.getLocaleNode(locale);
+      if (LOG.isDebugEnabled()) {
+        timer=System.currentTimeMillis();
+      }
+      Entity entity=readEntity(content,element,locale,localeEntityId,"",getTypeUri(content.getContentDefinition()),visitor,false);
       if (LOG.isDebugEnabled()) {
         LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_READING_ENTITY_TIME_1,"" + (System.currentTimeMillis() - timer)));
       }
-      if (!visitor.getLocaleSynchronizations().isEmpty()) {
-        for (        Entity edited : editedEntities.values()) {
-          CmsContentDefinition.transfereValues(edited,entity,visitor.getLocaleSynchronizations(),visitor.getTypes(),visitor.getAttributeConfigurations(),false);
-        }
-      }
-      editedEntities.put(entityId,entity);
+      editedEntities.put(localeEntityId,entity);
     }
     List<String> contentLocales=new ArrayList<String>();
     for (    Locale locale : content.getLocales()) {
@@ -83,7 +82,7 @@
     }
     String typeName=OpenCms.getResourceManager().getResourceType(file.getTypeId()).getTypeName();
     boolean autoUnlock=OpenCms.getWorkplaceManager().shouldAcaciaUnlock();
-    return new CmsContentDefinition(entityId,editedEntities,visitor.getAttributeConfigurations(),visitor.getWidgetConfigurations(),visitor.getComplexWidgetData(),visitor.getTypes(),visitor.getTabInfos(),contentLocale.toString(),contentLocales,availableLocales,visitor.getLocaleSynchronizations(),title,cms.getSitePath(file),typeName,performedAutoCorrection,autoUnlock);
+    return new CmsContentDefinition(entityId,editedEntities,contentLocaleVisitor.getAttributeConfigurations(),contentLocaleVisitor.getWidgetConfigurations(),contentLocaleVisitor.getComplexWidgetData(),contentLocaleVisitor.getTypes(),contentLocaleVisitor.getTabInfos(),contentLocale.toString(),contentLocales,availableLocales,contentLocaleVisitor.getLocaleSynchronizations(),syncValues,skipPaths,title,cms.getSitePath(file),typeName,performedAutoCorrection,autoUnlock);
   }
  catch (  Exception e) {
     error(e);
