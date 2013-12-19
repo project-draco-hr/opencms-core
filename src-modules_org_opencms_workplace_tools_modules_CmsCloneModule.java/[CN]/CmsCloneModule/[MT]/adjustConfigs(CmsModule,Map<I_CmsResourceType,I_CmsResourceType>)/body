@@ -4,14 +4,21 @@
     List<CmsResource> resources=getCmsObject().readResources(modPath,CmsResourceFilter.requireType(OpenCms.getResourceManager().getResourceType(CmsFormatterConfigurationCache.TYPE_FORMATTER_CONFIG).getTypeId()));
     String source="<Type><!\\[CDATA\\[" + m_sourceNamePrefix;
     String target="<Type><!\\[CDATA\\[" + m_targetNamePrefix;
-    replaceResourceTypeNames(resources,source,target);
+    Function<String,String> replaceType=new ReplaceAll(source,target);
+    for (    CmsResource resource : resources) {
+      transformResource(resource,replaceType);
+    }
     resources.clear();
   }
   try {
     CmsResource config=getCmsObject().readResource(modPath + CmsADEManager.CONFIG_FILE_NAME,CmsResourceFilter.requireType(OpenCms.getResourceManager().getResourceType(CmsADEManager.MODULE_CONFIG_TYPE).getTypeId()));
+    Function<String,String> substitution=Functions.identity();
     for (    Map.Entry<I_CmsResourceType,I_CmsResourceType> mapping : resTypeMap.entrySet()) {
-      replaceResourceTypeNames(Collections.singletonList(config),mapping.getKey().getTypeName(),mapping.getValue().getTypeName());
+      substitution=Functions.compose(new ReplaceAll(mapping.getKey().getTypeName(),mapping.getValue().getTypeName()),substitution);
     }
+    Function<String,String> replaceFolderName=new ReplaceAll("(<Folder>[ \n]*<Name><!\\[CDATA\\[)(" + m_sourceNamePrefix + ")?","$1" + m_targetNamePrefix);
+    substitution=Functions.compose(replaceFolderName,substitution);
+    transformResource(config,substitution);
   }
  catch (  CmsVfsResourceNotFoundException e) {
     LOG.info(e.getLocalizedMessage(),e);
