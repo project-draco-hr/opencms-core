@@ -6,6 +6,12 @@
     I_CmsWorkflowManager workflowManager=OpenCms.getWorkflowManager();
     I_CmsPublishResourceFormatter formatter=workflowManager.createFormatter(cms,workflow,options);
     List<CmsResource> resources=workflowManager.getWorkflowResources(cms,workflow,options);
+    if (resources.size() > workflowManager.getResourceLimit()) {
+      CmsPublishListToken token=workflowManager.getPublishListToken(cms,workflow,options);
+      CmsPublishGroupList result=new CmsPublishGroupList(token);
+      result.setTooManyResourcesMessage(Messages.get().getBundle(locale).key(Messages.GUI_TOO_MANY_RESOURCES_2,"" + resources.size(),"" + OpenCms.getWorkflowManager().getResourceLimit()));
+      return result;
+    }
     ResourceMap resourcesAndRelated=getResourcesAndRelated(resources,options.isIncludeRelated(),options.isIncludeSiblings(),(options.getProjectId() == null) || options.getProjectId().isNullUUID());
     formatter.initialize(options,resourcesAndRelated);
     List<CmsPublishResource> publishResources=formatter.getPublishResources();
@@ -40,5 +46,7 @@
  catch (  Throwable e) {
     error(e);
   }
-  return results;
+  CmsPublishGroupList groupList=new CmsPublishGroupList();
+  groupList.setGroups(results);
+  return groupList;
 }
