@@ -1,0 +1,35 @@
+{
+  CmsPdfLink linkObj=new CmsPdfLink(cms,uri);
+  CmsResource formatter=linkObj.getFormatter();
+  CmsResource content=linkObj.getContent();
+  LOG.info("Trying to render " + content.getRootPath() + " using "+ formatter.getRootPath());
+  Locale locale=linkObj.getLocale();
+  CmsObject cmsForJspExecution=OpenCms.initCmsObject(cms);
+  cmsForJspExecution.getRequestContext().setLocale(locale);
+  cmsForJspExecution.getRequestContext().setSiteRoot("");
+  byte[] result=null;
+  String cacheParams=formatter.getStructureId() + ";" + formatter.getDateLastModified()+ ";"+ locale;
+  String cacheName=m_pdfCache.getCacheName(content,cacheParams);
+  if (cms.getRequestContext().getCurrentProject().isOnlineProject()) {
+    result=m_pdfCache.getCacheContent(cacheName);
+  }
+  if (result == null) {
+    cmsForJspExecution.getRequestContext().setUri(content.getRootPath());
+    byte[] xhtmlData=CmsPdfFormatterUtils.executeJsp(cmsForJspExecution,request,response,formatter,content);
+    LOG.info("Rendered XHTML from " + content.getRootPath() + " using "+ formatter.getRootPath());
+    if (LOG.isDebugEnabled()) {
+      logXhtmlOutput(formatter,content,xhtmlData);
+    }
+    result=m_pdfConverter.convertXhtmlToPdf(cmsForJspExecution,xhtmlData,"opencms://" + uri);
+    LOG.info("Converted XHTML to PDF, size=" + result.length);
+    m_pdfCache.saveCacheFile(cacheName,result);
+  }
+ else {
+    LOG.info("Retrieved PDF data from cache for content " + content.getRootPath() + " and formatter "+ formatter.getRootPath());
+  }
+  response.setContentType("application/pdf");
+  response.getOutputStream().write(result);
+  CmsResourceInitException initEx=new CmsResourceInitException(CmsPdfResourceHandler.class);
+  initEx.setClearErrors(true);
+  throw initEx;
+}

@@ -1,0 +1,21 @@
+{
+  String options=request.getParameter(CmsPdfThumbnailLink.PARAM_OPTIONS);
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(options)) {
+    options="w:64";
+  }
+  CmsPdfThumbnailLink linkObj=new CmsPdfThumbnailLink(cms,uri,options);
+  CmsResource pdf=linkObj.getPdfResource();
+  CmsFile pdfFile=cms.readFile(pdf);
+  CmsPdfThumbnailGenerator thumbnailGenerator=new CmsPdfThumbnailGenerator();
+  String cacheName=m_thumbnailCache.getCacheName(pdfFile,options + ";" + linkObj.getFormat());
+  byte[] imageData=m_thumbnailCache.getCacheContent(cacheName);
+  if (imageData == null) {
+    imageData=thumbnailGenerator.generateThumbnail(new ByteArrayInputStream(pdfFile.getContents()),linkObj.getWidth(),linkObj.getHeight(),linkObj.getFormat(),linkObj.getPage());
+    m_thumbnailCache.saveCacheFile(cacheName,imageData);
+  }
+  response.setContentType(IMAGE_MIMETYPES.get(linkObj.getFormat()));
+  response.getOutputStream().write(imageData);
+  CmsResourceInitException initEx=new CmsResourceInitException(CmsPdfResourceHandler.class);
+  initEx.setClearErrors(true);
+  throw initEx;
+}

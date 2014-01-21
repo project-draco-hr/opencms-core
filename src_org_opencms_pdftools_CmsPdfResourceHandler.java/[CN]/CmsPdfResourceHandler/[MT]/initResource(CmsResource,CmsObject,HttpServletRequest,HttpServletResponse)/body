@@ -5,43 +5,18 @@
   }
   if (response != null) {
     String uri=cms.getRequestContext().getUri();
-    if (!uri.contains(CmsPdfLink.PDF_LINK_PREFIX)) {
-      return null;
-    }
     try {
-      CmsPdfLink linkObj=new CmsPdfLink(cms,uri);
-      CmsResource formatter=linkObj.getFormatter();
-      CmsResource content=linkObj.getContent();
-      LOG.info("Trying to render " + content.getRootPath() + " using "+ formatter.getRootPath());
-      Locale locale=linkObj.getLocale();
-      CmsObject cmsForJspExecution=OpenCms.initCmsObject(cms);
-      cmsForJspExecution.getRequestContext().setLocale(locale);
-      cmsForJspExecution.getRequestContext().setSiteRoot("");
-      byte[] result=null;
-      String cacheParams=formatter.getStructureId() + ";" + formatter.getDateLastModified()+ ";"+ locale;
-      String cacheName=m_pdfCache.getCacheName(content,cacheParams);
-      if (cms.getRequestContext().getCurrentProject().isOnlineProject()) {
-        result=m_pdfCache.getCacheContent(cacheName);
+      if (uri.contains(CmsPdfLink.PDF_LINK_PREFIX)) {
+        handlePdfLink(cms,request,response,uri);
+        return null;
       }
-      if (result == null) {
-        cmsForJspExecution.getRequestContext().setUri(content.getRootPath());
-        byte[] xhtmlData=CmsPdfFormatterUtils.executeJsp(cmsForJspExecution,request,response,formatter,content);
-        LOG.info("Rendered XHTML from " + content.getRootPath() + " using "+ formatter.getRootPath());
-        if (LOG.isDebugEnabled()) {
-          logXhtmlOutput(formatter,content,xhtmlData);
-        }
-        result=m_pdfConverter.convertXhtmlToPdf(cmsForJspExecution,xhtmlData,"opencms://" + uri);
-        LOG.info("Converted XHTML to PDF, size=" + result.length);
-        m_pdfCache.saveCacheFile(cacheName,result);
+ else       if (uri.contains(CmsPdfThumbnailLink.MARKER)) {
+        handleThumbnailLink(cms,request,response,uri);
+        return null;
       }
  else {
-        LOG.info("Retrieved PDF data from cache for content " + content.getRootPath() + " and formatter "+ formatter.getRootPath());
+        return null;
       }
-      response.setContentType("application/pdf");
-      response.getOutputStream().write(result);
-      CmsResourceInitException initEx=new CmsResourceInitException(CmsPdfResourceHandler.class);
-      initEx.setClearErrors(true);
-      throw initEx;
     }
  catch (    CmsResourceInitException e) {
       throw e;
@@ -51,6 +26,10 @@ catch (    CmsSecurityException e) {
       throw e;
     }
 catch (    CmsPdfLink.CmsPdfLinkParseException e) {
+      LOG.warn(e.getLocalizedMessage(),e);
+      return null;
+    }
+catch (    CmsPdfThumbnailLink.ParseException e) {
       LOG.warn(e.getLocalizedMessage(),e);
       return null;
     }
