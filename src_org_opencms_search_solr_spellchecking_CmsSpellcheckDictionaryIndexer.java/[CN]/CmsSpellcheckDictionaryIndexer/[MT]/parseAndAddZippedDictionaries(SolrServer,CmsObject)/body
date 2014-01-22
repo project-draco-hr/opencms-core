@@ -1,0 +1,32 @@
+{
+  try {
+    final List<CmsResource> resources=cms.getResourcesInFolder(DEFAULT_DICTIONARY_DIRECTORY,CmsResourceFilter.DEFAULT_FILES);
+    final List<SolrInputDocument> documents=new LinkedList<SolrInputDocument>();
+    for (    CmsResource resource : resources) {
+      final String zipFileName=resource.getName();
+      if (zipFileName.matches(ZIP_NAME_REGEX)) {
+        final CmsFile cmsFile=cms.readFile(resource);
+        final ZipInputStream zipStream=new ZipInputStream(new ByteArrayInputStream(cmsFile.getContents()));
+        ZipEntry entry=zipStream.getNextEntry();
+        while (null != entry) {
+          final String name=entry.getName();
+          if (name.matches(DICTIONARY_NAME_REGEX)) {
+            final String lang=name.substring(5,7);
+            readAndAddDocumentsFromStream(server,lang,zipStream,documents,false);
+            entry=zipStream.getNextEntry();
+          }
+        }
+      }
+    }
+    addDocuments(server,documents,true);
+  }
+ catch (  IOException e) {
+    LOG.warn("Failed while reading from " + DEFAULT_DICTIONARY_DIRECTORY + ". ");
+  }
+catch (  CmsException e) {
+    LOG.warn("Failed reading resource " + DEFAULT_DICTIONARY_DIRECTORY + ". ");
+  }
+catch (  SolrServerException e) {
+    LOG.warn("Failed adding documents to Solr server. ");
+  }
+}

@@ -1,0 +1,26 @@
+{
+  if ((null == request) || !request.isInitialized()) {
+    return null;
+  }
+  final String[] wordsToCheck=request.getWordsToCheck();
+  final ModifiableSolrParams params=new ModifiableSolrParams();
+  params.set("spellcheck","true");
+  params.set("spellcheck.alternativeTermCount",wordsToCheck.length - 1);
+  params.set("spellcheck.dictionary",request.getDictionaryToUse());
+  final StringBuilder builder=new StringBuilder();
+  for (int i=0; i < wordsToCheck.length; i++) {
+    builder.append(wordsToCheck[i] + " ");
+  }
+  params.set("spellcheck.q",builder.toString());
+  final SolrQuery query=new SolrQuery();
+  query.setRequestHandler("/spell");
+  query.add(params);
+  try {
+    QueryResponse qres=m_solrServer.query(query);
+    return qres.getSpellCheckResponse();
+  }
+ catch (  SolrServerException e) {
+    LOG.debug("Exception while performing spellcheck query...");
+  }
+  return null;
+}
