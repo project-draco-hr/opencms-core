@@ -1,0 +1,49 @@
+{
+  CmsObject cms=getCms();
+  CmsProject currentProject=cms.getRequestContext().getCurrentProject();
+  try {
+    CmsProject workProject=cms.createProject("Add_resource_type_project","Add resource type project",OpenCms.getDefaultUsers().getGroupAdministrators(),OpenCms.getDefaultUsers().getGroupAdministrators(),CmsProject.PROJECT_TYPE_TEMPORARY);
+    cms.getRequestContext().setCurrentProject(workProject);
+    CmsModule module=(CmsModule)OpenCms.getModuleManager().getModule(m_resInfo.getModuleName()).clone();
+    String moduleFolder=CmsStringUtil.joinPaths("/system/modules/",m_resInfo.getModuleName());
+    copySampleFiles(module,moduleFolder);
+    List<I_CmsResourceType> types=new ArrayList<I_CmsResourceType>(module.getResourceTypes());
+    CmsResourceTypeXmlContent type=new CmsResourceTypeXmlContent();
+    type.addConfigurationParameter(CmsResourceTypeXmlContent.CONFIGURATION_SCHEMA,m_resInfo.getSchema());
+    type.setAdditionalModuleResourceType(true);
+    type.setModuleName(m_resInfo.getModuleName());
+    type.initConfiguration(m_resInfo.getName(),String.valueOf(m_resInfo.getId()),CmsResourceTypeXmlContent.class.getName());
+    types.add(type);
+    module.setResourceTypes(types);
+    List<CmsExplorerTypeSettings> settings=new ArrayList<CmsExplorerTypeSettings>(module.getExplorerTypes());
+    CmsExplorerTypeSettings setting=new CmsExplorerTypeSettings();
+    setting.setTypeAttributes(m_resInfo.getName(),m_resInfo.getNiceName(),m_resInfo.getSmallIcon(),m_resInfo.getBigIcon(),"xmlcontent");
+    setting.setNewResourceUri("newresource_xmlcontent.jsp?newresourcetype=" + m_resInfo.getName());
+    setting.setNewResourcePage("structurecontent");
+    setting.setAutoSetNavigation("false");
+    setting.setAutoSetTitle("false");
+    setting.setNewResourceOrder("10");
+    setting.setAddititionalModuleExplorerType(true);
+    addTypeMessages(setting,moduleFolder);
+    settings.add(setting);
+    module.setExplorerTypes(settings);
+    createSampleFormatter(moduleFolder);
+    getReport().println(Messages.get().container(Messages.RPT_PUBLISH_PROJECT_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+    cms.unlockProject(workProject.getUuid());
+    OpenCms.getPublishManager().publishProject(cms,getReport());
+    OpenCms.getPublishManager().waitWhileRunning();
+    getReport().println(Messages.get().container(Messages.RPT_PUBLISH_PROJECT_END_0),I_CmsReport.FORMAT_HEADLINE);
+    OpenCms.getModuleManager().updateModule(cms,module);
+    OpenCms.getResourceManager().initialize(cms);
+    OpenCms.getWorkplaceManager().addExplorerTypeSettings(module);
+    OpenCms.fireCmsEvent(new CmsEvent(I_CmsEventListener.EVENT_CLEAR_CACHES,Collections.<String,Object>emptyMap()));
+    OpenCms.getWorkplaceManager().initialize(getCms());
+  }
+ catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    getReport().addError(e);
+  }
+ finally {
+    cms.getRequestContext().setCurrentProject(currentProject);
+  }
+}
