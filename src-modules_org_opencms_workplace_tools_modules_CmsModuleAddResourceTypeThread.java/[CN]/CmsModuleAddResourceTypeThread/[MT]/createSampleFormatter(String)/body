@@ -1,0 +1,38 @@
+{
+  CmsObject cms=getCms();
+  String formatterFolder=CmsStringUtil.joinPaths(moduleFolder,CmsModulesEditBase.PATH_FORMATTERS);
+  if (!cms.existsResource(formatterFolder)) {
+    cms.createResource(formatterFolder,CmsResourceTypeFolder.getStaticTypeId());
+  }
+  String formatterJSP=CmsStringUtil.joinPaths(formatterFolder,m_resInfo.getName() + "-formatter.jsp");
+  if (!cms.existsResource(formatterJSP)) {
+    cms.copyResource(SAMPLE_FORMATTER,formatterJSP,CmsResource.COPY_AS_NEW);
+  }
+  String formatterConfig=CmsStringUtil.joinPaths(formatterFolder,m_resInfo.getName() + "-formatter-config.xml");
+  if (!cms.existsResource(formatterConfig)) {
+    cms.copyResource(SAMPLE_FORMATTER_CONFIG,formatterConfig,CmsResource.COPY_AS_NEW);
+    CmsFile configFile=cms.readFile(formatterConfig);
+    lockTemporary(configFile);
+    CmsXmlContent configContent=CmsXmlContentFactory.unmarshal(cms,configFile);
+    I_CmsXmlContentValue typeValue=configContent.getValue(CmsFormatterBeanParser.N_TYPE,CmsConfigurationReader.DEFAULT_LOCALE);
+    typeValue.setStringValue(cms,m_resInfo.getName());
+    I_CmsXmlContentValue formatterValue=configContent.getValue(CmsFormatterBeanParser.N_JSP,CmsConfigurationReader.DEFAULT_LOCALE);
+    formatterValue.setStringValue(cms,formatterJSP);
+    I_CmsXmlContentValue formatterNameValue=configContent.getValue(CmsFormatterBeanParser.N_NICE_NAME,CmsConfigurationReader.DEFAULT_LOCALE);
+    formatterNameValue.setStringValue(cms,"Sample formatter for " + (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_resInfo.getNiceName()) ? m_resInfo.getNiceName() : m_resInfo.getName()));
+    configFile.setContents(configContent.marshal());
+    cms.writeFile(configFile);
+  }
+  String moduleConfig=CmsStringUtil.joinPaths(moduleFolder,".config");
+  if (!cms.existsResource(moduleConfig)) {
+    cms.createResource(moduleConfig,OpenCms.getResourceManager().getResourceType(CmsADEManager.MODULE_CONFIG_TYPE).getTypeId());
+  }
+  CmsFile moduleConfigFile=cms.readFile(moduleConfig);
+  lockTemporary(moduleConfigFile);
+  CmsXmlContent moduleConfigContent=CmsXmlContentFactory.unmarshal(cms,moduleConfigFile);
+  I_CmsXmlContentValue resourceTypeValue=moduleConfigContent.addValue(cms,CmsConfigurationReader.N_RESOURCE_TYPE,CmsConfigurationReader.DEFAULT_LOCALE,0);
+  I_CmsXmlContentValue typeValue=moduleConfigContent.getValue(resourceTypeValue.getPath() + "/" + CmsConfigurationReader.N_TYPE_NAME,CmsConfigurationReader.DEFAULT_LOCALE);
+  typeValue.setStringValue(cms,m_resInfo.getName());
+  moduleConfigFile.setContents(moduleConfigContent.marshal());
+  cms.writeFile(moduleConfigFile);
+}
