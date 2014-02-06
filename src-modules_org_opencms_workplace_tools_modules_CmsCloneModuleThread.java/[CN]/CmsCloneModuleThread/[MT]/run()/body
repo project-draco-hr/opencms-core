@@ -1,0 +1,85 @@
+{
+  CmsModule sourceModule=OpenCms.getModuleManager().getModule(m_cloneInfo.getSourceModuleName());
+  CmsModule targetModule=(CmsModule)sourceModule.clone();
+  targetModule.setName(m_cloneInfo.getName());
+  targetModule.setNiceName(m_cloneInfo.getNiceName());
+  targetModule.setDescription(m_cloneInfo.getDescription());
+  targetModule.setAuthorEmail(m_cloneInfo.getAuthorEmail());
+  targetModule.setAuthorName(m_cloneInfo.getAuthorName());
+  targetModule.setGroup(m_cloneInfo.getGroup());
+  targetModule.setActionClass(m_cloneInfo.getActionClass());
+  CmsObject cms=getCms();
+  CmsProject currentProject=cms.getRequestContext().getCurrentProject();
+  try {
+    CmsProject workProject=cms.createProject("Clone_module_work_project","Clone modulee work project",OpenCms.getDefaultUsers().getGroupAdministrators(),OpenCms.getDefaultUsers().getGroupAdministrators(),CmsProject.PROJECT_TYPE_TEMPORARY);
+    cms.getRequestContext().setCurrentProject(workProject);
+    String sourceModulePath=CmsWorkplace.VFS_PATH_MODULES + sourceModule.getName() + "/";
+    String targetModulePath=CmsWorkplace.VFS_PATH_MODULES + targetModule.getName() + "/";
+    String sourcePathPart=sourceModule.getName().replaceAll("\\.","/");
+    String targetPathPart=targetModule.getName().replaceAll("\\.","/");
+    String sourceClassesPath=targetModulePath + PATH_CLASSES + sourcePathPart+ "/";
+    String targetClassesPath=targetModulePath + PATH_CLASSES + targetPathPart+ "/";
+    cms.copyResource(sourceModulePath,targetModulePath);
+    if (cms.existsResource(sourceClassesPath)) {
+      createTargetClassesFolder(targetModule,sourceClassesPath,targetModulePath + PATH_CLASSES);
+      deleteSourceClassesFolder(targetModulePath,sourcePathPart,targetPathPart);
+    }
+    cloneExportPoints(sourceModule,targetModule,sourcePathPart,targetPathPart);
+    Map<String,String> descKeys=new HashMap<String,String>();
+    Map<I_CmsResourceType,I_CmsResourceType> resTypeMap=cloneResourceTypes(sourceModule,targetModule,sourcePathPart,targetPathPart,descKeys);
+    Map<String,String> iconPaths=new HashMap<String,String>();
+    cloneExplorerTypes(targetModule,iconPaths,descKeys);
+    cloneExplorerTypeIcons(iconPaths);
+    adjustModuleResources(sourceModule,targetModule,sourcePathPart,targetPathPart,iconPaths);
+    if (getCms().existsResource(targetClassesPath)) {
+      List<CmsResource> props=cms.readResources(targetClassesPath,CmsResourceFilter.DEFAULT_FILES);
+      replacesMessages(descKeys,props);
+    }
+    int type=OpenCms.getResourceManager().getResourceType(CmsVfsBundleManager.TYPE_XML_BUNDLE).getTypeId();
+    CmsResourceFilter filter=CmsResourceFilter.requireType(type);
+    List<CmsResource> resources=cms.readResources(targetModulePath,filter);
+    replacesMessages(descKeys,resources);
+    renameXmlVfsBundles(resources,targetModule,sourceModule.getName());
+    List<CmsResource> allModuleResources=cms.readResources(targetModulePath,CmsResourceFilter.ALL);
+    replacePath(sourceModulePath,targetModulePath,allModuleResources);
+    replaceModuleName();
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_cloneInfo.getFormatterTargetModule()) && !targetModule.getResourceTypes().isEmpty()) {
+      replaceFormatterPaths(targetModule);
+    }
+    adjustConfigs(targetModule,resTypeMap);
+    getReport().println(Messages.get().container(Messages.RPT_PUBLISH_PROJECT_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
+    cms.unlockProject(workProject.getUuid());
+    OpenCms.getPublishManager().publishProject(cms,getReport());
+    OpenCms.getPublishManager().waitWhileRunning();
+    getReport().println(Messages.get().container(Messages.RPT_PUBLISH_PROJECT_END_0),I_CmsReport.FORMAT_HEADLINE);
+    OpenCms.getModuleManager().addModule(cms,targetModule);
+    if (targetModule.getResourceTypes() != Collections.EMPTY_LIST) {
+      OpenCms.getResourceManager().initialize(cms);
+    }
+    if (targetModule.getExplorerTypes() != Collections.EMPTY_LIST) {
+      OpenCms.getWorkplaceManager().addExplorerTypeSettings(targetModule);
+    }
+    OpenCms.getWorkplaceManager().initialize(cms);
+    OpenCms.fireCmsEvent(I_CmsEventListener.EVENT_CLEAR_CACHES,new HashMap<String,Object>());
+    cms.getRequestContext().setCurrentProject(currentProject);
+    if (isTrue(m_cloneInfo.getChangeResourceTypes())) {
+      changeResourceTypes(resTypeMap);
+    }
+    CmsObject cloneCms=OpenCms.initCmsObject(cms);
+    if (isTrue(m_cloneInfo.getApplyChangesEverywhere())) {
+      cloneCms.getRequestContext().setSiteRoot("/");
+    }
+    if (m_cloneInfo.isRewriteContainerPages()) {
+      CmsResourceFilter f=CmsResourceFilter.requireType(CmsResourceTypeXmlContainerPage.getContainerPageTypeId());
+      List<CmsResource> allContainerPages=cloneCms.readResources("/",f);
+      replacePath(sourceModulePath,targetModulePath,allContainerPages);
+    }
+  }
+ catch (  Throwable e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    getReport().addError(e);
+  }
+ finally {
+    cms.getRequestContext().setCurrentProject(currentProject);
+  }
+}

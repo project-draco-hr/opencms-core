@@ -1,0 +1,30 @@
+{
+  CmsObject cms=getCms();
+  CmsObject cloneCms=OpenCms.initCmsObject(cms);
+  if (isTrue(m_cloneInfo.getApplyChangesEverywhere())) {
+    cloneCms.getRequestContext().setSiteRoot("/");
+  }
+  for (  Map.Entry<I_CmsResourceType,I_CmsResourceType> mapping : resTypeMap.entrySet()) {
+    CmsResourceFilter filter=CmsResourceFilter.requireType(mapping.getKey().getTypeId());
+    List<CmsResource> resources=cloneCms.readResources("/",filter);
+    String sourceSchemaPath=mapping.getKey().getConfiguration().get("schema");
+    String targetSchemaPath=mapping.getValue().getConfiguration().get("schema");
+    for (    CmsResource res : resources) {
+      if (lockResource(cms,res)) {
+        CmsFile file=cms.readFile(res);
+        String encoding=CmsLocaleManager.getResourceEncoding(cms,file);
+        String content=new String(file.getContents(),encoding);
+        content=content.replaceAll(sourceSchemaPath,targetSchemaPath);
+        file.setContents(content.getBytes(encoding));
+        try {
+          cms.writeFile(file);
+        }
+ catch (        CmsXmlException e) {
+          LOG.error(e.getMessage(),e);
+        }
+        res.setType(mapping.getValue().getTypeId());
+        cms.writeResource(res);
+      }
+    }
+  }
+}
