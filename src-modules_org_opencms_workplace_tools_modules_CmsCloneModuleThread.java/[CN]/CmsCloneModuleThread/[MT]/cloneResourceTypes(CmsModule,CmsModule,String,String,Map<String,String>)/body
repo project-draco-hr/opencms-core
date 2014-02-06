@@ -1,0 +1,57 @@
+{
+  Map<I_CmsResourceType,I_CmsResourceType> resourceTypeMapping=new HashMap<I_CmsResourceType,I_CmsResourceType>();
+  List<I_CmsResourceType> targetResourceTypes=new ArrayList<I_CmsResourceType>();
+  for (  I_CmsResourceType sourceResType : targetModule.getResourceTypes()) {
+    String className=sourceResType.getClassName();
+    I_CmsResourceType targetResType;
+    try {
+      if (className != null) {
+        className=className.trim();
+      }
+      int newId=-1;
+      boolean exists=true;
+      do {
+        newId=new Random().nextInt((99999)) + 10000;
+        try {
+          OpenCms.getResourceManager().getResourceType(newId);
+        }
+ catch (        CmsLoaderException e) {
+          exists=false;
+        }
+      }
+ while (exists);
+      targetResType=(I_CmsResourceType)Class.forName(className).newInstance();
+      for (      String mapping : sourceResType.getConfiguredMappings()) {
+        targetResType.addMappingType(mapping);
+      }
+      targetResType.setAdjustLinksFolder(sourceResType.getAdjustLinksFolder());
+      if (targetResType instanceof A_CmsResourceType) {
+        A_CmsResourceType concreteTargetResType=(A_CmsResourceType)targetResType;
+        for (        CmsProperty prop : sourceResType.getConfiguredDefaultProperties()) {
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(prop.getValue())) {
+            prop.setStructureValue(prop.getStructureValue().replaceAll(sourceModule.getName(),targetModule.getName()).replaceAll(sourcePathPart,targetPathPart));
+            prop.setResourceValue(prop.getResourceValue().replaceAll(sourceModule.getName(),targetModule.getName()).replaceAll(sourcePathPart,targetPathPart));
+          }
+          concreteTargetResType.addDefaultProperty(prop);
+        }
+        for (        CmsConfigurationCopyResource conres : sourceResType.getConfiguredCopyResources()) {
+          concreteTargetResType.addCopyResource(conres.getSource(),conres.getTarget(),conres.getTypeString());
+        }
+      }
+      for (      Map.Entry<String,String> entry : sourceResType.getConfiguration().entrySet()) {
+        targetResType.addConfigurationParameter(entry.getKey(),entry.getValue().replaceAll(sourceModule.getName(),targetModule.getName()));
+      }
+      targetResType.setAdditionalModuleResourceType(true);
+      targetResType.initConfiguration(sourceResType.getTypeName().replaceFirst(m_cloneInfo.getSourceNamePrefix(),m_cloneInfo.getTargetNamePrefix()),newId + "",sourceResType.getClassName());
+      keys.put(sourceResType.getTypeName(),targetResType.getTypeName());
+      targetResourceTypes.add(targetResType);
+      resourceTypeMapping.put(sourceResType,targetResType);
+    }
+ catch (    Exception e) {
+      targetResType=new CmsResourceTypeUnknown();
+      LOG.error(org.opencms.configuration.Messages.get().getBundle().key(org.opencms.configuration.Messages.ERR_UNKNOWN_RESTYPE_CLASS_2,className,targetResType.getClass().getName()),e);
+    }
+  }
+  targetModule.setResourceTypes(targetResourceTypes);
+  return resourceTypeMapping;
+}
