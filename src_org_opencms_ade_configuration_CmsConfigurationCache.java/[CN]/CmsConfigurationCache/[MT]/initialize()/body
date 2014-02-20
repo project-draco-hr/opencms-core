@@ -1,23 +1,14 @@
 {
-  m_siteConfigurations.clear();
-  if (m_cms.existsResource("/")) {
-    try {
-      List<CmsResource> configFileCandidates=m_cms.readResources("/",CmsResourceFilter.DEFAULT.addRequireType(m_configType.getTypeId()));
-      for (      CmsResource candidate : configFileCandidates) {
-        if (isSitemapConfiguration(candidate.getRootPath(),candidate.getTypeId())) {
-          update(candidate);
-        }
-      }
-    }
- catch (    Exception e) {
-      LOG.error(e.getLocalizedMessage(),e);
+  if (m_taskFuture != null) {
+    m_taskFuture.cancel(false);
+    m_taskFuture=null;
+  }
+  m_state=readCompleteConfiguration();
+  long delay=DEBUG ? 500 : TASK_DELAY_MILLIS;
+  m_taskFuture=OpenCms.getExecutor().scheduleWithFixedDelay(new Runnable(){
+    public void run(){
+      performUpdate();
     }
   }
-  refreshModuleConfiguration();
-  try {
-    initializeFolderTypes();
-  }
- catch (  Exception e) {
-    LOG.error(e.getLocalizedMessage(),e);
-  }
+,delay,delay,TimeUnit.MILLISECONDS);
 }

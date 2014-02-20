@@ -1,0 +1,34 @@
+{
+  try {
+    Set<CmsUUID> updateIds=m_updateSet.removeAll();
+    CmsADEConfigCacheState oldState=m_state;
+    if (!updateIds.isEmpty() || (oldState == null)) {
+      try {
+        Thread.sleep(100);
+      }
+ catch (      InterruptedException e) {
+      }
+      if (updateIds.contains(ID_UPDATE_ALL) || (oldState == null)) {
+        m_state=readCompleteConfiguration();
+      }
+ else {
+        boolean updateModules=updateIds.remove(ID_UPDATE_MODULES);
+        updateIds.remove(ID_UPDATE_FOLDERTYPES);
+        Map<CmsUUID,CmsADEConfigDataInternal> updateMap=Maps.newHashMap();
+        for (        CmsUUID structureId : updateIds) {
+          CmsADEConfigDataInternal sitemapConfig=parseSitemapConfiguration(structureId);
+          updateMap.put(structureId,sitemapConfig);
+        }
+        List<CmsADEConfigDataInternal> moduleConfigs=null;
+        if (updateModules) {
+          moduleConfigs=loadModuleConfiguration();
+        }
+        m_state=oldState.createUpdatedCopy(updateMap,moduleConfigs);
+      }
+    }
+  }
+ catch (  Exception e) {
+    LOG.error("Could not perform configuration cache update: " + e.getMessage(),e);
+  }
+  m_waitHandle.release();
+}
