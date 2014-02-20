@@ -1,0 +1,32 @@
+{
+  long beginTime=System.currentTimeMillis();
+  Map<CmsUUID,CmsADEConfigDataInternal> siteConfigurations=Maps.newHashMap();
+  if (m_cms.existsResource("/")) {
+    try {
+      List<CmsResource> configFileCandidates=m_cms.readResources("/",CmsResourceFilter.DEFAULT.addRequireType(m_configType.getTypeId()));
+      for (      CmsResource candidate : configFileCandidates) {
+        if (isSitemapConfiguration(candidate.getRootPath(),candidate.getTypeId())) {
+          try {
+            CmsConfigurationReader reader=new CmsConfigurationReader(m_cms);
+            String basePath=getBasePath(candidate.getRootPath());
+            CmsADEConfigDataInternal data=reader.parseSitemapConfiguration(basePath,candidate);
+            siteConfigurations.put(candidate.getStructureId(),data);
+          }
+ catch (          Exception e) {
+            LOG.error("Error processing sitemap configuration " + candidate.getRootPath() + ": "+ e.getLocalizedMessage(),e);
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+  List<CmsADEConfigDataInternal> moduleConfigs=loadModuleConfiguration();
+  CmsADEConfigCacheState result=new CmsADEConfigCacheState(m_cms,siteConfigurations,moduleConfigs);
+  long endTime=System.currentTimeMillis();
+  if (LOG.isDebugEnabled()) {
+    LOG.debug("readCompleteConfiguration took " + (endTime - beginTime) + "ms");
+  }
+  return result;
+}
