@@ -1,21 +1,52 @@
 {
+  PdfDecoder decoder=new PdfDecoder(true);
   try {
-    PDDocument doc=PDDocument.load(pdfInputStream);
-    List<?> pages=doc.getDocumentCatalog().getAllPages();
-    if (pageIndex >= pages.size()) {
-      pageIndex=pages.size() - 1;
+    decoder.openPdfFileFromInputStream(pdfInputStream,false);
+    int numPages=decoder.getPageCount();
+    if (pageIndex >= numPages) {
+      pageIndex=numPages - 1;
     }
  else     if (pageIndex < 0) {
       pageIndex=0;
     }
-    PDPage page=(PDPage)pages.get(pageIndex);
-    BufferedImage pageThumbnail=generateThumbnailForPage(page,boxWidth,boxHeight);
+    PageFormat pageFormat=decoder.getPageFormat(1 + pageIndex);
+    PdfPageData pageData=decoder.getPdfPageData();
+    double aspectRatio=(pageData.getCropBoxWidth(1 + pageIndex) * 1.0) / pageData.getCropBoxHeight(1 + pageIndex);
+    if ((boxWidth < 0) && (boxHeight < 0)) {
+      throw new IllegalArgumentException("At least one of width / height must be positive!");
+    }
+ else     if ((boxWidth < 0) && (boxHeight > 0)) {
+      boxWidth=(int)Math.ceil(aspectRatio * boxHeight);
+    }
+ else     if ((boxWidth > 0) && (boxHeight < 0)) {
+      boxHeight=(int)Math.ceil(boxWidth / aspectRatio);
+    }
+    int fakePixelWidth=(int)(FAKE_PIXEL_MULTIPLIER * aspectRatio);
+    int fakePixelHeight=(FAKE_PIXEL_MULTIPLIER);
+    int[] unpaddedThumbnailDimensions=CmsImageScaler.calculateDimension(fakePixelWidth,fakePixelHeight,boxWidth,boxHeight);
+    double widthInInches=pageFormat.getWidth() / POINTS_PER_INCH;
+    double dpi=unpaddedThumbnailDimensions[0] / widthInInches;
+    decoder.getDPIFactory().setDpi((float)dpi);
+    decoder.decodePage(1 + pageIndex);
+    BufferedImage pageImage=decoder.getPageAsImage(1 + pageIndex);
+    BufferedImage paddedImage=new BufferedImage(boxWidth,boxHeight,BufferedImage.TYPE_3BYTE_BGR);
+    Graphics2D g=paddedImage.createGraphics();
+    int uw=unpaddedThumbnailDimensions[0];
+    int uh=unpaddedThumbnailDimensions[1];
+    AffineTransformOp op=new AffineTransformOp(AffineTransform.getScaleInstance((uw * 1.0) / pageImage.getWidth(),(uh * 1.0) / pageImage.getHeight()),AffineTransformOp.TYPE_BILINEAR);
+    g.setColor(Color.WHITE);
+    g.fillRect(0,0,paddedImage.getWidth(),paddedImage.getHeight());
+    g.drawImage(pageImage,op,(boxWidth - uw) / 2,(boxHeight - uh) / 2);
+    BufferedImage pageThumbnail=paddedImage;
     ByteArrayOutputStream out=new ByteArrayOutputStream();
-    ImageIOUtil.writeImage(pageThumbnail,format,out);
+    ImageIOUtil.writeImage(pageThumbnail,imageFormat,out);
     byte[] imageData=out.toByteArray();
     return imageData;
   }
   finally {
+    if (decoder.isOpen()) {
+      decoder.closePdfFile();
+    }
     pdfInputStream.close();
   }
 }
