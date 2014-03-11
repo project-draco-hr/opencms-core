@@ -1,6 +1,7 @@
 {
   CmsPublishData result=null;
   CmsObject cms=getCmsObject();
+  boolean canOverrideWorkflow=true;
   try {
     String closeLink=getRequest().getParameter(CmsDialog.PARAM_CLOSELINK);
     String confirmStr=getRequest().getParameter(PARAM_CONFIRM);
@@ -15,6 +16,9 @@
       if (CmsStringUtil.isEmptyOrWhitespaceOnly(workflowId) || !workflows.containsKey(workflowId)) {
         workflowId=workflows.values().iterator().next().getId();
       }
+    }
+ else {
+      canOverrideWorkflow=false;
     }
     setLastWorkflowForUser(workflowId);
     String projectParam=getRequest().getParameter(PARAM_PUBLISH_PROJECT_ID);
@@ -45,6 +49,10 @@
         for (        CmsProjectBean project : projects) {
           if (selectedProject.equals(project.getId())) {
             foundProject=true;
+            if (project.isWorkflowProject()) {
+              canOverrideWorkflow=false;
+              workflowId=OpenCms.getWorkflowManager().getWorkflowForWorkflowProject(selectedProject);
+            }
             break;
           }
         }
@@ -54,6 +62,10 @@
         for (        CmsProjectBean project : projects) {
           if (selectedProject.equals(project.getId())) {
             foundProject=true;
+            if (project.isWorkflowProject()) {
+              canOverrideWorkflow=false;
+              workflowId=OpenCms.getWorkflowManager().getWorkflowForWorkflowProject(selectedProject);
+            }
             break;
           }
         }
@@ -66,7 +78,7 @@
       options.setProjectId(CmsUUID.getNullUUID());
     }
     options.setParameters(params);
-    result=new CmsPublishData(options,projects,getResourceGroups(workflows.get(workflowId),options),workflows,workflowId);
+    result=new CmsPublishData(options,projects,getResourceGroups(workflows.get(workflowId),options,canOverrideWorkflow),workflows,workflowId);
     result.setCloseLink(closeLink);
     result.setShowConfirmation(confirm);
   }
