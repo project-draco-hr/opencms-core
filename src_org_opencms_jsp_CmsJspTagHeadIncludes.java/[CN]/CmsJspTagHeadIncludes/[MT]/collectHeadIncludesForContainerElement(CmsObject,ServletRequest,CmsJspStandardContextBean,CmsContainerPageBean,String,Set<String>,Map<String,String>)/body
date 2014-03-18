@@ -1,0 +1,56 @@
+{
+  CmsADEConfigData config=OpenCms.getADEManager().lookupConfiguration(cms,cms.getRequestContext().getRootUri());
+  if ((containerPage != null) && (containerPage.getElements() != null)) {
+    Map<CmsUUID,I_CmsFormatterBean> formatters=OpenCms.getADEManager().getCachedFormatters(standardContext.getIsOnlineProject()).getFormatters();
+    for (    CmsContainerBean container : containerPage.getContainers().values()) {
+      for (      CmsContainerElementBean element : container.getElements()) {
+        try {
+          element.initResource(cms);
+          if (!standardContext.getIsOnlineProject() || element.getResource().isReleasedAndNotExpired(cms.getRequestContext().getRequestTime())) {
+            if (element.isGroupContainer(cms) || element.isInheritedContainer(cms)) {
+              List<CmsContainerElementBean> subElements;
+              if (element.isGroupContainer(cms)) {
+                subElements=CmsJspTagContainer.getGroupContainerElements(cms,element,req,container.getType());
+              }
+ else {
+                subElements=CmsJspTagContainer.getInheritedContainerElements(cms,element);
+              }
+              for (              CmsContainerElementBean subElement : subElements) {
+                subElement.initResource(cms);
+                if (!standardContext.getIsOnlineProject() || subElement.getResource().isReleasedAndNotExpired(cms.getRequestContext().getRequestTime())) {
+                  I_CmsFormatterBean formatter=getFormatterBeanForElement(cms,config,subElement,container,formatters);
+                  if (formatter != null) {
+                    headincludes.addAll(getHeadIncludes(formatter,includeType));
+                    String inlineIncludeData=getInlineData(formatter,includeType);
+                    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(inlineIncludeData)) {
+                      inline.put(formatter.getId(),inlineIncludeData);
+                    }
+                  }
+ else {
+                    headincludes.addAll(getSchemaHeadIncludes(cms,subElement.getResource(),includeType));
+                  }
+                }
+              }
+            }
+ else {
+              I_CmsFormatterBean formatter=getFormatterBeanForElement(cms,config,element,container,formatters);
+              if (formatter != null) {
+                headincludes.addAll(getHeadIncludes(formatter,includeType));
+                String inlineIncludeData=getInlineData(formatter,includeType);
+                if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(inlineIncludeData)) {
+                  inline.put(formatter.getId(),inlineIncludeData);
+                }
+              }
+ else {
+                headincludes.addAll(getSchemaHeadIncludes(cms,element.getResource(),includeType));
+              }
+            }
+          }
+        }
+ catch (        CmsException e) {
+          LOG.error(Messages.get().getBundle().key(Messages.ERR_READING_REQUIRED_RESOURCE_1,element.getSitePath()),e);
+        }
+      }
+    }
+  }
+}
