@@ -42,31 +42,39 @@
     /** 
  * @see org.opencms.workplace.list.I_CmsListFormatter#format(java.lang.Object,java.util.Locale)
  */
-    @Override public String format(    Object data,    Locale locale){
+    @SuppressWarnings("synthetic-access") @Override public String format(    Object data,    Locale locale){
       String[] dataArray=CmsStringUtil.splitAsArray((String)data,"|");
       String resourceName=dataArray[0];
       String resourcePath=dataArray[1];
       String orgResourcePath=resourcePath;
+      LOG.info("deleted resource list: formatting '" + data + "'");
       while (CmsStringUtil.isNotEmptyOrWhitespaceOnly(resourcePath)) {
         try {
           getCms().readResource(getCms().getRequestContext().removeSiteRoot(resourcePath));
           break;
         }
  catch (        CmsException e) {
+          LOG.info("deleted resource list: could not read resource " + getCms().getRequestContext().removeSiteRoot(resourcePath) + " ["+ resourcePath+ "] ",e);
           resourcePath=CmsResource.getParentFolder(resourcePath);
         }
       }
-      if (resourcePath != null) {
-        resourcePath=resourcePath.substring(resourceName.length());
-      }
+      try {
+        if (resourcePath != null) {
+          resourcePath=resourcePath.substring(resourceName.length());
+        }
  else {
+          resourcePath="";
+        }
+        orgResourcePath=orgResourcePath.substring(resourceName.length());
+      }
+ catch (      Exception e) {
+        LOG.error("Path inconsistency in deleted resource list: data='" + data + "' resourcePath='"+ resourcePath+ "' resourceName='"+ resourceName+ "' siteRoot='"+ getCms().getRequestContext().getSiteRoot()+ "' ",e);
         resourcePath="";
       }
-      orgResourcePath=orgResourcePath.substring(resourceName.length());
       StringBuffer ret=new StringBuffer();
       ret.append(resourcePath);
       ret.append("<span style=\"color:#0000aa;\">");
-      ret.append(orgResourcePath.substring(resourcePath.length()));
+      ret.append(orgResourcePath.startsWith(resourcePath) ? orgResourcePath.substring(resourcePath.length()) : orgResourcePath);
       ret.append("</span>");
       return ret.toString();
     }
