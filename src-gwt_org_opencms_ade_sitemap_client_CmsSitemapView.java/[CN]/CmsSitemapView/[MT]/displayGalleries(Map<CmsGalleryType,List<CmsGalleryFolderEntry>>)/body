@@ -1,0 +1,43 @@
+{
+  m_galleryTree.clear();
+  m_galleryTreeItems.clear();
+  m_galleryTypeItems.clear();
+  CmsUUID galleriesFolderId=null;
+  if (getRootItem().getChild(GALLERIES_FOLDER_NAME) != null) {
+    galleriesFolderId=((CmsSitemapTreeItem)getRootItem().getChild(GALLERIES_FOLDER_NAME)).getEntryId();
+  }
+  List<CmsGalleryType> types=new ArrayList<CmsGalleryType>(galleries.keySet());
+  Collections.sort(types,new Comparator<CmsGalleryType>(){
+    public int compare(    CmsGalleryType o1,    CmsGalleryType o2){
+      return o1.getNiceName().compareTo(o2.getNiceName());
+    }
+  }
+);
+  m_toolbar.setGalleryTypes(types);
+  for (  CmsGalleryType type : types) {
+    CmsGalleryTreeItem typeItem=new CmsGalleryTreeItem(type);
+    CmsHoverbarCreateGalleryButton createButton=new CmsHoverbarCreateGalleryButton(type.getTypeId(),galleriesFolderId);
+    CmsSitemapHoverbar hoverbar=CmsSitemapHoverbar.installOn(m_controller,typeItem,Collections.<Widget>singleton(createButton));
+    createButton.setHoverbar(hoverbar);
+    m_galleryTypeItems.put(type.getTypeName(),typeItem);
+    if (!type.getTypeName().equals(DOWNLOAD_GALLERY_TYPE) && !type.getTypeName().equals(IMAGE_GALLERY_TYPE) && galleries.get(type).isEmpty()) {
+      typeItem.getElement().getStyle().setDisplay(Display.NONE);
+    }
+ else {
+      for (      CmsGalleryFolderEntry galleryFolder : galleries.get(type)) {
+        CmsGalleryTreeItem folderItem=new CmsGalleryTreeItem(galleryFolder);
+        CmsSitemapHoverbar.installOn(m_controller,folderItem,galleryFolder.getStructureId());
+        typeItem.addChild(folderItem);
+        m_galleryTreeItems.put(galleryFolder.getStructureId(),folderItem);
+      }
+    }
+    m_galleryTree.addItem(typeItem);
+  }
+  if (m_galleryTypeItems.containsKey(DOWNLOAD_GALLERY_TYPE)) {
+    m_galleryTree.insertItem(m_galleryTypeItems.get(DOWNLOAD_GALLERY_TYPE),0);
+  }
+  if (m_galleryTypeItems.containsKey(IMAGE_GALLERY_TYPE)) {
+    m_galleryTree.insertItem(m_galleryTypeItems.get(IMAGE_GALLERY_TYPE),0);
+  }
+  m_galleryTree.truncate(TM_SITEMAP,920);
+}

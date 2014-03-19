@@ -1,0 +1,46 @@
+{
+  CmsSitemapChange change=changeEvent.getChange();
+switch (change.getChangeType()) {
+case delete:
+    CmsGalleryTreeItem deleteItem=m_galleryTreeItems.get(change.getEntryId());
+  if (deleteItem != null) {
+    deleteItem.removeFromParent();
+  }
+break;
+case undelete:
+case create:
+String typeName=m_controller.getGalleryType(new Integer(change.getNewResourceTypeId())).getTypeName();
+if (typeName != null) {
+CmsGalleryFolderEntry galleryFolder=new CmsGalleryFolderEntry();
+galleryFolder.setSitePath(change.getSitePath());
+galleryFolder.setResourceType(typeName);
+galleryFolder.setStructureId(change.getEntryId());
+galleryFolder.setOwnProperties(change.getOwnProperties());
+CmsGalleryTreeItem folderItem=new CmsGalleryTreeItem(galleryFolder);
+CmsSitemapHoverbar.installOn(m_controller,folderItem,galleryFolder.getStructureId());
+m_galleryTypeItems.get(typeName).addChild(folderItem);
+m_galleryTreeItems.put(galleryFolder.getStructureId(),folderItem);
+}
+break;
+case modify:
+CmsGalleryTreeItem changeItem=m_galleryTreeItems.get(change.getEntryId());
+if (changeItem != null) {
+CmsListItemWidget widget=changeItem.getListItemWidget();
+for (CmsPropertyModification mod : change.getPropertyChanges()) {
+if (mod.getName().equals(CmsClientProperty.PROPERTY_TITLE)) {
+widget.setTitleLabel(mod.getValue());
+}
+}
+String oldPath=widget.getSubtitleLabel();
+if (!oldPath.endsWith("/" + change.getName())) {
+String newPath=CmsResource.getParentFolder(oldPath) + change.getName() + "/";
+widget.setSubtitleLabel(newPath);
+}
+}
+break;
+case bumpDetailPage:
+case clipboardOnly:
+case remove:
+default :
+}
+}
