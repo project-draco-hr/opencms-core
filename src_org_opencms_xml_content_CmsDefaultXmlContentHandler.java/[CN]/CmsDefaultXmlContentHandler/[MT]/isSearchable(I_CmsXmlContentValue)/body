@@ -1,9 +1,17 @@
 {
-  Boolean searchSetting=m_searchSettings.get(value.getName());
-  I_CmsXmlContentHandler rootHandler=value.getDocument().getContentDefinition().getContentHandler();
-  Boolean rootSearchSetting=rootHandler.getSearchSettings().get(CmsXmlUtils.removeXpath(value.getPath()));
-  if (rootSearchSetting != null) {
-    searchSetting=rootSearchSetting;
+  String path=CmsXmlUtils.removeXpath(value.getPath());
+  Boolean searchSetting=m_searchSettings.get(path);
+  if (searchSetting == null) {
+    String[] pathElements=path.split("/");
+    I_CmsXmlSchemaType type=value.getDocument().getContentDefinition().getSchemaType(pathElements[0]);
+    for (int i=1; i < pathElements.length; i++) {
+      type=((CmsXmlNestedContentDefinition)type).getNestedContentDefinition().getSchemaType(pathElements[i]);
+      String subPath=getSubPath(pathElements,i);
+      searchSetting=type.getContentDefinition().getContentHandler().getSearchSettings().get(subPath);
+      if (searchSetting != null) {
+        break;
+      }
+    }
   }
   return (searchSetting == null) ? value.isSearchable() : searchSetting.booleanValue();
 }
