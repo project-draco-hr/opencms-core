@@ -1,0 +1,37 @@
+{
+  List<CmsGalleryFolderEntry> galleries=new ArrayList<CmsGalleryFolderEntry>();
+  List<CmsResource> galleryFolders=getCmsObject().readResources(entryPointUri,CmsResourceFilter.ONLY_VISIBLE_NO_DELETED.addRequireType(galleryType.getTypeId()));
+  for (  CmsResource folder : galleryFolders) {
+    try {
+      if (!isInSubsite(subSitePaths,folder.getRootPath())) {
+        galleries.add(readGalleryFolderEntry(folder,galleryType.getTypeName()));
+      }
+    }
+ catch (    CmsException ex) {
+      log(ex.getLocalizedMessage(),ex);
+    }
+  }
+  Collections.sort(galleries,new Comparator<CmsGalleryFolderEntry>(){
+    public int compare(    CmsGalleryFolderEntry o1,    CmsGalleryFolderEntry o2){
+      return o1.getSitePath().compareTo(o2.getSitePath());
+    }
+  }
+);
+  List<CmsGalleryFolderEntry> galleryTree=new ArrayList<CmsGalleryFolderEntry>();
+  for (int i=0; i < galleries.size(); i++) {
+    boolean isSubGallery=false;
+    if (i > 0) {
+      for (int j=i - 1; j >= 0; j--) {
+        if (galleries.get(i).getSitePath().startsWith(galleries.get(j).getSitePath())) {
+          galleries.get(j).addSubGallery(galleries.get(i));
+          isSubGallery=true;
+          break;
+        }
+      }
+    }
+    if (!isSubGallery) {
+      galleryTree.add(galleries.get(i));
+    }
+  }
+  return galleryTree;
+}
