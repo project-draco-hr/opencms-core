@@ -1,0 +1,57 @@
+{
+  I_CmsHistoryActionHandler historyActionHandler=new I_CmsHistoryActionHandler(){
+    private Runnable m_postRevertAction;
+    public void revert(    final CmsHistoryResourceBean historyRes){
+      CmsConfirmDialog confirmation=new CmsConfirmDialog(CmsHistoryMessages.captionConfirm(),CmsHistoryMessages.textConfirm());
+      confirmation.setHandler(new I_CmsConfirmDialogHandler(){
+        public void onClose(){
+        }
+        public void onOk(){
+          CmsRpcAction<Void> action=new CmsRpcAction<Void>(){
+            @Override public void execute(){
+              start(200,true);
+              CmsCoreProvider.getVfsService().restoreResource(structureId,historyRes.getVersion(),this);
+            }
+            @SuppressWarnings("synthetic-access") @Override protected void onResponse(            Void result){
+              stop(false);
+              if (m_postRevertAction != null) {
+                m_postRevertAction.run();
+              }
+              handler.refreshResource(structureId);
+            }
+          }
+;
+          action.execute();
+        }
+      }
+);
+      confirmation.center();
+    }
+    public void setPostRevertAction(    Runnable action){
+      m_postRevertAction=action;
+    }
+    public void showPreview(    final CmsHistoryResourceBean historyRes){
+      CmsRpcAction<CmsPreviewInfo> previewAction=new CmsRpcAction<CmsPreviewInfo>(){
+        @Override public void execute(){
+          start(0,true);
+          CmsCoreProvider.getVfsService().getHistoryPreviewInfo(structureId,CmsCoreProvider.get().getLocale(),historyRes.getVersion(),this);
+        }
+        @Override protected void onResponse(        CmsPreviewInfo result){
+          stop(false);
+          CmsPreviewDialog dialog=CmsPreviewDialog.createPreviewDialog(result);
+          dialog.setPreviewInfoProvider(new PreviewInfoProvider(){
+            public void loadPreviewForLocale(            String locale,            AsyncCallback<CmsPreviewInfo> resultCallback){
+              CmsCoreProvider.getVfsService().getHistoryPreviewInfo(structureId,locale,historyRes.getVersion(),resultCallback);
+            }
+          }
+);
+          dialog.center();
+        }
+      }
+;
+      previewAction.execute();
+    }
+  }
+;
+  loadDialog(structureId,historyActionHandler);
+}
