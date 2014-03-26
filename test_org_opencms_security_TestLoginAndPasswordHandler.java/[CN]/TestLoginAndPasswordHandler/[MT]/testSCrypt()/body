@@ -1,0 +1,44 @@
+{
+  int demos=5;
+  int iterations=5;
+  String pwd="p\r\nassw0Rd!";
+  int N=16384;
+  int r=8;
+  int p=1;
+  echo("\nCreating " + demos + " demo hashes with SCrpyt:");
+  for (int i=0; i < demos; i++) {
+    System.out.println(SCryptUtil.scrypt(pwd,N,r,p));
+  }
+  echo("Testing " + iterations + " hashes with SCrpyt");
+  long startTime=System.currentTimeMillis();
+  for (int i=0; i < iterations; i++) {
+    String password=pwd + i;
+    String wrongPassword=pwd + (i + 1);
+    String hash=SCryptUtil.scrypt(password,N,r,p);
+    String secondHash=SCryptUtil.scrypt(password,N,r,p);
+    assertNotEquals("FAILURE: TWO HASHES ARE EQUAL!",hash,secondHash);
+    assertFalse("FAILURE: WRONG PASSWORD ACCEPTED!",SCryptUtil.check(wrongPassword,hash));
+    assertTrue("FAILURE: GOOD PASSWORD NOT ACCEPTED!",SCryptUtil.check(password,hash));
+  }
+  echo("Test took " + (System.currentTimeMillis() - startTime) + " msec.");
+  if ("scrypt".equals(OpenCms.getPasswordHandler().getDigestType())) {
+    String hashed=OpenCms.getPasswordHandler().digest(pwd);
+    String[] parts=hashed.split("\\$");
+    if ((parts.length != 5) || !parts[1].equals("s0")) {
+      fail("OpenCms produced an invalid hashed SCrypt value");
+    }
+    long params=Long.parseLong(parts[2],16);
+    byte[] salt=decode(parts[3].toCharArray());
+    byte[] derived=decode(parts[4].toCharArray());
+    N=(int)Math.pow(2,(params >> 16) & 0xffff);
+    r=((int)params >> 8) & 0xff;
+    p=(int)params & 0xff;
+    echo("Parsed SCrpyt digest as N:" + N + " r:"+ r+ " p:"+ p+ " salt:"+ salt+ " derived:"+ derived);
+    assertEquals("Unexpected SCrypt value for N",8192,N);
+    assertEquals("Unexpected SCrypt value for r",4,r);
+    assertEquals("Unexpected SCrypt value for p",2,p);
+  }
+ else {
+    fail("Expected SCrypt algorithm not configured as password digester");
+  }
+}

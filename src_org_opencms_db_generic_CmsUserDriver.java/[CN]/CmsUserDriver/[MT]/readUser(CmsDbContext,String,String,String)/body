@@ -5,17 +5,18 @@
   Connection conn=null;
   try {
     conn=m_sqlManager.getConnection(dbc);
-    stmt=m_sqlManager.getPreparedStatement(conn,"C_USERS_READ_WITH_PWD_3");
+    stmt=m_sqlManager.getPreparedStatement(conn,"C_USERS_READ_BY_NAME_2");
     stmt.setString(1,CmsOrganizationalUnit.getSimpleName(userFqn));
     stmt.setString(2,CmsOrganizationalUnit.SEPARATOR + CmsOrganizationalUnit.getParentFqn(userFqn));
-    stmt.setString(3,OpenCms.getPasswordHandler().digest(password));
     res=stmt.executeQuery();
+    boolean success=false;
     if (res.next()) {
       user=internalCreateUser(dbc,res);
+      success=OpenCms.getPasswordHandler().checkPassword(password,user.getPassword(),true);
       while (res.next()) {
       }
     }
- else {
+    if (!success) {
       CmsMessageContainer message=org.opencms.db.Messages.get().container(org.opencms.db.Messages.ERR_UNKNOWN_USER_1,userFqn);
       if (LOG.isDebugEnabled()) {
         LOG.debug(message.key());
@@ -29,7 +30,7 @@
  finally {
     m_sqlManager.closeAll(dbc,conn,stmt,res);
   }
-  Map<String,Object> info=readUserInfos(dbc,user.getId());
+  @SuppressWarnings("null") Map<String,Object> info=readUserInfos(dbc,user.getId());
   user.setAdditionalInfo(info);
   return user;
 }
