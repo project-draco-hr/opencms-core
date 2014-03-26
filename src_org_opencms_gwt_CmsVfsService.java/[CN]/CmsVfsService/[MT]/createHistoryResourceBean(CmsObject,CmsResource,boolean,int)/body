@@ -1,0 +1,41 @@
+{
+  CmsHistoryResourceBean result=new CmsHistoryResourceBean();
+  Locale locale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
+  result.setStructureId(historyRes.getStructureId());
+  result.setRootPath(historyRes.getRootPath());
+  result.setDateLastModified(formatDate(historyRes.getDateLastModified(),locale));
+  CmsUUID userId=historyRes.getUserLastModified();
+  String userName=userId.toString();
+  try {
+    CmsUser user=cms.readUser(userId);
+    userName=user.getName();
+  }
+ catch (  CmsException e) {
+    LOG.warn(e.getLocalizedMessage(),e);
+  }
+  result.setUserLastModified(userName);
+  result.setSize(historyRes.getLength());
+  if (historyRes instanceof I_CmsHistoryResource) {
+    int publishTag=((I_CmsHistoryResource)historyRes).getPublishTag();
+    CmsHistoryProject project=cms.readHistoryProject(publishTag);
+    long publishDate=project.getPublishingDate();
+    result.setDatePublished(formatDate(publishDate,locale));
+    int version=((I_CmsHistoryResource)historyRes).getVersion();
+    result.setVersion(new CmsHistoryVersion(Integer.valueOf(historyRes.getVersion()),maxVersion == version ? OfflineOnline.online : null));
+    List<CmsProperty> historyProperties=cms.readHistoryPropertyObjects((I_CmsHistoryResource)historyRes);
+    Map<String,CmsProperty> historyPropertyMap=CmsProperty.toObjectMap(historyProperties);
+    CmsProperty titleProp=CmsProperty.wrapIfNull(historyPropertyMap.get(CmsPropertyDefinition.PROPERTY_TITLE));
+    CmsProperty descProp=CmsProperty.wrapIfNull(historyPropertyMap.get(CmsPropertyDefinition.PROPERTY_DESCRIPTION));
+    result.setTitle(titleProp.getValue());
+    result.setDescription(descProp.getValue());
+  }
+ else {
+    if (offline) {
+      result.setVersion(new CmsHistoryVersion(null,OfflineOnline.offline));
+    }
+ else {
+      result.setVersion(new CmsHistoryVersion(null,OfflineOnline.online));
+    }
+  }
+  return result;
+}
