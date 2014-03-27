@@ -1,0 +1,32 @@
+{
+  try {
+    CmsObject cms=getCmsObject();
+    CmsResource res=cms.readResource(structureId);
+    ensureLock(res);
+    CmsFile file=cms.readFile(res);
+    String oldLink=new String(file.getContents(),CmsLocaleManager.getResourceEncoding(cms,res));
+    if (!oldLink.equals(link)) {
+      file.setContents(link.getBytes(CmsLocaleManager.getResourceEncoding(cms,res)));
+      cms.writeFile(file);
+    }
+    CmsProperty titleProp=cms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_TITLE,false);
+    if (titleProp.isNullProperty()) {
+      titleProp=new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,title,null);
+      cms.writePropertyObject(cms.getSitePath(res),titleProp);
+    }
+ else     if (!titleProp.getValue().equals(title)) {
+      titleProp.setStructureValue(title);
+      cms.writePropertyObject(cms.getSitePath(res),titleProp);
+    }
+    if (!res.getName().equals(fileName)) {
+      String oldSitePath=cms.getSitePath(res);
+      String newSitePath=CmsStringUtil.joinPaths(CmsResource.getParentFolder(oldSitePath),fileName);
+      getCmsObject().renameResource(oldSitePath,newSitePath);
+    }
+    tryUnlock(res);
+    OpenCms.getSearchManager().updateOfflineIndexes(2 * CmsSearchManager.DEFAULT_OFFLINE_UPDATE_FREQNENCY);
+  }
+ catch (  Exception e) {
+    error(e);
+  }
+}
