@@ -6,14 +6,24 @@
     vfsDriver.deleteUrlNameMappingEntries(dbc,false,idFilter);
   }
  else {
-    List<CmsUrlNameMappingEntry> entries=vfsDriver.readUrlNameMappingEntries(dbc,false,CmsUrlNameMappingFilter.ALL.filterStructureId(res.getStructureId()).filterState(CmsUrlNameMappingEntry.MAPPING_STATUS_NEW));
+    List<CmsUrlNameMappingEntry> entries=vfsDriver.readUrlNameMappingEntries(dbc,false,CmsUrlNameMappingFilter.ALL.filterStructureId(res.getStructureId()).filterStates(CmsUrlNameMappingEntry.MAPPING_STATUS_NEW,CmsUrlNameMappingEntry.MAPPING_STATUS_REPLACE_ON_PUBLISH));
+    boolean isReplaceOnPublish=false;
+    for (    CmsUrlNameMappingEntry entry : entries) {
+      isReplaceOnPublish|=entry.getState() == CmsUrlNameMappingEntry.MAPPING_STATUS_REPLACE_ON_PUBLISH;
+    }
     if (!entries.isEmpty()) {
       long now=System.currentTimeMillis();
+      if (isReplaceOnPublish) {
+        vfsDriver.deleteUrlNameMappingEntries(dbc,true,CmsUrlNameMappingFilter.ALL.filterStructureId(res.getStructureId()));
+        vfsDriver.deleteUrlNameMappingEntries(dbc,false,CmsUrlNameMappingFilter.ALL.filterStructureId(res.getStructureId()));
+      }
       for (      CmsUrlNameMappingEntry entry : entries) {
         CmsUrlNameMappingFilter nameFilter=CmsUrlNameMappingFilter.ALL.filterName(entry.getName());
-        vfsDriver.deleteUrlNameMappingEntries(dbc,true,nameFilter);
-        vfsDriver.deleteUrlNameMappingEntries(dbc,false,nameFilter);
-        CmsUrlNameMappingEntry newEntry=new CmsUrlNameMappingEntry(entry.getName(),entry.getStructureId(),CmsUrlNameMappingEntry.MAPPING_STATUS_PUBLISHED,now,entry.getLocale());
+        if (!isReplaceOnPublish) {
+          vfsDriver.deleteUrlNameMappingEntries(dbc,true,nameFilter);
+          vfsDriver.deleteUrlNameMappingEntries(dbc,false,nameFilter);
+        }
+        CmsUrlNameMappingEntry newEntry=new CmsUrlNameMappingEntry(entry.getName(),entry.getStructureId(),entry.getState() == CmsUrlNameMappingEntry.MAPPING_STATUS_NEW ? CmsUrlNameMappingEntry.MAPPING_STATUS_PUBLISHED : CmsUrlNameMappingEntry.MAPPING_STATUS_REPLACE_ON_PUBLISH_PUBLISHED,now,entry.getLocale());
         vfsDriver.addUrlNameMappingEntry(dbc,true,newEntry);
         vfsDriver.addUrlNameMappingEntry(dbc,false,newEntry);
       }
