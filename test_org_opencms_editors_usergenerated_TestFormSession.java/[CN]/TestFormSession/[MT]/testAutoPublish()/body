@@ -1,0 +1,25 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsUser admin=cms.readUser("Admin");
+  String newUserName="user_" + getName();
+  String password="password";
+  cms.createUser(newUserName,password,"test",new HashMap<String,Object>());
+  cms.addUserToGroup(newUserName,"Users");
+  CmsObject userCms=OpenCms.initCmsObject(cms);
+  userCms.loginUser(newUserName,password);
+  userCms.getRequestContext().setCurrentProject(cms.getRequestContext().getCurrentProject());
+  CmsResource contentFolder=cms.createResource("/" + getName(),0);
+  CmsResource uploadFolder=cms.createResource("/" + getName() + "Upload",0);
+  publishAll();
+  CmsGroup administrators=cms.readGroup("Administrators");
+  CmsFormConfiguration config=new CmsFormConfiguration(new CmsUUID(),Optional.of(admin),administrators,"xmlcontent",contentFolder,"n_%(number)",Locale.ENGLISH,Optional.of(uploadFolder),Optional.<Long>absent(),Optional.<Integer>absent(),Optional.<Long>absent(),Optional.<Integer>absent(),true,Optional.<List<String>>absent());
+  CmsFormSession session=new CmsFormSession(cms,userCms,config);
+  CmsResource contentRes=session.createXmlContent();
+  CmsResource uploadRes=session.createUploadResource("example.bin",new byte[]{1,2,3,4,5});
+  session.finish();
+  OpenCms.getPublishManager().waitWhileRunning();
+  contentRes=cms.readResource(contentRes.getStructureId());
+  assertEquals(CmsResource.STATE_UNCHANGED,contentRes.getState());
+  uploadRes=cms.readResource(uploadRes.getStructureId());
+  assertEquals(CmsResource.STATE_UNCHANGED,uploadRes.getState());
+}
