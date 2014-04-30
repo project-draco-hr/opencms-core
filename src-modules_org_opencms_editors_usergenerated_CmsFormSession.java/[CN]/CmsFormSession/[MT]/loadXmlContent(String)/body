@@ -2,14 +2,20 @@
   checkNotFinished();
   checkEditResourceNotSet();
   if (fileName.contains("/")) {
-    throw new CmsPermissionViolationException(Messages.get().container(Messages.ERR_INVALID_FILE_NAME_TO_LOAD_1,fileName));
+    String message=Messages.get().container(Messages.ERR_INVALID_FILE_NAME_TO_LOAD_1,fileName).key(getCmsObject().getRequestContext().getLocale());
+    throw new CmsFormException(CmsFormConstants.ErrorCode.errMiscContentError,message);
   }
-  String contentSitePath=m_cms.getRequestContext().removeSiteRoot(m_configuration.getContentParentFolder().getRootPath());
-  String path=CmsStringUtil.joinPaths(contentSitePath,fileName);
-  m_editResource=m_cms.readResource(path);
-  CmsLock lock=m_cms.getLock(m_editResource);
-  if (!lock.isOwnedBy(m_cms.getRequestContext().getCurrentUser())) {
-    m_cms.lockResourceTemporary(m_editResource);
+  try {
+    String contentSitePath=m_cms.getRequestContext().removeSiteRoot(m_configuration.getContentParentFolder().getRootPath());
+    String path=CmsStringUtil.joinPaths(contentSitePath,fileName);
+    m_editResource=m_cms.readResource(path);
+    CmsLock lock=m_cms.getLock(m_editResource);
+    if (!lock.isOwnedBy(m_cms.getRequestContext().getCurrentUser())) {
+      m_cms.lockResourceTemporary(m_editResource);
+    }
+    return m_editResource;
   }
-  return m_editResource;
+ catch (  CmsException e) {
+    throw new CmsFormException(CmsFormConstants.ErrorCode.errMiscContentError,e.getLocalizedMessage());
+  }
 }
