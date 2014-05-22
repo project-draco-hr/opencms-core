@@ -1,0 +1,29 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsFile file=cms.readFile("/xmlcontent/article_0003.html");
+  cms.getRequestContext().setUri("/xmlcontent/article_0003.html");
+  CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,file);
+  CmsJspContentAccessBean bean=new CmsJspContentAccessBean(cms,Locale.ENGLISH,content);
+  CmsProject online=cms.readProject(CmsProject.ONLINE_PROJECT_ID);
+  CmsProject offline=cms.getRequestContext().getCurrentProject();
+  assertTrue("Failed editable check for admin user in offline project",bean.getIsEditable());
+  cms.getRequestContext().setCurrentProject(online);
+  assertTrue("Failed editable check for admin user in online project",bean.getIsEditable());
+  cms.createUser("testuser","test","A test user",null);
+  CmsUser testUser=cms.readUser("testuser");
+  cms.loginUser("testuser","test");
+  assertFalse("Passed editable check for test user in online project",bean.getIsEditable());
+  cms.getRequestContext().setCurrentProject(offline);
+  assertFalse("Passed editable check for test user in offline project",bean.getIsEditable());
+  CmsObject adminCms=getCmsObject();
+  adminCms.lockResource(file);
+  adminCms.chacc("/xmlcontent/article_0003.html",I_CmsPrincipal.PRINCIPAL_USER,testUser.getName(),"+r+w+v");
+  adminCms.unlockResource(file);
+  assertTrue("Failed editable check for test user in offline project",bean.getIsEditable());
+  adminCms.lockResource(file);
+  assertFalse("Passed editable check with locked resource for test user in offline project",bean.getIsEditable());
+  adminCms.unlockResource(file);
+  cms.getRequestContext().setCurrentProject(online);
+  adminCms.addUserToGroup("testuser",OpenCms.getDefaultUsers().getGroupUsers());
+  assertTrue("Failed editable check for test user in online project",bean.getIsEditable());
+}
