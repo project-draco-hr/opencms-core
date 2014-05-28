@@ -7,6 +7,8 @@
       String requestUri=cms.getRequestContext().getUri();
       Locale locale=cms.getRequestContext().getLocale();
       CmsJspStandardContextBean standardContext=CmsJspStandardContextBean.getInstance(req);
+      m_parentElement=standardContext.getElement();
+      m_parentContainer=standardContext.getContainer();
       CmsContainerPageBean containerPage=standardContext.getPage();
       if (containerPage == null) {
         CmsResource pageResource=(CmsResource)CmsHistoryResourceHandler.getHistoryResource(req);
@@ -26,92 +28,57 @@
  else {
           CmsContainerPageBean detailOnlyPage=getDetailOnlyPage(cms,req);
           if (detailOnlyPage != null) {
-            container=detailOnlyPage.getContainers().get(m_name);
+            container=detailOnlyPage.getContainers().get(getName());
           }
         }
       }
  else       if (containerPage != null) {
         container=containerPage.getContainers().get(getName());
       }
-      boolean createTag=false;
-      String tagName=CmsStringUtil.isEmptyOrWhitespaceOnly(getTag()) ? DEFAULT_TAG_NAME : getTag();
-      if (!CREATE_NO_TAG.equals(getTag())) {
-        createTag=true;
-        pageContext.getOut().print(getTagOpen(tagName,getName(),getTagClass()));
-      }
       int maxElements=getMaxElements(requestUri);
-      boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
+      if (container == null) {
+        container=new CmsContainerBean(getName(),getType(),maxElements,Collections.<CmsContainerElementBean>emptyList());
+      }
       boolean isUsedAsDetailView=false;
       if (m_detailView && (detailContent != null)) {
         isUsedAsDetailView=true;
       }
-      if (container == null) {
-        if (!isUsedAsDetailView) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug(Messages.get().getBundle().key(Messages.LOG_CONTAINER_NOT_FOUND_3,requestUri,locale,getName()));
-          }
-          if (!isOnline) {
-            try {
-              pageContext.getOut().print(getContainerDataTag(new CmsContainerBean(getName(),getType(),maxElements,null),getWidth(),isUsedAsDetailView,m_detailOnly));
-            }
- catch (            JSONException e) {
-              throw new JspException(e);
-            }
-          }
-          if (createTag) {
-            pageContext.getOut().print(getTagClose(tagName));
+      String tagName=CmsStringUtil.isEmptyOrWhitespaceOnly(getTag()) ? DEFAULT_TAG_NAME : getTag();
+      boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
+      pageContext.getOut().print(getTagOpen(tagName,getName(),getTagClass(),isOnline ? null : getContainerData(container,getWidth(),isUsedAsDetailView,m_detailOnly)));
+      standardContext.setContainer(container);
+      if (!getType().equals(container.getType())) {
+        container.setType(getType());
+        LOG.warn(new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_TYPE_4,new Object[]{requestUri,locale,getName(),getType()})));
+      }
+      container.setMaxElements(maxElements);
+      container.setWidth("" + getContainerWidth());
+      List<CmsContainerElementBean> allElements=new ArrayList<CmsContainerElementBean>();
+      CmsContainerElementBean detailElement=null;
+      if (isUsedAsDetailView) {
+        detailElement=generateDetailViewElement(cms,detailContent);
+      }
+      if (detailElement != null) {
+        allElements.add(detailElement);
+      }
+ else {
+        allElements.addAll(container.getElements());
+      }
+      int numRenderedElements=0;
+      for (      CmsContainerElementBean elementBean : allElements) {
+        try {
+          boolean rendered=renderContainerElement((HttpServletRequest)req,cms,standardContext,elementBean,locale,numRenderedElements >= maxElements);
+          if (rendered) {
+            numRenderedElements+=1;
           }
         }
- else {
-          container=new CmsContainerBean(getName(),getType(),maxElements,Collections.<CmsContainerElementBean>emptyList());
+ catch (        Exception e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
         }
       }
-      if (container != null) {
-        standardContext.setContainer(container);
-        if (!getType().equals(container.getType())) {
-          container.setType(getType());
-          LOG.warn(new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_TYPE_4,new Object[]{requestUri,locale,getName(),getType()})));
-        }
-        container.setMaxElements(maxElements);
-        container.setWidth("" + getContainerWidth());
-        List<CmsContainerElementBean> allElements=new ArrayList<CmsContainerElementBean>();
-        CmsContainerElementBean detailElement=null;
-        if (isUsedAsDetailView) {
-          detailElement=generateDetailViewElement(cms,detailContent);
-        }
-        if (detailElement != null) {
-          allElements.add(detailElement);
-        }
- else {
-          allElements.addAll(container.getElements());
-        }
-        if (!isOnline) {
-          try {
-            CmsContainerBean cntBean=new CmsContainerBean(getName(),getType(),maxElements,allElements);
-            pageContext.getOut().print(getContainerDataTag(cntBean,getWidth(),isUsedAsDetailView,m_detailOnly));
-          }
- catch (          JSONException e) {
-            throw new JspException(e);
-          }
-        }
-        int numRenderedElements=0;
-        for (        CmsContainerElementBean elementBean : allElements) {
-          try {
-            boolean rendered=renderContainerElement((HttpServletRequest)req,cms,standardContext,elementBean,locale,numRenderedElements >= maxElements);
-            if (rendered) {
-              numRenderedElements+=1;
-            }
-          }
- catch (          Exception e) {
-            if (LOG.isErrorEnabled()) {
-              LOG.error(e.getLocalizedMessage(),e);
-            }
-          }
-        }
-        if (createTag) {
-          pageContext.getOut().print(getTagClose(tagName));
-        }
-      }
+      pageContext.getOut().print(getTagClose(tagName));
     }
  catch (    Exception ex) {
       if (LOG.isErrorEnabled()) {
