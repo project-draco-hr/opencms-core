@@ -1,19 +1,23 @@
 {
-  if ((searchObject.getGalleries() != null) && (searchObject.getGalleries().size() == 1)) {
-    String galleryPath=searchObject.getGalleries().get(0);
+  if ((searchObject.getGalleries() != null) && (searchObject.getGalleries().size() <= 1) && searchObject.haveGalleriesChanged()) {
+    String galleryPath=searchObject.getGalleries().isEmpty() ? null : searchObject.getGalleries().get(0);
     CmsWorkplaceSettings settings=getWorkplaceSettings();
     if (searchObject.getGalleryMode() == GalleryMode.adeView) {
-      settings.setLastUsedGallery(KEY_LAST_USED_GALLERY_ADEVIEW,galleryPath);
+      settings.setLastUsedGallery("" + GalleryMode.adeView,galleryPath);
     }
  else {
-      for (      String typeName : searchObject.getTypes()) {
-        try {
-          settings.setLastUsedGallery("" + OpenCms.getResourceManager().getResourceType(typeName).getTypeId(),galleryPath);
-        }
- catch (        CmsLoaderException e) {
-          this.log(e.getLocalizedMessage(),e);
-        }
+      String referencePath=searchObject.getReferencePath();
+      String referenceTypeName="";
+      try {
+        CmsObject cms=getCmsObject();
+        CmsResource referenceResource=cms.readResource(referencePath);
+        I_CmsResourceType referenceType=OpenCms.getResourceManager().getResourceType(referenceResource);
+        referenceTypeName=referenceType.getTypeName();
       }
+ catch (      CmsException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+      settings.setLastUsedGallery(CmsGallerySearchBean.getGalleryStorageKey(searchObject.getGalleryStoragePrefix(),referenceTypeName),galleryPath);
     }
   }
 }
