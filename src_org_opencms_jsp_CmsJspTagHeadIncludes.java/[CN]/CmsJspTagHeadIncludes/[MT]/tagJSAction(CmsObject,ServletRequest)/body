@@ -1,6 +1,7 @@
 {
   CmsJspStandardContextBean standardContext=getStandardContext(cms,req);
   CmsContainerPageBean containerPage=standardContext.getPage();
+  String includeType=TYPE_JAVASCRIPT;
   Set<String> jsIncludes=new LinkedHashSet<String>();
   Map<String,String> inlineJS=new LinkedHashMap<String,String>();
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_defaults)) {
@@ -9,57 +10,7 @@
       jsIncludes.add(defaults[i]);
     }
   }
-  if ((containerPage != null) && (containerPage.getElements() != null)) {
-    Map<CmsUUID,I_CmsFormatterBean> formatters=OpenCms.getADEManager().getCachedFormatters(standardContext.getIsOnlineProject()).getFormatters();
-    for (    CmsContainerBean container : containerPage.getContainers().values()) {
-      for (      CmsContainerElementBean element : container.getElements()) {
-        try {
-          element.initResource(cms);
-          if (!standardContext.getIsOnlineProject() || element.getResource().isReleasedAndNotExpired(cms.getRequestContext().getRequestTime())) {
-            if (element.isGroupContainer(cms) || element.isInheritedContainer(cms)) {
-              List<CmsContainerElementBean> subElements;
-              if (element.isGroupContainer(cms)) {
-                subElements=CmsJspTagContainer.getGroupContainerElements(cms,element,req,container.getType());
-              }
- else {
-                subElements=CmsJspTagContainer.getInheritedContainerElements(cms,element);
-              }
-              for (              CmsContainerElementBean subElement : subElements) {
-                subElement.initResource(cms);
-                if (!standardContext.getIsOnlineProject() || subElement.getResource().isReleasedAndNotExpired(cms.getRequestContext().getRequestTime())) {
-                  I_CmsFormatterBean formatter=getFormatterBeanForElement(subElement,container,formatters);
-                  if (formatter != null) {
-                    jsIncludes.addAll(formatter.getJavascriptHeadIncludes());
-                    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter.getInlineJavascript())) {
-                      inlineJS.put(formatter.getId(),formatter.getInlineJavascript());
-                    }
-                  }
- else {
-                    jsIncludes.addAll(getJSHeadIncludes(cms,subElement.getResource()));
-                  }
-                }
-              }
-            }
- else {
-              I_CmsFormatterBean formatter=getFormatterBeanForElement(element,container,formatters);
-              if (formatter != null) {
-                jsIncludes.addAll(formatter.getJavascriptHeadIncludes());
-                if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(formatter.getInlineJavascript())) {
-                  inlineJS.put(formatter.getId(),formatter.getInlineJavascript());
-                }
-              }
- else {
-                jsIncludes.addAll(getJSHeadIncludes(cms,element.getResource()));
-              }
-            }
-          }
-        }
- catch (        CmsException e) {
-          LOG.error(Messages.get().getBundle().key(Messages.ERR_READING_REQUIRED_RESOURCE_1,element.getSitePath()),e);
-        }
-      }
-    }
-  }
+  collectHeadIncludesForContainerElement(cms,req,standardContext,containerPage,includeType,jsIncludes,inlineJS);
   if (standardContext.getDetailContentId() != null) {
     try {
       CmsResource detailContent=cms.readResource(standardContext.getDetailContentId());
@@ -76,7 +27,7 @@
       }
       if (requiresAllIncludes) {
         for (        I_CmsFormatterBean formatter : config.getDetailFormatters()) {
-          jsIncludes.addAll(formatter.getJavascriptHeadIncludes());
+          jsIncludes.addAll(getHeadIncludes(formatter,includeType));
         }
       }
     }

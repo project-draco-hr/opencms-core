@@ -1,17 +1,22 @@
 {
   List<CmsSearchResult> result=getSearchResults(params);
-  int count=getSearchBean(params).getSearchResultCount();
-  CmsResource[] resources=new CmsResource[count];
-  int from=(getSearchBean(params).getSearchPage() - 1) * getSearchBean(params).getMatchesPerPage();
-  int siteLen=cms.getRequestContext().getSiteRoot().length();
-  Iterator<CmsSearchResult> it=result.iterator();
-  while (it.hasNext()) {
-    CmsSearchResult sr=it.next();
-    CmsResource resource=cms.readResource(sr.getPath().substring(siteLen),CmsResourceFilter.ALL);
-    m_resCache.put(resource.getStructureId().toString(),resource);
-    m_srCache.put(resource.getStructureId().toString(),sr);
-    resources[from]=resource;
-    from++;
+  List<CmsResource> resources=new ArrayList<CmsResource>();
+  String siteRoot=cms.getRequestContext().getSiteRoot();
+  int siteLen=siteRoot.length();
+  for (  CmsSearchResult sr : result) {
+    try {
+      String resultPath=sr.getPath();
+      if (resultPath.startsWith(siteRoot)) {
+        resultPath=sr.getPath().substring(siteLen);
+      }
+      CmsResource resource=cms.readResource(resultPath,CmsResourceFilter.ALL);
+      m_resCache.put(resource.getStructureId().toString(),resource);
+      m_srCache.put(resource.getStructureId().toString(),sr);
+      resources.add(resource);
+    }
+ catch (    CmsException e) {
+      LOG.warn(e.getLocalizedMessage(),e);
+    }
   }
-  return Arrays.asList(resources);
+  return resources;
 }
