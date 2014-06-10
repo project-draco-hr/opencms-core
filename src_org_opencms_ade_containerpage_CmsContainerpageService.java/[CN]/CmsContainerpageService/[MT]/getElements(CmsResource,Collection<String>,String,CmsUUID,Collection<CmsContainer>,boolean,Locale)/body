@@ -1,0 +1,34 @@
+{
+  CmsObject cms=getCmsObject();
+  CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,detailContentId,getRequest(),getResponse(),locale);
+  Map<String,CmsContainerElementData> result=new HashMap<String,CmsContainerElementData>();
+  Set<String> ids=new HashSet<String>();
+  Iterator<String> it=clientIds.iterator();
+  while (it.hasNext()) {
+    String elemId=it.next();
+    if ((elemId == null) || ids.contains(elemId)) {
+      continue;
+    }
+    CmsContainerElementBean element=getCachedElement(elemId);
+    if (element.getInstanceId() == null) {
+      element=element.clone();
+      getSessionCache().setCacheContainerElement(element.editorHash(),element);
+    }
+    CmsContainerElementData elementData=elemUtil.getElementData(page,element,containers,allowNested);
+    result.put(elemId,elementData);
+    if (elementData.isGroupContainer() || elementData.isInheritContainer()) {
+      CmsResource elementRes=cms.readResource(element.getId());
+      List<CmsContainerElementBean> subElements=elementData.isGroupContainer() ? getGroupContainerElements(elementRes) : getInheritedElements(elementRes,locale,uriParam);
+      for (      CmsContainerElementBean subElement : subElements) {
+        getSessionCache().setCacheContainerElement(subElement.editorHash(),subElement);
+        if (!ids.contains(subElement.editorHash())) {
+          CmsContainerElementData subItemData=elemUtil.getElementData(page,subElement,containers,allowNested);
+          ids.add(subElement.editorHash());
+          result.put(subElement.editorHash(),subItemData);
+        }
+      }
+    }
+    ids.add(elemId);
+  }
+  return result;
+}
