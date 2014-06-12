@@ -2,6 +2,7 @@
   boolean changedContainerpage=false;
   boolean isFromClipboard=draggable instanceof CmsMenuListItem;
   CmsContainerPageElementPanel clipboardContainerElement=null;
+  final boolean[] triggerReload={false};
   if (target != m_initialDropTarget) {
     if (target instanceof I_CmsDropContainer) {
       I_CmsDropContainer container=(I_CmsDropContainer)target;
@@ -27,6 +28,7 @@
           container.insert(containerElement,container.getPlaceholderIndex());
         }
         changedContainerpage=!m_controller.isGroupcontainerEditing();
+        triggerReload[0]=containerElement.getElement().getInnerHTML().contains(CmsGwtConstants.FORMATTER_RELOAD_MARKER) && changedContainerpage && !m_isNew;
         if (draggable instanceof CmsContainerPageElementPanel) {
           ((CmsContainerPageElementPanel)draggable).removeFromParent();
         }
@@ -62,6 +64,14 @@
     optionBar.removeFromParent();
     containerElement.setElementOptionBar(optionBar);
   }
+  final Runnable checkReload=new Runnable(){
+    public void run(){
+      if (triggerReload[0]) {
+        CmsContainerpageController.get().reloadPage();
+      }
+    }
+  }
+;
   if (clipboardContainerElement != null) {
     final CmsContainerPageElementPanel finalClipboardContainerElement=clipboardContainerElement;
     final String serverIdStr=CmsContainerpageController.getServerId(m_draggableId);
@@ -83,7 +93,7 @@
                 public void execute(                CmsContainerElementData newData){
                   try {
                     controller.replaceContainerElement(finalClipboardContainerElement,newData);
-                    controller.setPageChanged();
+                    controller.setPageChanged(checkReload);
                   }
  catch (                  Exception e) {
                     throw new RuntimeException(e);
@@ -96,7 +106,7 @@
 );
         }
  else         if (Objects.equal(result,CmsEditorConstants.MODE_REUSE)) {
-          m_controller.setPageChanged();
+          m_controller.setPageChanged(checkReload);
         }
       }
     }
@@ -105,7 +115,7 @@
   }
  else {
     if (changedContainerpage) {
-      m_controller.setPageChanged();
+      m_controller.setPageChanged(checkReload);
     }
   }
   stopDrag(handler);
