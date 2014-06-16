@@ -1,0 +1,36 @@
+{
+  CmsResource result=null;
+  CmsUgcSessionSecurityUtil.checkCreateUpload(m_cms,m_configuration,rawFileName,content.length);
+  String baseName=rawFileName;
+  int lastSlashPos=Math.max(baseName.lastIndexOf('/'),baseName.lastIndexOf('\\'));
+  if (lastSlashPos != -1) {
+    baseName=baseName.substring(1 + lastSlashPos);
+  }
+  baseName=OpenCms.getResourceManager().getFileTranslator().translateResource(baseName);
+  int dotPos=baseName.lastIndexOf('.');
+  if (dotPos == -1) {
+    baseName=baseName + "_%(random)";
+  }
+ else {
+    baseName=baseName.substring(0,dotPos) + "_%(random)" + baseName.substring(dotPos);
+  }
+  String uploadRootPath=m_configuration.getUploadParentFolder().get().getRootPath();
+  String sitePath=CmsStringUtil.joinPaths(m_cms.getRequestContext().removeSiteRoot(uploadRootPath),baseName);
+  String realSitePath;
+  do {
+    CmsMacroResolver resolver=new CmsMacroResolver();
+    resolver.addMacro("random",RandomStringUtils.random(8,"0123456789abcdefghijklmnopqrstuvwxyz"));
+    realSitePath=resolver.resolveMacros(sitePath);
+  }
+ while (m_cms.existsResource(realSitePath));
+  try {
+    int resTypeId=OpenCms.getResourceManager().getDefaultTypeForName(realSitePath).getTypeId();
+    result=m_cms.createResource(realSitePath,resTypeId,content,null);
+    updateUploadResource(fieldName,result);
+    return result;
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    throw new CmsUgcException(e,CmsUgcConstants.ErrorCode.errMisc,e.getLocalizedMessage());
+  }
+}

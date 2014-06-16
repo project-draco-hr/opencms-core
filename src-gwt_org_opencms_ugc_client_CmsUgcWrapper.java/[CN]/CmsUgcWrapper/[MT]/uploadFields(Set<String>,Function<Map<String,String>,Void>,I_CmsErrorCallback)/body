@@ -1,0 +1,27 @@
+{
+  disableAllFileFieldsExcept(fields);
+  final String id=CmsJsUtils.generateRandomId();
+  updateFormAction(id);
+  final HandlerRegistration[] registration={null};
+  registration[0]=addSubmitCompleteHandler(new SubmitCompleteHandler(){
+    @SuppressWarnings("synthetic-access") public void onSubmitComplete(    SubmitCompleteEvent event){
+      enableAllFileFields();
+      registration[0].removeHandler();
+      CmsUUID sessionId=m_formSession.internalGetSessionId();
+      RequestBuilder requestBuilder=CmsXmlContentUgcApi.SERVICE.uploadFiles(sessionId,fields,id,new AsyncCallback<Map<String,String>>(){
+        public void onFailure(        Throwable caught){
+          m_formSession.getContentFormApi().handleError(caught,errorCallback);
+        }
+        public void onSuccess(        Map<String,String> fileNames){
+          filenameCallback.apply(fileNames);
+        }
+      }
+);
+      m_formSession.getContentFormApi().getRpcHelper().executeRpc(requestBuilder);
+      m_formSession.getContentFormApi().getRequestCounter().decrement();
+    }
+  }
+);
+  m_formSession.getContentFormApi().getRequestCounter().increment();
+  submit();
+}

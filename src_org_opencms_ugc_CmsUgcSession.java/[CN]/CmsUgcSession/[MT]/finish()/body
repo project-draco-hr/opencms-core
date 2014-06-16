@@ -1,0 +1,20 @@
+{
+  m_finished=true;
+  m_requiresCleanup=false;
+  CmsProject project=getProject();
+  CmsObject projectCms=OpenCms.initCmsObject(m_adminCms);
+  projectCms.getRequestContext().setCurrentProject(project);
+  if (m_configuration.isAutoPublish()) {
+    List<CmsResource> projectResources=projectCms.readProjectView(project.getUuid(),CmsResource.STATE_KEEP);
+    for (    CmsResource projectResource : projectResources) {
+      CmsLock lock=projectCms.getLock(projectResource);
+      if (!lock.isUnlocked() && !lock.isLockableBy(projectCms.getRequestContext().getCurrentUser())) {
+        projectCms.changeLock(projectResource);
+      }
+    }
+    OpenCms.getPublishManager().publishProject(projectCms,new CmsLogReport(Locale.ENGLISH,CmsUgcSession.class));
+  }
+ else {
+    projectCms.unlockProject(project.getUuid());
+  }
+}
