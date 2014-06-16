@@ -6,12 +6,20 @@
     }
     CmsResourceUtil[] resUtil=new CmsResourceUtil[1];
     resUtil[0]=new CmsResourceUtil(cms,cms.readResource(structureId,CmsResourceFilter.ONLY_VISIBLE));
-    if (hasViewPermissions(cms,resUtil[0].getResource())) {
-      CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(resUtil[0].getResourceTypeName());
-      if ((settings != null)) {
-        CmsExplorerContextMenu contextMenu=settings.getContextMenu();
-        List<CmsContextMenuEntryBean> allEntries=transformToMenuEntries(cms,contextMenu.getAllEntries(),resUtil);
-        result=filterEntries(allEntries);
+    CmsResource resource=resUtil[0].getResource();
+    if (hasViewPermissions(cms,resource)) {
+      String fallbackType=resource.isFolder() ? CmsResourceTypeFolder.getStaticTypeName() : CmsResourceTypePlain.getStaticTypeName();
+      String[] lookupTypes={resUtil[0].getResourceTypeName(),fallbackType};
+      for (      String currentType : lookupTypes) {
+        CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(currentType);
+        if ((settings != null)) {
+          CmsExplorerContextMenu contextMenu=settings.getContextMenu();
+          List<CmsContextMenuEntryBean> allEntries=transformToMenuEntries(cms,contextMenu.getAllEntries(),resUtil);
+          result=filterEntries(allEntries);
+          if (!result.isEmpty()) {
+            break;
+          }
+        }
       }
     }
   }
