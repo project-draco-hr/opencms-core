@@ -2,27 +2,40 @@
   if (locale.equals(m_locale)) {
     return;
   }
-  String lastLocale=m_locale;
   m_locale=locale;
   m_basePanel.clear();
   destroyForm(false);
+  final I_Entity entity=m_vie.getEntity(m_entityId);
   m_entityId=getIdForLocale(locale);
   final boolean addedNewLocale=!m_contentLocales.contains(locale);
-  Map<String,com.alkacon.acacia.shared.Entity> editedEntities=new HashMap<String,com.alkacon.acacia.shared.Entity>();
-  for (  String entityId : m_registeredEntities) {
-    I_Entity entity=m_vie.getEntity(entityId);
-    if (entity != null) {
-      editedEntities.put(entityId,com.alkacon.acacia.shared.Entity.serializeEntity(entity));
-    }
+  if (m_registeredEntities.contains(m_entityId)) {
+    unregistereEntity(m_entityId);
   }
-  loadOtherLocale(m_entityId,lastLocale,editedEntities,addedNewLocale,new I_CmsSimpleCallback<CmsContentDefinition>(){
-    public void execute(    CmsContentDefinition contentDefinition){
-      setContentDefinition(contentDefinition);
-      renderFormContent();
-      if (addedNewLocale) {
-        setChanged();
+  if (addedNewLocale) {
+    loadNewDefinition(m_entityId,entity,new I_CmsSimpleCallback<CmsContentDefinition>(){
+      public void execute(      final CmsContentDefinition contentDefinition){
+        registerContentDefinition(contentDefinition);
+        CmsNotification.get().sendBlocking(CmsNotification.Type.NORMAL,org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_LOADING_0));
+        WidgetRegistry.getInstance().registerExternalWidgets(contentDefinition.getExternalWidgetConfigurations(),new Command(){
+          public void execute(){
+            setContentDefinition(contentDefinition);
+            renderFormContent();
+            setChanged();
+            CmsNotification.get().hide();
+          }
+        }
+);
       }
     }
-  }
 );
+  }
+ else {
+    loadDefinition(m_entityId,entity,new I_CmsSimpleCallback<CmsContentDefinition>(){
+      public void execute(      CmsContentDefinition contentDefinition){
+        setContentDefinition(contentDefinition);
+        renderFormContent();
+      }
+    }
+);
+  }
 }
