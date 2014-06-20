@@ -1,0 +1,46 @@
+{
+  if (cms.getRequestContext().getCurrentProject().isOnlineProject() && (res != null)) {
+    boolean secure=Boolean.valueOf(cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_SECURE,true).getValue()).booleanValue();
+    if (secure) {
+      CmsResource resource1=resource;
+      CmsSite site=OpenCms.getSiteManager().getCurrentSite(cms);
+      String secureUrl=null;
+      try {
+        secureUrl=site.getSecureUrl();
+      }
+ catch (      Exception e) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_SECURE_SITE_NOT_CONFIGURED_1,resourceName),e);
+        throw new CmsException(Messages.get().container(Messages.ERR_SECURE_SITE_NOT_CONFIGURED_1,resourceName),e);
+      }
+      boolean usingSec=true;
+      if (req != null) {
+        usingSec=req.getRequestURL().toString().toUpperCase().startsWith(secureUrl.toUpperCase());
+      }
+      if (site.isExclusiveUrl() && !usingSec) {
+        resource1=null;
+        if (site.isExclusiveError()) {
+          throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_REQUEST_SECURE_RESOURCE_0));
+        }
+ else {
+          String target=OpenCms.getLinkManager().getOnlineLink(cms,cms.getRequestContext().getUri());
+          if (!target.toLowerCase().startsWith(secureUrl.toLowerCase())) {
+            Optional<String> targetWithReplacedHost=CmsStringUtil.replacePrefix(target,site.getSiteMatcher().getUrl(),secureUrl,true);
+            if (targetWithReplacedHost.isPresent()) {
+              target=targetWithReplacedHost.get();
+            }
+            if (!target.toLowerCase().startsWith(secureUrl.toLowerCase())) {
+              LOG.error("Failed to generate secure URL for " + target + ", site = "+ site);
+            }
+          }
+          try {
+            res.sendRedirect(target);
+          }
+ catch (          Exception e) {
+          }
+        }
+      }
+      resource=resource1;
+    }
+  }
+  return resource;
+}

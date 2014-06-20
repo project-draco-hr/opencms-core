@@ -1,6 +1,7 @@
 {
   CmsException tmpException=null;
   CmsResource resource;
+  boolean handledSecure=false;
   try {
     resource=cms.readDefaultFile(resourceName);
   }
@@ -13,37 +14,9 @@
     if (resource.isInternal()) {
       throw new CmsException(Messages.get().container(Messages.ERR_READ_INTERNAL_RESOURCE_1,cms.getRequestContext().getUri()));
     }
-    if (cms.getRequestContext().getCurrentProject().isOnlineProject()) {
-      boolean secure=Boolean.valueOf(cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_SECURE,true).getValue()).booleanValue();
-      if (secure) {
-        CmsSite site=OpenCms.getSiteManager().getCurrentSite(cms);
-        String secureUrl=null;
-        try {
-          secureUrl=site.getSecureUrl();
-        }
- catch (        Exception e) {
-          LOG.error(Messages.get().getBundle().key(Messages.ERR_SECURE_SITE_NOT_CONFIGURED_1,resourceName),e);
-          throw new CmsException(Messages.get().container(Messages.ERR_SECURE_SITE_NOT_CONFIGURED_1,resourceName),e);
-        }
-        boolean usingSec=true;
-        if (req != null) {
-          usingSec=req.getRequestURL().toString().toUpperCase().startsWith(secureUrl.toUpperCase());
-        }
-        if (site.isExclusiveUrl() && !usingSec) {
-          resource=null;
-          if (site.isExclusiveError()) {
-            throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_REQUEST_SECURE_RESOURCE_0));
-          }
- else {
-            String target=OpenCms.getLinkManager().getOnlineLink(cms,cms.getRequestContext().getUri());
-            try {
-              res.sendRedirect(target);
-            }
- catch (            Exception e) {
-            }
-          }
-        }
-      }
+    resource=handleSecureResource(cms,req,res,resource,resourceName);
+    if (resource == null) {
+      handledSecure=true;
     }
   }
   boolean clearErrors=false;
@@ -69,6 +42,12 @@ catch (    CmsSecurityException e) {
     }
  else     if (!clearErrors) {
       throw new CmsVfsResourceNotFoundException(org.opencms.main.Messages.get().container(org.opencms.main.Messages.ERR_PATH_NOT_FOUND_1,resourceName));
+    }
+  }
+ else {
+    if (!handledSecure) {
+      resource=handleSecureResource(cms,req,res,resource,cms.getRequestContext().getUri());
+      handledSecure=true;
     }
   }
   return resource;
