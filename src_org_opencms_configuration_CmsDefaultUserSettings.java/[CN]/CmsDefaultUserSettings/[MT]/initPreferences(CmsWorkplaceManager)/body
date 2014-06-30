@@ -1,0 +1,62 @@
+{
+  CURRENT_DEFAULT_SETTINGS=this;
+  Class<?> accessorClass=CmsUserSettingsStringPropertyWrapper.class;
+  PropertyDescriptor[] propDescs=PropertyUtils.getPropertyDescriptors(accessorClass);
+  for (  PropertyDescriptor descriptor : propDescs) {
+    String name=descriptor.getName();
+    Method getter=descriptor.getReadMethod();
+    Method setter=descriptor.getWriteMethod();
+    if ((getter == null) || (setter == null)) {
+      continue;
+    }
+    PrefMetadata metadata=getter.getAnnotation(PrefMetadata.class);
+    if (metadata == null) {
+      CmsBuiltinPreference preference=new CmsBuiltinPreference(name);
+      m_preferences.put(preference.getName(),preference);
+    }
+ else {
+      try {
+        Constructor<?> constructor=metadata.type().getConstructor(String.class);
+        I_CmsPreference pref=(I_CmsPreference)constructor.newInstance(name);
+        m_preferences.put(pref.getName(),pref);
+      }
+ catch (      Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+  Map<String,String> editorValues=getEditorSettings();
+  if (wpManager.getWorkplaceEditorManager() != null) {
+    for (    String resType : wpManager.getWorkplaceEditorManager().getConfigurableEditors().keySet()) {
+      if (!editorValues.containsKey(resType)) {
+        editorValues.put(resType,null);
+      }
+    }
+  }
+  for (  Map.Entry<String,String> editorSettingEntry : editorValues.entrySet()) {
+    CmsEditorPreference pref=new CmsEditorPreference(editorSettingEntry.getKey(),editorSettingEntry.getValue());
+    m_preferences.put(pref.getName(),pref);
+  }
+  Map<String,String> galleryValues=new HashMap<String,String>(getStartGalleriesSettings());
+  for (  String key : wpManager.getGalleries().keySet()) {
+    if (!galleryValues.containsKey(key)) {
+      galleryValues.put(key,null);
+    }
+  }
+  for (  Map.Entry<String,String> galleryEntry : galleryValues.entrySet()) {
+    CmsStartGallleryPreference pref=new CmsStartGallleryPreference(galleryEntry.getKey(),galleryEntry.getValue());
+    m_preferences.put(pref.getName(),pref);
+  }
+  for (  CmsPreferenceData prefData : m_preferenceData) {
+    String name=prefData.getName();
+    I_CmsPreference pref=null;
+    if (m_preferences.containsKey(name)) {
+      pref=new CmsWrapperPreference(prefData,m_preferences.remove(name));
+    }
+ else {
+      pref=new CmsUserDefinedPreference(prefData.getName(),prefData.getDefaultValue(),prefData.getPropertyDefinition(),prefData.getTab());
+    }
+    m_preferences.put(pref.getName(),pref);
+    pref.setValue(this,prefData.getDefaultValue());
+  }
+}
