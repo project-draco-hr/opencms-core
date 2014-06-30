@@ -1,6 +1,15 @@
 {
   if (cms.getRequestContext().getCurrentProject().isOnlineProject() && (res != null)) {
-    boolean secure=Boolean.valueOf(cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_SECURE,true).getValue()).booleanValue();
+    boolean secure=false;
+    try {
+      secure=Boolean.valueOf(cms.readPropertyObject(cms.getSitePath(resource),CmsPropertyDefinition.PROPERTY_SECURE,true).getValue()).booleanValue();
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      LOG.warn(e.getLocalizedMessage(),e);
+    }
+catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
     if (secure) {
       CmsResource resource1=resource;
       CmsSite site=OpenCms.getSiteManager().getCurrentSite(cms);
@@ -22,14 +31,14 @@
           throw new CmsVfsResourceNotFoundException(Messages.get().container(Messages.ERR_REQUEST_SECURE_RESOURCE_0));
         }
  else {
-          String target=OpenCms.getLinkManager().getOnlineLink(cms,cms.getRequestContext().getUri());
+          String target=OpenCms.getLinkManager().getOnlineLink(cms,resourceName);
           if (!target.toLowerCase().startsWith(secureUrl.toLowerCase())) {
             Optional<String> targetWithReplacedHost=CmsStringUtil.replacePrefix(target,site.getSiteMatcher().getUrl(),secureUrl,true);
             if (targetWithReplacedHost.isPresent()) {
               target=targetWithReplacedHost.get();
             }
             if (!target.toLowerCase().startsWith(secureUrl.toLowerCase())) {
-              LOG.error("Failed to generate secure URL for " + target + ", site = "+ site);
+              LOG.warn("Failed to generate secure URL for " + target + ", site = "+ site);
             }
           }
           try {
