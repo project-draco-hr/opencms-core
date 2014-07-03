@@ -1,0 +1,28 @@
+{
+  CmsContentDefinition result=null;
+  CmsUUID structureId=CmsContentDefinition.entityIdToUuid(editedLocaleEntity.getId());
+  if (structureId != null) {
+    CmsObject cms=getCmsObject();
+    CmsResource resource=null;
+    Locale locale=CmsLocaleManager.getLocale(CmsContentDefinition.getLocaleFromId(entityId));
+    try {
+      resource=cms.readResource(structureId,CmsResourceFilter.IGNORE_EXPIRATION);
+      ensureLock(resource);
+      CmsFile file=cms.readFile(resource);
+      CmsXmlContent content=getContentDocument(file,true).clone();
+      checkAutoCorrection(cms,content);
+      synchronizeLocaleIndependentForEntity(file,content,skipPaths,editedLocaleEntity);
+      for (      I_CmsXmlContentEditorChangeHandler handler : content.getContentDefinition().getContentHandler().getEditorChangeHandlers()) {
+        Set<String> handlerScopes=evaluateScope(handler.getScope(),content.getContentDefinition());
+        if (!Collections.disjoint(changedScopes,handlerScopes)) {
+          handler.handleChange(cms,content,locale,changedScopes);
+        }
+      }
+      result=readContentDefinition(file,content,entityId,locale,false);
+    }
+ catch (    Exception e) {
+      error(e);
+    }
+  }
+  return result;
+}
