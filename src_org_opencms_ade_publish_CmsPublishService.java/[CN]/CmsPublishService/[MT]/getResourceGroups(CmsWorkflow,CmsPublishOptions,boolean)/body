@@ -18,7 +18,9 @@
       result.setTooManyResourcesMessage(Messages.get().getBundle(locale).key(Messages.GUI_TOO_MANY_RESOURCES_2,"" + resources.size(),"" + OpenCms.getWorkflowManager().getResourceLimit()));
       return result;
     }
-    ResourceMap resourcesAndRelated=getResourcesAndRelated(resources,options.isIncludeRelated(),options.isIncludeSiblings(),(options.getProjectId() == null) || options.getProjectId().isNullUUID());
+    I_CmsVirtualProject virtualProject=workflowManager.getRealOrVirtualProject(options.getProjectId());
+    I_CmsPublishRelatedResourceProvider relProvider=virtualProject.getRelatedResourceProvider(getCmsObject(),options);
+    ResourceMap resourcesAndRelated=getResourcesAndRelated(resources,options.isIncludeRelated(),options.isIncludeSiblings(),(options.getProjectId() == null) || options.getProjectId().isNullUUID(),relProvider);
     formatter.initialize(options,resourcesAndRelated);
     List<CmsPublishResource> publishResources=formatter.getPublishResources();
     for (    CmsPublishResource publishResource : getPublishResourcesFlatList(publishResources)) {
@@ -30,16 +32,13 @@
       groupHelper=new CmsDefaultPublishGroupHelper(locale);
     }
  else {
-      I_CmsVirtualProject virtualProject=OpenCms.getWorkflowManager().getRealOrVirtualProject(options.getProjectId());
       String title="";
-      if (virtualProject != null) {
-        CmsProjectBean projectBean=virtualProject.getProjectBean(cms,options.getParameters());
-        title=projectBean.getDefaultGroupName();
-        if (title == null) {
-          title="";
-        }
-        autoSelectable=virtualProject.isAutoSelectable();
+      CmsProjectBean projectBean=virtualProject.getProjectBean(cms,options.getParameters());
+      title=projectBean.getDefaultGroupName();
+      if (title == null) {
+        title="";
       }
+      autoSelectable=virtualProject.isAutoSelectable();
       groupHelper=new CmsSinglePublishGroupHelper(locale,title);
     }
     results=groupHelper.getGroups(publishResources);
