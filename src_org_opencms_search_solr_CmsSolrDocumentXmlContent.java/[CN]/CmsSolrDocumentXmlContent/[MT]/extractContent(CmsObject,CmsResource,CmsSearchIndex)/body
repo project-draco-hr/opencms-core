@@ -1,46 +1,22 @@
 {
   logContentExtraction(resource,index);
   try {
-    A_CmsXmlDocument xmlContent=CmsXmlContentFactory.unmarshal(cms,readFile(cms,resource));
-    Map<String,String> items=new HashMap<String,String>();
-    StringBuffer locales=new StringBuffer();
-    Locale resourceLocale=index.getLocaleForResource(cms,resource,xmlContent.getLocales());
-    String defaultContent=null;
-    for (    Locale locale : xmlContent.getLocales()) {
-      StringBuffer textContent=new StringBuffer();
-      locales.append(locale.toString());
-      locales.append(' ');
-      List<String> paths=xmlContent.getNames(locale);
-      for (      String xpath : paths) {
-        String extracted=null;
-        I_CmsXmlContentValue value=xmlContent.getValue(xpath,locale);
-        try {
-          extracted=value.getPlainText(cms);
-          if (CmsStringUtil.isEmptyOrWhitespaceOnly(extracted) && value.isSimpleType()) {
-            extracted=value.getStringValue(cms);
-          }
-        }
- catch (        Exception e) {
-          LOG.warn(Messages.get().container(Messages.LOG_EXTRACT_VALUE_2,xpath,resource),e);
-        }
-        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
-          items.put(CmsXmlUtils.concatXpath(locale.toString(),xpath),extracted);
-        }
-        if (value.getContentDefinition().getContentHandler().isSearchable(value) && CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
-          textContent.append(extracted);
-          textContent.append('\n');
-        }
-      }
-      if (textContent.length() > 0) {
-        String key=CmsSearchFieldConfiguration.getLocaleExtendedName(CmsSearchField.FIELD_CONTENT,locale);
-        items.put(key,textContent.toString());
-        if (resourceLocale.equals(locale)) {
-          defaultContent=textContent.toString();
-        }
-      }
+    I_CmsExtractionResult result=null;
+    if (hasDetailContainers(cms,resource)) {
+      String detailContainerPage=CmsJspTagContainer.getDetailOnlyPageName(cms.getSitePath(resource));
+      CmsResource detailContainers=cms.readResource(detailContainerPage);
+      List<I_CmsExtractionResult> ex=new ArrayList<I_CmsExtractionResult>();
+      CmsSolrDocumentContainerPage containerpageExtractor=new CmsSolrDocumentContainerPage("");
+      I_CmsExtractionResult containersExtractionResult=containerpageExtractor.extractContent(cms,detailContainers,index);
+      containersExtractionResult.getContentItems().remove(CmsSearchField.FIELD_RESOURCE_LOCALES);
+      ex.add(containersExtractionResult);
+      ex.add(extractXmlContent(cms,resource,index));
+      result=CmsSolrDocumentContainerPage.merge(cms,resource,ex,(CmsSolrFieldConfiguration)index.getFieldConfiguration());
     }
-    items.put(CmsSearchField.FIELD_RESOURCE_LOCALES,locales.toString().trim());
-    return new CmsExtractionResult(defaultContent,items);
+ else {
+      result=extractXmlContent(cms,resource,index);
+    }
+    return result;
   }
  catch (  Throwable t) {
     throw new CmsIndexException(Messages.get().container(Messages.ERR_TEXT_EXTRACTION_1,resource),t);
