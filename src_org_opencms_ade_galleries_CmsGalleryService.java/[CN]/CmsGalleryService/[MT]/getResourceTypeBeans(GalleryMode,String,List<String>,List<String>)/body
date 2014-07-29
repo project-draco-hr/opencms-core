@@ -1,0 +1,79 @@
+{
+  List<I_CmsResourceType> resourceTypes=null;
+  List<String> creatableTypes=null;
+  Set<String> hidden=Sets.newHashSet();
+switch (galleryMode) {
+case editor:
+case view:
+case adeView:
+case widget:
+    resourceTypes=convertTypeNamesToTypes(resourceTypesList);
+  if (resourceTypes.size() == 0) {
+    List<TypeWithVisibility> typeWrappers=getDefaultTypesForGallery();
+    resourceTypes=Lists.newArrayList();
+    for (    TypeWithVisibility wrapper : typeWrappers) {
+      resourceTypes.add(wrapper.getType());
+      if (wrapper.isOnlyShowInFullList()) {
+        hidden.add(wrapper.getType().getTypeName());
+      }
+    }
+  }
+creatableTypes=Collections.<String>emptyList();
+break;
+case ade:
+resourceTypes=new ArrayList<I_CmsResourceType>();
+creatableTypes=new ArrayList<String>();
+try {
+CmsADEConfigData config=OpenCms.getADEManager().lookupConfiguration(getCmsObject(),getCmsObject().getRequestContext().addSiteRoot(getCmsObject().getRequestContext().getUri()));
+for (CmsResourceTypeConfig typeConfig : config.getResourceTypes()) {
+if (typeConfig.isAddDisabled()) {
+continue;
+}
+if (typeConfig.checkViewable(getCmsObject(),referenceSitePath)) {
+String typeName=typeConfig.getTypeName();
+resourceTypes.add(getResourceManager().getResourceType(typeName));
+}
+}
+for (CmsResourceTypeConfig typeConfig : config.getCreatableTypes(getCmsObject())) {
+if (typeConfig.isAddDisabled()) {
+continue;
+}
+String typeName=typeConfig.getTypeName();
+creatableTypes.add(typeName);
+}
+}
+ catch (CmsException e) {
+error(e);
+}
+break;
+default :
+resourceTypes=Collections.<I_CmsResourceType>emptyList();
+creatableTypes=Collections.<String>emptyList();
+}
+List<CmsResourceTypeBean> result=buildTypesList(resourceTypes,creatableTypes);
+for (CmsResourceTypeBean typeBean : result) {
+if ((typesForTypeTab != null) && (typesForTypeTab.size() > 0)) {
+if (!typesForTypeTab.contains(typeBean.getType())) {
+typeBean.setVisibility(TypeVisibility.showOptional);
+}
+}
+}
+if ((typesForTypeTab != null) && (typesForTypeTab.size() > 0)) {
+Collections.sort(result,new Comparator<CmsResourceTypeBean>(){
+public int compare(CmsResourceTypeBean first,CmsResourceTypeBean second){
+return ComparisonChain.start().compare(searchTypeRank(first),searchTypeRank(second)).compare(first.getType(),second.getType()).result();
+}
+int searchTypeRank(CmsResourceTypeBean type){
+int index=typesForTypeTab.indexOf(type.getType());
+if (index == -1) {
+return Integer.MAX_VALUE;
+}
+ else {
+return index;
+}
+}
+}
+);
+}
+return result;
+}
