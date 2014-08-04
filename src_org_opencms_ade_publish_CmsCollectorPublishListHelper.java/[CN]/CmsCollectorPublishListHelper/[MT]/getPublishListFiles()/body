@@ -1,0 +1,33 @@
+{
+  String context="[" + RandomStringUtils.randomAlphabetic(8) + "] ";
+  List<CmsResource> offlineResults=computeCollectorResults(OFFLINE);
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(context + "Offline collector results for " + m_info+ ": "+ resourcesToString(offlineResults));
+  }
+  List<CmsResource> onlineResults=computeCollectorResults(ONLINE);
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(context + "Online collector results for " + m_info+ ": "+ resourcesToString(onlineResults));
+  }
+  Set<CmsResource> result=Sets.newHashSet();
+  for (  CmsResource offlineRes : offlineResults) {
+    if (!(offlineRes.getState().isUnchanged())) {
+      result.add(offlineRes);
+    }
+  }
+  Set<CmsResource> onlineAndNotOffline=Sets.newHashSet(onlineResults);
+  onlineAndNotOffline.removeAll(offlineResults);
+  for (  CmsResource res : onlineAndNotOffline) {
+    try {
+      res=getCmsObject(OFFLINE).readResource(res.getStructureId(),CmsResourceFilter.ALL);
+      result.add(res);
+    }
+ catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+  result.addAll(onlineAndNotOffline);
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(context + "Publish list contributions for " + m_info+ ": "+ resourcesToString(result));
+  }
+  return result;
+}

@@ -1,0 +1,26 @@
+{
+  CmsCollectorData data=new CmsCollectorData(param);
+  String foldername=CmsResource.getFolderPath(data.getFileName());
+  CmsResourceFilter filter=CmsResourceFilter.DEFAULT.addRequireType(data.getType()).addExcludeFlags(CmsResource.FLAG_TEMPFILE);
+  if (data.isExcludeTimerange() && !cms.getRequestContext().getCurrentProject().isOnlineProject()) {
+    filter=filter.addExcludeTimerange();
+  }
+  List<CmsResource> result=cms.readResources(foldername,filter,true);
+  List<CmsResource> mapped=new ArrayList<CmsResource>();
+  Iterator<CmsResource> i=result.iterator();
+  while (i.hasNext()) {
+    CmsResource res=i.next();
+    CmsProperty prop=cms.readPropertyObject(res,PROPERTY_CHANNEL,false);
+    if (!prop.isNullProperty()) {
+      if (CmsProject.isInsideProject(prop.getValueList(),cms.getRequestContext().getSiteRoot() + cms.getRequestContext().getUri())) {
+        mapped.add(res);
+      }
+    }
+  }
+  if (mapped.isEmpty()) {
+    return mapped;
+  }
+  CmsPriorityDateResourceComparator comparator=new CmsPriorityDateResourceComparator(cms,asc);
+  Collections.sort(mapped,comparator);
+  return shrinkToFit(mapped,data.getCount(),numResults);
+}

@@ -1,0 +1,76 @@
+{
+  CmsCategoryCollectorData data=new CmsCategoryCollectorData(param);
+  if ((data.getCategoryTypes() != null) && (data.getCategoryTypes().size() > 0)) {
+    List<CmsResource> result=new ArrayList<CmsResource>();
+    Map<String,List<CmsResource>> sortCategories=new HashMap<String,List<CmsResource>>();
+    String foldername=null;
+    boolean includeSubTree=false;
+    if (data.getFileName() != null) {
+      foldername=CmsResource.getFolderPath(data.getFileName());
+      includeSubTree=data.isSubTree();
+    }
+ else {
+      foldername="/";
+      includeSubTree=true;
+    }
+    CmsResourceFilter filter=CmsResourceFilter.DEFAULT.addExcludeFlags(CmsResource.FLAG_TEMPFILE);
+    if (data.getType() != -1) {
+      filter=filter.addRequireType(data.getType());
+    }
+    if (data.isExcludeTimerange() && !cms.getRequestContext().getCurrentProject().isOnlineProject()) {
+      filter=filter.addExcludeTimerange();
+    }
+    List<CmsResource> resources=cms.readResources(foldername,filter,includeSubTree);
+    List<String> categoryTypes=data.getCategoryTypes();
+    Iterator<CmsResource> itResources=resources.iterator();
+    CmsResource resource;
+    CmsCategoryService service=CmsCategoryService.getInstance();
+    while (itResources.hasNext()) {
+      resource=itResources.next();
+      Iterator<CmsCategory> itCategories=service.readResourceCategories(cms,resource).iterator();
+      while (itCategories.hasNext()) {
+        CmsCategory category=itCategories.next();
+        if (categoryTypes.contains(category.getPath())) {
+          if ((data.getSortBy() != null) && data.getSortBy().equals("category")) {
+            if (sortCategories.containsKey(category.getPath())) {
+              (sortCategories.get(category.getPath())).add(resource);
+            }
+ else {
+              List<CmsResource> sortResources=new ArrayList<CmsResource>();
+              sortResources.add(resource);
+              sortCategories.put(category.getPath(),sortResources);
+            }
+          }
+ else {
+            if (!result.contains(resource)) {
+              result.add(resource);
+            }
+          }
+        }
+      }
+    }
+    if ((data.getSortBy() != null) && data.getSortBy().equals("date")) {
+      if (!data.isSortAsc()) {
+        Collections.sort(result,COMPARE_DATE_RELEASED_DESC);
+      }
+ else {
+        Collections.sort(result,I_CmsResource.COMPARE_DATE_RELEASED);
+      }
+    }
+ else     if ((data.getSortBy() != null) && data.getSortBy().equals("category")) {
+      Iterator<String> itCategoryTypes=categoryTypes.iterator();
+      while (itCategoryTypes.hasNext()) {
+        List<CmsResource> categoryListToAdd=sortCategories.get(itCategoryTypes.next());
+        if (categoryListToAdd != null) {
+          result.addAll(categoryListToAdd);
+        }
+      }
+    }
+ else     if ((data.getSortBy() != null) && data.getSortBy().equals("property")) {
+      Comparator<CmsResource> comp=new CmsPropertyResourceComparator(cms,data.getSortByPropertyName(),data.getSortOrder());
+      Collections.sort(result,comp);
+    }
+    return shrinkToFit(result,data.getCount(),numResults);
+  }
+  return null;
+}

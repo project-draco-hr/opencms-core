@@ -1,28 +1,45 @@
 {
   return new I_CmsPublishRelatedResourceProvider(){
     public Set<CmsResource> getAdditionalRelatedResources(    CmsObject cms,    CmsResource res){
+      Map<String,String> params=options.getParameters();
       String pageId=options.getParameters().get(CmsPublishOptions.PARAM_CONTAINERPAGE);
       if (!res.getStructureId().toString().equals(pageId)) {
         return Collections.emptySet();
       }
-      String collectorItemsStr=options.getParameters().get(CmsPublishOptions.PARAM_COLLECTOR_ITEMS);
       Set<CmsResource> result=Sets.newHashSet();
-      if (collectorItemsStr != null) {
-        for (        String token : collectorItemsStr.split(",")) {
+      I_CmsCollectorInfoFactory collectorInfoFactory=AutoBeanFactorySource.create(I_CmsCollectorInfoFactory.class);
+      for (      Map.Entry<String,String> entry : params.entrySet()) {
+        if (entry.getKey().startsWith(CmsPublishOptions.PARAM_COLLECTOR_INFO)) {
           try {
-            if (CmsUUID.isValidUUID(token)) {
-              CmsResource collectorRes=cms.readResource(new CmsUUID(token),CmsResourceFilter.ALL);
-              if (!collectorRes.getState().isUnchanged()) {
-                result.add(collectorRes);
-              }
+            AutoBean<I_CmsContentLoadCollectorInfo> autoBean=AutoBeanCodex.decode(collectorInfoFactory,I_CmsContentLoadCollectorInfo.class,entry.getValue());
+            I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(autoBean.as().getCollectorName());
+            if (collector == null) {
+              continue;
             }
+            I_CmsCollectorPublishListProvider publishListProvider=getCollectorPublishListProvider(collector);
+            result.addAll(publishListProvider.getPublishResources(cmsObject,autoBean.as()));
           }
  catch (          Exception e) {
-            LOG.error("Error processing collector item " + token + ": "+ e.getLocalizedMessage(),e);
+            LOG.error(e.getLocalizedMessage(),e);
           }
         }
       }
       return result;
+    }
+    /** 
+ * Gets the  publish list provider for the given collector.<p>
+ * @param collector the collector 
+ * @return the publish list provider 
+ */
+    public I_CmsCollectorPublishListProvider getCollectorPublishListProvider(    I_CmsResourceCollector collector){
+      I_CmsCollectorPublishListProvider provider=null;
+      if (collector instanceof I_CmsCollectorPublishListProvider) {
+        provider=(I_CmsCollectorPublishListProvider)collector;
+      }
+ else {
+        provider=new CmsDefaultCollectorPublishListProvider();
+      }
+      return provider;
     }
   }
 ;
