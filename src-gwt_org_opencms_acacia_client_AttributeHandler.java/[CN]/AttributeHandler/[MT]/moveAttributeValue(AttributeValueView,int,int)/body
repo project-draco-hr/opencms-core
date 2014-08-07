@@ -1,0 +1,62 @@
+{
+  if (currentPosition == targetPosition) {
+    return;
+  }
+  FlowPanel parent=(FlowPanel)valueView.getParent();
+  m_widgetService.addChangedOrderPath(getSimplePath(-1));
+  valueView.removeFromParent();
+  m_attributeValueViews.remove(valueView);
+  AttributeValueView valueWidget=null;
+  if (isChoiceHandler()) {
+    removeHandlers(currentPosition);
+    I_Entity value=m_entity.getAttribute(m_attributeName).getComplexValues().get(currentPosition);
+    m_entity.removeAttributeValue(m_attributeName,currentPosition);
+    m_entity.insertAttributeValue(m_attributeName,value,targetPosition);
+    String attributeChoice=getChoiceName(targetPosition);
+    I_Type optionType=getAttributeType().getAttributeType(attributeChoice);
+    valueWidget=new AttributeValueView(this,m_widgetService.getAttributeLabel(attributeChoice),m_widgetService.getAttributeHelp(attributeChoice));
+    if (optionType.isSimpleType() && m_widgetService.isDisplaySingleLine(attributeChoice)) {
+      valueWidget.setCompactMode(AttributeValueView.COMPACT_MODE_SINGLE_LINE);
+    }
+    parent.insert(valueWidget,targetPosition);
+    insertHandlers(targetPosition);
+    if (optionType.isSimpleType()) {
+      valueWidget.setValueWidget(m_widgetService.getAttributeFormWidget(attributeChoice),value.getAttribute(attributeChoice).getSimpleValue(),m_widgetService.getDefaultAttributeValue(attributeChoice,getSimplePath(targetPosition)),true);
+    }
+ else {
+      valueWidget.setValueEntity(m_widgetService.getRendererForAttribute(attributeChoice,getAttributeType()),value.getAttribute(attributeChoice).getComplexValue());
+    }
+    List<ChoiceMenuEntryBean> menuEntries=Renderer.getChoiceEntries(getAttributeType(),true);
+    for (    ChoiceMenuEntryBean menuEntry : menuEntries) {
+      valueWidget.addChoice(m_widgetService,menuEntry);
+    }
+  }
+ else   if (getAttributeType().isSimpleType()) {
+    String value=m_entity.getAttribute(m_attributeName).getSimpleValues().get(currentPosition);
+    m_entity.removeAttributeValue(m_attributeName,currentPosition);
+    m_entity.insertAttributeValue(m_attributeName,value,targetPosition);
+    valueWidget=new AttributeValueView(this,m_widgetService.getAttributeLabel(m_attributeName),m_widgetService.getAttributeHelp(m_attributeName));
+    if (m_widgetService.isDisplaySingleLine(m_attributeName)) {
+      valueWidget.setCompactMode(AttributeValueView.COMPACT_MODE_SINGLE_LINE);
+    }
+    parent.insert(valueWidget,targetPosition);
+    valueWidget.setValueWidget(m_widgetService.getAttributeFormWidget(m_attributeName),value,m_widgetService.getDefaultAttributeValue(m_attributeName,getSimplePath(targetPosition)),true);
+  }
+ else {
+    removeHandlers(currentPosition);
+    I_Entity value=m_entity.getAttribute(m_attributeName).getComplexValues().get(currentPosition);
+    m_entity.removeAttributeValue(m_attributeName,currentPosition);
+    m_entity.insertAttributeValue(m_attributeName,value,targetPosition);
+    valueWidget=new AttributeValueView(this,m_widgetService.getAttributeLabel(m_attributeName),m_widgetService.getAttributeHelp(m_attributeName));
+    parent.insert(valueWidget,targetPosition);
+    insertHandlers(targetPosition);
+    valueWidget.setValueEntity(m_widgetService.getRendererForAttribute(m_attributeName,getAttributeType()),value);
+  }
+  m_attributeValueViews.remove(valueWidget);
+  m_attributeValueViews.add(targetPosition,valueWidget);
+  updateButtonVisisbility();
+  UndoRedoHandler handler=UndoRedoHandler.getInstance();
+  if (handler.isIntitalized()) {
+    handler.addChange(m_entity.getId(),m_attributeName,0,ChangeType.sort);
+  }
+}

@@ -1,0 +1,38 @@
+{
+  AttributeHandler parentHandler=null;
+  AttributeValueView parentView=null;
+  boolean removeParent=false;
+  I_EntityAttribute attribute=m_entity.getAttribute(m_attributeName);
+  if (isChoiceHandler() && attribute.isSingleValue()) {
+    parentHandler=(AttributeHandler)m_parentHandler;
+    parentView=reference.getParentView();
+    removeParent=true;
+  }
+  if (attribute.isSingleValue()) {
+    reference.removeValue();
+    if (!attribute.isSimpleValue()) {
+      removeHandlers(0);
+    }
+    m_entity.removeAttribute(m_attributeName);
+  }
+ else {
+    int index=reference.getValueIndex();
+    if (attribute.isComplexValue()) {
+      removeHandlers(index);
+    }
+    I_Entity value=attribute.getComplexValues().get(index);
+    m_entity.removeAttributeValue(m_attributeName,index);
+    m_vie.removeEntity(value.getId());
+    reference.removeFromParent();
+    m_attributeValueViews.remove(reference);
+  }
+  updateButtonVisisbility();
+  if (removeParent && (parentHandler != null) && (parentView != null)) {
+    parentHandler.removeAttributeValue(parentView);
+    parentView.setCollapsed(false);
+  }
+  UndoRedoHandler handler=UndoRedoHandler.getInstance();
+  if (handler.isIntitalized()) {
+    handler.addChange(m_entity.getId(),m_attributeName,0,ChangeType.remove);
+  }
+}

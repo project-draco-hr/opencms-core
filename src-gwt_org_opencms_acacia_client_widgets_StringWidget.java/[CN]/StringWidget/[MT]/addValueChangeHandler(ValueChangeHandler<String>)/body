@@ -1,0 +1,65 @@
+{
+  if (!m_valueChangeHandlerInitialized) {
+    m_valueChangeHandlerInitialized=true;
+    addDomHandler(new KeyDownHandler(){
+      /** 
+ * The text selection range. 
+ */
+      protected JavaScriptObject m_range;
+      /** 
+ * The Element of this widget. 
+ */
+      protected com.google.gwt.dom.client.Element m_element;
+      /** 
+ * Helper text area to store the text that should be pasted. 
+ */
+      protected TextArea m_helpfield;
+      public void onKeyDown(      KeyDownEvent event){
+        if (event.isShiftKeyDown() || event.isControlKeyDown()) {
+          int charCode=event.getNativeEvent().getCharCode();
+          if ((charCode == 'v') || (charCode == 45)) {
+            m_helpfield=new TextArea();
+            m_helpfield.getElement().getStyle().setPosition(Position.FIXED);
+            m_range=getSelection();
+            m_element=event.getRelativeElement();
+            m_element.setAttribute("contentEditable","false");
+            RootPanel.get().add(m_helpfield);
+            m_helpfield.setFocus(true);
+          }
+        }
+        if (KeyCodes.KEY_ENTER == event.getNativeEvent().getKeyCode()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        Scheduler.get().scheduleDeferred(new ScheduledCommand(){
+          public void execute(){
+            if (m_range != null) {
+              String pasteValue=m_helpfield.getText();
+              m_helpfield.removeFromParent();
+              m_element.setAttribute("contentEditable","true");
+              setFocus(true);
+              setSelection(m_range,pasteValue);
+              m_range=null;
+            }
+            fireValueChange(false);
+          }
+        }
+);
+      }
+    }
+,KeyDownEvent.getType());
+    addDomHandler(new ChangeHandler(){
+      public void onChange(      ChangeEvent event){
+        fireValueChange(false);
+      }
+    }
+,ChangeEvent.getType());
+    addDomHandler(new BlurHandler(){
+      public void onBlur(      BlurEvent event){
+        fireValueChange(false);
+      }
+    }
+,BlurEvent.getType());
+  }
+  return addHandler(handler,ValueChangeEvent.getType());
+}
