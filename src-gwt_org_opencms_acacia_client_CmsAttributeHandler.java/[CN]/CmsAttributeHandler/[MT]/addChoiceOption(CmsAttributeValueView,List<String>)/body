@@ -1,0 +1,35 @@
+{
+  String attributeChoice=choicePath.get(0);
+  CmsType optionType=getAttributeType().getAttributeType(attributeChoice);
+  int valueIndex=reference.getValueIndex() + 1;
+  CmsEntity choiceEntity=m_vie.createEntity(null,getAttributeType().getId());
+  CmsAttributeValueView valueWidget=reference;
+  if (reference.hasValue()) {
+    valueWidget=new CmsAttributeValueView(this,m_widgetService.getAttributeLabel(attributeChoice),m_widgetService.getAttributeHelp(attributeChoice));
+    if (optionType.isSimpleType() && m_widgetService.isDisplaySingleLine(attributeChoice)) {
+      valueWidget.setCompactMode(CmsAttributeValueView.COMPACT_MODE_SINGLE_LINE);
+    }
+  }
+  List<CmsChoiceMenuEntryBean> menuEntries=CmsRenderer.getChoiceEntries(getAttributeType(),true);
+  for (  CmsChoiceMenuEntryBean menuEntry : menuEntries) {
+    valueWidget.addChoice(m_widgetService,menuEntry);
+  }
+  m_entity.insertAttributeValue(m_attributeName,choiceEntity,valueIndex);
+  ((FlowPanel)reference.getParent()).insert(valueWidget,valueIndex);
+  insertHandlers(valueWidget.getValueIndex());
+  if (optionType.isSimpleType()) {
+    String defaultValue=m_widgetService.getDefaultAttributeValue(attributeChoice,getSimplePath(valueIndex));
+    I_CmsFormEditWidget widget=m_widgetService.getAttributeFormWidget(attributeChoice);
+    choiceEntity.addAttributeValue(attributeChoice,defaultValue);
+    valueWidget.setValueWidget(widget,defaultValue,defaultValue,true);
+  }
+ else {
+    CmsEntity value=m_vie.createEntity(null,optionType.getId());
+    choiceEntity.addAttributeValue(attributeChoice,value);
+    List<String> remainingAttributeNames=tail(choicePath);
+    createNestedEntitiesForChoicePath(value,remainingAttributeNames);
+    I_CmsEntityRenderer renderer=m_widgetService.getRendererForAttribute(attributeChoice,optionType);
+    valueWidget.setValueEntity(renderer,value);
+  }
+  updateButtonVisisbility();
+}

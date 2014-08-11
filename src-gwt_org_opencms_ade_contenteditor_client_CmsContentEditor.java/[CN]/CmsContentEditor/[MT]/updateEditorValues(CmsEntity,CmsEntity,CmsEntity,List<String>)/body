@@ -1,0 +1,87 @@
+{
+  for (  String attributeName : m_vie.getType(target.getTypeName()).getAttributeNames()) {
+    CmsAttributeHandler handler=getAttributeHandler(attributeName,parentPathElements);
+    if (previous.hasAttribute(attributeName) && updated.hasAttribute(attributeName) && target.hasAttribute(attributeName)) {
+      CmsEntityAttribute updatedAttribute=updated.getAttribute(attributeName);
+      CmsEntityAttribute previousAttribute=previous.getAttribute(attributeName);
+      CmsEntityAttribute targetAttribute=target.getAttribute(attributeName);
+      if (updatedAttribute.isSimpleValue()) {
+        if ((updatedAttribute.getValueCount() == previousAttribute.getValueCount()) && (updatedAttribute.getValueCount() == targetAttribute.getValueCount())) {
+          for (int i=0; i < updatedAttribute.getValueCount(); i++) {
+            if (!updatedAttribute.getSimpleValues().get(i).equals(previousAttribute.getSimpleValues().get(i)) && previousAttribute.getSimpleValues().get(i).equals(targetAttribute.getSimpleValues().get(i))) {
+              changeSimpleValue(attributeName,i,updatedAttribute.getSimpleValues().get(i),parentPathElements);
+            }
+          }
+        }
+ else {
+          if (targetAttribute.getValueCount() == previousAttribute.getValueCount()) {
+            if (updatedAttribute.getValueCount() > previousAttribute.getValueCount()) {
+              for (int i=0; i < updatedAttribute.getValueCount(); i++) {
+                if (i >= previousAttribute.getSimpleValues().size()) {
+                  handler.addNewAttributeValue(updatedAttribute.getSimpleValues().get(i));
+                }
+ else                 if (!updatedAttribute.getSimpleValues().get(i).equals(previousAttribute.getSimpleValues().get(i)) && previousAttribute.getSimpleValues().get(i).equals(targetAttribute.getSimpleValues().get(i))) {
+                  changeSimpleValue(attributeName,i,updatedAttribute.getSimpleValues().get(i),parentPathElements);
+                }
+              }
+            }
+ else {
+              for (int i=updatedAttribute.getValueCount() - 1; i >= 0; i--) {
+                if (i >= updatedAttribute.getSimpleValues().size()) {
+                  handler.removeAttributeValue(i);
+                }
+ else                 if (!updatedAttribute.getSimpleValues().get(i).equals(previousAttribute.getSimpleValues().get(i)) && previousAttribute.getSimpleValues().get(i).equals(targetAttribute.getSimpleValues().get(i))) {
+                  changeSimpleValue(attributeName,i,updatedAttribute.getSimpleValues().get(i),parentPathElements);
+                }
+              }
+            }
+          }
+        }
+      }
+ else {
+        if (targetAttribute.getValueCount() == previousAttribute.getValueCount()) {
+          if (updatedAttribute.getValueCount() > previousAttribute.getValueCount()) {
+            for (int i=0; i < updatedAttribute.getValueCount(); i++) {
+              if (i >= previousAttribute.getSimpleValues().size()) {
+                handler.addNewAttributeValue(m_vie.registerEntity(updatedAttribute.getComplexValues().get(i),true));
+              }
+ else {
+                List<String> childPathElements=new ArrayList<String>(parentPathElements);
+                childPathElements.add(attributeName + "[" + i+ "]");
+                updateEditorValues(previousAttribute.getComplexValues().get(i),updatedAttribute.getComplexValues().get(i),targetAttribute.getComplexValues().get(i),childPathElements);
+              }
+            }
+          }
+ else {
+            for (int i=updatedAttribute.getValueCount() - 1; i >= 0; i--) {
+              if (i >= updatedAttribute.getValueCount()) {
+                handler.removeAttributeValue(i);
+              }
+ else {
+                List<String> childPathElements=new ArrayList<String>(parentPathElements);
+                childPathElements.add(attributeName + "[" + i+ "]");
+                updateEditorValues(previousAttribute.getComplexValues().get(i),updatedAttribute.getComplexValues().get(i),targetAttribute.getComplexValues().get(i),childPathElements);
+              }
+            }
+          }
+        }
+      }
+    }
+ else     if (previous.hasAttribute(attributeName) && target.hasAttribute(attributeName)) {
+      for (int i=target.getAttribute(attributeName).getValueCount() - 1; i >= 0; i--) {
+        handler.removeAttributeValue(i);
+      }
+    }
+ else     if (!previous.hasAttribute(attributeName) && !target.hasAttribute(attributeName) && updated.hasAttribute(attributeName)) {
+      CmsEntityAttribute updatedAttribute=updated.getAttribute(attributeName);
+      for (int i=0; i < updatedAttribute.getValueCount(); i++) {
+        if (updatedAttribute.isSimpleValue()) {
+          handler.addNewAttributeValue(updatedAttribute.getSimpleValues().get(i));
+        }
+ else {
+          handler.addNewAttributeValue(m_vie.registerEntity(updatedAttribute.getComplexValues().get(i),true));
+        }
+      }
+    }
+  }
+}
