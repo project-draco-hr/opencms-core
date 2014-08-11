@@ -1,0 +1,55 @@
+{
+  Type entityType=entityTypes.get(target.getTypeName());
+  for (  String attributeName : entityType.getAttributeNames()) {
+    Type attributeType=entityTypes.get(entityType.getAttributeTypeName(attributeName));
+    if (transferAttributes.contains(attributeName)) {
+      target.removeAttribute(attributeName);
+      EntityAttribute attribute=original != null ? original.getAttribute(attributeName) : null;
+      if (attribute != null) {
+        if (attributeType.isSimpleType()) {
+          for (          String value : attribute.getSimpleValues()) {
+            target.addAttributeValue(attributeName,value);
+          }
+          if (considerDefaults) {
+            for (int i=attribute.getValueCount(); i < entityType.getAttributeMinOccurrence(attributeName); i++) {
+              target.addAttributeValue(attributeName,attributeConfigurations.get(attributeName).getDefaultValue());
+            }
+          }
+        }
+ else {
+          for (          Entity value : attribute.getComplexValues()) {
+            target.addAttributeValue(attributeName,value);
+          }
+          if (considerDefaults) {
+            for (int i=attribute.getValueCount(); i < entityType.getAttributeMinOccurrence(attributeName); i++) {
+              target.addAttributeValue(attributeName,createDefaultValueEntity(attributeType,entityTypes,attributeConfigurations));
+            }
+          }
+        }
+      }
+ else       if (considerDefaults) {
+        for (int i=0; i < entityType.getAttributeMinOccurrence(attributeName); i++) {
+          if (attributeType.isSimpleType()) {
+            target.addAttributeValue(attributeName,attributeConfigurations.get(attributeName).getDefaultValue());
+          }
+ else {
+            target.addAttributeValue(attributeName,createDefaultValueEntity(attributeType,entityTypes,attributeConfigurations));
+          }
+        }
+      }
+    }
+ else {
+      if (!attributeType.isSimpleType()) {
+        EntityAttribute targetAttribute=target.getAttribute(attributeName);
+        EntityAttribute originalAttribute=original != null ? original.getAttribute(attributeName) : null;
+        if (targetAttribute != null) {
+          for (int i=0; i < targetAttribute.getComplexValues().size(); i++) {
+            Entity subTarget=targetAttribute.getComplexValues().get(i);
+            Entity subOriginal=(originalAttribute != null) && (originalAttribute.getComplexValues().size() > i) ? originalAttribute.getComplexValues().get(i) : null;
+            transfereValues(subOriginal,subTarget,transferAttributes,entityTypes,attributeConfigurations,considerDefaults);
+          }
+        }
+      }
+    }
+  }
+}
