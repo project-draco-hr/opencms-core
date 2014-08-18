@@ -10,6 +10,7 @@
       locales.append(' ');
       StringBuffer content=new StringBuffer();
       boolean hasTitleMapping=false;
+      String galleryNameTemplate=null;
       for (      String xpath : xmlContent.getNames(locale)) {
         I_CmsXmlContentValue value=xmlContent.getValue(xpath,locale);
         if (value.getContentDefinition().getContentHandler().isSearchable(value)) {
@@ -20,7 +21,7 @@
           }
         }
         List<String> mappings=xmlContent.getHandler().getMappings(value.getPath());
-        if ((mappings != null) && (mappings.size() > 0)) {
+        if (mappings.size() > 0) {
           for (          String mapping : mappings) {
             if (mapping.startsWith(I_CmsXmlContentHandler.MAPTO_PROPERTY)) {
               String propertyName=mapping.substring(mapping.lastIndexOf(':') + 1);
@@ -39,12 +40,36 @@
                 }
               }
             }
+ else             if (mapping.equals(MAPPING_GALLERY_NAME)) {
+              galleryNameTemplate=value.getPlainText(cms);
+              LOG.info("Found gallery name template for " + resource.getRootPath() + ":"+ galleryNameTemplate);
+            }
+          }
+        }
+      }
+      if (galleryNameTemplate == null) {
+        Set<String> xpaths=Sets.newHashSet();
+        collectSchemaXpathsForSimpleValues(cms,xmlContent.getContentDefinition(),"",xpaths);
+        for (        String xpath : xpaths) {
+          List<String> mappings=xmlContent.getHandler().getMappings(CmsXmlUtils.createXpath(xpath,1));
+          for (          String mapping : mappings) {
+            if (mapping.equals(MAPPING_GALLERY_NAME)) {
+              galleryNameTemplate=xmlContent.getHandler().getDefault(cms,xmlContent.getFile(),null,xpath,locale);
+              LOG.info("Using default value for gallery name template in " + resource.getRootPath() + ": "+ galleryNameTemplate);
+              break;
+            }
           }
         }
       }
       if (!hasTitleMapping) {
         String title=cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
         putMappingValue(xmlContent,CmsSearchField.FIELD_TITLE_UNSTORED,locale,items,title);
+      }
+      if (galleryNameTemplate != null) {
+        CmsGalleryNameMacroResolver macroResolver=new CmsGalleryNameMacroResolver(cms,xmlContent,locale);
+        String galleryName=macroResolver.resolveMacros(galleryNameTemplate);
+        LOG.info("Using gallery name mapping '" + galleryNameTemplate + "' for '"+ resource.getRootPath()+ "' in locale "+ locale+ ", resulting in gallery name '"+ galleryName+ "'");
+        putMappingValue(xmlContent,CmsSearchField.FIELD_TITLE_UNSTORED,locale,items,galleryName);
       }
       if (content.length() > 0) {
         items.put(CmsSearchFieldConfiguration.getLocaleExtendedName(CmsSearchField.FIELD_CONTENT,locale),content.toString());

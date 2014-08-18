@@ -1,0 +1,33 @@
+{
+  try {
+    Collection<CmsRelation> relations=m_cms.readRelations(CmsRelationFilter.relationsToStructureId(m_content.getFile().getStructureId()));
+    Map<Locale,String> pagePropsByLocale=Maps.newHashMap();
+    for (    CmsRelation relation : relations) {
+      CmsResource source=relation.getSource(m_cms,CmsResourceFilter.IGNORE_EXPIRATION);
+      if (CmsResourceTypeXmlContainerPage.isContainerPage(source)) {
+        List<CmsProperty> pagePropertiesList=m_cms.readPropertyObjects(source,true);
+        Map<String,CmsProperty> pageProperties=CmsProperty.toObjectMap(pagePropertiesList);
+        Locale pageLocale=OpenCms.getLocaleManager().getDefaultLocale(m_cms,source);
+        String pagePropCandidate=pageProperties.get(propName).getValue();
+        if (pagePropCandidate != null) {
+          if (pagePropsByLocale.get(pageLocale) == null) {
+            pagePropsByLocale.put(pageLocale,pagePropCandidate);
+          }
+ else {
+            return "";
+          }
+        }
+      }
+    }
+    Locale matchingLocale=OpenCms.getLocaleManager().getBestMatchingLocale(m_contentLocale,OpenCms.getLocaleManager().getDefaultLocales(),Lists.newArrayList(pagePropsByLocale.keySet()));
+    String result=pagePropsByLocale.get(matchingLocale);
+    if (result == null) {
+      result="";
+    }
+    return result;
+  }
+ catch (  CmsException e) {
+    LOG.warn(e.getLocalizedMessage(),e);
+    return null;
+  }
+}
