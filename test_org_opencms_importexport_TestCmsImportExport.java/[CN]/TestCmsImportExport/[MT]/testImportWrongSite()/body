@@ -2,21 +2,25 @@
   CmsObject cms=getCmsObject();
   echo("Testing the import of a resource in the wrong site.");
   String site="/sites/default";
+  String newSite="/sites/new";
   String filename="/newfileWrongSite.html";
   String zipExportFilename=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf("packages/testImportWrongSite.zip");
   try {
     cms.getRequestContext().setSiteRoot("");
-    CmsResource res=cms.createResource(site + filename,CmsResourceTypePlain.getStaticTypeId());
-    cms.unlockResource(site + filename);
-    OpenCms.getPublishManager().publishResource(cms,site + filename);
+    cms.createResource(newSite,CmsResourceTypeFolder.RESOURCE_TYPE_ID);
+    cms.getRequestContext().setSiteRoot(site);
+    CmsResource res=cms.createResource(filename,CmsResourceTypePlain.getStaticTypeId());
+    cms.unlockResource(filename);
+    OpenCms.getPublishManager().publishResource(cms,filename);
     OpenCms.getPublishManager().waitWhileRunning();
     CmsVfsImportExportHandler vfsExportHandler=new CmsVfsImportExportHandler();
     List exportPaths=new ArrayList(1);
-    exportPaths.add(site + filename);
+    exportPaths.add(filename);
     CmsExportParameters params=new CmsExportParameters(zipExportFilename,null,true,false,false,exportPaths,false,true,0,true,false);
     vfsExportHandler.setExportParams(params);
     OpenCms.getImportExportManager().exportData(cms,vfsExportHandler,new CmsShellReport(cms.getRequestContext().getLocale()));
-    cms.getRequestContext().setSiteRoot(site);
+    cms.getRequestContext().setSiteRoot(newSite);
+    printExceptionWarning();
     OpenCms.getImportExportManager().importData(cms,new CmsShellReport(cms.getRequestContext().getLocale()),new CmsImportParameters(zipExportFilename,"/",true));
     cms.getRequestContext().setSiteRoot("");
     cms.readResource(res.getStructureId());
@@ -29,7 +33,7 @@
         path+="/";
       }
       assertTrue("Path " + path + " does not exist as expected",cms.existsResource(path));
-      assertFalse("Path " + site + path+ " should not exist",cms.existsResource(site + path));
+      assertFalse("Path " + newSite + path+ " should not exist",cms.existsResource(newSite + path));
     }
   }
   finally {
