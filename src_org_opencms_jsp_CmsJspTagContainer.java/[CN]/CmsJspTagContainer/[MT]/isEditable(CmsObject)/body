@@ -1,0 +1,61 @@
+{
+  boolean result=false;
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(m_editableBy)) {
+    String[] principals=m_editableBy.split(",");
+    List<CmsGroup> groups=null;
+    for (int i=0; i < principals.length; i++) {
+      String key=principals[i];
+      String principal=key.substring(key.indexOf('.') + 1,key.length());
+      if (key.startsWith(I_CmsPrincipal.PRINCIPAL_GROUP)) {
+        principal=OpenCms.getImportExportManager().translateGroup(principal);
+        try {
+          CmsGroup group=cms.readGroup(principal);
+          if (groups == null) {
+            try {
+              groups=cms.getGroupsOfUser(cms.getRequestContext().getCurrentUser().getName(),false);
+            }
+ catch (            Exception ex) {
+              if (LOG.isErrorEnabled()) {
+                LOG.error(ex.getLocalizedMessage(),ex);
+              }
+              groups=Collections.emptyList();
+            }
+          }
+          result=groups.contains(group);
+        }
+ catch (        CmsException e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+ else       if (key.startsWith(I_CmsPrincipal.PRINCIPAL_USER)) {
+        principal=OpenCms.getImportExportManager().translateUser(principal);
+        try {
+          result=cms.getRequestContext().getCurrentUser().equals(cms.readUser(principal));
+        }
+ catch (        CmsException e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+ else {
+        CmsRole role=CmsRole.valueOfRoleName(principal);
+        if (role == null) {
+          role=CmsRole.valueOfGroupName(principal);
+        }
+        if (role != null) {
+          result=OpenCms.getRoleManager().hasRole(cms,role);
+        }
+      }
+      if (result) {
+        break;
+      }
+    }
+  }
+ else {
+    result=OpenCms.getRoleManager().hasRole(cms,CmsRole.ELEMENT_AUTHOR);
+  }
+  return result;
+}

@@ -1,4 +1,97 @@
 {
+  ServletRequest req=pageContext.getRequest();
+  if (CmsFlexController.isCmsRequest(req)) {
+    try {
+      CmsFlexController controller=CmsFlexController.getController(req);
+      CmsObject cms=controller.getCmsObject();
+      String requestUri=cms.getRequestContext().getUri();
+      Locale locale=cms.getRequestContext().getLocale();
+      CmsJspStandardContextBean standardContext=CmsJspStandardContextBean.getInstance(req);
+      m_parentElement=standardContext.getElement();
+      m_parentContainer=standardContext.getContainer();
+      CmsContainerPageBean containerPage=standardContext.getPage();
+      if (containerPage == null) {
+        CmsResource pageResource=(CmsResource)CmsHistoryResourceHandler.getHistoryResource(req);
+        if (pageResource == null) {
+          pageResource=cms.readResource(requestUri);
+        }
+        CmsXmlContainerPage xmlContainerPage=CmsXmlContainerPageFactory.unmarshal(cms,pageResource,req);
+        containerPage=xmlContainerPage.getContainerPage(cms);
+        standardContext.setPage(containerPage);
+      }
+      CmsResource detailContent=standardContext.getDetailContent();
+      CmsContainerBean container=null;
+      boolean detailOnly=m_detailOnly || ((m_parentContainer != null) && m_parentContainer.isDetailOnly());
+      if (detailOnly) {
+        if (detailContent == null) {
+          return EVAL_PAGE;
+        }
+ else {
+          CmsContainerPageBean detailOnlyPage=getDetailOnlyPage(cms,req);
+          if (detailOnlyPage != null) {
+            container=detailOnlyPage.getContainers().get(getName());
+          }
+        }
+      }
+ else       if (containerPage != null) {
+        container=containerPage.getContainers().get(getName());
+      }
+      int maxElements=getMaxElements(requestUri);
+      if (container == null) {
+        container=new CmsContainerBean(getName(),getType(),m_parentElement != null ? m_parentElement.getInstanceId() : null,maxElements,Collections.<CmsContainerElementBean>emptyList());
+      }
+      container.setDetailOnly(detailOnly);
+      boolean isUsedAsDetailView=false;
+      if (m_detailView && (detailContent != null)) {
+        isUsedAsDetailView=true;
+      }
+      String tagName=CmsStringUtil.isEmptyOrWhitespaceOnly(getTag()) ? DEFAULT_TAG_NAME : getTag();
+      boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
+      pageContext.getOut().print(getTagOpen(tagName,getName(),getTagClass(),isOnline ? null : getContainerData(cms,maxElements,isUsedAsDetailView,detailOnly)));
+      standardContext.setContainer(container);
+      if (!getType().equals(container.getType())) {
+        container.setType(getType());
+        LOG.warn(new CmsIllegalStateException(Messages.get().container(Messages.LOG_WRONG_CONTAINER_TYPE_4,new Object[]{requestUri,locale,getName(),getType()})));
+      }
+      container.setMaxElements(maxElements);
+      container.setWidth("" + getContainerWidth());
+      List<CmsContainerElementBean> allElements=new ArrayList<CmsContainerElementBean>();
+      CmsContainerElementBean detailElement=null;
+      if (isUsedAsDetailView) {
+        detailElement=generateDetailViewElement(cms,detailContent);
+      }
+      if (detailElement != null) {
+        allElements.add(detailElement);
+      }
+ else {
+        allElements.addAll(container.getElements());
+      }
+      int numRenderedElements=0;
+      for (      CmsContainerElementBean elementBean : allElements) {
+        try {
+          boolean rendered=renderContainerElement((HttpServletRequest)req,cms,standardContext,elementBean,locale,numRenderedElements >= maxElements);
+          if (rendered) {
+            numRenderedElements+=1;
+          }
+        }
+ catch (        Exception e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+      if ((numRenderedElements == 0) && (m_bodyContent != null)) {
+        pageContext.getOut().print(m_bodyContent);
+      }
+      pageContext.getOut().print(getTagClose(tagName));
+    }
+ catch (    Exception ex) {
+      if (LOG.isErrorEnabled()) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERR_PROCESS_TAG_1,"container"),ex);
+      }
+      throw new javax.servlet.jsp.JspException(ex);
+    }
+  }
   m_type=null;
   m_name=null;
   m_maxElements=null;
@@ -7,6 +100,8 @@
   m_detailView=false;
   m_detailOnly=false;
   m_width=null;
+  m_editableBy=null;
+  m_bodyContent=null;
   CmsJspStandardContextBean.getInstance(pageContext.getRequest()).setElement(m_parentElement);
   CmsJspStandardContextBean.getInstance(pageContext.getRequest()).setContainer(m_parentContainer);
   m_parentElement=null;
