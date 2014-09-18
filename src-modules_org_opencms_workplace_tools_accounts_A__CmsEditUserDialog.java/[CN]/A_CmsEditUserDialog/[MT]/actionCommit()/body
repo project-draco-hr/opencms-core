@@ -2,6 +2,31 @@
   List<Throwable> errors=new ArrayList<Throwable>();
   try {
     if (isNewUser()) {
+      CmsGroup group=null;
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getGroup())) {
+        group=getCms().readGroup(getGroup());
+      }
+      if (group != null) {
+        if (group.getSimpleName().equals(OpenCms.getDefaultUsers().getGroupAdministrators())) {
+          if (getRole().equals(NO_ROLE)) {
+            throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_ADD_TO_ADMINISTRATORS_GROUP_0));
+          }
+          CmsRole role=CmsRole.valueOfRoleName(getRole());
+          if (!CmsRole.ROOT_ADMIN.getRoleName().equals(role.getRoleName()) && !CmsRole.ADMINISTRATOR.getRoleName().equals(role.getRoleName())) {
+            throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_ADD_TO_ADMINISTRATORS_GROUP_0));
+          }
+        }
+ else         if (group.getSimpleName().equals(OpenCms.getDefaultUsers().getGroupUsers())) {
+          if (getRole().equals(NO_ROLE)) {
+            throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_ADD_TO_USERS_GROUP_0));
+          }
+        }
+ else         if (group.getSimpleName().equals(OpenCms.getDefaultUsers().getGroupGuests())) {
+          if (!getRole().equals(NO_ROLE)) {
+            throw new CmsIllegalArgumentException(Messages.get().container(Messages.ERR_ADD_TO_GUESTS_GROUP_0));
+          }
+        }
+      }
       m_pwdInfo.validate();
       CmsUser newUser=createUser(m_paramOufqn + m_user.getSimpleName(),m_pwdInfo.getNewPwd(),m_user.getDescription(),m_user.getAdditionalInfo());
       newUser.setFirstname(m_user.getFirstname());
@@ -16,13 +41,13 @@
       m_pwdInfo.validate();
       getCms().setPassword(m_user.getName(),m_pwdInfo.getNewPwd());
     }
-    if (isNewUser() && CmsStringUtil.isNotEmptyOrWhitespaceOnly(getGroup())) {
-      getCms().readGroup(getGroup());
-    }
     writeUser(m_user);
     if (isNewUser()) {
       if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getGroup())) {
         getCms().addUserToGroup(m_user.getName(),getGroup());
+      }
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getRole()) && !getRole().equals(NO_ROLE)) {
+        OpenCms.getRoleManager().addUserToRole(getCms(),CmsRole.valueOfRoleName(getRole()),m_user.getName());
       }
     }
     CmsUserSettings settings=new CmsUserSettings(m_user);
