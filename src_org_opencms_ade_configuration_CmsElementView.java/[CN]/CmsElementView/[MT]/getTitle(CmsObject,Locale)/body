@@ -1,22 +1,30 @@
 {
-  String result="";
-  if (m_resource != null) {
-    try {
-      CmsGallerySearchResult search=CmsGallerySearch.searchById(cms,m_resource.getStructureId(),locale);
-      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(search.getTitle())) {
-        result=search.getTitle();
-      }
+  if (m_title == null) {
+    if (m_resource == null) {
+      m_title="Default";
+      m_titleKey=GUI_ELEMENT_VIEW_DEFAULT_TITLE_0;
+    }
  else {
-        CmsProperty prop=cms.readPropertyObject(m_resource,CmsPropertyDefinition.PROPERTY_TITLE,false);
-        result=prop.getValue();
+      try {
+        CmsFile configFile=cms.readFile(m_resource);
+        CmsXmlContent content=CmsXmlContentFactory.unmarshal(cms,configFile);
+        if (content.hasLocale(CmsConfigurationReader.DEFAULT_LOCALE)) {
+          m_title=content.getValue(N_TITLE,CmsConfigurationReader.DEFAULT_LOCALE).getStringValue(cms);
+          I_CmsXmlContentValue titleKey=content.getValue(N_TITLE_KEY,CmsConfigurationReader.DEFAULT_LOCALE);
+          if ((titleKey != null) && CmsStringUtil.isNotEmptyOrWhitespaceOnly(titleKey.getStringValue(cms))) {
+            m_titleKey=titleKey.getStringValue(cms);
+          }
+        }
+      }
+ catch (      CmsException e) {
+        e.printStackTrace();
       }
     }
- catch (    CmsException e) {
-      LOG.error(e.getLocalizedMessage(),e);
-    }
+  }
+  if (m_titleKey == null) {
+    return m_title;
   }
  else {
-    result=Messages.get().getBundle(locale).key(Messages.GUI_ELEMENT_VIEW_DEFAULT_TITLE_0);
+    return OpenCms.getWorkplaceManager().getMessages(locale).key(m_titleKey);
   }
-  return result;
 }
