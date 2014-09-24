@@ -1,0 +1,38 @@
+{
+  CmsGalleryDataBean data=null;
+  try {
+    CmsObject cms=getCmsObject();
+    CmsADEConfigData config=OpenCms.getADEManager().lookupConfiguration(cms,cms.getRequestContext().addSiteRoot(uri));
+    List<I_CmsResourceType> resourceTypes=new ArrayList<I_CmsResourceType>();
+    List<String> disabledTypes=new ArrayList<String>();
+    for (    CmsResourceTypeConfig typeConfig : config.getResourceTypes()) {
+      if (typeConfig.isAddDisabled() || !elementView.equals(typeConfig.getElementView())) {
+        continue;
+      }
+      if (typeConfig.checkViewable(cms,uri)) {
+        String typeName=typeConfig.getTypeName();
+        I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(typeName);
+        resourceTypes.add(resType);
+        if (!config.hasFormatters(cms,resType,containers)) {
+          disabledTypes.add(typeName);
+        }
+      }
+    }
+    List<String> creatableTypes=new ArrayList<String>();
+    for (    CmsResourceTypeConfig typeConfig : config.getCreatableTypes(getCmsObject())) {
+      if (typeConfig.isAddDisabled() || !elementView.equals(typeConfig.getElementView()) || disabledTypes.contains(typeConfig.getTypeName())) {
+        continue;
+      }
+      String typeName=typeConfig.getTypeName();
+      creatableTypes.add(typeName);
+    }
+    CmsGalleryService srv=new CmsGalleryService();
+    srv.setCms(cms);
+    srv.setRequest(getRequest());
+    data=srv.getInitialSettingsForContainerPage(resourceTypes,creatableTypes,disabledTypes,uri,locale);
+  }
+ catch (  Exception e) {
+    error(e);
+  }
+  return data;
+}
