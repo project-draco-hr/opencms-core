@@ -1,7 +1,7 @@
 {
   boolean changedContainerpage=false;
-  boolean isFromClipboard=draggable instanceof CmsMenuListItem;
-  CmsContainerPageElementPanel clipboardContainerElement=null;
+  boolean isListItem=draggable instanceof CmsListItem;
+  CmsContainerPageElementPanel listContainerElement=null;
   final boolean[] triggerReload={false};
   if (target != m_initialDropTarget) {
     if (target instanceof I_CmsDropContainer) {
@@ -15,8 +15,8 @@
  else {
           CmsContainerElementData elementData=m_controller.getCachedElement(m_draggableId);
           containerElement=m_controller.getContainerpageUtil().createElement(elementData,container);
-          if (isFromClipboard) {
-            clipboardContainerElement=containerElement;
+          if (isListItem) {
+            listContainerElement=containerElement;
           }
           m_controller.addToRecentList(m_draggableId,null);
         }
@@ -74,18 +74,18 @@
     }
   }
 ;
-  if (clipboardContainerElement != null) {
-    final CmsContainerPageElementPanel finalClipboardContainerElement=clipboardContainerElement;
+  if (listContainerElement != null) {
+    final CmsContainerPageElementPanel finalListContainerElement=listContainerElement;
     final String serverIdStr=CmsContainerpageController.getServerId(m_draggableId);
     CmsUUID structureId=new CmsUUID(serverIdStr);
     AsyncCallback<String> modeCallback=new AsyncCallback<String>(){
       public void onFailure(      Throwable caught){
-        finalClipboardContainerElement.removeFromParent();
+        finalListContainerElement.removeFromParent();
       }
       public void onSuccess(      String result){
         if (Objects.equal(result,CmsEditorConstants.MODE_COPY)) {
           final CmsContainerpageController controller=CmsContainerpageController.get();
-          CmsContainerElementData data=controller.getCachedElement(finalClipboardContainerElement.getId());
+          CmsContainerElementData data=controller.getCachedElement(finalListContainerElement.getId());
           final Map<String,String> settings=data.getSettings();
           controller.copyElement(serverIdStr,new AsyncCallback<CmsUUID>(){
             public void onFailure(            Throwable caught){
@@ -94,7 +94,7 @@
               controller.getElementWithSettings("" + resultId,settings,new I_CmsSimpleCallback<CmsContainerElementData>(){
                 public void execute(                CmsContainerElementData newData){
                   try {
-                    controller.replaceContainerElement(finalClipboardContainerElement,newData);
+                    controller.replaceContainerElement(finalListContainerElement,newData);
                     controller.setPageChanged(checkReload);
                   }
  catch (                  Exception e) {
@@ -113,12 +113,24 @@
       }
     }
 ;
-    CmsClipboardDropModeSelectionDialog.showDialog(structureId,modeCallback);
-  }
+    ElementReuseMode reuseMode=CmsContainerpageController.get().getData().getElementReuseMode();
+switch (reuseMode) {
+case ask:
+      CmsDroppedElementModeSelectionDialog.showDialog(structureId,modeCallback);
+    break;
+case copy:
+  modeCallback.onSuccess(CmsEditorConstants.MODE_COPY);
+break;
+case reuse:
+default :
+modeCallback.onSuccess(CmsEditorConstants.MODE_REUSE);
+break;
+}
+}
  else {
-    if (changedContainerpage) {
-      m_controller.setPageChanged(checkReload);
-    }
-  }
-  stopDrag(handler);
+if (changedContainerpage) {
+m_controller.setPageChanged(checkReload);
+}
+}
+stopDrag(handler);
 }
