@@ -1,0 +1,49 @@
+{
+  m_categoryTree.clear();
+  Multimap<Boolean,CmsCategoryTreeEntry> entries=categoryData.getEntriesIndexedByLocality();
+  String localLabel=Messages.get().key(Messages.GUI_CATEGORIES_LOCAL_0);
+  String nonlocalLabel=Messages.get().key(Messages.GUI_CATEGORIES_NONLOCAL_0);
+  CmsListInfoBean localRootInfo=new CmsListInfoBean(localLabel,"",null);
+  localRootInfo.setResourceType("folder");
+  final CmsTreeItem localRoot=new CmsTreeItem(true,new CmsListItemWidget(localRootInfo));
+  CmsListInfoBean nonlocalRootInfo=new CmsListInfoBean(nonlocalLabel,"",null);
+  nonlocalRootInfo.setResourceType("folder");
+  CmsTreeItem nonlocalRoot=new CmsTreeItem(true,new CmsListItemWidget(nonlocalRootInfo));
+  m_categoryTree.add(localRoot);
+  m_categoryTree.add(nonlocalRoot);
+  for (  Boolean isLocal : Arrays.asList(Boolean.FALSE,Boolean.TRUE)) {
+    for (    CmsCategoryTreeEntry entry : entries.get(isLocal)) {
+      CmsTreeItem treeItem=createCategoryTreeItem(entry);
+      (isLocal.booleanValue() ? localRoot : nonlocalRoot).addChild(treeItem);
+    }
+  }
+  for (  CmsTreeItem root : Arrays.asList(localRoot,nonlocalRoot)) {
+    final CmsTreeItem finalRoot=root;
+    root.visit(new Function<CmsTreeItem,Boolean>(){
+      @SuppressWarnings("synthetic-access") public Boolean apply(      CmsTreeItem input){
+        CmsUUID id=null;
+        if (input == localRoot) {
+          id=CmsUUID.getNullUUID();
+        }
+ else         if ((input instanceof CmsCategoryTreeItem) && (localRoot == finalRoot)) {
+          id=((CmsCategoryTreeItem)input).getStructureId();
+        }
+        if (id != null) {
+          CmsSitemapHoverbar.installOn(m_controller,input,id,false,true,new I_CmsContextMenuItemProvider(){
+            public List<A_CmsSitemapMenuEntry> createContextMenu(            CmsSitemapHoverbar hoverbar){
+              List<A_CmsSitemapMenuEntry> result=Lists.newArrayList();
+              result.add(new CmsCreateCategoryMenuEntry(hoverbar));
+              result.add(new CmsChangeCategoryMenuEntry(hoverbar));
+              result.add(new CmsDeleteCategoryMenuEntry(hoverbar));
+              return result;
+            }
+          }
+);
+        }
+        input.setOpen(true);
+        return null;
+      }
+    }
+);
+  }
+}
