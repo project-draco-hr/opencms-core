@@ -1,27 +1,26 @@
 {
   String rootAdminRole=CmsRole.ROOT_ADMIN.getGroupName();
+  boolean isRootOu=CmsOrganizationalUnit.getParentFqn(ouFqn) == null;
   try {
-    if ((CmsOrganizationalUnit.getParentFqn(ouFqn) != null) || ((CmsOrganizationalUnit.getParentFqn(ouFqn) == null) && !existsGroup(dbc,rootAdminRole))) {
-      Iterator<CmsRole> itRoles=CmsRole.getSystemRoles().iterator();
-      while (itRoles.hasNext()) {
-        CmsRole role=itRoles.next();
-        if (webuser && (role != CmsRole.ACCOUNT_MANAGER)) {
-          continue;
-        }
-        if (role.isOrganizationalUnitIndependent() && (CmsOrganizationalUnit.getParentFqn(ouFqn) != null)) {
-          continue;
-        }
-        String groupName=ouFqn + role.getGroupName();
-        int flags=I_CmsPrincipal.FLAG_ENABLED | I_CmsPrincipal.FLAG_GROUP_ROLE;
+    for (    CmsRole role : CmsRole.getSystemRoles()) {
+      if (webuser && (role != CmsRole.ACCOUNT_MANAGER)) {
+        continue;
+      }
+      if (role.isOrganizationalUnitIndependent() && !isRootOu) {
+        continue;
+      }
+      String groupName=ouFqn + role.getGroupName();
+      int flags=I_CmsPrincipal.FLAG_ENABLED | I_CmsPrincipal.FLAG_GROUP_ROLE;
+      if (!existsGroup(dbc,groupName)) {
         createGroup(dbc,CmsUUID.getConstantUUID(groupName),groupName,"A system role group",flags,null);
       }
-      if ((CmsOrganizationalUnit.getParentFqn(ouFqn) == null) && CmsLog.INIT.isInfoEnabled()) {
-        CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_SYSTEM_ROLES_CREATED_0));
-      }
+    }
+    if (isRootOu && CmsLog.INIT.isInfoEnabled()) {
+      CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_SYSTEM_ROLES_CREATED_0));
     }
   }
  catch (  CmsException e) {
-    if ((CmsOrganizationalUnit.getParentFqn(ouFqn) == null) && CmsLog.INIT.isErrorEnabled()) {
+    if (isRootOu && CmsLog.INIT.isErrorEnabled()) {
       CmsLog.INIT.error(Messages.get().getBundle().key(Messages.INIT_SYSTEM_ROLES_CREATION_FAILED_0),e);
     }
     throw new CmsInitException(Messages.get().container(Messages.ERR_INITIALIZING_USER_DRIVER_0),e);
@@ -37,7 +36,7 @@
   String exportUser=ouFqn + OpenCms.getDefaultUsers().getUserExport();
   String deleteUser=ouFqn + OpenCms.getDefaultUsers().getUserDeletedResource();
   if (existsGroup(dbc,administratorsGroup)) {
-    if (CmsOrganizationalUnit.getParentFqn(ouFqn) == null) {
+    if (isRootOu) {
       internalUpdateRoleGroup(dbc,administratorsGroup,CmsRole.ROOT_ADMIN);
       internalUpdateRoleGroup(dbc,usersGroup,CmsRole.ELEMENT_AUTHOR.forOrgUnit(ouFqn));
     }
