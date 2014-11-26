@@ -1,0 +1,46 @@
+{
+  if (CmsStringUtil.isEmpty(tokenString)) {
+    return null;
+  }
+  Token token=new Token(tokenString);
+  if (!token.isValid()) {
+    LOG.warn("Invalid token: " + tokenString);
+    return null;
+  }
+  String name=token.getName();
+  String key=token.getKey();
+  String logContext="[user=" + name + ",key="+ key+ "] ";
+  try {
+    CmsUser user=m_adminCms.readUser(name);
+    String infoKey=token.getAdditionalInfoKey();
+    String addInfoValue=(String)user.getAdditionalInfo().get(infoKey);
+    logContext=logContext + "[value=" + addInfoValue+ "]";
+    if (addInfoValue == null) {
+      LOG.warn(logContext + " no matching additional info value found");
+      return null;
+    }
+    try {
+      long expirationDate=Long.parseLong(addInfoValue);
+      if (System.currentTimeMillis() > expirationDate) {
+        LOG.warn(logContext + "Login token expired");
+        user.getAdditionalInfo().remove(infoKey);
+        try {
+          m_adminCms.writeUser(user);
+        }
+ catch (        Exception e) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+        return null;
+      }
+    }
+ catch (    NumberFormatException e) {
+      LOG.warn(logContext + "Invalid format for login token additional info");
+      return null;
+    }
+    return user;
+  }
+ catch (  Exception e) {
+    LOG.warn(logContext + "error validating token",e);
+    return null;
+  }
+}

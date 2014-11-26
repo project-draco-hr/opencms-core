@@ -1,0 +1,20 @@
+{
+  CmsObject cms=null;
+  CmsPersistentLoginTokenHandler tokenHandler=new CmsPersistentLoginTokenHandler();
+  try {
+    CmsUser user=tokenHandler.validateToken(CmsRequestUtil.getCookieValue(request.getCookies(),COOKIE_NAME));
+    if (user != null) {
+      OpenCms.getMemoryMonitor().uncacheUser(user);
+      OpenCms.getMemoryMonitor().flushCache(CacheType.HAS_ROLE,CacheType.USERGROUPS,CacheType.PERMISSION,CacheType.ROLE_LIST);
+      loginAction.getCmsObject().getRequestContext().setAttribute("__FORCE_UPDATE_MEMBERSHIP",Boolean.TRUE);
+      cms=loginAction.doLogin(request,user.getName());
+      OpenCms.getMemoryMonitor().flushCache(CacheType.HAS_ROLE,CacheType.USERGROUPS,CacheType.PERMISSION,CacheType.ROLE_LIST);
+      cms=registerSession(request,cms);
+      LOG.info("Successfully authenticated user '" + cms.getRequestContext().getCurrentUser().getName() + "' using a login token.");
+    }
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+  return cms;
+}
