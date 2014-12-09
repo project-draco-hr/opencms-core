@@ -1,0 +1,49 @@
+{
+  CmsModule module=getModuleForFileName(virtualModuleFileName);
+  if (module == null) {
+    LOG.warn("Invalid module export path requested: " + virtualModuleFileName);
+    return null;
+  }
+  try {
+    String moduleName=module.getName();
+    ensureFoldersExist();
+    String moduleFilePath=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf(CmsStringUtil.joinPaths(EXPORT_FOLDER_PATH,moduleName + ".zip"));
+    File moduleFile=new File(moduleFilePath);
+    boolean needToRunExport=false;
+    if (!moduleFile.exists()) {
+      needToRunExport=true;
+    }
+ else     if (moduleFile.lastModified() < module.getObjectCreateTime()) {
+      needToRunExport=true;
+      moduleFile.delete();
+    }
+    if (needToRunExport) {
+      CmsModuleImportExportHandler handler=new CmsModuleImportExportHandler();
+      handler.setAdditionalResources(module.getResources().toArray(new String[]{}));
+      String tempFileName=RandomStringUtils.randomAlphanumeric(8) + ".zip";
+      String tempFilePath=OpenCms.getSystemInfo().getAbsoluteRfsPathRelativeToWebInf(CmsStringUtil.joinPaths(EXPORT_FOLDER_PATH,tempFileName));
+      handler.setFileName(tempFilePath);
+      handler.setModuleName(moduleName);
+      CmsException exportException=null;
+      try {
+        CmsObject exportCms=OpenCms.initCmsObject(m_adminCms);
+        exportCms.getRequestContext().setCurrentProject(project);
+        handler.exportData(exportCms,createReport());
+      }
+ catch (      CmsException e) {
+        exportException=e;
+      }
+      if (exportException != null) {
+        new File(tempFilePath).delete();
+        throw exportException;
+      }
+      new File(tempFilePath).renameTo(new File(moduleFilePath));
+    }
+    byte[] result=CmsFileUtil.readFully(new FileInputStream(moduleFilePath));
+    return result;
+  }
+ catch (  IOException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    return null;
+  }
+}
