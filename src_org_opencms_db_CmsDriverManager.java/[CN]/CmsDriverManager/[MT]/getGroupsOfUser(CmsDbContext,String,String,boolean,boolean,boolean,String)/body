@@ -35,12 +35,22 @@
         if (directGroupsOnly || (!includeChildOus && !role.getOuFqn().equals(ouFqn))) {
           continue;
         }
-        Iterator<CmsRole> itChildRoles=role.getChildren(true).iterator();
-        while (itChildRoles.hasNext()) {
-          CmsRole childRole=itChildRoles.next();
-          if (childRole.isSystemRole()) {
-            allGroups.add(readGroup(dbc,childRole.getGroupName()));
+        CmsOrganizationalUnit currentOu=readOrganizationalUnit(dbc,group.getOuFqn());
+        boolean readChildRoleGroups=true;
+        if (currentOu.hasFlagWebuser() && role.forOrgUnit(null).equals(CmsRole.ACCOUNT_MANAGER)) {
+          readChildRoleGroups=false;
+        }
+        if (readChildRoleGroups) {
+          Iterator<CmsRole> itChildRoles=role.getChildren(true).iterator();
+          while (itChildRoles.hasNext()) {
+            CmsRole childRole=itChildRoles.next();
+            if (childRole.isSystemRole()) {
+              allGroups.add(readGroup(dbc,childRole.getGroupName()));
+            }
           }
+        }
+ else {
+          LOG.info("Skipping child role group check for web user OU " + currentOu.getName());
         }
         if (includeChildOus) {
           Iterator<CmsOrganizationalUnit> itSubOus=getOrganizationalUnits(dbc,readOrganizationalUnit(dbc,group.getOuFqn()),true).iterator();
@@ -54,7 +64,7 @@
                 LOG.debug(e.getLocalizedMessage(),e);
               }
             }
-            itChildRoles=role.getChildren(true).iterator();
+            Iterator<CmsRole> itChildRoles=role.getChildren(true).iterator();
             while (itChildRoles.hasNext()) {
               CmsRole childRole=itChildRoles.next();
               try {
