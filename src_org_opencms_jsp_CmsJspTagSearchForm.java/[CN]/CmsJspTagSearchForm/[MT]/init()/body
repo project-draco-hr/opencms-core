@@ -1,0 +1,32 @@
+{
+  m_controller=CmsFlexController.getController(pageContext.getRequest());
+  m_cms=m_controller.getCmsObject();
+  try {
+    I_CmsSearchConfiguration config;
+    if (m_fileFormat == FileFormat.JSON) {
+      CmsFile configFile=m_cms.readFile(m_configFile);
+      OpenCms.getLocaleManager();
+      String configString=new String(configFile.getContents(),CmsLocaleManager.getResourceEncoding(m_cms,configFile));
+      config=new CmsSearchConfiguration(new CmsJSONSearchConfigurationParser(configString));
+    }
+ else {
+      CmsFile file=m_cms.readFile(m_configFile);
+      CmsXmlContent xmlContent=CmsXmlContentFactory.unmarshal(m_cms,file);
+      config=new CmsSearchConfiguration(new CmsXMLSearchConfigurationParser(xmlContent,m_cms.getRequestContext().getLocale()));
+    }
+    m_searchController=new CmsSearchController(config);
+    String indexName=m_searchController.getCommon().getConfig().getSolrIndex();
+    if ((indexName != null) && !indexName.trim().isEmpty()) {
+      m_index=OpenCms.getSearchManager().getIndexSolr(indexName);
+    }
+    if (m_index == null) {
+      m_index=OpenCms.getSearchManager().getIndexSolr(m_cms.getRequestContext().getCurrentProject().isOnlineProject() ? "Solr Online" : "Solr Offline");
+    }
+    storeAttribute(getVar(),getSearchResults());
+  }
+ catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    m_controller.setThrowable(e,m_cms.getRequestContext().getUri());
+    throw new JspException(e);
+  }
+}
