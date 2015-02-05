@@ -1,0 +1,21 @@
+{
+  LOG.info("Getting module hash for " + module.getName());
+  String cachedValue=m_newModuleHashCache.get(module);
+  if (cachedValue != null) {
+    LOG.info("Using cached value for module hash of " + module.getName());
+    return cachedValue;
+  }
+  CmsObject cms=OpenCms.initCmsObject(m_adminCms);
+  cms.getRequestContext().setCurrentProject(project);
+  List<String> entries=Lists.newArrayList();
+  for (  String path : module.getResources()) {
+    List<CmsResource> resources=cms.readResources(path,CmsResourceFilter.IGNORE_EXPIRATION,true);
+    for (    CmsResource res : resources) {
+      entries.add(res.getRootPath() + ":" + res.getDateLastModified());
+    }
+  }
+  Collections.sort(entries);
+  String inputString=CmsStringUtil.listAsString(entries,"\n") + "\nMETA:" + module.getObjectCreateTime();
+  LOG.debug("Computing module hash from base string:\n" + inputString);
+  return "" + inputString.hashCode();
+}
