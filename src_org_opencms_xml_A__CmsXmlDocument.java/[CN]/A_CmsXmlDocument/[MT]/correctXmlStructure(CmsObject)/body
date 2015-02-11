@@ -56,32 +56,18 @@
           Element root=roots.get(le);
           CmsXmlContentDefinition cd=rootCds.get(le);
           List<List<Element>> nodeLists=new ArrayList<List<Element>>();
-          for (          I_CmsXmlSchemaType type : cd.getTypeSequence()) {
-            List<Element> elements=CmsXmlGenericWrapper.elements(root,type.getName());
-            int maxOccures=cd.getChoiceMaxOccurs() > 0 ? cd.getChoiceMaxOccurs() : type.getMaxOccurs();
-            if (elements.size() > maxOccures) {
-              if (type.getTypeName().equals(CmsXmlCategoryValue.TYPE_NAME)) {
-                if (type.getMaxOccurs() == 1) {
-                  Element category=elements.get(0);
-                  List<Element> categories=new ArrayList<Element>();
-                  for (                  Element value : elements) {
-                    @SuppressWarnings("unchecked") Iterator<Element> itLink=value.elementIterator();
-                    while (itLink.hasNext()) {
-                      Element link=itLink.next();
-                      categories.add((Element)link.clone());
-                    }
-                  }
-                  category.clearContent();
-                  for (                  Element value : categories) {
-                    category.add(value);
-                  }
-                }
-              }
-              for (int lo=(elements.size() - 1); lo >= type.getMaxOccurs(); lo--) {
-                elements.remove(lo);
-              }
-            }
+          boolean isMultipleChoice=cd.getSequenceType() == CmsXmlContentDefinition.SequenceType.MULTIPLE_CHOICE;
+          if (isMultipleChoice) {
+            List<Element> elements=CmsXmlGenericWrapper.elements(root);
+            checkMaxOccurs(elements,cd.getChoiceMaxOccurs(),cd.getTypeName());
             nodeLists.add(elements);
+          }
+ else {
+            for (            I_CmsXmlSchemaType type : cd.getTypeSequence()) {
+              List<Element> elements=CmsXmlGenericWrapper.elements(root,type.getName());
+              checkMaxOccurs(elements,type.getMaxOccurs(),type.getTypeName());
+              nodeLists.add(elements);
+            }
           }
           List<Element> nodeList=CmsXmlGenericWrapper.elements(root);
           nodeList.clear();
