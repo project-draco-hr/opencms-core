@@ -3,7 +3,7 @@
     throw new CmsConfigurationException(Messages.get().container(Messages.ERR_SOLR_NOT_ENABLED_0));
   }
   if (m_solrConfig.getServerUrl() != null) {
-    index.setSolrServer(new HttpSolrServer(m_solrConfig.getServerUrl()));
+    index.setSolrServer(new HttpSolrClient(m_solrConfig.getServerUrl()));
   }
   if (m_coreContainer == null) {
     m_coreContainer=createCoreContainer();
@@ -18,15 +18,17 @@
         }
       }
     }
-    CoreDescriptor descriptor=new CoreDescriptor(m_coreContainer,index.getName(),m_solrConfig.getHome());
-    descriptor.setDataDir(dataDir.getAbsolutePath());
+    CoreDescriptor descriptor=new CoreDescriptor(m_coreContainer,index.getName(),m_solrConfig.getHome(),CoreDescriptor.CORE_DATADIR,dataDir.getAbsolutePath());
+    SolrCore core=null;
     try {
-      SolrCore core=m_coreContainer.create(descriptor);
+      core=m_coreContainer.create(descriptor,false);
       core.setName(index.getName());
-      m_coreContainer.register(core,false);
       index.setSolrServer(new EmbeddedSolrServer(m_coreContainer,index.getName()));
     }
- catch (    Exception e) {
+ catch (    NullPointerException e) {
+      if (core != null) {
+        core.close();
+      }
       throw new CmsConfigurationException(Messages.get().container(Messages.ERR_SOLR_SERVER_NOT_CREATED_3,index.getName(),index.getPath(),m_solrConfig.getSolrConfigFile().getAbsolutePath()),e);
     }
   }

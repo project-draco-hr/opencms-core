@@ -1,9 +1,10 @@
 {
   IndexSearcher oldSearcher=null;
+  Directory indexDirectory=null;
   try {
-    Directory indexDirectory=FSDirectory.open(new File(path));
+    indexDirectory=FSDirectory.open(Paths.get(path));
     if (DirectoryReader.indexExists(indexDirectory)) {
-      IndexReader reader=DirectoryReader.open(indexDirectory);
+      IndexReader reader=UninvertingReader.wrap(DirectoryReader.open(indexDirectory),createUninvertingMap());
       if (m_indexSearcher != null) {
         oldSearcher=m_indexSearcher;
       }
@@ -14,6 +15,13 @@
   }
  catch (  IOException e) {
     LOG.error(Messages.get().getBundle().key(Messages.ERR_INDEX_SEARCHER_1,getName()),e);
+    if (indexDirectory != null) {
+      try {
+        indexDirectory.close();
+      }
+ catch (      IOException closeException) {
+      }
+    }
   }
   if (oldSearcher != null) {
     indexSearcherClose(oldSearcher);
