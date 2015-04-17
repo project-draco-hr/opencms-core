@@ -4,10 +4,15 @@
     CmsObject cms=getCmsObject();
     CmsADEConfigData config=OpenCms.getADEManager().lookupConfiguration(cms,cms.getRequestContext().addSiteRoot(uri));
     List<I_CmsResourceType> resourceTypes=new ArrayList<I_CmsResourceType>();
-    List<String> disabledTypes=new ArrayList<String>();
+    Set<String> disabledTypes=new HashSet<String>();
+    final Set<String> typesAtTheEndOfTheList=Sets.newHashSet();
     for (    CmsResourceTypeConfig typeConfig : config.getResourceTypes()) {
-      if (typeConfig.isAddDisabled() || !elementView.equals(typeConfig.getElementView())) {
+      AddMenuVisibility visibility=typeConfig.getAddMenuVisibility(elementView);
+      if (visibility == AddMenuVisibility.disabled) {
         continue;
+      }
+      if (visibility == AddMenuVisibility.fromOtherView) {
+        typesAtTheEndOfTheList.add(typeConfig.getTypeName());
       }
       if (typeConfig.checkViewable(cms,uri)) {
         String typeName=typeConfig.getTypeName();
@@ -18,9 +23,9 @@
         }
       }
     }
-    List<String> creatableTypes=new ArrayList<String>();
+    Set<String> creatableTypes=new HashSet<String>();
     for (    CmsResourceTypeConfig typeConfig : config.getCreatableTypes(getCmsObject())) {
-      if (typeConfig.isAddDisabled() || !elementView.equals(typeConfig.getElementView()) || disabledTypes.contains(typeConfig.getTypeName())) {
+      if (typeConfig.isHiddenFromAddMenu(elementView) || disabledTypes.contains(typeConfig.getTypeName())) {
         continue;
       }
       String typeName=typeConfig.getTypeName();
@@ -29,6 +34,15 @@
     CmsGalleryService srv=new CmsGalleryService();
     srv.setCms(cms);
     srv.setRequest(getRequest());
+    Collections.sort(resourceTypes,new Comparator<I_CmsResourceType>(){
+      public int compare(      I_CmsResourceType first,      I_CmsResourceType second){
+        return ComparisonChain.start().compare(rank(first),rank(second)).result();
+      }
+      int rank(      I_CmsResourceType type){
+        return typesAtTheEndOfTheList.contains(type.getTypeName()) ? 1 : 0;
+      }
+    }
+);
     data=srv.getInitialSettingsForContainerPage(resourceTypes,creatableTypes,disabledTypes,uri,locale);
   }
  catch (  Exception e) {
