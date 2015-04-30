@@ -1,8 +1,7 @@
 {
   CmsObject cms=getCmsObject();
   CmsContainerPageBean pageBean=generateContainerPageForContainers(containers,cms.getRequestContext().addSiteRoot(uriParam));
-  Map<String,String> idMapping=new HashMap<String,String>();
-  List<CmsContainerElementBean> requestedElements=new ArrayList<CmsContainerElementBean>();
+  Map<String,CmsContainerElementBean> idMapping=new HashMap<String,CmsContainerElementBean>();
   for (  String elemId : clientIds) {
     if ((elemId == null)) {
       continue;
@@ -13,20 +12,16 @@
       getSessionCache().setCacheContainerElement(element.editorHash(),element);
     }
     element.initResource(cms);
-    idMapping.put(element.editorHash(),elemId);
-    requestedElements.add(element);
+    idMapping.put(elemId,element);
   }
   if (CmsContainerElement.MENU_CONTAINER_ID.equals(dndOriginContainer)) {
-    for (    CmsContainerElementBean element : requestedElements) {
-      if (isContainerModelResource(cms,element.getResource())) {
-        pageBean=prepareforContainerModelContent(cms,element,pageBean,uriParam,locale);
-      }
-    }
+    pageBean=prepareforContainerModelContent(cms,idMapping,pageBean,uriParam,locale);
   }
   CmsElementUtil elemUtil=new CmsElementUtil(cms,uriParam,pageBean,detailContentId,getRequest(),getResponse(),locale);
   Map<String,CmsContainerElementData> result=new HashMap<String,CmsContainerElementData>();
   Set<String> ids=new HashSet<String>();
-  for (  CmsContainerElementBean element : requestedElements) {
+  for (  Entry<String,CmsContainerElementBean> entry : idMapping.entrySet()) {
+    CmsContainerElementBean element=entry.getValue();
     String dndId=null;
     if (ids.contains(element.editorHash())) {
       continue;
@@ -47,7 +42,7 @@
       continue;
     }
     elementData.setDndId(dndId);
-    result.put(idMapping.get(element.editorHash()),elementData);
+    result.put(entry.getKey(),elementData);
     if (elementData.isGroupContainer() || elementData.isInheritContainer()) {
       CmsResource elementRes=cms.readResource(element.getId());
       List<CmsContainerElementBean> subElements=elementData.isGroupContainer() ? getGroupContainerElements(elementRes) : getInheritedElements(elementRes,locale,uriParam);
