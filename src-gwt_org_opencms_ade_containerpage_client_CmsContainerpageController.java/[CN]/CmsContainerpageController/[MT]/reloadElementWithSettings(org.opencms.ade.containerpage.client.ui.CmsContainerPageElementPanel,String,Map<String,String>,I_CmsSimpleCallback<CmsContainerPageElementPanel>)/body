@@ -1,0 +1,41 @@
+{
+  final I_CmsSimpleCallback<CmsContainerElementData> callback=new I_CmsSimpleCallback<CmsContainerElementData>(){
+    public void execute(    CmsContainerElementData newElement){
+      try {
+        final CmsContainerPageElementPanel replacement=replaceContainerElement(elementWidget,newElement);
+        resetEditButtons();
+        addToRecentList(newElement.getClientId(),null);
+        afterReloadAction.execute(replacement);
+      }
+ catch (      Exception e) {
+        CmsDebugLog.getInstance().printLine(e.getLocalizedMessage());
+      }
+    }
+  }
+;
+  if (!isGroupcontainerEditing()) {
+    CmsRpcAction<CmsContainerElementData> action=new CmsRpcAction<CmsContainerElementData>(){
+      @Override public void execute(){
+        if (lockContainerpage()) {
+          setLoadingMessage(org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_SAVING_0));
+          start(500,true);
+          getContainerpageService().saveElementSettings(getData().getRpcContext(),getData().getDetailId(),getRequestParams(),clientId,settings,getPageState(),!isGroupcontainerEditing(),getLocale(),this);
+        }
+      }
+      @Override protected void onResponse(      CmsContainerElementData result){
+        stop(false);
+        CmsContainerpageController.get().fireEvent(new CmsContainerpageEvent(EventType.pageSaved));
+        setPageChanged(false,false);
+        if (result != null) {
+          m_elements.put(result.getClientId(),result);
+        }
+        callback.execute(result);
+      }
+    }
+;
+    action.execute();
+  }
+ else {
+    getElementWithSettings(clientId,settings,callback);
+  }
+}
