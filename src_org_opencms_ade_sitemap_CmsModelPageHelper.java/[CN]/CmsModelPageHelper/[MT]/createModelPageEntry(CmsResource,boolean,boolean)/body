@@ -1,0 +1,33 @@
+{
+  try {
+    CmsModelPageEntry result=new CmsModelPageEntry();
+    result.setDefault(isDefault);
+    result.setDisabled(disabled);
+    List<CmsProperty> properties=m_cms.readPropertyObjects(resource,false);
+    Map<String,CmsClientProperty> clientProperties=Maps.newHashMap();
+    for (    CmsProperty prop : properties) {
+      CmsClientProperty clientProp=CmsVfsSitemapService.createClientProperty(prop,false);
+      clientProperties.put(prop.getName(),clientProp);
+    }
+    result.setOwnProperties(clientProperties);
+    result.setRootPath(resource.getRootPath());
+    if (resource.getRootPath().startsWith(m_siteRoot)) {
+      CmsObject siteCms=OpenCms.initCmsObject(m_cms);
+      siteCms.getRequestContext().setSiteRoot(m_siteRoot);
+      result.setSitePath(siteCms.getSitePath(resource));
+    }
+    result.setResourceType(OpenCms.getResourceManager().getResourceType(resource).getTypeName());
+    result.setStructureId(resource.getStructureId());
+    CmsListInfoBean infoBean=CmsVfsService.getPageInfo(m_cms,resource);
+    CmsProperty descProperty=m_cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_DESCRIPTION,false);
+    if (!CmsStringUtil.isEmptyOrWhitespaceOnly(descProperty.getValue())) {
+      infoBean.setSubTitle(descProperty.getValue());
+    }
+    result.setListInfoBean(infoBean);
+    return result;
+  }
+ catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    return null;
+  }
+}
