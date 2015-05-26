@@ -1,0 +1,27 @@
+{
+  InputStream designStream=CmsVaadinUtils.class.getClassLoader().getResourceAsStream(designPath);
+  if (designStream == null) {
+    throw new IllegalArgumentException("Design not found: " + designPath);
+  }
+  try {
+    byte[] designBytes=CmsFileUtil.readFully(designStream);
+    final String encoding="UTF-8";
+    String design=new String(designBytes,encoding);
+    CmsMacroResolver resolver=new CmsMacroResolver(){
+      @Override public String getMacroValue(      String macro){
+        String result=super.getMacroValue(macro);
+        return CmsEncoder.escapeXml(result);
+      }
+    }
+;
+    for (    Map.Entry<String,String> entry : macros.entrySet()) {
+      resolver.addMacro(entry.getKey(),entry.getValue());
+    }
+    resolver.setMessages(messages);
+    String resolvedDesign=resolver.resolveMacros(design);
+    Design.read(new ByteArrayInputStream(resolvedDesign.getBytes(encoding)),component);
+  }
+ catch (  IOException e) {
+    throw new RuntimeException("Could not read design: " + designPath,e);
+  }
+}
