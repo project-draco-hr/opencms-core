@@ -1,0 +1,38 @@
+{
+  Map<CmsUUID,CmsResource> newResources=new HashMap<CmsUUID,CmsResource>();
+  CmsObject cloneCms=OpenCms.initCmsObject(cms);
+  cloneCms.getRequestContext().setLocale(locale);
+  for (  CmsContainerBean container : modelContainers) {
+    for (    CmsContainerElementBean element : container.getElements()) {
+      if (element.isCreateNew() && !newResources.containsKey(element.getId())) {
+        element.initResource(cms);
+        String typeName=OpenCms.getResourceManager().getResourceType(element.getResource()).getTypeName();
+        CmsResourceTypeConfig typeConfig=m_configData.getResourceType(typeName);
+        if (typeConfig == null) {
+          throw new IllegalArgumentException("Can not copy template model element '" + element.getResource().getRootPath() + "' because the resource type '"+ typeName+ "' is not available in this sitemap.");
+        }
+        CmsResource newResource=typeConfig.createNewElement(cloneCms,element.getResource(),m_configData.getBasePath());
+        newResources.put(element.getId(),newResource);
+      }
+    }
+  }
+  if (!newResources.isEmpty()) {
+    List<CmsContainerBean> updatedContainers=new ArrayList<CmsContainerBean>();
+    for (    CmsContainerBean container : modelContainers) {
+      List<CmsContainerElementBean> updatedElements=new ArrayList<CmsContainerElementBean>();
+      for (      CmsContainerElementBean element : container.getElements()) {
+        if (newResources.containsKey(element.getId())) {
+          CmsContainerElementBean newBean=new CmsContainerElementBean(newResources.get(element.getId()).getStructureId(),element.getFormatterId(),element.getIndividualSettings(),false);
+          updatedElements.add(newBean);
+        }
+ else {
+          updatedElements.add(element);
+        }
+      }
+      CmsContainerBean updatedContainer=new CmsContainerBean(container.getName(),container.getType(),container.getParentInstanceId(),container.getMaxElements(),updatedElements);
+      updatedContainers.add(updatedContainer);
+    }
+    modelContainers=updatedContainers;
+  }
+  return modelContainers;
+}

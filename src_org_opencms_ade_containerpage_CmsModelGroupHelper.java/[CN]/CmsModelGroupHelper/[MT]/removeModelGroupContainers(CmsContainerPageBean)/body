@@ -1,0 +1,31 @@
+{
+  Map<String,List<CmsContainerBean>> containersByParent=getContainerByParent(page);
+  Set<String> modelInstances=new HashSet<String>();
+  for (  CmsContainerElementBean element : page.getElements()) {
+    if (element.getIndividualSettings().containsKey(CmsContainerElement.MODEL_GROUP_ID)) {
+      modelInstances.add(element.getInstanceId());
+    }
+  }
+  Set<String> descendingInstances=new HashSet<String>();
+  for (  String modelInstance : modelInstances) {
+    descendingInstances.addAll(collectDescendingInstances(modelInstance,containersByParent));
+  }
+  List<CmsContainerBean> containers=new ArrayList<CmsContainerBean>();
+  for (  CmsContainerBean container : page.getContainers().values()) {
+    if ((container.getParentInstanceId() == null) || !descendingInstances.contains(container.getParentInstanceId())) {
+      List<CmsContainerElementBean> elements=new ArrayList<CmsContainerElementBean>();
+      for (      CmsContainerElementBean element : container.getElements()) {
+        if (modelInstances.contains(element.getInstanceId())) {
+          CmsUUID modelId=new CmsUUID(element.getIndividualSettings().get(CmsContainerElement.MODEL_GROUP_ID));
+          CmsContainerElementBean replacer=new CmsContainerElementBean(modelId,element.getFormatterId(),element.getIndividualSettings(),false);
+          elements.add(replacer);
+        }
+ else {
+          elements.add(element);
+        }
+      }
+      containers.add(new CmsContainerBean(container.getName(),container.getType(),container.getParentInstanceId(),container.getMaxElements(),elements));
+    }
+  }
+  return new CmsContainerPageBean(containers);
+}

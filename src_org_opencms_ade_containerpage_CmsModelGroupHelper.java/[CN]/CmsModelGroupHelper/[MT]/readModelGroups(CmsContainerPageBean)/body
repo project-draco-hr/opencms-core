@@ -1,0 +1,38 @@
+{
+  List<CmsContainerBean> resultContainers=new ArrayList<CmsContainerBean>();
+  for (  CmsContainerBean container : page.getContainers().values()) {
+    boolean hasModels=false;
+    List<CmsContainerElementBean> elements=new ArrayList<CmsContainerElementBean>();
+    for (    CmsContainerElementBean element : container.getElements()) {
+      try {
+        element.initResource(m_cms);
+        if (isModelGroupResource(element.getResource())) {
+          hasModels=true;
+          CmsContainerPageBean modelGroupPage=getContainerPageBean(element.getResource());
+          CmsContainerElementBean baseElement=getModelBaseElement(modelGroupPage);
+          if (baseElement == null) {
+            break;
+          }
+          String baseInstanceId=baseElement.getInstanceId();
+          CmsContainerElementBean replaceElement=getModelReplacementElement(element,baseElement,false);
+          m_sessionCache.setCacheContainerElement(replaceElement.editorHash(),replaceElement);
+          elements.add(replaceElement);
+          resultContainers.addAll(readModelContainers(baseInstanceId,element.getInstanceId(),modelGroupPage));
+        }
+ else {
+          elements.add(element);
+        }
+      }
+ catch (      CmsException e) {
+        LOG.info(e.getLocalizedMessage(),e);
+      }
+    }
+    if (hasModels) {
+      resultContainers.add(new CmsContainerBean(container.getName(),container.getType(),container.getParentInstanceId(),container.getMaxElements(),elements));
+    }
+ else {
+      resultContainers.add(container);
+    }
+  }
+  return new CmsContainerPageBean(resultContainers);
+}

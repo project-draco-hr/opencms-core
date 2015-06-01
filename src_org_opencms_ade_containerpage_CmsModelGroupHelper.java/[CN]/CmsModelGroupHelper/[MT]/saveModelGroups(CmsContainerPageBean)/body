@@ -1,0 +1,61 @@
+{
+  Map<String,List<CmsContainerBean>> containersByParent=getContainerByParent(page);
+  Map<String,String> modelInstances=new HashMap<String,String>();
+  Set<String> descendingInstances=new HashSet<String>();
+  for (  CmsContainerElementBean element : page.getElements()) {
+    String modelGroupId=null;
+    if (element.getIndividualSettings().containsKey(CmsContainerElement.MODEL_GROUP_ID) || Boolean.valueOf(element.getIndividualSettings().get(CmsContainerElement.IS_MODEL_GROUP)).booleanValue()) {
+      modelGroupId=element.getIndividualSettings().get(CmsContainerElement.MODEL_GROUP_ID);
+      modelInstances.put(element.getInstanceId(),modelGroupId);
+      Set<String> childInstances=collectDescendingInstances(element.getInstanceId(),containersByParent);
+      descendingInstances.addAll(childInstances);
+      CmsResource modelGroup=null;
+      try {
+        if (modelGroupId == null) {
+          CmsResourceTypeConfig typeConfig=m_configData.getResourceType(CmsResourceTypeXmlContainerPage.MODEL_GROUP_TYPE_NAME);
+          modelGroup=typeConfig.createNewElement(m_cms,m_configData.getBasePath());
+          modelGroupId=modelGroup.getStructureId().toString();
+          modelInstances.put(element.getInstanceId(),modelGroupId);
+        }
+ else {
+          modelGroup=m_cms.readResource(new CmsUUID(modelGroupId));
+        }
+        ensureLock(modelGroup);
+        List<CmsContainerBean> modelContainers=new ArrayList<CmsContainerBean>();
+        CmsContainerElementBean baseElement=element.clone();
+        CmsContainerBean baseContainer=new CmsContainerBean(MODEL_GROUP_BASE_CONTAINER,MODEL_GROUP_BASE_CONTAINER,null,Collections.singletonList(baseElement));
+        modelContainers.add(baseContainer);
+        for (        String childInstance : childInstances) {
+          if (containersByParent.containsKey(childInstance)) {
+            modelContainers.addAll(containersByParent.get(childInstance));
+          }
+        }
+        CmsContainerPageBean modelPage=new CmsContainerPageBean(modelContainers);
+        CmsXmlContainerPage xmlCnt=CmsXmlContainerPageFactory.unmarshal(m_cms,m_cms.readFile(modelGroup));
+        xmlCnt.save(m_cms,modelPage);
+        tryUnlock(modelGroup);
+      }
+ catch (      CmsException e) {
+        LOG.error("Error saving model group resource.",e);
+      }
+    }
+  }
+  List<CmsContainerBean> containers=new ArrayList<CmsContainerBean>();
+  for (  CmsContainerBean container : page.getContainers().values()) {
+    if ((container.getParentInstanceId() == null) || !descendingInstances.contains(container.getParentInstanceId())) {
+      List<CmsContainerElementBean> elements=new ArrayList<CmsContainerElementBean>();
+      for (      CmsContainerElementBean element : container.getElements()) {
+        if (modelInstances.containsKey(element.getInstanceId())) {
+          CmsUUID modelId=new CmsUUID(modelInstances.get(element.getInstanceId()));
+          CmsContainerElementBean replacer=new CmsContainerElementBean(modelId,element.getFormatterId(),element.getIndividualSettings(),false);
+          elements.add(replacer);
+        }
+ else {
+          elements.add(element);
+        }
+      }
+      containers.add(new CmsContainerBean(container.getName(),container.getType(),container.getParentInstanceId(),container.getMaxElements(),elements));
+    }
+  }
+  return new CmsContainerPageBean(containers);
+}
