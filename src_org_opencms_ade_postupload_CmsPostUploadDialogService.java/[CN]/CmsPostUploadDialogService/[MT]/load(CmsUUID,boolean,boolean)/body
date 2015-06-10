@@ -16,10 +16,10 @@
     String typeName=type.getTypeName();
     listInfo.setResourceType(typeName);
     CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(typeName);
-    List<String> defaultproperties=settings.getProperties();
+    List<String> defaultProperties=settings.getProperties();
     while (properties.isEmpty() && !CmsStringUtil.isEmptyOrWhitespaceOnly(settings.getReference())) {
       settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(settings.getReference());
-      defaultproperties=settings.getProperties();
+      defaultProperties=settings.getProperties();
     }
     Map<String,CmsXmlContentProperty> propertyDefinitions=new LinkedHashMap<String,CmsXmlContentProperty>();
     Map<String,CmsClientProperty> clientProperties=new LinkedHashMap<String,CmsClientProperty>();
@@ -28,7 +28,12 @@
     clientProperties.put(CmsPropertyModification.FILE_NAME_PROPERTY,new CmsClientProperty(CmsPropertyModification.FILE_NAME_PROPERTY,res.getName(),res.getName()));
     CmsADEConfigData configData=OpenCms.getADEManager().lookupConfiguration(getCmsObject(),res.getRootPath());
     Map<String,CmsXmlContentProperty> propertyConfiguration=configData.getPropertyConfigurationAsMap();
-    for (    String propertyName : defaultproperties) {
+    Set<String> propertiesToShow=new HashSet<String>();
+    propertiesToShow.addAll(defaultProperties);
+    if (addBasicProperties) {
+      propertiesToShow.addAll(propertyConfiguration.keySet());
+    }
+    for (    String propertyName : propertiesToShow) {
       CmsXmlContentProperty propDef=null;
       if (useConfiguration) {
         propDef=propertyConfiguration.get(propertyName);
@@ -43,6 +48,7 @@
         clientProperties.put(clientProperty.getName(),clientProperty);
       }
     }
+    propertyDefinitions=CmsXmlContentPropertyHelper.resolveMacrosInProperties(propertyDefinitions,CmsMacroResolver.newWorkplaceLocaleResolver(getCmsObject()));
     result.setPropertyDefinitions(propertyDefinitions);
     result.setProperties(clientProperties);
     return result;
