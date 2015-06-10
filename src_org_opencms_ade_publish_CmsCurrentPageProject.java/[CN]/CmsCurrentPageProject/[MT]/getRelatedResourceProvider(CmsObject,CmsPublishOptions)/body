@@ -23,11 +23,19 @@ catch (        CmsException e) {
           if (entry.getKey().startsWith(CmsPublishOptions.PARAM_COLLECTOR_INFO)) {
             try {
               AutoBean<I_CmsContentLoadCollectorInfo> autoBean=AutoBeanCodex.decode(collectorInfoFactory,I_CmsContentLoadCollectorInfo.class,entry.getValue());
-              I_CmsResourceCollector collector=OpenCms.getResourceManager().getContentCollector(autoBean.as().getCollectorName());
-              if (collector == null) {
+              String collectorName=autoBean.as().getCollectorName();
+              I_CmsCollectorPublishListProvider publishListProvider=null;
+              if (null != collectorName) {
+                publishListProvider=OpenCms.getResourceManager().getContentCollector(collectorName);
+              }
+              if (null == publishListProvider) {
+                String collectorClassName=autoBean.as().getCollectorClass();
+                Class<?> collectorClass=Class.forName(collectorClassName);
+                publishListProvider=(I_CmsCollectorPublishListProvider)collectorClass.newInstance();
+              }
+              if (publishListProvider == null) {
                 continue;
               }
-              I_CmsCollectorPublishListProvider publishListProvider=getCollectorPublishListProvider(collector);
               result.addAll(publishListProvider.getPublishResources(cmsObject,autoBean.as()));
             }
  catch (            Exception e) {
@@ -53,21 +61,6 @@ catch (        CmsException e) {
         }
       }
       return result;
-    }
-    /** 
- * Gets the  publish list provider for the given collector.<p>
- * @param collector the collector
- * @return the publish list provider
- */
-    public I_CmsCollectorPublishListProvider getCollectorPublishListProvider(    I_CmsResourceCollector collector){
-      I_CmsCollectorPublishListProvider provider=null;
-      if (collector instanceof I_CmsCollectorPublishListProvider) {
-        provider=(I_CmsCollectorPublishListProvider)collector;
-      }
- else {
-        provider=new CmsDefaultCollectorPublishListProvider();
-      }
-      return provider;
     }
   }
 ;

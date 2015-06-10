@@ -1,0 +1,36 @@
+{
+  CmsSolrIndex solrOnline=OpenCms.getSearchManager().getIndexSolr(SOLR_ONLINE);
+  CmsSolrIndex solrOffline=OpenCms.getSearchManager().getIndexSolr(SOLR_OFFLINE);
+  Set<CmsResource> result=new HashSet<CmsResource>();
+  try {
+    CmsSolrResultList offlineResults=solrOffline.search(CmsPublishListHelper.adjustCmsObject(cms,false),new CmsSolrQuery(null,CmsRequestUtil.createParameterMap(info.getCollectorParams())),true);
+    Set<String> offlineIds=new HashSet<String>(offlineResults.size());
+    for (    CmsSearchResource offlineResult : offlineResults) {
+      offlineIds.add(offlineResult.getField(CmsSearchField.FIELD_ID));
+    }
+    for (    String id : offlineIds) {
+      CmsResource resource=cms.readResource(new CmsUUID(id));
+      if (!(resource.getState().isUnchanged())) {
+        result.add(resource);
+      }
+    }
+    CmsSolrResultList onlineResults=solrOnline.search(CmsPublishListHelper.adjustCmsObject(cms,true),new CmsSolrQuery(null,CmsRequestUtil.createParameterMap(info.getCollectorParams())),true);
+    Set<String> deletedIds=new HashSet<String>(onlineResults.size());
+    for (    CmsSearchResource onlineResult : onlineResults) {
+      String uuid=onlineResult.getField(CmsSearchField.FIELD_ID);
+      if (!offlineIds.contains(uuid)) {
+        deletedIds.add(uuid);
+      }
+    }
+    for (    String uuid : deletedIds) {
+      CmsResource resource=cms.readResource(new CmsUUID(uuid));
+      if (!(resource.getState().isUnchanged())) {
+        result.add(resource);
+      }
+    }
+  }
+ catch (  CmsSearchException e) {
+    LOG.warn(Messages.get().getBundle().key(Messages.LOG_TAG_SEARCHFORM_SEARCH_FAILED_0),e);
+  }
+  return result;
+}
