@@ -1,0 +1,38 @@
+{
+  Collections.sort(m_appCategoryList,new Comparator<CmsAppCategory>(){
+    public int compare(    CmsAppCategory cat1,    CmsAppCategory cat2){
+      return ComparisonChain.start().compare(cat1.getPriority(),cat2.getPriority()).result();
+    }
+  }
+);
+  m_rootNode=new CmsAppCategoryNode();
+  m_nodes.clear();
+  m_nodes.put(null,m_rootNode);
+  for (  CmsAppCategory category : m_appCategoryList) {
+    m_nodes.put(category.getId(),new CmsAppCategoryNode(category));
+  }
+  for (  CmsAppCategoryNode node : m_nodes.values()) {
+    if (node != m_rootNode) {
+      addNodeToItsParent(node);
+    }
+  }
+  for (  I_CmsWorkplaceAppConfiguration appConfig : m_appConfigs) {
+    addAppConfigToCategory(appConfig);
+  }
+  Set<String> usedNodes=findReachableNodes(m_rootNode,new HashSet<String>());
+  if (usedNodes.size() < m_nodes.size()) {
+    LOG.warn("Unused app categories: " + Sets.difference(m_nodes.keySet(),usedNodes));
+  }
+  Set<String> unusedApps=Sets.newHashSet();
+  for (  I_CmsWorkplaceAppConfiguration appConfig : m_appConfigs) {
+    if (!usedNodes.contains(appConfig.getAppCategory())) {
+      unusedApps.add(appConfig.getId());
+    }
+  }
+  if (unusedApps.size() > 0) {
+    LOG.warn("Unused apps: " + unusedApps);
+  }
+  m_rootNode.removeApplessSubtrees();
+  m_rootNode.sortRecursively();
+  return m_rootNode;
+}
