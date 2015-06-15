@@ -2,9 +2,29 @@
   super.servletInitialized();
   getService().addSessionInitListener(new SessionInitListener(){
     private static final long serialVersionUID=-3191245142912338247L;
-    public void sessionInit(    SessionInitEvent event){
+    public void sessionInit(    final SessionInitEvent event){
       Locale wpLocale=OpenCms.getWorkplaceManager().getWorkplaceLocale(((CmsUIServlet)getCurrent()).getCmsObject());
       event.getSession().setLocale(wpLocale);
+      event.getSession().addUIProvider(loginUiProvider);
+      event.getSession().addBootstrapListener(new BootstrapListener(){
+        private static final long serialVersionUID=-6249561809984101044L;
+        public void modifyBootstrapFragment(        BootstrapFragmentResponse response){
+        }
+        public void modifyBootstrapPage(        BootstrapPageResponse response){
+          if (shouldShowLogin()) {
+            try {
+              CmsObject cms=((CmsUIServlet)getCurrent()).getCmsObject();
+              String html=CmsLoginUI.generateLoginHtmlFragment(cms,response.getRequest());
+              Element el=new Element(Tag.valueOf("div"),"").html(html);
+              response.getDocument().body().appendChild(el);
+            }
+ catch (            IOException e) {
+              LOG.error(e.getLocalizedMessage(),e);
+            }
+          }
+        }
+      }
+);
     }
   }
 );
