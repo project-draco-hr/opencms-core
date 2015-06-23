@@ -18,14 +18,21 @@
       }
     }
     CmsFlexController controller=getController(cms,file,req,res,streaming,true);
-    if (bypass || controller.isForwardMode()) {
-      CmsJspStandardContextBean.getInstance(controller.getCurrentRequest());
-      controller.setForwardMode(true);
-      String target=updateJsp(file,controller,new HashSet<String>());
-      req.getRequestDispatcher(target).forward(controller.getCurrentRequest(),res);
-    }
+    Lock lock=m_purgeLock.readLock();
+    try {
+      lock.lock();
+      if (bypass || controller.isForwardMode()) {
+        CmsJspStandardContextBean.getInstance(controller.getCurrentRequest());
+        controller.setForwardMode(true);
+        String target=updateJsp(file,controller,new HashSet<String>());
+        req.getRequestDispatcher(target).forward(controller.getCurrentRequest(),res);
+      }
  else {
-      dispatchJsp(controller);
+        dispatchJsp(controller);
+      }
+    }
+  finally {
+      lock.unlock();
     }
     if (!controller.isForwardMode()) {
       CmsFlexController.removeController(req);
