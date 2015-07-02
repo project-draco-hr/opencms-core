@@ -1,0 +1,32 @@
+{
+  try {
+    CmsObject cms=OpenCms.initCmsObject(getCmsObject());
+    cms.getRequestContext().setSiteRoot(siteRoot);
+    CmsModuleManager moduleManager=OpenCms.getModuleManager();
+    String excludedResource="/moduleresource/exclude/";
+    String includedResource="/moduleresource/subresource/";
+    echo("Test module with exclude resources for site \"" + siteRoot + "\"");
+    String mainModule="org.opencms.test.modules.excluderesource.main";
+    importModule(cms,mainModule);
+    String subModule="org.opencms.test.modules.excluderesource.sub";
+    importModule(cms,subModule);
+    assertTrue("After sub-module import, the expected resource " + excludedResource + "does not exist.",cms.existsResource(excludedResource));
+    CmsModule module=OpenCms.getModuleManager().getModule(mainModule);
+    CmsModuleImportExportHandler exportHandler=CmsModuleImportExportHandler.getExportHandler(cms,module,"Exporting " + mainModule);
+    CmsExportThread exportThread=new CmsExportThread(cms,exportHandler,false);
+    exportThread.start();
+    exportThread.join();
+    moduleManager.deleteModule(cms,mainModule,false,new CmsShellReport(cms.getRequestContext().getLocale()));
+    assertTrue("After main-module deletion, the resource " + includedResource + "is still present.",!cms.existsResource(includedResource));
+    assertTrue("After main-module deletion, the expected resource " + excludedResource + "does not exist anymore.",cms.existsResource(excludedResource));
+    OpenCms.getModuleManager().deleteModule(cms,subModule,false,new CmsShellReport(cms.getRequestContext().getLocale()));
+    assertTrue("After sub-module deletion, the resource " + excludedResource + "is still present.",!cms.existsResource(excludedResource));
+    importModule(cms,mainModule,"_0.1","modules");
+    assertTrue("After main-module re-import, the resource " + excludedResource + "is present again.",!cms.existsResource(excludedResource));
+    OpenCms.getModuleManager().deleteModule(cms,mainModule,false,new CmsShellReport(cms.getRequestContext().getLocale()));
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+    fail("Exception: " + e.getStackTrace());
+  }
+}

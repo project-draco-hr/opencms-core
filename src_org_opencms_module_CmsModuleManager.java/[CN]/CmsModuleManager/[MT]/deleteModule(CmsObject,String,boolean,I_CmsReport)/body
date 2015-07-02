@@ -84,56 +84,44 @@
   module=m_modules.remove(moduleName);
   try {
     cms.getRequestContext().setCurrentProject(deleteProject);
-    List<String> projectFiles=module.getResources();
-    for (int i=0; i < projectFiles.size(); i++) {
-      String resourceName=projectFiles.get(i);
-      if (cms.existsResource(resourceName,CmsResourceFilter.ALL)) {
-        try {
-          cms.copyResourceToProject(resourceName);
+    List<CmsResource> moduleResources=CmsModule.calculateModuleResources(cms,module);
+    for (    CmsResource resource : moduleResources) {
+      try {
+        cms.copyResourceToProject(resource);
+      }
+ catch (      CmsException e) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_MOVE_RESOURCE_FAILED_1,cms.getSitePath(resource)));
         }
- catch (        CmsException e) {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug(Messages.get().getBundle().key(Messages.LOG_MOVE_RESOURCE_FAILED_1,resourceName));
-          }
-          report.println(e.getMessageContainer(),I_CmsReport.FORMAT_WARNING);
-        }
+        report.println(e.getMessageContainer(),I_CmsReport.FORMAT_WARNING);
       }
     }
     report.print(Messages.get().container(Messages.RPT_DELETE_MODULE_BEGIN_0),I_CmsReport.FORMAT_HEADLINE);
     report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_HTML_ITAG_1,moduleName),I_CmsReport.FORMAT_HEADLINE);
-    for (int i=0; i < module.getResources().size(); i++) {
-      String currentResource=null;
+    for (    CmsResource resource : moduleResources) {
+      String sitePath=cms.getSitePath(resource);
       try {
-        currentResource=module.getResources().get(i);
         if (LOG.isDebugEnabled()) {
-          LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_RESOURCE_1,currentResource));
+          LOG.debug(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_RESOURCE_1,sitePath));
         }
-        CmsResource resource=null;
-        try {
-          resource=cms.readResource(currentResource,CmsResourceFilter.ALL);
+        CmsLock lock=cms.getLock(resource);
+        if (lock.isUnlocked()) {
+          cms.lockResource(resource);
         }
- catch (        CmsVfsResourceNotFoundException e) {
+ else         if (lock.isLockableBy(cms.getRequestContext().getCurrentUser())) {
+          cms.changeLock(resource);
         }
-        if (resource != null) {
-          CmsLock lock=cms.getLock(currentResource);
-          if (lock.isUnlocked()) {
-            cms.lockResource(currentResource);
-          }
- else           if (lock.isLockableBy(cms.getRequestContext().getCurrentUser())) {
-            cms.changeLock(currentResource);
-          }
-          if (!resource.getState().isDeleted()) {
-            cms.deleteResource(currentResource,CmsResource.DELETE_PRESERVE_SIBLINGS);
-          }
-          report.print(Messages.get().container(Messages.RPT_DELETE_0),I_CmsReport.FORMAT_NOTE);
-          report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,currentResource));
-          if (!resource.getState().isNew()) {
-            cms.unlockResource(currentResource);
-          }
+        if (!resource.getState().isDeleted()) {
+          cms.deleteResource(sitePath,CmsResource.DELETE_PRESERVE_SIBLINGS);
+        }
+        report.print(Messages.get().container(Messages.RPT_DELETE_0),I_CmsReport.FORMAT_NOTE);
+        report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,sitePath));
+        if (!resource.getState().isNew()) {
+          cms.unlockResource(resource);
         }
       }
  catch (      CmsException e) {
-        LOG.error(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_EXC_1,currentResource),e);
+        LOG.error(Messages.get().getBundle().key(Messages.LOG_DEL_MOD_EXC_1,sitePath),e);
         report.println(e.getMessageContainer(),I_CmsReport.FORMAT_WARNING);
       }
     }
