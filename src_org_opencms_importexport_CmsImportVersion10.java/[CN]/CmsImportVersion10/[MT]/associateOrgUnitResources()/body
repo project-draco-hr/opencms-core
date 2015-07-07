@@ -1,0 +1,54 @@
+{
+  if ((m_orgUnitResources == null) || m_orgUnitResources.isEmpty()) {
+    return;
+  }
+  String site=getCms().getRequestContext().getSiteRoot();
+  try {
+    getCms().getRequestContext().setSiteRoot("");
+    List<String> orgUnits=new ArrayList<String>(m_orgUnitResources.keySet());
+    Collections.sort(orgUnits);
+    Iterator<String> it=orgUnits.iterator();
+    while (it.hasNext()) {
+      String orgUnitName=it.next();
+      List<String> resources=m_orgUnitResources.get(orgUnitName);
+      if (orgUnitName.equals("")) {
+        continue;
+      }
+      Iterator<String> itResources=resources.iterator();
+      while (itResources.hasNext()) {
+        String resourceName=itResources.next();
+        try {
+          OpenCms.getOrgUnitManager().addResourceToOrgUnit(getCms(),orgUnitName,resourceName);
+        }
+ catch (        CmsException e) {
+          getReport().addWarning(e);
+          if (LOG.isWarnEnabled()) {
+            LOG.warn(e.getLocalizedMessage());
+          }
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+      try {
+        String resName=(OpenCms.getOrgUnitManager().getResourcesForOrganizationalUnit(getCms(),CmsOrganizationalUnit.getParentFqn(orgUnitName)).get(0)).getRootPath();
+        if (!resources.contains(resName)) {
+          OpenCms.getOrgUnitManager().removeResourceFromOrgUnit(getCms(),orgUnitName,resName);
+        }
+      }
+ catch (      CmsException e) {
+        getReport().addWarning(e);
+        if (LOG.isWarnEnabled()) {
+          LOG.warn(e.getLocalizedMessage());
+        }
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(e.getLocalizedMessage(),e);
+        }
+      }
+    }
+  }
+  finally {
+    getCms().getRequestContext().setSiteRoot(site);
+  }
+  m_orgUnitResources=null;
+}
