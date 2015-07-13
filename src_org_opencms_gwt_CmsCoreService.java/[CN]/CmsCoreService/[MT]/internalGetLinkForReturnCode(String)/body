@@ -2,8 +2,8 @@
   CmsObject cms=getCmsObject();
   if (CmsUUID.isValidUUID(returnCode)) {
     try {
-      CmsResource pageRes=cms.readResource(new CmsUUID(returnCode));
-      return new CmsReturnLinkInfo(CmsStringUtil.joinPaths(OpenCms.getSystemInfo().getOpenCmsContext(),cms.getSitePath(pageRes)),CmsReturnLinkInfo.Status.ok);
+      CmsResource pageRes=cms.readResource(new CmsUUID(returnCode),CmsResourceFilter.IGNORE_EXPIRATION);
+      return new CmsReturnLinkInfo(OpenCms.getLinkManager().substituteLink(cms,pageRes),CmsReturnLinkInfo.Status.ok);
     }
  catch (    CmsVfsResourceNotFoundException e) {
       return new CmsReturnLinkInfo(null,CmsReturnLinkInfo.Status.notfound);
@@ -19,11 +19,12 @@
           CmsUUID pageId=new CmsUUID(before);
           CmsUUID detailId=new CmsUUID(after);
           CmsResource pageRes=cms.readResource(pageId);
-          String pagePath=CmsResource.getFolderPath(cms.getSitePath(pageRes));
+          CmsResource folder=pageRes.isFolder() ? pageRes : cms.readParentFolder(pageRes.getStructureId());
+          String pageLink=OpenCms.getLinkManager().substituteLink(cms,folder);
           CmsResource detailRes=cms.readResource(detailId);
           String detailName=cms.getDetailName(detailRes,cms.getRequestContext().getLocale(),OpenCms.getLocaleManager().getDefaultLocales());
-          String uri=CmsStringUtil.joinPaths(pagePath,detailName);
-          return new CmsReturnLinkInfo(CmsStringUtil.joinPaths(OpenCms.getSystemInfo().getOpenCmsContext(),uri),CmsReturnLinkInfo.Status.ok);
+          String link=CmsFileUtil.removeTrailingSeparator(pageLink) + "/" + detailName;
+          return new CmsReturnLinkInfo(link,CmsReturnLinkInfo.Status.ok);
         }
  catch (        CmsVfsResourceNotFoundException e) {
           return new CmsReturnLinkInfo(null,CmsReturnLinkInfo.Status.notfound);
