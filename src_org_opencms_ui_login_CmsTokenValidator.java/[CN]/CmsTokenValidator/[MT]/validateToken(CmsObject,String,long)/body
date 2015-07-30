@@ -1,0 +1,32 @@
+{
+  try {
+    List<String> tokenValues=CmsEncoder.decodeStringsFromBase64Parameter(token);
+    if (tokenValues.size() != 2) {
+      return "Invalid token";
+    }
+    CmsUser user=cms.readUser(tokenValues.get(0));
+    String userValue=(String)user.getAdditionalInfo(ADDINFO_KEY);
+    if (userValue == null) {
+      return "no additional infos found";
+    }
+    List<String> userValues=CmsEncoder.decodeStringsFromBase64Parameter(userValue);
+    if (userValues.get(0).equals(tokenValues.get(1))) {
+      String strUserTime=userValues.get(1);
+      long usertime=Long.valueOf(strUserTime).longValue();
+      if ((System.currentTimeMillis() - usertime) > maxAgeMillis) {
+        return "Auth token too old";
+      }
+      m_user=user;
+      return null;
+    }
+ else {
+      return "Key mismatch";
+    }
+  }
+ catch (  IllegalArgumentException e) {
+    return "Token parse error";
+  }
+catch (  CmsDataAccessException e) {
+    return "User not found";
+  }
+}

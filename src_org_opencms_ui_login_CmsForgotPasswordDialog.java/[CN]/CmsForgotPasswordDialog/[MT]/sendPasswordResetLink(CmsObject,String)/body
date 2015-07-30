@@ -1,0 +1,43 @@
+{
+  LOG.info("Trying to find user for email " + email);
+  try {
+    List<CmsUser> allUsers=OpenCms.getOrgUnitManager().getUsersWithoutAdditionalInfo(cms,"",true);
+    email=email.trim();
+    CmsUser foundUser=null;
+    for (    CmsUser user : allUsers) {
+      if (email.equals(user.getEmail())) {
+        if (!user.isManaged()) {
+          LOG.info("Found user " + user.getName());
+          foundUser=user;
+          break;
+        }
+ else {
+          LOG.info("Skipping managed user " + user.getName());
+        }
+      }
+    }
+    if (foundUser == null) {
+      Notification.show(Messages.get().getBundle(A_CmsUI.get().getLocale()).key(Messages.GUI_PWCHANGE_USER_NOT_FOUND_0),Type.ERROR_MESSAGE);
+      return false;
+    }
+    foundUser=cms.readUser(foundUser.getId());
+    String token=CmsTokenValidator.createToken(cms,foundUser);
+    String link=OpenCms.getLinkManager().getWorkplaceLink(cms,"/system/login",false) + "?at=" + token;
+    LOG.info("Sending password reset link to user " + foundUser.getName() + ": "+ link);
+    CmsPasswordChangeNotification notification=new CmsPasswordChangeNotification(cms,foundUser,link);
+    try {
+      notification.send();
+    }
+ catch (    EmailException e) {
+      Notification.show(Messages.get().getBundle(A_CmsUI.get().getLocale()).key(Messages.GUI_PWCHANGE_MAIL_SEND_ERROR_0),Type.ERROR_MESSAGE);
+      LOG.error(e.getLocalizedMessage(),e);
+      return false;
+    }
+  }
+ catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    Notification.show(e.getLocalizedMessage(),Type.ERROR_MESSAGE);
+    return false;
+  }
+  return true;
+}
