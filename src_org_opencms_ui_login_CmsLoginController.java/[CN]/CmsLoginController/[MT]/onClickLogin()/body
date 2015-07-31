@@ -16,9 +16,17 @@
   String realUser=CmsStringUtil.joinPaths(ou,user);
   String pcType=m_ui.getPcType();
   CmsObject currentCms=A_CmsUI.getCmsObject();
+  CmsUser userObj=null;
   try {
-    currentCms.readUser(realUser);
+    userObj=currentCms.readUser(realUser);
     currentCms.loginUser(realUser,password);
+    if (OpenCms.getLoginManager().canLockBecauseOfInactivity(currentCms,userObj)) {
+      boolean locked=null != userObj.getAdditionalInfo().get(KEY_ACCOUNT_LOCKED);
+      if (locked) {
+        A_CmsUI.get().setError(CmsInactiveUserMessages.getLockoutText(A_CmsUI.get().getLocale()));
+        return;
+      }
+    }
     OpenCms.getSessionManager().updateSessionInfo(currentCms,(HttpServletRequest)VaadinService.getCurrentRequest());
     if (storedMessage != null) {
       OpenCms.getSessionManager().sendBroadcast(null,storedMessage,currentCms.getRequestContext().getCurrentUser());

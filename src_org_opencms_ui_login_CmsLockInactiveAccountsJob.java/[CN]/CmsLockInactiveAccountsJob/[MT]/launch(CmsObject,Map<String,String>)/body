@@ -1,0 +1,51 @@
+{
+  List<CmsUser> users=OpenCms.getOrgUnitManager().getUsersWithoutAdditionalInfo(cms,"",true);
+  List<String> lockedUsers=new ArrayList<String>();
+  Locale locale=CmsLocaleManager.getDefaultLocale();
+  boolean testOnly=Boolean.parseBoolean(parameters.get("test"));
+  for (  CmsUser user : users) {
+    try {
+      if (OpenCms.getLoginManager().canLockBecauseOfInactivity(cms,user)) {
+        if (OpenCms.getLoginManager().checkInactive(user)) {
+          user=cms.readUser(user.getId());
+          if (user.getAdditionalInfo().get(CmsLoginController.KEY_ACCOUNT_LOCKED) == null) {
+            LOG.info("User is inactive: " + user.getName());
+            if (!testOnly) {
+              user.getAdditionalInfo().put(CmsLoginController.KEY_ACCOUNT_LOCKED,"true");
+              cms.writeUser(user);
+            }
+            lockedUsers.add(user.getDisplayName(cms,locale));
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+  String mailto=parameters.get("mailto");
+  if ((mailto != null) && !lockedUsers.isEmpty()) {
+    List<String> mailAddresses=CmsStringUtil.splitAsList(mailto,",");
+    OpenCms.getLocaleManager();
+    String header=CmsInactiveUserMessages.getReportHeader(locale);
+    String subject=CmsInactiveUserMessages.getReportSubject(locale);
+    CmsHtmlMail mail=new CmsHtmlMail();
+    mail.setSubject(subject);
+    for (    String address : mailAddresses) {
+      mail.addTo(address.trim());
+    }
+    String templateText=new String(CmsFileUtil.readFully(getClass().getResourceAsStream("locked-users-report.html")),"UTF-8");
+    StringTemplate template=new StringTemplate(templateText);
+    template.setAttribute("header",header);
+    template.setAttribute("users",lockedUsers);
+    template.toString();
+    mail.setHtmlMsg(template.toString());
+    try {
+      mail.send();
+    }
+ catch (    Exception e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+  return "";
+}
