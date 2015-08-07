@@ -1,0 +1,52 @@
+{
+  items=Lists.newArrayList(items);
+  Collections.sort(items,new Comparator<I_CmsContextMenuItem>(){
+    public int compare(    I_CmsContextMenuItem a,    I_CmsContextMenuItem b){
+      return Integer.compare(a.getPriority(),b.getPriority());
+    }
+  }
+);
+  LinkedHashMap<String,I_CmsContextMenuItem> itemsById=Maps.newLinkedHashMap();
+  for (  I_CmsContextMenuItem item : items) {
+    String id=item.getId();
+    I_CmsContextMenuItem prevItem=itemsById.get(id);
+    if (prevItem != null) {
+      LOG.info("Discarding overridden context menu item " + prevItem + " because of higher priority item "+ item);
+    }
+    itemsById.put(id,item);
+  }
+  List<I_CmsContextMenuItem> uniqueItems=Lists.newArrayList(itemsById.values());
+  Collections.sort(uniqueItems,new Comparator<I_CmsContextMenuItem>(){
+    public int compare(    I_CmsContextMenuItem a,    I_CmsContextMenuItem b){
+      return Integer.compare(a.getOrder(),b.getOrder());
+    }
+  }
+);
+  Set<String> processedIds=Sets.newHashSet();
+  boolean changed=true;
+  Map<String,CmsTreeNode<I_CmsContextMenuItem>> treesById=Maps.newHashMap();
+  for (  I_CmsContextMenuItem item : itemsById.values()) {
+    CmsTreeNode<I_CmsContextMenuItem> node=new CmsTreeNode<I_CmsContextMenuItem>();
+    node.setData(item);
+    treesById.put(item.getId(),node);
+  }
+  CmsTreeNode<I_CmsContextMenuItem> root=new CmsTreeNode<I_CmsContextMenuItem>();
+  treesById.put(null,root);
+  while (changed) {
+    changed=false;
+    Iterator<I_CmsContextMenuItem> iterator=uniqueItems.iterator();
+    Set<String> currentLevel=Sets.newHashSet();
+    while (iterator.hasNext()) {
+      I_CmsContextMenuItem currentItem=iterator.next();
+      String parentId=currentItem.getParentId();
+      if ((parentId == null) || processedIds.contains(parentId)) {
+        changed=true;
+        iterator.remove();
+        currentLevel.add(currentItem.getId());
+        treesById.get(parentId).addChild(treesById.get(currentItem.getId()));
+      }
+    }
+    processedIds.addAll(currentLevel);
+  }
+  return root;
+}
