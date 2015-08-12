@@ -1,0 +1,151 @@
+{
+  try {
+    String fileName=trimResourceName(getCms().getSitePath(resource));
+    if (fileName.startsWith("system/orgunits")) {
+      return;
+    }
+    Element fileElement=m_resourceNode.addElement(CmsImportVersion10.N_FILE);
+    if (resource.isFile()) {
+      if (source) {
+        fileElement.addElement(CmsImportVersion10.N_SOURCE).addText(fileName);
+      }
+    }
+ else {
+      m_exportCount++;
+      I_CmsReport report=getReport();
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_SUCCESSION_1,String.valueOf(m_exportCount)),I_CmsReport.FORMAT_NOTE);
+      report.print(Messages.get().container(Messages.RPT_EXPORT_0),I_CmsReport.FORMAT_NOTE);
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_ARGUMENT_1,getCms().getSitePath(resource)));
+      report.print(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_DOTS_0));
+      report.println(org.opencms.report.Messages.get().container(org.opencms.report.Messages.RPT_OK_0),I_CmsReport.FORMAT_OK);
+      if (LOG.isInfoEnabled()) {
+        LOG.info(Messages.get().getBundle().key(Messages.LOG_EXPORTING_OK_2,String.valueOf(m_exportCount),getCms().getSitePath(resource)));
+      }
+    }
+    boolean isReducedExportMode=m_parameters.getExportMode().equals(ExportMode.REDUCED);
+    fileElement.addElement(CmsImportVersion10.N_DESTINATION).addText(fileName);
+    fileElement.addElement(CmsImportVersion10.N_TYPE).addText(OpenCms.getResourceManager().getResourceType(resource.getTypeId()).getTypeName());
+    if (!(isReducedExportMode && isSuperFolder)) {
+      fileElement.addElement(CmsImportVersion10.N_UUIDSTRUCTURE).addText(resource.getStructureId().toString());
+      if (resource.isFile()) {
+        fileElement.addElement(CmsImportVersion10.N_UUIDRESOURCE).addText(resource.getResourceId().toString());
+      }
+    }
+    if (!isReducedExportMode) {
+      fileElement.addElement(CmsImportVersion10.N_DATELASTMODIFIED).addText(getDateLastModifiedForExport(resource));
+      String userNameLastModified=null;
+      try {
+        userNameLastModified=getCms().readUser(resource.getUserLastModified()).getName();
+      }
+ catch (      @SuppressWarnings("unused") CmsException e) {
+        userNameLastModified=OpenCms.getDefaultUsers().getUserAdmin();
+      }
+      fileElement.addElement(CmsImportVersion10.N_USERLASTMODIFIED).addText(userNameLastModified);
+    }
+    if (!(isReducedExportMode && isSuperFolder)) {
+      fileElement.addElement(CmsImportVersion10.N_DATECREATED).addText(CmsDateUtil.getHeaderDate(resource.getDateCreated()));
+    }
+    if (!isReducedExportMode) {
+      String userNameCreated=null;
+      try {
+        userNameCreated=getCms().readUser(resource.getUserCreated()).getName();
+      }
+ catch (      @SuppressWarnings("unused") CmsException e) {
+        userNameCreated=OpenCms.getDefaultUsers().getUserAdmin();
+      }
+      fileElement.addElement(CmsImportVersion10.N_USERCREATED).addText(userNameCreated);
+    }
+    if (!(isReducedExportMode && isSuperFolder)) {
+      if (resource.getDateReleased() != CmsResource.DATE_RELEASED_DEFAULT) {
+        fileElement.addElement(CmsImportVersion10.N_DATERELEASED).addText(CmsDateUtil.getHeaderDate(resource.getDateReleased()));
+      }
+      if (resource.getDateExpired() != CmsResource.DATE_EXPIRED_DEFAULT) {
+        fileElement.addElement(CmsImportVersion10.N_DATEEXPIRED).addText(CmsDateUtil.getHeaderDate(resource.getDateExpired()));
+      }
+      int resFlags=resource.getFlags();
+      resFlags&=~CmsResource.FLAG_LABELED;
+      fileElement.addElement(CmsImportVersion10.N_FLAGS).addText(Integer.toString(resFlags));
+      Element propertiesElement=fileElement.addElement(CmsImportVersion10.N_PROPERTIES);
+      List<CmsProperty> properties=getCms().readPropertyObjects(getCms().getSitePath(resource),false);
+      Collections.sort(properties);
+      for (int i=0, n=properties.size(); i < n; i++) {
+        CmsProperty property=properties.get(i);
+        if (isIgnoredProperty(property)) {
+          continue;
+        }
+        addPropertyNode(propertiesElement,property.getName(),property.getStructureValue(),false);
+        addPropertyNode(propertiesElement,property.getName(),property.getResourceValue(),true);
+      }
+      List<CmsRelation> relations=getCms().getRelationsForResource(resource,CmsRelationFilter.TARGETS.filterNotDefinedInContent());
+      Element relationsElement=fileElement.addElement(CmsImportVersion10.N_RELATIONS);
+      for (      CmsRelation relation : relations) {
+        try {
+          CmsResource target=relation.getTarget(getCms(),CmsResourceFilter.ALL);
+          String structureId=target.getStructureId().toString();
+          String sitePath=getCms().getSitePath(target);
+          String relationType=relation.getType().getName();
+          addRelationNode(relationsElement,structureId,sitePath,relationType);
+        }
+ catch (        CmsVfsResourceNotFoundException crnfe) {
+          if (LOG.isWarnEnabled()) {
+            LOG.warn(Messages.get().getBundle().key(Messages.LOG_IMPORTEXPORT_WARN_DELETED_RELATIONS_2,new String[]{relation.getTargetPath(),resource.getRootPath()}),crnfe);
+          }
+        }
+      }
+      Element acl=fileElement.addElement(CmsImportVersion10.N_ACCESSCONTROL_ENTRIES);
+      List<CmsAccessControlEntry> fileAcEntries=getCms().getAccessControlEntries(getCms().getSitePath(resource),false);
+      Iterator<CmsAccessControlEntry> i=fileAcEntries.iterator();
+      while (i.hasNext()) {
+        CmsAccessControlEntry ace=i.next();
+        Element a=acl.addElement(CmsImportVersion10.N_ACCESSCONTROL_ENTRY);
+        int flags=ace.getFlags();
+        String acePrincipalName="";
+        CmsUUID acePrincipal=ace.getPrincipal();
+        if ((flags & CmsAccessControlEntry.ACCESS_FLAGS_ALLOTHERS) > 0) {
+          acePrincipalName=CmsAccessControlEntry.PRINCIPAL_ALL_OTHERS_NAME;
+        }
+ else         if ((flags & CmsAccessControlEntry.ACCESS_FLAGS_OVERWRITE_ALL) > 0) {
+          acePrincipalName=CmsAccessControlEntry.PRINCIPAL_OVERWRITE_ALL_NAME;
+        }
+ else         if ((flags & CmsAccessControlEntry.ACCESS_FLAGS_GROUP) > 0) {
+          try {
+            acePrincipalName=getCms().readGroup(acePrincipal).getPrefixedName();
+          }
+ catch (          @SuppressWarnings("unused") CmsException e) {
+          }
+        }
+ else         if ((flags & CmsAccessControlEntry.ACCESS_FLAGS_USER) > 0) {
+          try {
+            acePrincipalName=getCms().readUser(acePrincipal).getPrefixedName();
+          }
+ catch (          @SuppressWarnings("unused") CmsException e) {
+          }
+        }
+ else {
+          acePrincipalName=CmsRole.PRINCIPAL_ROLE + "." + CmsRole.valueOfId(acePrincipal).getRoleName();
+        }
+        if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(acePrincipalName)) {
+          a.addElement(CmsImportVersion10.N_ACCESSCONTROL_PRINCIPAL).addText(acePrincipalName);
+          a.addElement(CmsImportVersion10.N_FLAGS).addText(Integer.toString(flags));
+          Element b=a.addElement(CmsImportVersion10.N_ACCESSCONTROL_PERMISSIONSET);
+          b.addElement(CmsImportVersion10.N_ACCESSCONTROL_ALLOWEDPERMISSIONS).addText(Integer.toString(ace.getAllowedPermissions()));
+          b.addElement(CmsImportVersion10.N_ACCESSCONTROL_DENIEDPERMISSIONS).addText(Integer.toString(ace.getDeniedPermissions()));
+        }
+      }
+    }
+ else {
+      fileElement.addElement(CmsImportVersion10.N_PROPERTIES);
+    }
+    digestElement(m_resourceNode,fileElement);
+  }
+ catch (  CmsImportExportException e) {
+    throw e;
+  }
+catch (  CmsException e) {
+    CmsMessageContainer message=Messages.get().container(Messages.ERR_IMPORTEXPORT_ERROR_APPENDING_RESOURCE_TO_MANIFEST_1,resource.getRootPath());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(message.key(),e);
+    }
+    throw new CmsImportExportException(message,e);
+  }
+}
