@@ -1,0 +1,56 @@
+{
+  try {
+    m_logStream.flush();
+    String exportModules="";
+    if ((m_modulesToExport != null) && !m_modulesToExport.isEmpty()) {
+      StringBuffer exportModulesParam=new StringBuffer();
+      for (      String moduleName : m_modulesToExport) {
+        exportModulesParam.append(" ").append(moduleName);
+      }
+      exportModulesParam.replace(0,1," \"");
+      exportModulesParam.append("\" ");
+      exportModules=" --modules " + exportModulesParam.toString();
+    }
+    String commitMessage="";
+    if (m_commitMessage != null) {
+      commitMessage=" -msg \"" + m_commitMessage + "\"";
+    }
+    String autoPull="";
+    if (m_autoPull != null) {
+      autoPull=m_autoPull.booleanValue() ? " --pull " : " --no-pull";
+    }
+    String autoPush="";
+    if (m_autoPush != null) {
+      autoPush=m_autoPush.booleanValue() ? " --push " : " --no-push";
+    }
+    String exportFolder=" --export-folder \"" + getModuleExportPath() + "\"";
+    String exportMode=" --export-mode " + getExportMode();
+    String excludeLibs="";
+    if (m_excludeLibs != null) {
+      excludeLibs=m_excludeLibs.booleanValue() ? " --exclude-libs" : " --no-exclude-libs";
+    }
+    String commitMode="";
+    if (m_commitMode != null) {
+      commitMode=m_commitMode.booleanValue() ? " --commit" : " --no-commit";
+    }
+    String[] cmd={"bash","-c","\"" + m_scriptPath + "\""+ exportModules+ commitMessage+ autoPull+ autoPush+ exportFolder+ exportMode+ excludeLibs+ commitMode+ " \""+ m_configPath+ "\""};
+    m_logStream.println("Calling the script as follows:");
+    m_logStream.println();
+    m_logStream.println(cmd[0] + " " + cmd[1]+ " "+ cmd[2]);
+    ProcessBuilder builder=new ProcessBuilder(cmd);
+    m_logStream.close();
+    m_logStream=null;
+    Redirect redirect=Redirect.appendTo(new File(m_logFilePath));
+    builder.redirectOutput(redirect);
+    builder.redirectError(redirect);
+    Process scriptProcess=builder.start();
+    int exitCode=scriptProcess.waitFor();
+    scriptProcess.getOutputStream().close();
+    m_logStream=new PrintStream(new FileOutputStream(m_logFilePath,true));
+    return exitCode;
+  }
+ catch (  InterruptedException|IOException e) {
+    e.printStackTrace(m_logStream);
+    return -1;
+  }
+}
