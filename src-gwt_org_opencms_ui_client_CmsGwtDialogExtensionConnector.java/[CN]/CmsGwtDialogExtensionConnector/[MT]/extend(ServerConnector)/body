@@ -22,11 +22,10 @@
           notImplemented();
         }
         public void refreshResource(        CmsUUID structureId){
-          CmsDebugLog.consoleLog("Refresh");
           List<String> changed=Lists.newArrayList();
           changed.add("" + structureId);
           m_changed=changed;
-          close();
+          close(0);
         }
         public void unlockResource(        CmsUUID structureId){
           notImplemented();
@@ -37,11 +36,39 @@
       }
 ,new Runnable(){
         public void run(){
-          CmsDebugLog.consoleLog("Cancel");
-          close();
+          close(0);
         }
       }
 );
+    }
+    public void openPublishDialog(    String serializedPublishData){
+      try {
+        I_CmsPublishServiceAsync publishService=GWT.create(I_CmsPublishService.class);
+        CmsPublishData initData=(CmsPublishData)CmsRpcPrefetcher.getSerializedObjectFromString(publishService,serializedPublishData);
+        Runnable menuRefreshAction=new Runnable(){
+          public void run(){
+            Window.Location.reload();
+          }
+        }
+;
+        CloseHandler<PopupPanel> closeHandler=new CloseHandler<PopupPanel>(){
+          public void onClose(          CloseEvent<PopupPanel> event){
+            CmsPublishDialog dialog=(CmsPublishDialog)(event.getTarget());
+            if (dialog.hasFailed() || dialog.hasSucceeded()) {
+              m_changed=Arrays.asList("" + CmsUUID.getNullUUID());
+            }
+ else {
+              m_changed=Lists.newArrayList();
+            }
+            close(700);
+          }
+        }
+;
+        CmsPublishDialog.showPublishDialog(initData,closeHandler,menuRefreshAction,null);
+      }
+ catch (      SerializationException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 );
