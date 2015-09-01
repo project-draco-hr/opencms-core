@@ -1,0 +1,79 @@
+{
+  m_categoryTree.clear();
+  Multimap<Boolean,CmsCategoryTreeEntry> entries=categoryData.getEntriesIndexedByLocality();
+  String localLabel=Messages.get().key(Messages.GUI_CATEGORIES_LOCAL_0);
+  String nonlocalLabel=Messages.get().key(Messages.GUI_CATEGORIES_NONLOCAL_0);
+  String localSubtitle=Messages.get().key(Messages.GUI_CATEGORIES_LOCAL_SUBTITLE_0);
+  String nonlocalSubtitle=Messages.get().key(Messages.GUI_CATEGORIES_NONLOCAL_SUBTITLE_0);
+  CmsListInfoBean localRootInfo=new CmsListInfoBean(localLabel,localSubtitle,null);
+  localRootInfo.setResourceType("category");
+  final CmsTreeItem localRoot=new CmsTreeItem(true,new CmsListItemWidget(localRootInfo));
+  CmsListInfoBean nonlocalRootInfo=new CmsListInfoBean(nonlocalLabel,nonlocalSubtitle,null);
+  nonlocalRootInfo.setResourceType("category");
+  final CmsTreeItem nonlocalRoot=new CmsTreeItem(true,new CmsListItemWidget(nonlocalRootInfo));
+  m_categoryTree.add(localRoot);
+  m_categoryTree.add(nonlocalRoot);
+  for (  Boolean isLocal : Arrays.asList(Boolean.FALSE,Boolean.TRUE)) {
+    for (    CmsCategoryTreeEntry entry : entries.get(isLocal)) {
+      CmsTreeItem treeItem=createCategoryTreeItem(entry);
+      (isLocal.booleanValue() ? localRoot : nonlocalRoot).addChild(treeItem);
+    }
+  }
+  for (  CmsTreeItem root : Arrays.asList(localRoot,nonlocalRoot)) {
+    final CmsTreeItem finalRoot=root;
+    root.visit(new Function<CmsTreeItem,Boolean>(){
+      @SuppressWarnings("synthetic-access") public Boolean apply(      CmsTreeItem input){
+        CmsUUID id=null;
+        if (input == localRoot) {
+          id=CmsUUID.getNullUUID();
+        }
+ else         if ((input instanceof CmsCategoryTreeItem) && (localRoot == finalRoot)) {
+          id=((CmsCategoryTreeItem)input).getStructureId();
+        }
+        if (id != null) {
+          final CmsSitemapHoverbar hoverbar=CmsSitemapHoverbar.installOn(m_controller,input,id,false,!(id.isNullUUID()),new I_CmsContextMenuItemProvider(){
+            public List<A_CmsSitemapMenuEntry> createContextMenu(            CmsSitemapHoverbar hoverbar2){
+              List<A_CmsSitemapMenuEntry> result=Lists.newArrayList();
+              result.add(new CmsChangeCategoryMenuEntry(hoverbar2));
+              result.add(new CmsDeleteCategoryMenuEntry(hoverbar2));
+              return result;
+            }
+          }
+);
+          if (input == localRoot) {
+            hoverbar.setAlwaysVisible();
+          }
+          CmsPushButton newButton=new CmsPushButton();
+          newButton.setImageClass(org.opencms.gwt.client.ui.css.I_CmsImageBundle.INSTANCE.style().addIcon());
+          newButton.setTitle(Messages.get().key(Messages.GUI_SITEMAP_CONTEXT_MENU_CREATE_CATEGORY_0));
+          newButton.setButtonStyle(ButtonStyle.IMAGE,null);
+          hoverbar.add(newButton);
+          newButton.addClickHandler(new ClickHandler(){
+            /** 
+ * @see com.google.gwt.event.dom.client.ClickHandler#onClick(com.google.gwt.event.dom.client.ClickEvent)
+ */
+            public void onClick(            ClickEvent event){
+              hoverbar.hide();
+              final CmsSitemapController controller=hoverbar.getController();
+              final CmsUUID hoverbarId=hoverbar.getId();
+              CmsCreateCategoryMenuEntry.askForNewCategoryInfo(hoverbarId,new AsyncCallback<CmsCategoryTitleAndName>(){
+                public void onFailure(                Throwable caught){
+                }
+                public void onSuccess(                CmsCategoryTitleAndName result){
+                  controller.createCategory(hoverbarId,result.getTitle(),result.getName());
+                }
+              }
+);
+            }
+          }
+);
+        }
+        if (((finalRoot == localRoot) && openLocalCategories) || (input == nonlocalRoot) || (input == localRoot)) {
+          input.setOpen(true);
+        }
+        return null;
+      }
+    }
+);
+  }
+}

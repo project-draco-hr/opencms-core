@@ -3,7 +3,15 @@
   if ((context == null) && alreadyFull) {
     return false;
   }
-  boolean showInContext=shouldShowInContext(element,context);
+  String contextKey=null;
+  if (context != null) {
+    contextKey=context.getKey();
+  }
+ else {
+    String rpcContextOverride=(String)request.getAttribute(CmsTemplateContextManager.ATTR_RPC_CONTEXT_OVERRIDE);
+    contextKey=rpcContextOverride;
+  }
+  boolean showInContext=shouldShowInContext(element,context != null ? context.getKey() : null);
   boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
   if (isOnline && !showInContext) {
     return false;
@@ -42,7 +50,7 @@
     for (    CmsContainerElementBean subelement : subElements) {
       try {
         subelement.initResource(cms);
-        boolean shouldShowSubElementInContext=shouldShowInContext(subelement,context);
+        boolean shouldShowSubElementInContext=shouldShowInContext(subelement,contextKey);
         if (isOnline && (!shouldShowSubElementInContext || !subelement.isReleasedAndNotExpired())) {
           continue;
         }
@@ -60,7 +68,14 @@
         printElementWrapperTagStart(isOnline,cms,subelement,false);
         standardContext.setElement(subelement);
         try {
-          String formatterSitePath=cms.getRequestContext().removeSiteRoot(subElementFormatterConfig.getJspRootPath());
+          String formatterSitePath;
+          try {
+            CmsResource formatterResource=cms.readResource(subElementFormatterConfig.getJspStructureId());
+            formatterSitePath=cms.getSitePath(formatterResource);
+          }
+ catch (          CmsVfsResourceNotFoundException ex) {
+            formatterSitePath=cms.getRequestContext().removeSiteRoot(subElementFormatterConfig.getJspRootPath());
+          }
           if (shouldShowSubElementInContext) {
             CmsJspTagInclude.includeTagAction(pageContext,formatterSitePath,null,locale,false,isOnline,null,CmsRequestUtil.getAtrributeMap(req),req,res);
           }
@@ -99,7 +114,14 @@
       String formatter=null;
       try {
         if (formatterConfig != null) {
-          formatter=cms.getRequestContext().removeSiteRoot(formatterConfig.getJspRootPath());
+          try {
+            CmsResource formatterResource=cms.readResource(formatterConfig.getJspStructureId());
+            formatter=cms.getSitePath(formatterResource);
+          }
+ catch (          CmsVfsResourceNotFoundException ex) {
+            formatter=cms.getRequestContext().removeSiteRoot(formatterConfig.getJspRootPath());
+          }
+          formatter=cms.getSitePath(cms.readResource(formatterConfig.getJspStructureId()));
         }
  else {
           formatter=cms.getSitePath(cms.readResource(element.getFormatterId()));
@@ -114,7 +136,13 @@
           }
           return false;
         }
-        formatter=cms.getRequestContext().removeSiteRoot(elementFormatterBean.getJspRootPath());
+        try {
+          CmsResource formatterResource=cms.readResource(elementFormatterBean.getJspStructureId());
+          formatter=cms.getSitePath(formatterResource);
+        }
+ catch (        CmsVfsResourceNotFoundException ex) {
+          formatter=cms.getRequestContext().removeSiteRoot(elementFormatterBean.getJspRootPath());
+        }
       }
       printElementWrapperTagStart(isOnline,cms,element,false);
       standardContext.setElement(element);

@@ -1,0 +1,101 @@
+{
+  if (!handler.isDragging()) {
+    return;
+  }
+  if (elementData == null) {
+    CmsDebugLog.getInstance().printLine("elementData == null!");
+    handler.cancel();
+    return;
+  }
+  if (!(handler.getDraggable() instanceof CmsContainerPageElementPanel)) {
+  }
+  if ((elementData.getDndId() != null) && (m_controller.getCachedElement(elementData.getDndId()) != null)) {
+    m_draggableId=elementData.getDndId();
+    elementData=m_controller.getCachedElement(m_draggableId);
+  }
+ else {
+    m_draggableId=elementData.getClientId();
+  }
+  if (m_controller.isGroupcontainerEditing()) {
+    CmsGroupContainerElementPanel groupContainer=m_controller.getGroupcontainer();
+    if ((groupContainer != m_initialDropTarget) && !(elementData.isGroupContainer() || elementData.isInheritContainer()) && (elementData.getContents().get(groupContainer.getContainerId()) != null)) {
+      Element placeholder=null;
+      Set<String> cssResources=elementData.getCssResources(groupContainer.getContainerId());
+      if ((cssResources != null) && !cssResources.isEmpty()) {
+        for (        String cssResourceLink : cssResources) {
+          CmsDomUtil.ensureStyleSheetIncluded(cssResourceLink);
+        }
+      }
+      try {
+        String htmlContent=elementData.getContents().get(groupContainer.getContainerId());
+        placeholder=CmsDomUtil.createElement(htmlContent);
+        CmsDomUtil.fixFlashZindex(placeholder);
+        placeholder.addClassName(I_CmsLayoutBundle.INSTANCE.dragdropCss().dragPlaceholder());
+      }
+ catch (      Exception e) {
+        CmsDebugLog.getInstance().printLine(e.getMessage());
+      }
+      if (placeholder != null) {
+        prepareDragInfo(placeholder,groupContainer,handler);
+        groupContainer.highlightContainer();
+      }
+    }
+    return;
+  }
+  if (!m_controller.isEditingDisabled()) {
+    for (    CmsContainerPageContainer container : m_controller.getContainerTargets().values()) {
+      if (draggable.getElement().isOrHasChild(container.getElement())) {
+        continue;
+      }
+      if ((container != m_initialDropTarget) && !container.isDetailView() && (elementData.getContents().get(container.getContainerId()) != null)) {
+        Element placeholder=null;
+        if (elementData.isGroupContainer() || elementData.isInheritContainer()) {
+          placeholder=DOM.createDiv();
+          String content="";
+          for (          String groupId : elementData.getSubItems()) {
+            CmsContainerElementData subData=m_controller.getCachedElement(groupId);
+            if (subData != null) {
+              if (subData.isShowInContext(CmsContainerpageController.get().getData().getTemplateContextInfo().getCurrentContext())) {
+                if ((subData.getContents().get(container.getContainerId()) != null)) {
+                  content+=subData.getContents().get(container.getContainerId());
+                }
+              }
+ else {
+                content+="<div class='" + CmsTemplateContextInfo.DUMMY_ELEMENT_MARKER + "' style='display: none !important;'></div>";
+              }
+            }
+          }
+          if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(content)) {
+            placeholder.setInnerHTML(content);
+            CmsDomUtil.fixFlashZindex(placeholder);
+          }
+ else {
+            placeholder.addClassName(I_CmsLayoutBundle.INSTANCE.containerpageCss().emptyGroupContainer());
+          }
+        }
+ else {
+          Set<String> cssResources=elementData.getCssResources(container.getContainerId());
+          if ((cssResources != null) && !cssResources.isEmpty()) {
+            for (            String cssResourceLink : cssResources) {
+              CmsDomUtil.ensureStyleSheetIncluded(cssResourceLink);
+            }
+          }
+          try {
+            String htmlContent=elementData.getContents().get(container.getContainerId());
+            placeholder=CmsDomUtil.createElement(htmlContent);
+            CmsDomUtil.fixFlashZindex(placeholder);
+            placeholder.addClassName(I_CmsLayoutBundle.INSTANCE.dragdropCss().dragPlaceholder());
+          }
+ catch (          Exception e) {
+            CmsDebugLog.getInstance().printLine(e.getMessage());
+          }
+        }
+        if (placeholder != null) {
+          prepareDragInfo(placeholder,container,handler);
+        }
+      }
+    }
+    initNestedContainers();
+    updateHighlighting(true);
+  }
+}

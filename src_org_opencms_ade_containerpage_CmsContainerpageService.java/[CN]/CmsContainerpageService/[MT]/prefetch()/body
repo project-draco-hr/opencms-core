@@ -5,6 +5,7 @@
   try {
     CmsTemplateContextInfo info=OpenCms.getTemplateContextManager().getContextInfoBean(cms,request);
     CmsResource containerPage=getContainerpage(cms);
+    boolean isModelPage=isModelPage(cms,containerPage);
     TemplateBean templateBean=(TemplateBean)getRequest().getAttribute(CmsTemplateContextManager.ATTR_TEMPLATE_BEAN);
     CmsADESessionCache sessionCache=CmsADESessionCache.getCache(getRequest(),cms);
     sessionCache.setTemplateBean(containerPage.getRootPath(),templateBean);
@@ -15,22 +16,37 @@
     String noEditReason;
     String detailContainerPage=null;
     if (detailResource != null) {
-      detailContainerPage=CmsJspTagContainer.getDetailOnlyPageName(cms.getSitePath(detailResource));
-      if (cms.existsResource(detailContainerPage)) {
-        noEditReason=getNoEditReason(cms,cms.readResource(detailContainerPage));
+      CmsObject rootCms=OpenCms.initCmsObject(cms);
+      rootCms.getRequestContext().setSiteRoot("");
+      detailContainerPage=CmsJspTagContainer.getDetailOnlyPageName(detailResource.getRootPath());
+      if (rootCms.existsResource(detailContainerPage)) {
+        noEditReason=getNoEditReason(rootCms,rootCms.readResource(detailContainerPage));
       }
  else {
         String permissionFolder=CmsResource.getFolderPath(detailContainerPage);
-        if (!cms.existsResource(permissionFolder)) {
+        if (!rootCms.existsResource(permissionFolder)) {
           permissionFolder=CmsResource.getParentFolder(permissionFolder);
         }
-        noEditReason=getNoEditReason(cms,cms.readResource(permissionFolder));
+        noEditReason=getNoEditReason(rootCms,rootCms.readResource(permissionFolder));
       }
     }
  else {
       noEditReason=getNoEditReason(cms,containerPage);
     }
-    data=new CmsCntPageData(noEditReason,CmsRequestUtil.encodeParams(request),CmsADEManager.PATH_SITEMAP_EDITOR_JSP,detailResource != null ? detailResource.getStructureId() : null,detailContainerPage,getNewTypes(cms,request),lastModified,getLockInfo(containerPage),cms.getRequestContext().getLocale().toString(),useClassicEditor,info,isEditSmallElements(request,cms));
+    String sitemapPath="";
+    boolean sitemapManager=OpenCms.getRoleManager().hasRole(cms,CmsRole.EDITOR);
+    if (sitemapManager) {
+      sitemapPath=CmsADEManager.PATH_SITEMAP_EDITOR_JSP;
+    }
+    CmsCntPageData.ElementReuseMode reuseMode=ElementReuseMode.reuse;
+    String reuseModeString=getWorkplaceSettings().getUserSettings().getAdditionalPreference("elementReuseMode",true);
+    try {
+      reuseMode=ElementReuseMode.valueOf(reuseModeString);
+    }
+ catch (    Exception e) {
+      LOG.info("Invalid reuse mode : " + reuseModeString);
+    }
+    data=new CmsCntPageData(noEditReason,CmsRequestUtil.encodeParams(request),sitemapPath,sitemapManager,detailResource != null ? detailResource.getStructureId() : null,detailContainerPage,lastModified,getLockInfo(containerPage),cms.getRequestContext().getLocale().toString(),useClassicEditor,info,isEditSmallElements(request,cms),Lists.newArrayList(getElementViews().values()),getSessionCache().getElementView(),reuseMode,isModelPage);
   }
  catch (  Throwable e) {
     error(e);

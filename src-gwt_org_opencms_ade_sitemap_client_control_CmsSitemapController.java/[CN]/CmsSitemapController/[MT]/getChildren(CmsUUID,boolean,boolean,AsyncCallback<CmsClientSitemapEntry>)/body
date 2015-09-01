@@ -1,0 +1,41 @@
+{
+  CmsRpcAction<CmsClientSitemapEntry> getChildrenAction=new CmsRpcAction<CmsClientSitemapEntry>(){
+    /** 
+ * @see org.opencms.gwt.client.rpc.CmsRpcAction#execute()
+ */
+    @Override public void execute(){
+      start(500,false);
+      getService().getChildren(getEntryPoint(),entryId,2,this);
+    }
+    /** 
+ * @see org.opencms.gwt.client.rpc.CmsRpcAction#onResponse(java.lang.Object)
+ */
+    @Override public void onResponse(    CmsClientSitemapEntry result){
+      CmsClientSitemapEntry target=getEntryById(entryId);
+      if ((target == null) && !continueIfParentNotLoaded) {
+        stop(false);
+        return;
+      }
+      CmsSitemapTreeItem item=null;
+      if (target != null) {
+        target.setSubEntries(result.getSubEntries(),CmsSitemapController.this);
+        item=CmsSitemapTreeItem.getItemById(target.getId());
+        target.update(result);
+      }
+ else {
+        target=result;
+      }
+      target.initializeAll(CmsSitemapController.this);
+      if (item != null) {
+        item.updateEntry(target);
+      }
+      m_eventBus.fireEventFromSource(new CmsSitemapLoadEvent(target,setOpen),CmsSitemapController.this);
+      stop(false);
+      if (callback != null) {
+        callback.onSuccess(result);
+      }
+    }
+  }
+;
+  getChildrenAction.execute();
+}

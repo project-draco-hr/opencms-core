@@ -1,3 +1,48 @@
 {
-  return getInnerDimensions(panel,2,false);
+  boolean first=true;
+  int top=0;
+  int left=0;
+  int bottom=0;
+  int right=0;
+  Element child=panel.getFirstChildElement();
+  while (child != null) {
+    String tagName=child.getTagName();
+    if (tagName.equalsIgnoreCase("br") || tagName.equalsIgnoreCase("tr") || tagName.equalsIgnoreCase("thead")|| tagName.equalsIgnoreCase("tfoot")|| tagName.equalsIgnoreCase("script")|| tagName.equalsIgnoreCase("style")) {
+      child=child.getNextSiblingElement();
+      continue;
+    }
+    String positioning=CmsDomUtil.getCurrentStyle(child,Style.position);
+    if (!Display.NONE.getCssName().equals(CmsDomUtil.getCurrentStyle(child,Style.display)) && !(positioning.equalsIgnoreCase(Position.ABSOLUTE.getCssName()) || positioning.equalsIgnoreCase(Position.FIXED.getCssName()))) {
+      CmsPositionBean childDimensions=getBoundingClientRect(child);
+      if (first) {
+        first=false;
+        top=childDimensions.getTop();
+        left=childDimensions.getLeft();
+        bottom=top + childDimensions.getHeight();
+        right=left + childDimensions.getWidth();
+      }
+ else {
+        int wTop=childDimensions.getTop();
+        top=top < wTop ? top : wTop;
+        int wLeft=childDimensions.getLeft();
+        left=left < wLeft ? left : wLeft;
+        int wBottom=wTop + childDimensions.getHeight();
+        bottom=bottom > wBottom ? bottom : wBottom;
+        int wRight=wLeft + childDimensions.getWidth();
+        right=right > wRight ? right : wRight;
+      }
+    }
+    child=child.getNextSiblingElement();
+  }
+  if (!first) {
+    CmsPositionBean result=new CmsPositionBean();
+    result.setHeight(bottom - top);
+    result.setWidth(right - left);
+    result.setTop(top);
+    result.setLeft(left);
+    return result;
+  }
+ else {
+    return getBoundingClientRect(panel);
+  }
 }

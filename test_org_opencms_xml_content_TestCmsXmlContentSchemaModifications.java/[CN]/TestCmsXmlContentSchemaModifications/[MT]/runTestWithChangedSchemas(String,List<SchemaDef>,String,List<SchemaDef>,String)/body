@@ -1,0 +1,27 @@
+{
+  CmsObject cms=getCmsObject();
+  String rfsPrefix="org/opencms/xml/content/";
+  originalFile=rfsPrefix + originalFile;
+  changedFile=rfsPrefix + changedFile;
+  CmsXmlEntityResolver resolver=new CmsXmlEntityResolver(cms);
+  for (  SchemaDef schema : originalSchemas) {
+    cacheSchema(resolver,schema.getId(),rfsPrefix + schema.getFile());
+  }
+  String content=CmsFileUtil.readFile(originalFile,CmsEncoder.ENCODING_UTF_8);
+  CmsXmlContent xmlcontentOri=CmsXmlContentFactory.unmarshal(content,CmsEncoder.ENCODING_UTF_8,resolver);
+  CmsXmlUtils.validateXmlStructure(content.getBytes(CmsEncoder.ENCODING_UTF_8),resolver);
+  cms.createResource(filename,OpenCms.getResourceManager().getResourceType("xmlcontent"),xmlcontentOri.toString().getBytes(xmlcontentOri.getEncoding()),Collections.<CmsProperty>emptyList());
+  CmsFile file=cms.readFile(filename);
+  CmsXmlContent xmlcontentRead=CmsXmlContentFactory.unmarshal(cms,file);
+  cms.getRequestContext().setAttribute(CmsXmlContent.AUTO_CORRECTION_ATTRIBUTE,Boolean.TRUE);
+  cms.writeFile(file);
+  assertXmlContent(xmlcontentRead,originalFile,resolver);
+  for (  SchemaDef schema : changedSchemas) {
+    cacheSchema(resolver,schema.getId(),rfsPrefix + schema.getFile());
+  }
+  CmsXmlUtils.validateXmlStructure(CmsFileUtil.readFile(changedFile),resolver);
+  cms.writeFile(file);
+  file=cms.readFile(filename);
+  CmsXmlContent xmlcontentUpdated=CmsXmlContentFactory.unmarshal(cms,file);
+  assertXmlContent(xmlcontentUpdated,changedFile,resolver);
+}

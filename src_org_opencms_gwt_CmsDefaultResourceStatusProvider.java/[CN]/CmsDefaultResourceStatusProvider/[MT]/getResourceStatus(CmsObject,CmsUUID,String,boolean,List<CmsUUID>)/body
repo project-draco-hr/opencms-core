@@ -81,13 +81,21 @@
     }
   }
   for (  CmsRelation relation : relations) {
-    CmsResource currentSource=relation.getSource(cms,CmsResourceFilter.ALL);
-    relationSources.put(currentSource.getStructureId(),currentSource);
+    try {
+      CmsResource currentSource=relation.getSource(cms,CmsResourceFilter.ALL);
+      relationSources.put(currentSource.getStructureId(),currentSource);
+    }
+ catch (    CmsException e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
   }
   for (  CmsResource relationResource : relationSources.values()) {
     try {
-      CmsResourceStatusRelationBean relationBean=createRelationBean(cms,relationResource);
-      result.getRelationSources().add(relationBean);
+      CmsPermissionInfo permissionInfo=OpenCms.getADEManager().getPermissionInfo(cms,relationResource,resource.getRootPath());
+      if (permissionInfo.hasViewPermission()) {
+        CmsResourceStatusRelationBean relationBean=createRelationBean(cms,contentLocale,relationResource,permissionInfo);
+        result.getRelationSources().add(relationBean);
+      }
     }
  catch (    CmsVfsResourceNotFoundException notfound) {
       LOG.error(notfound.getLocalizedMessage(),notfound);
@@ -95,7 +103,7 @@
     }
   }
   if (includeTargets) {
-    result.getRelationTargets().addAll(getTargets(cms,structureId,additionalStructureIds));
+    result.getRelationTargets().addAll(getTargets(cms,contentLocale,resource,additionalStructureIds));
   }
   result.setTabs(getTabClientData(cms,resource));
   return result;

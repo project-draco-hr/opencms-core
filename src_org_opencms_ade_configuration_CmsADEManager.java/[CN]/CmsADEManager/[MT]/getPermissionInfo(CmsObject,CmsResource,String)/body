@@ -1,0 +1,22 @@
+{
+  boolean hasView=cms.hasPermissions(resource,CmsPermissionSet.ACCESS_VIEW,false,CmsResourceFilter.ALL.addRequireVisible());
+  boolean hasWrite=false;
+  if (hasView) {
+    I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(resource.getTypeId());
+    CmsExplorerTypeSettings settings=OpenCms.getWorkplaceManager().getExplorerTypeSetting(type.getTypeName());
+    hasView=(settings == null) || settings.getAccess().getPermissions(cms,resource).requiresViewPermission();
+    if (hasView && CmsResourceTypeXmlContent.isXmlContent(resource) && !CmsResourceTypeXmlContainerPage.isContainerPage(resource)) {
+      if (contextPath == null) {
+        contextPath=resource.getRootPath();
+      }
+      CmsResourceTypeConfig localConfigData=lookupConfiguration(cms,contextPath).getResourceType(type.getTypeName());
+      if (localConfigData != null) {
+        Map<CmsUUID,CmsElementView> elmenetViews=getElementViews(cms);
+        hasView=elmenetViews.containsKey(localConfigData.getElementView()) && elmenetViews.get(localConfigData.getElementView()).hasPermission(cms);
+      }
+    }
+    hasWrite=hasView && cms.hasPermissions(resource,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.IGNORE_EXPIRATION) && ((settings == null) || settings.getAccess().getPermissions(cms,resource).requiresWritePermission());
+  }
+  String noEdit=new CmsResourceUtil(cms,resource).getNoEditReason(OpenCms.getWorkplaceManager().getWorkplaceLocale(cms),true);
+  return new CmsPermissionInfo(hasView,hasWrite,noEdit);
+}

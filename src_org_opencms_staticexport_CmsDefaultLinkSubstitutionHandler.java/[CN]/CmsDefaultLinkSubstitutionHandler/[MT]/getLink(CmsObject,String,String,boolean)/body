@@ -3,6 +3,7 @@
     return "";
   }
   String absoluteLink=CmsLinkManager.getAbsoluteUri(link,cms.getRequestContext().getUri());
+  String overrideSiteRoot=null;
   String vfsName;
   String parameters;
   int pos=absoluteLink.indexOf('?');
@@ -48,14 +49,19 @@
       detailPage=finder.getDetailPage(cms,rootVfsName,cms.getRequestContext().getUri());
     }
     if (detailPage != null) {
-      if (detailPage.startsWith(targetSiteRoot)) {
+      CmsSite detailPageSite=OpenCms.getSiteManager().getSiteForRootPath(detailPage);
+      if (detailPageSite != null) {
+        targetSite=detailPageSite;
+        overrideSiteRoot=targetSiteRoot=targetSite.getSiteRoot();
         detailPage=detailPage.substring(targetSiteRoot.length());
         if (!detailPage.startsWith("/")) {
           detailPage="/" + detailPage;
         }
       }
+      String originalSiteRoot=cms.getRequestContext().getSiteRoot();
       try {
-        CmsResource element=cms.readResource(vfsName);
+        cms.getRequestContext().setSiteRoot("");
+        CmsResource element=cms.readResource(rootVfsName);
         detailContent=element;
         Locale locale=cms.getRequestContext().getLocale();
         List<Locale> defaultLocales=OpenCms.getLocaleManager().getDefaultLocales();
@@ -63,6 +69,9 @@
       }
  catch (      CmsVfsException e) {
         LOG.error(e.getLocalizedMessage(),e);
+      }
+ finally {
+        cms.getRequestContext().setSiteRoot(originalSiteRoot);
       }
     }
   }
@@ -120,7 +129,7 @@ catch (  CmsException e) {
       exportManager.cacheOnlineLink(cacheKey,resultLink);
     }
     if (targetSite.hasSecureServer() || currentSite.hasSecureServer()) {
-      if (!vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM) && !OpenCms.getSiteManager().startsWithShared(vfsName)) {
+      if (!vfsName.startsWith(CmsWorkplace.VFS_PATH_SYSTEM)) {
         int linkType=-1;
         try {
           linkType=cms.readResource(originalVfsName).getTypeId();
@@ -144,11 +153,12 @@ catch (  CmsException e) {
           LOG.warn(e1.getLocalizedMessage(),e1);
           imageId=CmsResourceTypeImage.getStaticTypeId();
         }
-        if (linkType != imageId) {
-          boolean secureRequest=exportManager.isSecureLink(cms,oriUri);
+        boolean hasIsImageLinkAttr=Boolean.parseBoolean("" + cms.getRequestContext().getAttribute(ATTR_IS_IMAGE_LINK));
+        if ((linkType != imageId) && !hasIsImageLinkAttr) {
+          boolean secureRequest=cms.getRequestContext().isSecureRequest() || exportManager.isSecureLink(cms,oriUri);
           boolean secureLink;
           if (detailContent == null) {
-            secureLink=exportManager.isSecureLink(cms,vfsName,targetSite.getSiteRoot(),secureRequest);
+            secureLink=isSecureLink(cms,vfsName,targetSite,secureRequest);
           }
  else {
             secureLink=isDetailPageLinkSecure(cms,detailPage,detailContent,targetSite,secureRequest);
@@ -179,6 +189,9 @@ catch (  CmsException e) {
   }
   if ((anchor != null) && (resultLink != null)) {
     resultLink=resultLink.concat(anchor);
+  }
+  if (overrideSiteRoot != null) {
+    cms.getRequestContext().setAttribute(OVERRIDE_SITEROOT_PREFIX + resultLink,overrideSiteRoot);
   }
   return serverPrefix.concat(resultLink);
 }

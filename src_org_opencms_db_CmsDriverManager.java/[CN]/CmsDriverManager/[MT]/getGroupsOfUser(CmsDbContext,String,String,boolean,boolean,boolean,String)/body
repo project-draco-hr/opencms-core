@@ -32,33 +32,49 @@
         if (includeChildOus && role.getOuFqn().startsWith(ouFqn)) {
           allGroups.add(group);
         }
-        if (directGroupsOnly) {
+        if (directGroupsOnly || (!includeChildOus && !role.getOuFqn().equals(ouFqn))) {
           continue;
         }
-        Iterator<CmsRole> itChildRoles=role.getChildren(true).iterator();
-        while (itChildRoles.hasNext()) {
-          CmsRole childRole=itChildRoles.next();
-          if (childRole.isSystemRole()) {
-            allGroups.add(readGroup(dbc,childRole.getGroupName()));
+        CmsOrganizationalUnit currentOu=readOrganizationalUnit(dbc,group.getOuFqn());
+        boolean readChildRoleGroups=true;
+        if (currentOu.hasFlagWebuser() && role.forOrgUnit(null).equals(CmsRole.ACCOUNT_MANAGER)) {
+          readChildRoleGroups=false;
+        }
+        if (readChildRoleGroups) {
+          Iterator<CmsRole> itChildRoles=role.getChildren(true).iterator();
+          while (itChildRoles.hasNext()) {
+            CmsRole childRole=itChildRoles.next();
+            if (childRole.isSystemRole()) {
+              if (canReadRoleInOu(currentOu,childRole)) {
+                allGroups.add(readGroup(dbc,childRole.getGroupName()));
+              }
+            }
           }
+        }
+ else {
+          LOG.info("Skipping child role group check for web user OU " + currentOu.getName());
         }
         if (includeChildOus) {
           Iterator<CmsOrganizationalUnit> itSubOus=getOrganizationalUnits(dbc,readOrganizationalUnit(dbc,group.getOuFqn()),true).iterator();
           while (itSubOus.hasNext()) {
             CmsOrganizationalUnit subOu=itSubOus.next();
             try {
-              allGroups.add(readGroup(dbc,role.forOrgUnit(subOu.getName()).getGroupName()));
+              if (canReadRoleInOu(subOu,role)) {
+                allGroups.add(readGroup(dbc,role.forOrgUnit(subOu.getName()).getGroupName()));
+              }
             }
  catch (            CmsDbEntryNotFoundException e) {
               if (LOG.isDebugEnabled()) {
                 LOG.debug(e.getLocalizedMessage(),e);
               }
             }
-            itChildRoles=role.getChildren(true).iterator();
+            Iterator<CmsRole> itChildRoles=role.getChildren(true).iterator();
             while (itChildRoles.hasNext()) {
               CmsRole childRole=itChildRoles.next();
               try {
-                allGroups.add(readGroup(dbc,childRole.forOrgUnit(subOu.getName()).getGroupName()));
+                if (canReadRoleInOu(subOu,childRole)) {
+                  allGroups.add(readGroup(dbc,childRole.forOrgUnit(subOu.getName()).getGroupName()));
+                }
               }
  catch (              CmsDbEntryNotFoundException e) {
                 if (LOG.isDebugEnabled()) {
