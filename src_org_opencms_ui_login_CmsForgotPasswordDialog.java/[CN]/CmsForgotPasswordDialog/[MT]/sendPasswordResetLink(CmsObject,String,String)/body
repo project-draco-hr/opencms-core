@@ -1,26 +1,12 @@
 {
   LOG.info("Trying to find user for email " + email);
+  email=email.trim();
   try {
-    List<CmsUser> allUsers=OpenCms.getOrgUnitManager().getUsersWithoutAdditionalInfo(cms,"",true);
-    email=email.trim();
-    CmsUser foundUser=null;
-    for (    CmsUser user : allUsers) {
-      if (email.equals(user.getEmail())) {
-        if (!user.isManaged()) {
-          LOG.info("Found user " + user.getName());
-          foundUser=user;
-          break;
-        }
- else {
-          LOG.info("Skipping managed user " + user.getName());
-        }
-      }
-    }
-    if (foundUser == null) {
-      Notification.show(Messages.get().getBundle(A_CmsUI.get().getLocale()).key(Messages.GUI_PWCHANGE_USER_NOT_FOUND_0),Type.ERROR_MESSAGE);
+    CmsUser foundUser=cms.readUser(fullUserName);
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(email) || !email.equals(foundUser.getEmail())) {
+      Notification.show(CmsVaadinUtils.getMessageText(Messages.GUI_PWCHANGE_EMAIL_MISMATCH_0),Type.ERROR_MESSAGE);
       return false;
     }
-    foundUser=cms.readUser(foundUser.getId());
     String token=CmsTokenValidator.createToken(cms,foundUser);
     String link=OpenCms.getLinkManager().getWorkplaceLink(cms,"/system/login",false) + "?at=" + token;
     LOG.info("Sending password reset link to user " + foundUser.getName() + ": "+ link);
