@@ -3,8 +3,11 @@
   CmsVaadinUtils.readAndLocalizeDesign(this,OpenCms.getWorkplaceManager().getMessages(locale),null);
   List<CmsOrganizationalUnit> ouList=CmsLoginHelper.getOrgUnitsForLoginDialog(A_CmsUI.getCmsObject(),null);
   m_ouSelect.initOrgUnits(ouList);
+  String notEmptyMessage=CmsVaadinUtils.getMessageText(Messages.GUI_VALIDATION_FIELD_EMPTY_0);
   m_userField.setRequired(true);
+  m_userField.setRequiredError(notEmptyMessage);
   m_emailField.setRequired(true);
+  m_emailField.setRequiredError(notEmptyMessage);
   m_emailField.addValidator(new EmailValidator(Messages.get().getBundle(A_CmsUI.get().getLocale()).key(Messages.GUI_PWCHANGE_INVALID_EMAIL_0)));
   m_mailButton.addClickListener(new Button.ClickListener(){
     /** 
@@ -12,11 +15,21 @@
  */
     private static final long serialVersionUID=1L;
     public void buttonClick(    ClickEvent event){
-      m_userField.getValue();
+      boolean valid=true;
+      for (      AbstractField<?> field : Arrays.asList(m_userField,m_emailField)) {
+        try {
+          field.validate();
+        }
+ catch (        InvalidValueException e) {
+          valid=false;
+        }
+      }
+      if (!valid) {
+        return;
+      }
       String selectedOu=m_ouSelect.getValue();
       selectedOu=(selectedOu != null) ? selectedOu : "";
       String fullName=CmsStringUtil.joinPaths(selectedOu,m_userField.getValue());
-      m_emailField.validate();
       if (sendPasswordResetLink(CmsLoginUI.m_adminCms,fullName,m_emailField.getValue())) {
         CmsVaadinUtils.showAlert(Messages.get().getBundle(A_CmsUI.get().getLocale()).key(Messages.GUI_PWCHANGE_MAILSENT_HEADER_0),Messages.get().getBundle(A_CmsUI.get().getLocale()).key(Messages.GUI_PWCHANGE_MAILSENT_MESSAGE_0),new Runnable(){
           public void run(){
