@@ -1,25 +1,31 @@
 {
-  int runlevel=OpenCmsCore.getInstance().getRunLevel();
-  res.setHeader(CmsRequestUtil.HEADER_SERVER,OpenCmsCore.getInstance().getSystemInfo().getVersion());
-  if (runlevel != OpenCms.RUNLEVEL_4_SERVLET_ACCESS) {
-    if (runlevel == OpenCms.RUNLEVEL_3_SHELL_ACCESS) {
-      init(getServletConfig());
+  currentRequest.set(req);
+  try {
+    int runlevel=OpenCmsCore.getInstance().getRunLevel();
+    res.setHeader(CmsRequestUtil.HEADER_SERVER,OpenCmsCore.getInstance().getSystemInfo().getVersion());
+    if (runlevel != OpenCms.RUNLEVEL_4_SERVLET_ACCESS) {
+      if (runlevel == OpenCms.RUNLEVEL_3_SHELL_ACCESS) {
+        init(getServletConfig());
+      }
+ else {
+        res.sendError(HttpServletResponse.SC_FORBIDDEN);
+        return;
+      }
+    }
+    String path=OpenCmsCore.getInstance().getPathInfo(req);
+    if (path.startsWith(HANDLE_PATH)) {
+      invokeHandler(req,res);
+    }
+ else     if (path.endsWith(HANDLE_GWT)) {
+      String serviceName=CmsResource.getName(path);
+      serviceName=serviceName.substring(0,serviceName.length() - HANDLE_GWT.length());
+      OpenCmsCore.getInstance().invokeGwtService(serviceName,req,res,getServletConfig());
     }
  else {
-      res.sendError(HttpServletResponse.SC_FORBIDDEN);
-      return;
+      OpenCmsCore.getInstance().showResource(req,res);
     }
   }
-  String path=OpenCmsCore.getInstance().getPathInfo(req);
-  if (path.startsWith(HANDLE_PATH)) {
-    invokeHandler(req,res);
-  }
- else   if (path.endsWith(HANDLE_GWT)) {
-    String serviceName=CmsResource.getName(path);
-    serviceName=serviceName.substring(0,serviceName.length() - HANDLE_GWT.length());
-    OpenCmsCore.getInstance().invokeGwtService(serviceName,req,res,getServletConfig());
-  }
- else {
-    OpenCmsCore.getInstance().showResource(req,res);
+  finally {
+    currentRequest.remove();
   }
 }
