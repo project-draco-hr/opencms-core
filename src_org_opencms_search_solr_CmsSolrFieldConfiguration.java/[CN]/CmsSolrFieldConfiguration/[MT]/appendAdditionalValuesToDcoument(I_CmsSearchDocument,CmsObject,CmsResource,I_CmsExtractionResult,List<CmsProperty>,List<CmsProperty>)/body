@@ -5,27 +5,26 @@
   }
   document.addSearchField(m_solrFields.get(CmsSearchField.FIELD_FILENAME),resource.getName());
   document.addSearchField(m_solrFields.get(CmsSearchField.FIELD_VERSION),"" + resource.getVersion());
-  boolean excludeFromIndex=false;
-  String propValue=CmsProperty.get(CmsPropertyDefinition.PROPERTY_SEARCH_EXCLUDE,propertiesSearched).getValue();
-  excludeFromIndex=Boolean.valueOf(propValue).booleanValue();
-  if (!excludeFromIndex && (propValue != null)) {
-    excludeFromIndex=CmsSearchIndex.PROPERTY_SEARCH_EXCLUDE_VALUE_ALL.equalsIgnoreCase(propValue.trim()) || CmsSolrIndex.PROPERTY_SEARCH_EXCLUDE_VALUE_SOLR.equalsIgnoreCase(propValue.trim());
-  }
-  if (excludeFromIndex) {
-    document.addSearchField(m_solrFields.get(CmsSearchField.FIELD_SEARCH_EXCLUDE),"true");
-  }
- else {
-    try {
-      if (CmsResourceTypeXmlContent.isXmlContent(resource)) {
-        I_CmsXmlContentHandler handler=CmsXmlContentDefinition.getContentHandlerForResource(cms,resource);
-        if ((handler != null) && handler.isContainerPageOnly()) {
-          document.addSearchField(m_solrFields.get(CmsSearchField.FIELD_SEARCH_EXCLUDE),"true");
+  try {
+    if (CmsResourceTypeXmlContent.isXmlContent(resource)) {
+      I_CmsXmlContentHandler handler=CmsXmlContentDefinition.getContentHandlerForResource(cms,resource);
+      if ((handler != null) && handler.isContainerPageOnly()) {
+        if (document.getDocument() instanceof SolrInputDocument) {
+          SolrInputDocument doc=(SolrInputDocument)document.getDocument();
+          doc.removeField(CmsSearchField.FIELD_SEARCH_EXCLUDE);
         }
+ else {
+        }
+        document.addSearchField(m_solrFields.get(CmsSearchField.FIELD_SEARCH_EXCLUDE),"true");
       }
     }
- catch (    CmsException e) {
-      LOG.error(e.getMessage(),e);
-    }
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getMessage(),e);
+  }
+  List<String> searchExcludeOptions=document.getMultivaluedFieldAsStringList(CmsSearchField.FIELD_SEARCH_EXCLUDE);
+  if ((searchExcludeOptions == null) || searchExcludeOptions.isEmpty()) {
+    document.addSearchField(m_solrFields.get(CmsSearchField.FIELD_SEARCH_EXCLUDE),"false");
   }
   if (resource.getRootPath().startsWith("/system") || (CmsResourceTypeJsp.getJSPTypeId() == resource.getTypeId())) {
     document.addSearchField(m_solrFields.get(CmsSearchField.FIELD_SEARCH_CHANNEL),"gallery");
