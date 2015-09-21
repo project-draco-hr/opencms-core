@@ -8,14 +8,15 @@
   boolean changedContainerpage=false;
   boolean isListItem=draggable instanceof CmsListItem;
   CmsContainerPageElementPanel listContainerElement=null;
+  CmsContainerElementData elementData=null;
   final boolean[] triggerReload={false};
   boolean hasWritePermissions=true;
+  String copyModelReplaceId=null;
   if (target != m_initialDropTarget) {
     if (target instanceof I_CmsDropContainer) {
       I_CmsDropContainer container=(I_CmsDropContainer)target;
       try {
         CmsContainerPageElementPanel containerElement=null;
-        CmsContainerElementData elementData=null;
         if (m_isNew) {
           elementData=m_controller.getCachedElement(m_draggableId);
           containerElement=m_controller.getContainerpageUtil().createElement(elementData,container,true);
@@ -41,10 +42,7 @@
           container.insert(containerElement,container.getPlaceholderIndex());
         }
         if (container instanceof CmsContainerPageContainer) {
-          String copyModelReplaceId=((CmsContainerPageContainer)container).getCopyModelReplaceId();
-          if (copyModelReplaceId != null) {
-            m_controller.executeCopyModelReplace(copyModelReplaceId,((CmsContainerPageContainer)container).getFormerModelGroupParent(),elementData);
-          }
+          copyModelReplaceId=((CmsContainerPageContainer)container).getCopyModelReplaceId();
         }
         changedContainerpage=!m_controller.isGroupcontainerEditing();
         triggerReload[0]=containerElement.getElement().getInnerHTML().contains(CmsGwtConstants.FORMATTER_RELOAD_MARKER) && changedContainerpage && !m_isNew;
@@ -97,6 +95,7 @@
     final CmsContainerPageElementPanel finalListContainerElement=listContainerElement;
     final String serverIdStr=CmsContainerpageController.getServerId(m_draggableId);
     CmsUUID structureId=new CmsUUID(serverIdStr);
+    final String modelReplaceId=copyModelReplaceId;
     AsyncCallback<String> modeCallback=new AsyncCallback<String>(){
       public void onFailure(      Throwable caught){
         finalListContainerElement.removeFromParent();
@@ -114,6 +113,9 @@
                 public void execute(                CmsContainerElementData newData){
                   try {
                     controller.replaceContainerElement(finalListContainerElement,newData);
+                    if ((target instanceof CmsContainerPageContainer) && (modelReplaceId != null)) {
+                      m_controller.executeCopyModelReplace(modelReplaceId,((CmsContainerPageContainer)target).getFormerModelGroupParent(),newData);
+                    }
                     controller.setPageChanged(checkReload);
                   }
  catch (                  Exception e) {
@@ -127,13 +129,16 @@
 );
         }
  else         if (Objects.equal(result,CmsEditorConstants.MODE_REUSE)) {
+          if (modelReplaceId != null) {
+            m_controller.executeCopyModelReplace(modelReplaceId,((CmsContainerPageContainer)target).getFormerModelGroupParent(),m_controller.getCachedElement(m_draggableId));
+          }
           m_controller.setPageChanged(checkReload);
         }
       }
     }
 ;
     ElementReuseMode reuseMode=CmsContainerpageController.get().getData().getElementReuseMode();
-    if (!hasWritePermissions) {
+    if (!hasWritePermissions || ((elementData != null) && (elementData.isModelGroup() || elementData.isWasModelGroup()))) {
       reuseMode=ElementReuseMode.reuse;
     }
 switch (reuseMode) {
