@@ -94,7 +94,22 @@
       CmsPermissionInfo permissionInfo=OpenCms.getADEManager().getPermissionInfo(cms,relationResource,resource.getRootPath());
       if (permissionInfo.hasViewPermission()) {
         CmsResourceStatusRelationBean relationBean=createRelationBean(cms,contentLocale,relationResource,permissionInfo);
-        result.getRelationSources().add(relationBean);
+        CmsSite site=OpenCms.getSiteManager().getSiteForRootPath(relationResource.getRootPath());
+        if ((site != null) && !CmsStringUtil.isPrefixPath(cms.getRequestContext().getSiteRoot(),relationResource.getRootPath())) {
+          String siteTitle=site.getTitle();
+          if (siteTitle == null) {
+            siteTitle=site.getUrl();
+          }
+ else {
+            siteTitle=CmsWorkplace.substituteSiteTitleStatic(siteTitle,OpenCms.getWorkplaceManager().getWorkplaceLocale(cms));
+          }
+          relationBean.setSiteRoot(site.getSiteRoot());
+          result.getOtherSiteRelationSources().add(relationBean);
+          relationBean.getInfoBean().setTitle("[" + siteTitle + "] "+ relationBean.getInfoBean().getTitle());
+        }
+ else {
+          result.getRelationSources().add(relationBean);
+        }
       }
     }
  catch (    CmsVfsResourceNotFoundException notfound) {
@@ -102,6 +117,7 @@
       continue;
     }
   }
+  sortOtherSiteRelations(cms,result);
   if (includeTargets) {
     result.getRelationTargets().addAll(getTargets(cms,contentLocale,resource,additionalStructureIds));
   }
