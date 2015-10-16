@@ -2,55 +2,18 @@
   CmsGalleryDataBean data=null;
   try {
     CmsObject cms=getCmsObject();
-    CmsADEConfigData config=getConfigData(cms.getRequestContext().addSiteRoot(uri));
-    CmsResource pageResource=cms.readResource(uri,CmsResourceFilter.IGNORE_EXPIRATION);
-    List<I_CmsResourceType> resourceTypes=new ArrayList<I_CmsResourceType>();
-    Set<String> disabledTypes=new HashSet<String>();
-    final Set<String> typesAtTheEndOfTheList=Sets.newHashSet();
-    for (    CmsResourceTypeConfig typeConfig : config.getResourceTypes()) {
-      boolean isModelGroup=CmsResourceTypeXmlContainerPage.MODEL_GROUP_TYPE_NAME.equals(typeConfig.getTypeName());
-      try {
-        AddMenuVisibility visibility=typeConfig.getAddMenuVisibility(elementView);
-        if (visibility == AddMenuVisibility.disabled) {
-          continue;
-        }
-        if (isModelGroup || (visibility == AddMenuVisibility.fromOtherView)) {
-          typesAtTheEndOfTheList.add(typeConfig.getTypeName());
-        }
-        if (typeConfig.checkViewable(cms,uri)) {
-          String typeName=typeConfig.getTypeName();
-          I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(typeName);
-          if (!isModelGroup && !config.hasFormatters(cms,resType,containers)) {
-            disabledTypes.add(typeName);
-          }
-          resourceTypes.add(resType);
-        }
-      }
- catch (      Exception e) {
-        LOG.error(e.getLocalizedMessage(),e);
-      }
-    }
-    Set<String> creatableTypes=new HashSet<String>();
-    for (    CmsResourceTypeConfig typeConfig : config.getCreatableTypes(getCmsObject(),CmsResource.getParentFolder(pageResource.getRootPath()))) {
-      if (typeConfig.isHiddenFromAddMenu(elementView) || disabledTypes.contains(typeConfig.getTypeName())) {
-        continue;
-      }
-      String typeName=typeConfig.getTypeName();
-      creatableTypes.add(typeName);
-    }
-    CmsGalleryService srv=new CmsGalleryService();
-    srv.setCms(cms);
-    srv.setRequest(getRequest());
-    Collections.sort(resourceTypes,new Comparator<I_CmsResourceType>(){
-      public int compare(      I_CmsResourceType first,      I_CmsResourceType second){
-        return ComparisonChain.start().compare(rank(first),rank(second)).result();
-      }
-      int rank(      I_CmsResourceType type){
-        return typesAtTheEndOfTheList.contains(type.getTypeName()) ? 1 : 0;
+    CmsAddDialogTypeHelper typeHelper=new CmsAddDialogTypeHelper();
+    List<CmsResourceTypeBean> resTypeBeans=typeHelper.getResourceTypes(cms,cms.getRequestContext().addSiteRoot(uri),uri,elementView,new I_CmsResourceTypeEnabledCheck(){
+      public boolean checkEnabled(      CmsObject paramCms,      CmsADEConfigData config,      I_CmsResourceType resType){
+        boolean isModelGroup=CmsResourceTypeXmlContainerPage.MODEL_GROUP_TYPE_NAME.equals(resType.getTypeName());
+        return isModelGroup || config.hasFormatters(paramCms,resType,containers);
       }
     }
 );
-    data=srv.getInitialSettingsForContainerPage(resourceTypes,creatableTypes,disabledTypes,uri,locale);
+    CmsGalleryService srv=new CmsGalleryService();
+    srv.setCms(cms);
+    srv.setRequest(getRequest());
+    data=srv.getInitialSettingsForContainerPage(resTypeBeans,locale,uri);
   }
  catch (  Exception e) {
     error(e);

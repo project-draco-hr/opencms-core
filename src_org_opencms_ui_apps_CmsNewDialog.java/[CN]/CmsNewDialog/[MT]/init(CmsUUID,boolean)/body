@@ -1,0 +1,117 @@
+{
+  m_currentViewId=viewId;
+  if (!viewId.equals(m_viewSelector.getValue())) {
+    m_viewSelector.setValue(viewId);
+  }
+  m_typeContainer.removeAllComponents();
+  CmsAddDialogTypeHelper typeHelper=new CmsAddDialogTypeHelper();
+  final CmsObject cms=A_CmsUI.getCmsObject();
+  List<CmsResourceTypeBean> typeBeans=typeHelper.getResourceTypes(cms,m_folderResource.getRootPath(),cms.getRequestContext().removeSiteRoot(m_folderResource.getRootPath()),viewId,null);
+  for (  CmsResourceTypeBean type : typeBeans) {
+    if (type.isCreatableType() && !type.isDeactivated()) {
+      final String typeName=type.getType();
+      String title=typeName;
+      String subtitle=CmsVaadinUtils.getMessageText(org.opencms.ui.Messages.GUI_NEWRESOURCEDIALOG_CURRENT_FOLDER_0);
+      if (useDefault && (type.getOrigin() == Origin.config) && (type.getCreatePath() != null)) {
+        subtitle=type.getCreatePath();
+      }
+      CmsExplorerTypeSettings explorerType=OpenCms.getWorkplaceManager().getExplorerTypeSetting(typeName);
+      if (explorerType != null) {
+        String iconUri=explorerType.getBigIconIfAvailable();
+        title=CmsVaadinUtils.getMessageText(explorerType.getKey());
+        CmsResourceInfo info=new CmsResourceInfo(title,subtitle,CmsWorkplace.getResourceUri("filetypes/" + iconUri));
+        Label label=new Label();
+        label.setContentMode(ContentMode.HTML);
+        label.setValue(FontAwesome.PLUS.getHtml());
+        m_typeContainer.addComponent(info);
+        info.getButtonLabel().setContentMode(ContentMode.HTML);
+        info.getButtonLabel().setValue(FontAwesome.PLUS.getHtml());
+        info.getButtonLabel().addStyleName(OpenCmsTheme.RESINFO_HIDDEN_ICON);
+        final CmsResourceTypeBean typeFinal=type;
+        info.addClickListener(new MouseEvents.ClickListener(){
+          private static final long serialVersionUID=1L;
+          @SuppressWarnings("synthetic-access") public void click(          com.vaadin.event.MouseEvents.ClickEvent event){
+            m_selectedType=typeFinal;
+            Boolean useDefaultLocation=m_defaultLocationCheckbox.getValue();
+            if (useDefaultLocation.booleanValue() && (m_selectedType.getCreatePath() != null)) {
+              try {
+                CmsADEConfigData configData=OpenCms.getADEManager().lookupConfiguration(cms,m_folderResource.getRootPath());
+                CmsResourceTypeConfig typeConfig=configData.getResourceType(m_selectedType.getType());
+                CmsResource createdResource=null;
+                if (typeConfig != null) {
+                  createdResource=typeConfig.createNewElement(cms,m_folderResource.getRootPath());
+                }
+                m_createdResource=createdResource;
+                CmsGwtDialogExtension gwtDialogExt=new CmsGwtDialogExtension(UI.getCurrent(),new I_CmsUpdateListener<String>(){
+                  public void onUpdate(                  List<String> updatedItems){
+                    List<CmsUUID> ids=Lists.newArrayList();
+                    if (updatedItems.isEmpty()) {
+                      removeResource();
+                    }
+ else {
+                      for (                      String item : updatedItems) {
+                        CmsUUID id=new CmsUUID(item);
+                        ids.add(id);
+                      }
+                    }
+                    finish(ids);
+                  }
+                }
+);
+                m_dialogContext.finish(new ArrayList<CmsUUID>());
+                if (createdResource != null) {
+                  gwtDialogExt.editProperties(createdResource.getStructureId(),true);
+                }
+              }
+ catch (              Exception e) {
+                m_dialogContext.error(e);
+              }
+            }
+ else {
+              String sitePath=cms.getRequestContext().removeSiteRoot(m_folderResource.getRootPath());
+              String namePattern=m_selectedType.getNamePattern();
+              if (CmsStringUtil.isEmptyOrWhitespaceOnly(namePattern)) {
+                namePattern=OpenCms.getWorkplaceManager().getDefaultNamePattern(m_selectedType.getType());
+              }
+              String fileName=CmsStringUtil.joinPaths(sitePath,namePattern);
+              String realCreatePath;
+              try {
+                realCreatePath=OpenCms.getResourceManager().getNameGenerator().getNewFileName(cms,fileName,6);
+              }
+ catch (              CmsException e1) {
+                realCreatePath=CmsStringUtil.joinPaths(sitePath,RandomStringUtils.randomAlphabetic(8));
+              }
+              try {
+                CmsResource createdResource=cms.createResource(realCreatePath,OpenCms.getResourceManager().getResourceType(m_selectedType.getType()),null,Lists.<CmsProperty>newArrayList());
+                cms.unlockResource(createdResource);
+                m_createdResource=createdResource;
+                CmsGwtDialogExtension gwtDialogExt=new CmsGwtDialogExtension(UI.getCurrent(),new I_CmsUpdateListener<String>(){
+                  public void onUpdate(                  List<String> updatedItems){
+                    List<CmsUUID> ids=Lists.newArrayList();
+                    if (updatedItems.isEmpty()) {
+                      removeResource();
+                    }
+ else {
+                      for (                      String item : updatedItems) {
+                        CmsUUID id=new CmsUUID(item);
+                        ids.add(id);
+                      }
+                    }
+                    finish(ids);
+                  }
+                }
+);
+                m_dialogContext.finish(new ArrayList<CmsUUID>());
+                gwtDialogExt.editProperties(createdResource.getStructureId(),true);
+              }
+ catch (              Exception e) {
+                m_dialogContext.error(e);
+              }
+            }
+          }
+        }
+);
+      }
+    }
+  }
+}

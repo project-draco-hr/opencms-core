@@ -1,0 +1,47 @@
+{
+  CmsRpcAction<CmsPropertiesBean> action=new CmsRpcAction<CmsPropertiesBean>(){
+    @Override public void execute(){
+      start(0,true);
+      CmsCoreProvider.getVfsService().loadPropertyData(structureId,this);
+    }
+    @Override protected void onResponse(    CmsPropertiesBean result){
+      CmsSimplePropertyEditorHandler handler=new CmsSimplePropertyEditorHandler(contextMenuHandler);
+      handler.setPropertiesBean(result);
+      handler.setEditableName(editName);
+      CmsVfsModePropertyEditor editor=new CmsVfsModePropertyEditor(result.getPropertyDefinitions(),handler);
+      editor.setShowResourceProperties(!handler.isFolder());
+      stop(false);
+      final CmsFormDialog dialog=new CmsFormDialog(handler.getDialogTitle(),editor.getForm());
+      CmsPropertyDefinitionButton defButton=new CmsPropertyDefinitionButton(){
+        /** 
+ * @see org.opencms.gwt.client.property.definition.CmsPropertyDefinitionButton#onBeforeEditPropertyDefinition()
+ */
+        @Override public void onBeforeEditPropertyDefinition(){
+          dialog.hide();
+        }
+      }
+;
+      defButton.installOnDialog(dialog);
+      final CmsDialogFormHandler formHandler=new CmsDialogFormHandler();
+      if (cancelHandler != null) {
+        dialog.addCloseHandler(new CloseHandler<PopupPanel>(){
+          public void onClose(          CloseEvent<PopupPanel> event){
+            if (!formHandler.isSubmitting()) {
+              cancelHandler.run();
+            }
+          }
+        }
+);
+      }
+      formHandler.setDialog(dialog);
+      I_CmsFormSubmitHandler submitHandler=new CmsPropertySubmitHandler(handler);
+      formHandler.setSubmitHandler(submitHandler);
+      editor.getForm().setFormHandler(formHandler);
+      editor.initializeWidgets(dialog);
+      dialog.centerHorizontally(50);
+      dialog.catchNotifications();
+    }
+  }
+;
+  action.execute();
+}

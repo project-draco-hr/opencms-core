@@ -1,0 +1,82 @@
+{
+  CmsADEConfigData config=OpenCms.getADEManager().lookupConfiguration(cms,folderRootPath);
+  List<I_CmsResourceType> resourceTypes=new ArrayList<I_CmsResourceType>();
+  Set<String> disabledTypes=new HashSet<String>();
+  final Set<String> typesAtTheEndOfTheList=Sets.newHashSet();
+  Set<String> typesFromConfig=Sets.newHashSet();
+  Map<String,String> createPaths=Maps.newHashMap();
+  Map<String,String> namePatterns=Maps.newHashMap();
+  for (  CmsResourceTypeConfig typeConfig : config.getResourceTypes()) {
+    typesFromConfig.add(typeConfig.getTypeName());
+    boolean isModelGroup=CmsResourceTypeXmlContainerPage.MODEL_GROUP_TYPE_NAME.equals(typeConfig.getTypeName());
+    try {
+      AddMenuVisibility visibility=typeConfig.getAddMenuVisibility(elementView);
+      if (visibility == AddMenuVisibility.disabled) {
+        continue;
+      }
+      if (isModelGroup || (visibility == AddMenuVisibility.fromOtherView)) {
+        typesAtTheEndOfTheList.add(typeConfig.getTypeName());
+      }
+      if (typeConfig.checkViewable(cms,checkViewableReferenceUri)) {
+        String typeName=typeConfig.getTypeName();
+        I_CmsResourceType resType=OpenCms.getResourceManager().getResourceType(typeName);
+        resourceTypes.add(resType);
+        if ((checkEnabled != null) && !checkEnabled.checkEnabled(cms,config,resType)) {
+          disabledTypes.add(resType.getTypeName());
+        }
+      }
+    }
+ catch (    Exception e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+  Set<String> creatableTypes=new HashSet<String>();
+  for (  CmsResourceTypeConfig typeConfig : config.getCreatableTypes(cms,folderRootPath)) {
+    if (typeConfig.isHiddenFromAddMenu(elementView) || disabledTypes.contains(typeConfig.getTypeName())) {
+      continue;
+    }
+    createPaths.put(typeConfig.getTypeName(),typeConfig.getFolderPath(cms,folderRootPath));
+    namePatterns.put(typeConfig.getTypeName(),typeConfig.getNamePattern(false));
+    String typeName=typeConfig.getTypeName();
+    creatableTypes.add(typeName);
+  }
+  CmsGalleryService srv=new CmsGalleryService();
+  srv.setCms(cms);
+  Collections.sort(resourceTypes,new Comparator<I_CmsResourceType>(){
+    public int compare(    I_CmsResourceType first,    I_CmsResourceType second){
+      return ComparisonChain.start().compare(rank(first),rank(second)).result();
+    }
+    int rank(    I_CmsResourceType type){
+      return typesAtTheEndOfTheList.contains(type.getTypeName()) ? 1 : 0;
+    }
+  }
+);
+  for (  I_CmsResourceType addType : additionalTypes) {
+    String typeName=addType.getTypeName();
+    if (typesFromConfig.contains(typeName)) {
+      continue;
+    }
+    CmsExplorerTypeSettings explorerType=OpenCms.getWorkplaceManager().getExplorerTypeSetting(typeName);
+    if (CmsStringUtil.isEmpty(explorerType.getNewResourceUri())) {
+      continue;
+    }
+    CmsPermissionSet permissions=explorerType.getAccess().getPermissions(cms,cms.readResource(checkViewableReferenceUri));
+    String permString=permissions.getPermissionString();
+    if (permString.contains("+c") && permString.contains("+v")) {
+      resourceTypes.add(addType);
+      creatableTypes.add(addType.getTypeName());
+    }
+  }
+  List<CmsResourceTypeBean> results=srv.buildTypesList(resourceTypes,creatableTypes,disabledTypes,null);
+  for (  CmsResourceTypeBean typeBean : results) {
+    if (typesFromConfig.contains(typeBean.getType())) {
+      typeBean.setOrigin(Origin.config);
+      typeBean.setCreatePath(createPaths.get(typeBean.getType()));
+      typeBean.setNamePattern(namePatterns.get(typeBean.getType()));
+    }
+ else {
+      typeBean.setOrigin(Origin.other);
+    }
+  }
+  return results;
+}
