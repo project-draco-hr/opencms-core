@@ -1,0 +1,46 @@
+{
+  m_updateResources.add(target.getStructureId());
+  m_updateResources.add(source.getStructureId());
+  String finalTarget=target.getRootPath();
+  if (finalTarget.equals(source.getRootPath()) || finalTarget.startsWith(source.getRootPath())) {
+    throw new CmsVfsException(Messages.get().container(Messages.ERR_COPY_ONTO_ITSELF_1,finalTarget));
+  }
+  if (!finalTarget.endsWith("/")) {
+    finalTarget+="/";
+  }
+  if (finalTarget.equals(CmsResource.getParentFolder(source.getRootPath()))) {
+    finalTarget+=OpenCms.getResourceManager().getNameGenerator().getCopyFileName(getRootCms(),finalTarget,source.getName());
+  }
+ else {
+    finalTarget+=source.getName();
+  }
+  if (overwrite && getRootCms().existsResource(finalTarget)) {
+    CmsLockUtil.ensureLock(getRootCms(),getRootCms().readResource(finalTarget));
+    getRootCms().deleteResource(finalTarget,CmsResource.DELETE_PRESERVE_SIBLINGS);
+  }
+  if (action == Action.move) {
+    CmsResource parent=getRootCms().readParentFolder(source.getStructureId());
+    m_updateResources.add(parent.getStructureId());
+    CmsLockActionRecord lockRecord=CmsLockUtil.ensureLock(getRootCms(),source);
+    getRootCms().moveResource(source.getRootPath(),finalTarget);
+    if (lockRecord.getChange() == CmsLockActionRecord.LockChange.locked) {
+      getRootCms().unlockResource(finalTarget);
+    }
+  }
+ else {
+    CmsResourceCopyMode copyMode=null;
+switch ((Action)m_actionRadio.getValue()) {
+case copy_all:
+      copyMode=CmsResource.COPY_AS_NEW;
+    break;
+case copy_sibling_all:
+  copyMode=CmsResource.COPY_AS_SIBLING;
+break;
+case copy_sibling_mixed:
+default :
+copyMode=CmsResource.COPY_PRESERVE_SIBLING;
+}
+getRootCms().copyResource(source.getRootPath(),finalTarget,copyMode);
+getRootCms().unlockResource(finalTarget);
+}
+}
