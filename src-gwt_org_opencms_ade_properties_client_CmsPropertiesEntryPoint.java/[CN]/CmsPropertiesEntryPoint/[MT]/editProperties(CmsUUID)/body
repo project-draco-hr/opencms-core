@@ -1,48 +1,29 @@
 {
-  CmsRpcAction<CmsPropertiesBean> action=new CmsRpcAction<CmsPropertiesBean>(){
-    @Override public void execute(){
-      start(0,true);
-      CmsCoreProvider.getVfsService().loadPropertyData(structureId,this);
-    }
-    @Override protected void onResponse(    CmsPropertiesBean result){
-      I_CmsLayoutBundle.INSTANCE.propertiesCss().ensureInjected();
-      CmsSimplePropertyEditorHandler handler=new PropertyEditorHandler();
-      handler.setPropertiesBean(result);
-      CmsVfsModePropertyEditor editor=new CmsVfsModePropertyEditor(result.getPropertyDefinitions(),handler);
-      editor.setReadOnly(result.isReadOnly());
-      editor.setShowResourceProperties(!handler.isFolder());
-      stop(false);
-      final CmsFormDialog dialog=new CmsFormDialog(handler.getDialogTitle(),editor.getForm());
+  CmsEditProperties.editProperties(structureId,null,false,null,new PropertyEditingContext(){
+    @Override public CmsPropertyDefinitionButton createPropertyDefinitionButton(){
       CmsPropertyDefinitionButton button=new CmsPropertyDefinitionButton(){
         /** 
  * @see org.opencms.gwt.client.property.definition.CmsPropertyDefinitionButton#onBeforeEditPropertyDefinition()
  */
-        @Override public void onBeforeEditPropertyDefinition(){
+        @SuppressWarnings("synthetic-access") @Override public void onBeforeEditPropertyDefinition(){
           m_needsPropertyDefinitionDialog=true;
-          dialog.hide();
+          m_formDialog.hide();
         }
         @Override public void onClosePropertyDefinitionDialog(){
           closeDelayed();
         }
       }
 ;
-      button.installOnDialog(dialog);
-      CmsDialogFormHandler formHandler=new CmsDialogFormHandler();
-      formHandler.setDialog(dialog);
-      I_CmsFormSubmitHandler submitHandler=new CmsPropertySubmitHandler(handler);
-      formHandler.setSubmitHandler(submitHandler);
-      editor.getForm().setFormHandler(formHandler);
-      editor.initializeWidgets(dialog);
-      dialog.centerHorizontally(50);
-      dialog.addCloseHandler(new CloseHandler<PopupPanel>(){
+      return button;
+    }
+    @Override public void initCloseHandler(){
+      m_formDialog.addCloseHandler(new CloseHandler<PopupPanel>(){
         public void onClose(        CloseEvent<PopupPanel> event){
           onClosePropertyDialog();
         }
       }
 );
-      dialog.catchNotifications();
     }
   }
-;
-  action.execute();
+);
 }

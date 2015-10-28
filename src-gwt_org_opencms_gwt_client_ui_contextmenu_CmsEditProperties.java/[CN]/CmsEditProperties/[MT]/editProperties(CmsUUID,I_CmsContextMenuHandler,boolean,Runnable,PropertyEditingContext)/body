@@ -6,33 +6,20 @@
     }
     @Override protected void onResponse(    CmsPropertiesBean result){
       CmsSimplePropertyEditorHandler handler=new CmsSimplePropertyEditorHandler(contextMenuHandler);
+      editContext.setCancelHandler(cancelHandler);
       handler.setPropertiesBean(result);
       handler.setEditableName(editName);
       CmsVfsModePropertyEditor editor=new CmsVfsModePropertyEditor(result.getPropertyDefinitions(),handler);
       editor.setShowResourceProperties(!handler.isFolder());
+      editor.setReadOnly(result.isReadOnly());
       stop(false);
       final CmsFormDialog dialog=new CmsFormDialog(handler.getDialogTitle(),editor.getForm());
-      CmsPropertyDefinitionButton defButton=new CmsPropertyDefinitionButton(){
-        /** 
- * @see org.opencms.gwt.client.property.definition.CmsPropertyDefinitionButton#onBeforeEditPropertyDefinition()
- */
-        @Override public void onBeforeEditPropertyDefinition(){
-          dialog.hide();
-        }
-      }
-;
+      editContext.setDialog(dialog);
+      CmsPropertyDefinitionButton defButton=editContext.createPropertyDefinitionButton();
       defButton.installOnDialog(dialog);
       final CmsDialogFormHandler formHandler=new CmsDialogFormHandler();
-      if (cancelHandler != null) {
-        dialog.addCloseHandler(new CloseHandler<PopupPanel>(){
-          public void onClose(          CloseEvent<PopupPanel> event){
-            if (!formHandler.isSubmitting()) {
-              cancelHandler.run();
-            }
-          }
-        }
-);
-      }
+      editContext.setFormHandler(formHandler);
+      editContext.initCloseHandler();
       formHandler.setDialog(dialog);
       I_CmsFormSubmitHandler submitHandler=new CmsPropertySubmitHandler(handler);
       formHandler.setSubmitHandler(submitHandler);
