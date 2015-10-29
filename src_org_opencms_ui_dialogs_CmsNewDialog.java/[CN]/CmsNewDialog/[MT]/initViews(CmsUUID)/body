@@ -8,36 +8,29 @@
   }
 );
   m_viewSelector.setItemCaptionMode(ItemCaptionMode.EXPLICIT);
+  m_typeHelper=createTypeHelper();
+  m_typeHelper.precomputeTypeLists(A_CmsUI.getCmsObject(),m_folderResource.getRootPath(),A_CmsUI.getCmsObject().getRequestContext().removeSiteRoot(m_folderResource.getRootPath()),viewList,null);
   for (  CmsElementView view : viewList) {
     if (view.hasPermission(A_CmsUI.getCmsObject(),m_folderResource)) {
-      try {
-        List<CmsResourceTypeBean> typeBeans=getTypeHelper().getResourceTypes(A_CmsUI.getCmsObject(),m_folderResource.getRootPath(),A_CmsUI.getCmsObject().getRequestContext().removeSiteRoot(m_folderResource.getRootPath()),view.getId(),null);
-        if (typeBeans.isEmpty()) {
-          continue;
-        }
-      }
- catch (      CmsException e) {
+      List<CmsResourceTypeBean> typeBeans=m_typeHelper.getPrecomputedTypes(view);
+      if (typeBeans.isEmpty()) {
         continue;
       }
       m_viewSelector.addItem(view.getId());
       m_viewSelector.setItemCaption(view.getId(),view.getTitle(A_CmsUI.getCmsObject(),A_CmsUI.get().getLocale()));
     }
   }
-  if (m_viewSelector.getItem(startView) == null) {
-    startView=(CmsUUID)(m_viewSelector.getItemIds().iterator().next());
+  if (m_viewSelector.getItem(startId) == null) {
+    startId=(CmsUUID)(m_viewSelector.getItemIds().iterator().next());
   }
   m_viewSelector.addValueChangeListener(new ValueChangeListener(){
     private static final long serialVersionUID=1L;
     public void valueChange(    ValueChangeEvent event){
-      try {
-        init((CmsUUID)(event.getProperty().getValue()),true);
-        VaadinService.getCurrentRequest().getWrappedSession().setAttribute(SETTING_STANDARD_VIEW,(event.getProperty().getValue()));
-      }
- catch (      CmsException e) {
-        e.printStackTrace();
-      }
+      CmsElementView selectedView=OpenCms.getADEManager().getElementViews(A_CmsUI.getCmsObject()).get(event.getProperty().getValue());
+      init(selectedView,true);
+      VaadinService.getCurrentRequest().getWrappedSession().setAttribute(SETTING_STANDARD_VIEW,(event.getProperty().getValue()));
     }
   }
 );
-  return startView;
+  return OpenCms.getADEManager().getElementViews(A_CmsUI.getCmsObject()).get(startId);
 }

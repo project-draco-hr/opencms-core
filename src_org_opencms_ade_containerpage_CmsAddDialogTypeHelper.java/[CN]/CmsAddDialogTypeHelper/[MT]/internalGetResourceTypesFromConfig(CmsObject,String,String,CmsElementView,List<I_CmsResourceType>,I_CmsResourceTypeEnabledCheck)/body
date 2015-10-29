@@ -7,10 +7,11 @@
   Map<String,String> createPaths=Maps.newHashMap();
   Map<String,String> namePatterns=Maps.newHashMap();
   for (  CmsResourceTypeConfig typeConfig : config.getResourceTypes()) {
+    m_allAdeTypes.add(typeConfig.getTypeName());
     typesFromConfig.add(typeConfig.getTypeName());
     boolean isModelGroup=CmsResourceTypeXmlContainerPage.MODEL_GROUP_TYPE_NAME.equals(typeConfig.getTypeName());
     try {
-      AddMenuVisibility visibility=typeConfig.getAddMenuVisibility(elementView);
+      AddMenuVisibility visibility=typeConfig.getAddMenuVisibility(elementView.getId());
       if (visibility == AddMenuVisibility.disabled) {
         continue;
       }
@@ -32,7 +33,7 @@
   }
   Set<String> creatableTypes=new HashSet<String>();
   for (  CmsResourceTypeConfig typeConfig : config.getCreatableTypes(cms,folderRootPath)) {
-    if (typeConfig.isHiddenFromAddMenu(elementView) || disabledTypes.contains(typeConfig.getTypeName())) {
+    if (typeConfig.isHiddenFromAddMenu(elementView.getId()) || disabledTypes.contains(typeConfig.getTypeName())) {
       continue;
     }
     createPaths.put(typeConfig.getTypeName(),typeConfig.getFolderPath(cms,folderRootPath));
@@ -40,6 +41,7 @@
     String typeName=typeConfig.getTypeName();
     creatableTypes.add(typeName);
   }
+  m_includedAdeTypes.addAll(createPaths.keySet());
   CmsGalleryService srv=new CmsGalleryService();
   srv.setCms(cms);
   Collections.sort(resourceTypes,new Comparator<I_CmsResourceType>(){
@@ -51,15 +53,30 @@
     }
   }
 );
+  Collections.sort(additionalTypes,new Comparator<I_CmsResourceType>(){
+    public int compare(    I_CmsResourceType type1,    I_CmsResourceType type2){
+      CmsExplorerTypeSettings settings1=OpenCms.getWorkplaceManager().getExplorerTypeSetting(type1.getTypeName());
+      CmsExplorerTypeSettings settings2=OpenCms.getWorkplaceManager().getExplorerTypeSetting(type2.getTypeName());
+      return ComparisonChain.start().compare(settings1.getViewOrder(true),settings2.getViewOrder(true)).compare(parse(settings1.getNewResourceOrder()),parse(settings2.getNewResourceOrder())).result();
+    }
+    long parse(    String order){
+      try {
+        return Integer.parseInt(order);
+      }
+ catch (      NumberFormatException e) {
+        return 9999;
+      }
+    }
+  }
+);
   for (  I_CmsResourceType addType : additionalTypes) {
     String typeName=addType.getTypeName();
-    if (typesFromConfig.contains(typeName)) {
+    if (typesFromConfig.contains(typeName) && !elementView.isOther()) {
       continue;
     }
     CmsExplorerTypeSettings explorerType=OpenCms.getWorkplaceManager().getExplorerTypeSetting(typeName);
     CmsPermissionSet permissions=explorerType.getAccess().getPermissions(cms,cms.readResource(checkViewableReferenceUri));
-    String permString=permissions.getPermissionString();
-    if (permString.contains("+c") && permString.contains("+v")) {
+    if (permissions.requiresControlPermission() && permissions.requiresViewPermission()) {
       resourceTypes.add(addType);
       creatableTypes.add(addType.getTypeName());
     }
