@@ -1,18 +1,24 @@
 {
   try {
     CmsResource currentFolderRes=A_CmsUI.getCmsObject().readResource(m_currentFolder,CmsResourceFilter.ALL);
+    boolean updateFolder=m_fileTable.getItemCount() < UPDATE_FOLDER_THRESHOLD;
     for (    CmsUUID id : ids) {
-      boolean remove=false;
-      try {
-        CmsResource resource=A_CmsUI.getCmsObject().readResource(id,CmsResourceFilter.ALL);
-        remove=!CmsResource.getParentFolder(resource.getRootPath()).equals(currentFolderRes.getRootPath());
+      if (!updateFolder) {
+        boolean remove=false;
+        try {
+          CmsResource resource=A_CmsUI.getCmsObject().readResource(id,CmsResourceFilter.ALL);
+          remove=!CmsResource.getParentFolder(resource.getRootPath()).equals(currentFolderRes.getRootPath());
+        }
+ catch (        CmsVfsResourceNotFoundException e) {
+          remove=true;
+          LOG.debug("Could not read update resource " + id,e);
+        }
+        m_fileTable.update(id,remove);
       }
- catch (      CmsVfsResourceNotFoundException e) {
-        remove=true;
-        LOG.debug("Could not read update resource " + id,e);
-      }
-      m_fileTable.update(id,remove);
-      updateTree(id,remove);
+      updateTree(id);
+    }
+    if (updateFolder) {
+      readFolder(m_currentFolder);
     }
     m_fileTable.clearSelection();
   }
