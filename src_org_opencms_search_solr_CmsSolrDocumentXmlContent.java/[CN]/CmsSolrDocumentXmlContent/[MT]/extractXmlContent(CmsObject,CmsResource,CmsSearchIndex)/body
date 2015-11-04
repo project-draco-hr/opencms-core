@@ -9,12 +9,11 @@
   StringBuffer locales=new StringBuffer();
   Locale resourceLocale=index.getLocaleForResource(cms,resource,xmlContent.getLocales());
   for (  Locale locale : xmlContent.getLocales()) {
+    GalleryNameChooser galleryNameChooser=new GalleryNameChooser(cms,xmlContent,locale);
     Map<String,String> localeItems=new HashMap<String,String>();
     StringBuffer textContent=new StringBuffer();
     locales.append(locale.toString());
     locales.append(' ');
-    boolean hasTitleMapping=false;
-    String galleryNameTemplate=null;
     List<String> paths=xmlContent.getNames(locale);
     for (    String xpath : paths) {
       String extracted=null;
@@ -44,47 +43,40 @@
               if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(extracted)) {
                 String fieldName=null;
                 if (CmsPropertyDefinition.PROPERTY_TITLE.equals(propertyName)) {
-                  hasTitleMapping=true;
-                  fieldName=CmsSearchField.FIELD_TITLE_UNSTORED;
+                  galleryNameChooser.setMappedTitleValue(extracted);
                 }
  else {
                   fieldName=CmsSearchField.FIELD_DESCRIPTION;
+                  fieldMappings.put(CmsSearchFieldConfiguration.getLocaleExtendedName(fieldName,locale) + "_s",extracted);
                 }
-                fieldMappings.put(CmsSearchFieldConfiguration.getLocaleExtendedName(fieldName,locale) + "_s",extracted);
               }
             }
- else             if (mapping.equals(MAPPING_GALLERY_NAME)) {
-              galleryNameTemplate=value.getPlainText(cms);
-              LOG.info("Found gallery name template for " + resource.getRootPath() + ":"+ galleryNameTemplate);
-            }
+          }
+ else           if (mapping.equals(MAPPING_GALLERY_NAME)) {
+            galleryNameChooser.setMappedGalleryNameValue(value.getPlainText(cms));
           }
         }
       }
     }
-    if (galleryNameTemplate == null) {
-      Set<String> xpaths=Sets.newHashSet();
-      collectSchemaXpathsForSimpleValues(cms,xmlContent.getContentDefinition(),"",xpaths);
-      for (      String xpath : xpaths) {
-        List<String> mappings=xmlContent.getHandler().getMappings(CmsXmlUtils.createXpath(xpath,1));
-        for (        String mapping : mappings) {
+    Set<String> xpaths=Sets.newHashSet();
+    collectSchemaXpathsForSimpleValues(cms,xmlContent.getContentDefinition(),"",xpaths);
+    for (    String xpath : xpaths) {
+      List<String> mappings=xmlContent.getHandler().getMappings(CmsXmlUtils.createXpath(xpath,1));
+      for (      String mapping : mappings) {
+        if (mapping.equals(MAPPING_GALLERY_NAME) || mapping.equals(I_CmsXmlContentHandler.MAPTO_PROPERTY + CmsPropertyDefinition.PROPERTY_TITLE)) {
+          String defaultValue=xmlContent.getHandler().getDefault(cms,xmlContent.getFile(),null,xpath,locale);
           if (mapping.equals(MAPPING_GALLERY_NAME)) {
-            galleryNameTemplate=xmlContent.getHandler().getDefault(cms,xmlContent.getFile(),null,xpath,locale);
-            LOG.info("Using default value for gallery name template in " + resource.getRootPath() + ": "+ galleryNameTemplate);
-            break;
+            galleryNameChooser.setDefaultGalleryNameValue(defaultValue);
+          }
+ else {
+            galleryNameChooser.setDefaultTitleValue(defaultValue);
           }
         }
       }
     }
-    if (!hasTitleMapping) {
-      String title=cms.readPropertyObject(resource,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
-      fieldMappings.put(CmsSearchFieldConfiguration.getLocaleExtendedName(CmsSearchField.FIELD_TITLE_UNSTORED,locale) + "_s",title);
-    }
-    if (galleryNameTemplate != null) {
-      CmsGalleryNameMacroResolver macroResolver=new CmsGalleryNameMacroResolver(cms,xmlContent,locale);
-      String galleryName=macroResolver.resolveMacros(galleryNameTemplate);
-      LOG.info("Using gallery name mapping '" + galleryNameTemplate + "' for '"+ resource.getRootPath()+ "' in locale "+ locale+ ", resulting in gallery name '"+ galleryName+ "'");
-      fieldMappings.put(CmsSearchFieldConfiguration.getLocaleExtendedName(CmsSearchField.FIELD_TITLE_UNSTORED,locale) + "_s",galleryName);
-    }
+    final String galleryTitleFieldKey=CmsSearchFieldConfiguration.getLocaleExtendedName(CmsSearchField.FIELD_TITLE_UNSTORED,locale) + "_s";
+    final String galleryNameValue=galleryNameChooser.getGalleryName();
+    fieldMappings.put(galleryTitleFieldKey,galleryNameValue);
     if (textContent.length() > 0) {
       localeItems.put(I_CmsExtractionResult.ITEM_CONTENT,textContent.toString());
     }
