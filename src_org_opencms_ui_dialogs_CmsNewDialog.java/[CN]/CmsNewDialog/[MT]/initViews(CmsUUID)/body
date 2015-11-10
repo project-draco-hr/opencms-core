@@ -10,25 +10,41 @@
   m_viewSelector.setItemCaptionMode(ItemCaptionMode.EXPLICIT);
   m_typeHelper=createTypeHelper();
   m_typeHelper.precomputeTypeLists(A_CmsUI.getCmsObject(),m_folderResource.getRootPath(),A_CmsUI.getCmsObject().getRequestContext().removeSiteRoot(m_folderResource.getRootPath()),viewList,null);
+  LinkedHashMap<String,CmsResourceTypeBean> allTypes=Maps.newLinkedHashMap();
   for (  CmsElementView view : viewList) {
     if (view.hasPermission(A_CmsUI.getCmsObject(),m_folderResource)) {
       List<CmsResourceTypeBean> typeBeans=m_typeHelper.getPrecomputedTypes(view);
       if (typeBeans.isEmpty()) {
         continue;
       }
+      for (      CmsResourceTypeBean typeBean : typeBeans) {
+        allTypes.put(typeBean.getType(),typeBean);
+      }
       m_viewSelector.addItem(view.getId());
       m_viewSelector.setItemCaption(view.getId(),view.getTitle(A_CmsUI.getCmsObject(),A_CmsUI.get().getLocale()));
     }
   }
+  m_viewSelector.addItem(VIEW_ALL.getId());
+  m_viewSelector.setItemCaption(VIEW_ALL.getId(),CmsVaadinUtils.getMessageText(Messages.GUI_VIEW_ALL_0));
+  m_allTypes=Lists.newArrayList(allTypes.values());
   if (m_viewSelector.getItem(startId) == null) {
     startId=(CmsUUID)(m_viewSelector.getItemIds().iterator().next());
   }
   m_viewSelector.addValueChangeListener(new ValueChangeListener(){
     private static final long serialVersionUID=1L;
     public void valueChange(    ValueChangeEvent event){
-      CmsElementView selectedView=OpenCms.getADEManager().getElementViews(A_CmsUI.getCmsObject()).get(event.getProperty().getValue());
+      CmsUUID viewId=(CmsUUID)(event.getProperty().getValue());
+      CmsElementView selectedView;
+      if (viewId.equals(ID_VIEW_ALL)) {
+        selectedView=VIEW_ALL;
+      }
+ else {
+        selectedView=OpenCms.getADEManager().getElementViews(A_CmsUI.getCmsObject()).get(event.getProperty().getValue());
+      }
       init(selectedView,m_defaultLocationCheckbox.getValue().booleanValue());
-      VaadinService.getCurrentRequest().getWrappedSession().setAttribute(SETTING_STANDARD_VIEW,(event.getProperty().getValue()));
+      if (selectedView != VIEW_ALL) {
+        VaadinService.getCurrentRequest().getWrappedSession().setAttribute(SETTING_STANDARD_VIEW,(event.getProperty().getValue()));
+      }
     }
   }
 );
