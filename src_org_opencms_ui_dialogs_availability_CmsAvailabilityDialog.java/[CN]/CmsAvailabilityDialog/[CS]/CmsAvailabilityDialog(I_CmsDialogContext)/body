@@ -4,7 +4,6 @@
   CmsObject cms=dialogContext.getCms();
   CmsVaadinUtils.readAndLocalizeDesign(this,OpenCms.getWorkplaceManager().getMessages(A_CmsUI.get().getLocale()),null);
   List<CmsResource> resources=dialogContext.getResources();
-  m_notificationPanel.setVisible(true);
   m_notificationIntervalField.addValidator(new Validator(){
     /** 
  * Serial version id. 
@@ -38,6 +37,7 @@
     Map<CmsPrincipalBean,String> responsibles=m_availabilityInfo.getResponsibles();
     if (!responsibles.isEmpty()) {
       m_responsiblesPanel.setVisible(true);
+      m_notificationPanel.setVisible(true);
       for (      Map.Entry<CmsPrincipalBean,String> entry : responsibles.entrySet()) {
         CmsPrincipalBean principal=entry.getKey();
         String icon=principal.isGroup() ? CmsWorkplace.getResourceUri("buttons/group.png") : CmsWorkplace.getResourceUri("buttons/user.png");
@@ -49,11 +49,24 @@
         m_responsiblesContainer.addComponent(infoWidget);
       }
     }
+  }
  else {
-      m_responsiblesPanel.setVisible(true);
-      String message=CmsVaadinUtils.getMessageText(org.opencms.workplace.commons.Messages.GUI_AVAILABILITY_NO_RESPONSIBLES_0);
-      m_responsiblesContainer.addComponent(new Label(message));
+    boolean showNotification=false;
+    resourceLoop:     for (    CmsResource resource : resources) {
+      try {
+        List<CmsAccessControlEntry> aces=cms.getAccessControlEntries(cms.getSitePath(resource));
+        for (        CmsAccessControlEntry ace : aces) {
+          if (ace.isResponsible()) {
+            showNotification=true;
+            break resourceLoop;
+          }
+        }
+      }
+ catch (      CmsException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
     }
+    m_notificationPanel.setVisible(showNotification);
   }
   m_notificationEnabledField.setValue(m_initialNotificationEnabled);
   m_notificationIntervalField.setValue(m_initialNotificationInterval);
