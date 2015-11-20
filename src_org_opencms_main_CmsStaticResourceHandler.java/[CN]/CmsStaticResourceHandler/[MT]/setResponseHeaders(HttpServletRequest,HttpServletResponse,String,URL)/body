@@ -1,0 +1,41 @@
+{
+  String cacheControl="public, max-age=0, must-revalidate";
+  int resourceCacheTime=getCacheTime(filename);
+  if (resourceCacheTime > 0) {
+    cacheControl="max-age=" + String.valueOf(resourceCacheTime);
+  }
+  response.setHeader("Cache-Control",cacheControl);
+  response.setDateHeader("Expires",System.currentTimeMillis() + (resourceCacheTime * 1000));
+  long lastModifiedTime=0;
+  URLConnection connection=null;
+  try {
+    connection=resourceURL.openConnection();
+    lastModifiedTime=connection.getLastModified();
+    lastModifiedTime=lastModifiedTime - (lastModifiedTime % 1000);
+    response.setDateHeader("Last-Modified",lastModifiedTime);
+    if (browserHasNewestVersion(request,lastModifiedTime)) {
+      response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+      return;
+    }
+  }
+ catch (  Exception e) {
+    LOG.debug("Failed to find out last modified timestamp. Continuing without it.",e);
+  }
+ finally {
+    try {
+      if (connection != null) {
+        InputStream is=connection.getInputStream();
+        if (is != null) {
+          is.close();
+        }
+      }
+    }
+ catch (    Exception e) {
+      LOG.info("Error closing URLConnection input stream",e);
+    }
+  }
+  String mimetype=OpenCms.getResourceManager().getMimeType(filename,"UTF-8");
+  if (mimetype != null) {
+    response.setContentType(mimetype);
+  }
+}

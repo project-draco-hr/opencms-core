@@ -1,0 +1,43 @@
+{
+  URLConnection connection=null;
+  InputStream is=null;
+  String urlStr=resourceUrl.toExternalForm();
+  try {
+    if (allowServePrecompressedResource(request,urlStr)) {
+      try {
+        connection=new URL(urlStr + ".gz").openConnection();
+        is=connection.getInputStream();
+        response.setHeader("Content-Encoding","gzip");
+      }
+ catch (      Exception e) {
+        LOG.debug("Unexpected exception looking for gzipped version of resource " + urlStr,e);
+      }
+    }
+    if (is == null) {
+      connection=resourceUrl.openConnection();
+      try {
+        is=connection.getInputStream();
+      }
+ catch (      FileNotFoundException e) {
+        LOG.debug(e.getMessage(),e);
+        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        return;
+      }
+    }
+    try {
+      @SuppressWarnings("null") int length=connection.getContentLength();
+      if (length >= 0) {
+        response.setContentLength(length);
+      }
+    }
+ catch (    Throwable e) {
+      LOG.debug(e.getMessage(),e);
+    }
+    streamContent(response,is);
+  }
+  finally {
+    if (is != null) {
+      is.close();
+    }
+  }
+}
