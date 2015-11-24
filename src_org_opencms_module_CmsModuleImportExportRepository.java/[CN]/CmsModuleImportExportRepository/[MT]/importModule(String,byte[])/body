@@ -1,28 +1,46 @@
 {
-  if (content.length == 0) {
-    LOG.debug("Zero-length module import content, ignoring it...");
-  }
+  String moduleName=null;
+  boolean ok=true;
+  try {
+    if (content.length == 0) {
+      LOG.debug("Zero-length module import content, ignoring it...");
+    }
  else {
-    ensureFoldersExist();
-    String targetFilePath=createImportZipPath(name);
-    try {
-      FileOutputStream out=new FileOutputStream(new File(targetFilePath));
-      out.write(content);
-      out.close();
+      ensureFoldersExist();
+      String targetFilePath=createImportZipPath(name);
+      try {
+        FileOutputStream out=new FileOutputStream(new File(targetFilePath));
+        out.write(content);
+        out.close();
+      }
+ catch (      IOException e) {
+        throw new CmsImportExportException(Messages.get().container(Messages.ERR_FILE_IO_1,targetFilePath));
+      }
+      CmsModuleImportExportHandler importHandler=new CmsModuleImportExportHandler();
+      CmsModule module=CmsModuleImportExportHandler.readModuleFromImport(targetFilePath);
+      moduleName=module.getName();
+      I_CmsReport report=createReport();
+      if (OpenCms.getModuleManager().hasModule(moduleName)) {
+        OpenCms.getModuleManager().deleteModule(m_adminCms,moduleName,true,report);
+      }
+      CmsImportParameters params=new CmsImportParameters(targetFilePath,"/",false);
+      importHandler.setImportParameters(params);
+      importHandler.importData(m_adminCms,report);
+      new File(targetFilePath).delete();
+      if (report.hasError() || report.hasWarning()) {
+        ok=false;
+      }
     }
- catch (    IOException e) {
-      throw new CmsImportExportException(Messages.get().container(Messages.ERR_FILE_IO_1,targetFilePath));
-    }
-    CmsModuleImportExportHandler importHandler=new CmsModuleImportExportHandler();
-    CmsModule module=CmsModuleImportExportHandler.readModuleFromImport(targetFilePath);
-    String moduleName=module.getName();
-    I_CmsReport report=createReport();
-    if (OpenCms.getModuleManager().hasModule(moduleName)) {
-      OpenCms.getModuleManager().deleteModule(m_adminCms,moduleName,true,report);
-    }
-    CmsImportParameters params=new CmsImportParameters(targetFilePath,"/",false);
-    importHandler.setImportParameters(params);
-    importHandler.importData(m_adminCms,report);
-    new File(targetFilePath).delete();
+  }
+ catch (  CmsException e) {
+    ok=false;
+    throw e;
+  }
+catch (  RuntimeException e) {
+    ok=false;
+    throw e;
+  }
+ finally {
+    m_moduleLog.log(moduleName,Action.importModule,ok);
   }
 }

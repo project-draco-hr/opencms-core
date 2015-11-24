@@ -1,9 +1,30 @@
 {
-  CmsModule module=getModuleForFileName(fileName);
-  if (module == null) {
-    LOG.error("Deletion request for invalid module file name: " + fileName);
-    return false;
+  String moduleName=null;
+  boolean ok=true;
+  try {
+    CmsModule module=getModuleForFileName(fileName);
+    if (module == null) {
+      LOG.error("Deletion request for invalid module file name: " + fileName);
+      ok=false;
+      return false;
+    }
+    I_CmsReport report=createReport();
+    moduleName=module.getName();
+    OpenCms.getModuleManager().deleteModule(m_adminCms,module.getName(),false,report);
+    ok=!(report.hasWarning() || report.hasError());
+    return true;
   }
-  OpenCms.getModuleManager().deleteModule(m_adminCms,module.getName(),false,createReport());
-  return true;
+ catch (  Exception e) {
+    ok=false;
+    if (e instanceof CmsException) {
+      throw (CmsException)e;
+    }
+    if (e instanceof RuntimeException) {
+      throw (RuntimeException)e;
+    }
+    return true;
+  }
+ finally {
+    m_moduleLog.log(moduleName,Action.deleteModule,ok);
+  }
 }
