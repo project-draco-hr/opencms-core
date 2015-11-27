@@ -8,8 +8,8 @@
     storedMessage=loginMessage.getMessage();
   }
   if (message != null) {
-    String errorMesssage=message.key(m_params.getLocale());
-    m_ui.displayError(errorMesssage);
+    String errorMessage=message.key(m_params.getLocale());
+    displayError(errorMessage,true);
     return;
   }
   String ou=m_ui.getOrgUnit();
@@ -24,23 +24,25 @@
  catch (    CmsException e) {
       LOG.warn(e.getLocalizedMessage(),e);
       message=org.opencms.workplace.Messages.get().container(org.opencms.workplace.Messages.GUI_LOGIN_FAILED_0);
-      m_ui.displayError(message.key(m_params.getLocale()));
+      displayError(message.key(m_params.getLocale()),true);
       return;
     }
     if (OpenCms.getLoginManager().canLockBecauseOfInactivity(currentCms,userObj)) {
       boolean locked=null != userObj.getAdditionalInfo().get(KEY_ACCOUNT_LOCKED);
       if (locked) {
-        A_CmsUI.get().setError(CmsInactiveUserMessages.getLockoutText(A_CmsUI.get().getLocale()));
+        displayError(CmsInactiveUserMessages.getLockoutText(A_CmsUI.get().getLocale()),false);
         return;
       }
     }
     if (OpenCms.getLoginManager().requiresPasswordChange(currentCms,userObj)) {
       CmsChangePasswordDialog passwordDialog=new CmsChangePasswordDialog(currentCms,userObj,A_CmsUI.get().getLocale());
       A_CmsUI.get().setContentToDialog(Messages.get().getBundle(A_CmsUI.get().getLocale()).key(Messages.GUI_PWCHANGE_HEADER_0) + userObj.getSimpleName(),passwordDialog);
-      return;
     }
     currentCms.loginUser(realUser,password);
     OpenCms.getSessionManager().updateSessionInfo(currentCms,(HttpServletRequest)VaadinService.getCurrentRequest());
+    if ((loginMessage != null) && loginMessage.isLoginCurrentlyForbidden()) {
+      storedMessage=org.opencms.workplace.Messages.get().container(org.opencms.workplace.Messages.GUI_LOGIN_SUCCESS_WITH_MESSAGE_2,loginMessage.getMessage(),new Date(loginMessage.getTimeEnd())).key(A_CmsUI.get().getLocale());
+    }
     if (storedMessage != null) {
       OpenCms.getSessionManager().sendBroadcast(null,storedMessage,currentCms.getRequestContext().getCurrentUser());
     }
@@ -75,12 +77,13 @@
         message=org.opencms.workplace.Messages.get().container(org.opencms.workplace.Messages.GUI_LOGIN_FAILED_0);
       }
     }
-    m_ui.displayError(message.key(m_params.getLocale()));
     if (e instanceof CmsException) {
       CmsJspLoginBean.logLoginException(currentCms.getRequestContext(),user,(CmsException)e);
     }
  else {
       LOG.error(e.getLocalizedMessage(),e);
     }
+    displayError(message.key(m_params.getLocale()),false);
+    return;
   }
 }
