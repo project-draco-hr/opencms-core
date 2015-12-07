@@ -1,0 +1,52 @@
+{
+  List<CmsProject> allProjects;
+  try {
+    String ouFqn="";
+    CmsUserSettings settings=new CmsUserSettings(cms);
+    if (!settings.getListAllProjects()) {
+      ouFqn=cms.getRequestContext().getCurrentUser().getOuFqn();
+    }
+    allProjects=OpenCms.getOrgUnitManager().getAllAccessibleProjects(cms,ouFqn,settings.getListAllProjects());
+  }
+ catch (  CmsException e) {
+    if (LOG.isErrorEnabled()) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+    allProjects=Collections.emptyList();
+  }
+  boolean singleOu=true;
+  String ouFqn=null;
+  Iterator<CmsProject> itProjects=allProjects.iterator();
+  while (itProjects.hasNext()) {
+    CmsProject prj=itProjects.next();
+    if (prj.isOnlineProject()) {
+      continue;
+    }
+    if (ouFqn == null) {
+      ouFqn=prj.getOuFqn();
+    }
+    if (!ouFqn.equals(prj.getOuFqn())) {
+      singleOu=false;
+      break;
+    }
+  }
+  int counter=0;
+  StringBuffer resultBuffer=new StringBuffer();
+  for (int i=0, n=allProjects.size(); i < n; i++) {
+    CmsProject project=allProjects.get(i);
+    String projectName=project.getSimpleName();
+    if (!singleOu && !project.isOnlineProject()) {
+      try {
+        projectName=projectName + " - " + OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,project.getOuFqn()).getDisplayName(locale);
+      }
+ catch (      CmsException e) {
+        projectName=projectName + " - " + project.getOuFqn();
+      }
+    }
+    if (counter != 0) {
+      resultBuffer.append("|");
+    }
+    resultBuffer.append(project.getName()).append(":").append(projectName);
+  }
+  return resultBuffer.toString();
+}

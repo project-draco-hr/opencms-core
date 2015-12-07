@@ -1,0 +1,24 @@
+{
+  List<CmsResource> resources=new ArrayList<CmsResource>();
+  if (modifySiblings) {
+    resources=cms.readSiblings(resName,CmsResourceFilter.IGNORE_EXPIRATION);
+  }
+ else {
+    resources.add(cms.readResource(resName,CmsResourceFilter.IGNORE_EXPIRATION));
+  }
+  Iterator<CmsResource> i=resources.iterator();
+  while (i.hasNext()) {
+    CmsResource resource=i.next();
+    String resourcePath=cms.getRequestContext().removeSiteRoot(resource.getRootPath());
+    CmsLockActionRecord lockRecord=CmsLockUtil.ensureLock(cms,resource);
+    try {
+      writeProperty(cms,resourcePath,CmsPropertyDefinition.PROPERTY_NOTIFICATION_INTERVAL,String.valueOf(notificationInterval));
+      writeProperty(cms,resourcePath,CmsPropertyDefinition.PROPERTY_ENABLE_NOTIFICATION,String.valueOf(enableNotification));
+    }
+  finally {
+      if (lockRecord.getChange() == LockChange.locked) {
+        cms.unlockResource(resource);
+      }
+    }
+  }
+}
