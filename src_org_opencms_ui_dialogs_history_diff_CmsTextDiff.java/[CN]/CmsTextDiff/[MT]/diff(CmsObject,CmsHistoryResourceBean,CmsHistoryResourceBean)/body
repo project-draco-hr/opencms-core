@@ -1,0 +1,75 @@
+{
+  CmsResource resource1=A_CmsAttributeDiff.readResource(cms,v1);
+  String encoding=CmsLocaleManager.getResourceEncoding(cms,resource1);
+  I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(resource1);
+  if ((type instanceof CmsResourceTypeXmlContent) || (type instanceof CmsResourceTypePlain) || (type instanceof CmsResourceTypeJsp)|| (type instanceof CmsResourceTypePointer)|| (type instanceof CmsResourceTypeBinary)) {
+    CmsResource resource2=A_CmsAttributeDiff.readResource(cms,v2);
+    String path1=resource1.getRootPath();
+    String path2=resource2.getRootPath();
+    CmsFile file1=cms.readFile(resource1);
+    CmsFile file2=cms.readFile(resource2);
+    byte[] content1=file1.getContents();
+    byte[] content2=file2.getContents();
+    String originalSource=null;
+    String copySource=null;
+    I_CmsTextExtractor textExtractor=null;
+    if ((content1.length > 0) && (content2.length > 0)) {
+      if (path1.endsWith(".pdf") && path2.endsWith(".pdf")) {
+        textExtractor=CmsExtractorPdf.getExtractor();
+      }
+ else       if (path1.endsWith(".doc") && path2.endsWith(".doc")) {
+        textExtractor=CmsExtractorMsOfficeOLE2.getExtractor();
+      }
+ else       if (path1.endsWith(".xls") && path2.endsWith(".xls")) {
+        textExtractor=CmsExtractorMsOfficeOLE2.getExtractor();
+      }
+ else       if (path1.endsWith(".rtf") && path2.endsWith(".rtf")) {
+        textExtractor=CmsExtractorRtf.getExtractor();
+      }
+ else       if (path1.endsWith(".ppt") && path2.endsWith(".ppt")) {
+        textExtractor=CmsExtractorMsOfficeOLE2.getExtractor();
+      }
+    }
+    if (textExtractor != null) {
+      try {
+        originalSource=textExtractor.extractText(content1).getContent();
+        copySource=textExtractor.extractText(content2).getContent();
+      }
+ catch (      Exception e) {
+        originalSource=null;
+        copySource=null;
+        LOG.error(e.getMessage(),e);
+      }
+    }
+ else     if ((type instanceof CmsResourceTypePlain) || (type instanceof CmsResourceTypeJsp) || (type instanceof CmsResourceTypePointer)) {
+      try {
+        originalSource=new String(content1,encoding);
+        copySource=new String(content2,encoding);
+      }
+ catch (      UnsupportedEncodingException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+    }
+    if ((copySource == null) || (originalSource == null)) {
+      return Optional.absent();
+    }
+    try {
+      CmsTextDiffPanel diffPanel=new CmsTextDiffPanel(originalSource,copySource,false,true);
+      diffPanel.setWidth("100%");
+      Panel panel=new Panel(CmsVaadinUtils.getMessageText(Messages.GUI_HISTORY_DIALOG_TEXT_COMPARISON_CAPTION_0));
+      panel.setWidth("100%");
+      VerticalLayout vl=new VerticalLayout();
+      vl.setMargin(true);
+      vl.addComponent(diffPanel);
+      panel.setContent(vl);
+      return Optional.<Component>fromNullable(panel);
+    }
+ catch (    Exception e) {
+      LOG.error(e.getLocalizedMessage(),e);
+      return Optional.absent();
+    }
+  }
+ else {
+    return Optional.absent();
+  }
+}

@@ -1,0 +1,36 @@
+{
+  CmsHistoryResourceCollection result=new CmsHistoryResourceCollection();
+  CmsObject cms=getCmsObject();
+  CmsResource resource=cms.readResource(structureId,CmsResourceFilter.ALL);
+  List<I_CmsHistoryResource> versions=cms.readAllAvailableVersions(resource);
+  if (!resource.getState().isUnchanged()) {
+    result.add(createHistoryResourceBean(cms,resource,true,-1));
+  }
+  int maxVersion=0;
+  if (versions.isEmpty()) {
+    try {
+      CmsProject online=cms.readProject(CmsProject.ONLINE_PROJECT_ID);
+      CmsObject onlineCms=OpenCms.initCmsObject(cms);
+      onlineCms.getRequestContext().setCurrentProject(online);
+      CmsResource onlineResource=onlineCms.readResource(structureId,CmsResourceFilter.ALL);
+      CmsHistoryResourceBean onlineResBean=createHistoryResourceBean(onlineCms,onlineResource,false,0);
+      result.add(onlineResBean);
+    }
+ catch (    CmsVfsResourceNotFoundException e) {
+      LOG.info(e.getLocalizedMessage(),e);
+    }
+catch (    Exception e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+ else {
+    for (    I_CmsHistoryResource historyRes : versions) {
+      maxVersion=Math.max(maxVersion,historyRes.getVersion());
+    }
+    for (    I_CmsHistoryResource historyRes : versions) {
+      CmsHistoryResourceBean historyBean=createHistoryResourceBean(cms,(CmsResource)historyRes,false,maxVersion);
+      result.add(historyBean);
+    }
+  }
+  return result;
+}
