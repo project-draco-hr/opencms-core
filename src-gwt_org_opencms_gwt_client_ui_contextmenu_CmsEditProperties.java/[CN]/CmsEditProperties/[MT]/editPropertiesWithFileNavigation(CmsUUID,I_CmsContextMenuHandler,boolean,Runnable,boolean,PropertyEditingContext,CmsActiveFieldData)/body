@@ -1,0 +1,115 @@
+{
+  CmsRpcAction<CmsPropertiesBean> action=new CmsRpcAction<CmsPropertiesBean>(){
+    @Override public void execute(){
+      start(0,true);
+      CmsCoreProvider.getVfsService().loadPropertyData(structureId,this);
+    }
+    @Override protected void onResponse(    CmsPropertiesBean result){
+      final PropertyEditorHandler handler=new PropertyEditorHandler(null);
+      handler.setEnableAdeTemplateSelect(enableAdeTemplateSelect);
+      editContext.setCancelHandler(cancelHandler);
+      handler.setPropertiesBean(result);
+      handler.setEditableName(editName);
+      final CmsVfsModePropertyEditor editor=new CmsVfsModePropertyEditor(result.getPropertyDefinitions(),handler);
+      editor.setShowResourceProperties(!handler.isFolder());
+      editor.setReadOnly(result.isReadOnly());
+      stop(false);
+      final PropertiesFormDialog dialog=new PropertiesFormDialog(handler.getDialogTitle(),editor.getForm());
+      editContext.setDialog(dialog);
+      @SuppressWarnings("synthetic-access") final I_MultiFileNavigation fileNavigation=editContext.getMultiFileNavigation();
+      final boolean[] isPrevNext=new boolean[]{false};
+      List<CmsPushButton> additionalLeftButtons=Lists.newArrayList();
+      if (fileNavigation != null) {
+        CmsPushButton prevButton=new CmsPushButton();
+        prevButton.setText("<<");
+        String prevText=org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_BUTTON_PREV_RESOURCE_0);
+        prevButton.setTitle(prevText);
+        String nextText=org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_BUTTON_NEXT_RESOURCE_0);
+        CmsPushButton nextButton=new CmsPushButton();
+        nextButton.setText(">>");
+        nextButton.setTitle(nextText);
+        for (        CmsPushButton button : new CmsPushButton[]{prevButton,nextButton}) {
+          button.setButtonStyle(ButtonStyle.TEXT,ButtonColor.BLUE);
+        }
+        final AsyncCallback<CmsUUID> loadHandler=new AsyncCallback<CmsUUID>(){
+          public void onFailure(          Throwable caught){
+            CmsDebugLog.consoleLog("" + caught);
+          }
+          public void onSuccess(          CmsUUID nextId){
+            dialog.hide();
+            CmsActiveFieldData fieldData=editor.getActiveFieldData();
+            editPropertiesWithFileNavigation(nextId,contextMenuHandler,editName,cancelHandler,enableAdeTemplateSelect,editContext,fieldData);
+          }
+        }
+;
+        prevButton.addClickHandler(new ClickHandler(){
+          public void onClick(          ClickEvent event){
+            isPrevNext[0]=true;
+            dialog.getForm().validateAndSubmit();
+            handler.setNextAction(new Runnable(){
+              public void run(){
+                fileNavigation.requestNextFile(-1,loadHandler);
+              }
+            }
+);
+          }
+        }
+);
+        nextButton.addClickHandler(new ClickHandler(){
+          public void onClick(          ClickEvent event){
+            isPrevNext[0]=true;
+            dialog.getForm().validateAndSubmit();
+            handler.setNextAction(new Runnable(){
+              public void run(){
+                fileNavigation.requestNextFile(1,loadHandler);
+              }
+            }
+);
+          }
+        }
+);
+        additionalLeftButtons.add(prevButton);
+        additionalLeftButtons.add(nextButton);
+      }
+      CmsPropertyDefinitionButton defButton=editContext.createPropertyDefinitionButton();
+      FlowPanel leftButtonBox=new FlowPanel();
+      String boxStyle=org.opencms.gwt.client.ui.css.I_CmsLayoutBundle.INSTANCE.dialogCss().leftButtonBox();
+      leftButtonBox.addStyleName(boxStyle);
+      leftButtonBox.getElement().getStyle().setFloat(Float.LEFT);
+      for (      CmsPushButton additionalButton : additionalLeftButtons) {
+        leftButtonBox.add(additionalButton);
+      }
+      if (CmsCoreProvider.get().getUserInfo().isDeveloper()) {
+        defButton.setDialog(dialog);
+        leftButtonBox.add(defButton);
+      }
+      dialog.addButton(leftButtonBox);
+      final CmsDialogFormHandler formHandler=new CmsDialogFormHandler();
+      editContext.setFormHandler(formHandler);
+      dialog.addCloseHandler(new CloseHandler<PopupPanel>(){
+        public void onClose(        CloseEvent<PopupPanel> event){
+          if (!isPrevNext[0]) {
+            contextMenuHandler.refreshResource(CmsUUID.getNullUUID());
+          }
+        }
+      }
+);
+      formHandler.setDialog(dialog);
+      I_CmsFormSubmitHandler submitHandler=new CmsPropertySubmitHandler(handler);
+      formHandler.setSubmitHandler(submitHandler);
+      editor.getForm().setFormHandler(formHandler);
+      editor.getForm().setFieldChangeHandler(new I_FieldChangeHandler(){
+        public void onFieldChange(        I_CmsFormField field,        String newValue){
+          editor.handleFieldChange(field);
+        }
+      }
+);
+      editor.restoreActiveFieldData(prevFieldData);
+      editor.initializeWidgets(dialog);
+      dialog.centerHorizontally(50);
+      dialog.catchNotifications();
+    }
+  }
+;
+  action.execute();
+}
