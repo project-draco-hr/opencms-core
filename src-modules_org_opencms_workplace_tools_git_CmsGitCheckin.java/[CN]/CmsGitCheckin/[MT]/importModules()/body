@@ -1,0 +1,62 @@
+{
+  try {
+    m_logStream.println("Checking module dependencies.");
+    Multimap<String,String> dependencies=HashMultimap.create();
+    Set<String> unsortedModules=Sets.newHashSet(m_modulesToExport);
+    for (    String module : m_modulesToExport) {
+      String manifestPath=CmsStringUtil.joinPaths(m_modulesPath,module,m_resourcesSubfolder,"manifest.xml");
+      Document doc=CmsXmlUtils.unmarshalHelper(CmsFileUtil.readFully(new FileInputStream(manifestPath)),new CmsXmlEntityResolver(null));
+      List<?> depNodes=doc.getRootElement().selectNodes("//dependencies/dependency/@name");
+      for (      Object nodeObj : depNodes) {
+        Node node=((Node)nodeObj);
+        String dependency=node.getText();
+        if (m_modulesToExport.contains(dependency)) {
+          dependencies.put(module,dependency);
+        }
+      }
+    }
+    List<String> sortedModules=Lists.newArrayList();
+    for (int i=0; i < m_modulesToExport.size(); i++) {
+      String nextModule=null;
+      for (      String key : unsortedModules) {
+        if (dependencies.get(key).isEmpty()) {
+          nextModule=key;
+          break;
+        }
+      }
+      if (nextModule != null) {
+        sortedModules.add(nextModule);
+        unsortedModules.remove(nextModule);
+        for (        String key : dependencies.keySet()) {
+          dependencies.get(key).remove(nextModule);
+        }
+      }
+    }
+    m_logStream.println("Modules sorted by dependencies: " + sortedModules);
+    for (    String moduleName : sortedModules) {
+      String dir=CmsStringUtil.joinPaths(m_modulesPath,moduleName,m_resourcesSubfolder);
+      File dirEntry=new File(dir);
+      if (!dirEntry.exists()) {
+        continue;
+      }
+      try {
+        m_logStream.println("Creating temp file for module " + moduleName);
+        File outputFile=File.createTempFile(moduleName + "-",".zip");
+        FileOutputStream fos=new FileOutputStream(outputFile);
+        m_logStream.println("Zipping module structure to " + outputFile.getAbsolutePath());
+        zipRfsFolder(dirEntry,fos);
+        importModule(outputFile);
+        outputFile.delete();
+      }
+ catch (      Exception e) {
+        LOG.error(e.getLocalizedMessage(),e);
+        e.printStackTrace(m_logStream);
+      }
+    }
+  }
+ catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    m_logStream.println("Unable to check dependencies for modules, giving up.");
+    e.printStackTrace(m_logStream);
+  }
+}
