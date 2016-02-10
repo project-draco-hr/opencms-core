@@ -2,29 +2,41 @@
   String configPath=CmsStringUtil.joinPaths(url.getFile(),config.getXmlFileName());
   String transformPath=getTransformationPath();
   TransformerFactory factory=TransformerFactory.newInstance();
-  LOG.info("Transforming '" + configPath + "' with transformation '"+ transformPath+ "'");
-  Transformer transformer=factory.newTransformer(new StreamSource(new File(transformPath)));
-  transformer.setOutputProperty(OutputKeys.ENCODING,"UTF-8");
-  transformer.setParameter("file",config.getXmlFileName());
-  InetAddress localhost=InetAddress.getLocalHost();
-  transformer.setParameter("hostName",localhost.getHostName());
-  transformer.setParameter("canonicalHostName",localhost.getCanonicalHostName());
-  transformer.setParameter("hostAddress",localhost.getHostAddress());
-  SAXParserFactory parserFactory=SAXParserFactory.newInstance();
-  parserFactory.setNamespaceAware(true);
-  parserFactory.setValidating(false);
-  XMLReader reader=parserFactory.newSAXParser().getXMLReader();
-  reader.setEntityResolver(new CmsXmlEntityResolver(null));
-  Source source=new SAXSource(reader,new InputSource(configPath));
-  ByteArrayOutputStream baos=new ByteArrayOutputStream();
-  Result target=new StreamResult(baos);
-  transformer.transform(source,target);
-  byte[] transformedConfig=baos.toByteArray();
-  String transformedConfigStr=new String(transformedConfig,"UTF-8").replaceFirst("@dtd@",config.getDtdUrlPrefix() + config.getDtdFilename());
-  if (LOG.isDebugEnabled()) {
-    LOG.debug("");
-    LOG.debug("=================== Transformation result for config file '" + config.getXmlFileName() + "':");
-    LOG.debug(transformedConfigStr);
+  ByteArrayOutputStream errBaos=new ByteArrayOutputStream();
+  PrintStream oldErr=System.err;
+  System.setErr(new PrintStream(errBaos));
+  try {
+    LOG.info("Transforming '" + configPath + "' with transformation '"+ transformPath+ "'");
+    Transformer transformer=factory.newTransformer(new StreamSource(new File(transformPath)));
+    transformer.setOutputProperty(OutputKeys.ENCODING,"UTF-8");
+    transformer.setParameter("file",config.getXmlFileName());
+    InetAddress localhost=InetAddress.getLocalHost();
+    transformer.setParameter("hostName",localhost.getHostName());
+    transformer.setParameter("canonicalHostName",localhost.getCanonicalHostName());
+    transformer.setParameter("hostAddress",localhost.getHostAddress());
+    SAXParserFactory parserFactory=SAXParserFactory.newInstance();
+    parserFactory.setNamespaceAware(true);
+    parserFactory.setValidating(false);
+    XMLReader reader=parserFactory.newSAXParser().getXMLReader();
+    reader.setEntityResolver(new CmsXmlEntityResolver(null));
+    Source source=new SAXSource(reader,new InputSource(configPath));
+    ByteArrayOutputStream baos=new ByteArrayOutputStream();
+    Result target=new StreamResult(baos);
+    transformer.transform(source,target);
+    byte[] transformedConfig=baos.toByteArray();
+    String transformedConfigStr=new String(transformedConfig,"UTF-8").replaceFirst("@dtd@",config.getDtdUrlPrefix() + config.getDtdFilename());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("");
+      LOG.debug("=================== Transformation result for config file '" + config.getXmlFileName() + "':");
+      LOG.debug(transformedConfigStr);
+    }
+    return new InputSource(new ByteArrayInputStream(transformedConfigStr.getBytes("UTF-8")));
   }
-  return new InputSource(new ByteArrayInputStream(transformedConfigStr.getBytes("UTF-8")));
+  finally {
+    System.setErr(oldErr);
+    byte[] errorBytes=errBaos.toByteArray();
+    if (errorBytes.length > 0) {
+      LOG.warn(new String(errorBytes,"UTF-8"));
+    }
+  }
 }
