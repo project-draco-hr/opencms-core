@@ -22,24 +22,31 @@
   }
   String typeValue=content.getValue(N_TYPE,contentLocale).getStringValue(cms);
   String lnkUri="";
-  String errorCode="";
+  Integer errorCode;
   if ("sublevel".equals(typeValue)) {
     CmsJspNavBuilder navBuilder=new CmsJspNavBuilder(cms);
     if (navBuilder.getNavigationForFolder().size() > 0) {
       CmsJspNavElement target=navBuilder.getNavigationForFolder().get(0);
       lnkUri=CmsJspTagLink.linkTagAction(target.getResourceName(),request);
-      errorCode=HttpServletResponse.SC_MOVED_TEMPORARILY + "";
+      errorCode=Integer.valueOf(HttpServletResponse.SC_MOVED_TEMPORARILY);
     }
  else {
-      errorCode=HttpServletResponse.SC_NOT_FOUND + "";
+      errorCode=Integer.valueOf(HttpServletResponse.SC_NOT_FOUND);
     }
   }
  else {
     String linkValue=content.getValue(N_LINK,contentLocale).getStringValue(cms);
     lnkUri=OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,linkValue);
-    errorCode=typeValue;
+    try {
+      errorCode=Integer.valueOf(typeValue);
+    }
+ catch (    NumberFormatException e) {
+      LOG.error(e.getMessage(),e);
+      errorCode=Integer.valueOf(307);
+    }
   }
-  request.setAttribute(CmsRequestUtil.ATTRIBUTE_ERRORCODE,new Integer(errorCode));
+  request.setAttribute(CmsRequestUtil.ATTRIBUTE_ERRORCODE,errorCode);
   response.setHeader("Location",CmsEncoder.convertHostToPunycode(lnkUri));
   response.setHeader("Connection","close");
+  response.setStatus(errorCode.intValue());
 }
