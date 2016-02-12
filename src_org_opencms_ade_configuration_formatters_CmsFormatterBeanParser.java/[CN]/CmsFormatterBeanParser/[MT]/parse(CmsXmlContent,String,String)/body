@@ -1,4 +1,6 @@
 {
+  I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(content.getFile());
+  boolean isMacroFromatter=CmsFormatterConfigurationCache.TYPE_MACRO_FORMATTER.equals(type.getTypeName());
   Locale en=Locale.ENGLISH;
   I_CmsXmlContentValue niceName=content.getValue(N_NICE_NAME,en);
   m_niceName=niceName != null ? niceName.getStringValue(m_cms) : null;
@@ -17,31 +19,41 @@
   }
   m_rank=rank;
   m_resourceType=getStringSet(root,N_TYPE);
-  String autoEnabled=getString(root,N_AUTO_ENABLED,"false");
-  m_autoEnabled=Boolean.parseBoolean(autoEnabled);
-  I_CmsXmlContentValueLocation jspLoc=root.getSubValue(N_JSP);
-  CmsXmlVfsFileValue jspValue=(CmsXmlVfsFileValue)(jspLoc.getValue());
-  CmsLink link=jspValue.getLink(m_cms);
-  if (link == null) {
-    LOG.info("JSP link is null in formatter configuration: " + content.getFile().getRootPath());
-    return null;
+  boolean hasNestedContainers;
+  if (isMacroFromatter) {
+    m_autoEnabled=true;
+    m_formatterResource=content.getFile();
+    m_preview=false;
+    m_extractContent=true;
+    hasNestedContainers=false;
   }
-  CmsUUID jspID=link.getStructureId();
-  CmsResource formatterRes=m_cms.readResource(jspID);
-  m_formatterResource=formatterRes;
-  String previewStr=getString(root,N_PREVIEW,"false");
-  m_preview=Boolean.parseBoolean(previewStr);
-  String searchableStr=getString(root,N_SEARCH_CONTENT,"true");
-  m_extractContent=Boolean.parseBoolean(searchableStr);
+ else {
+    String autoEnabled=getString(root,N_AUTO_ENABLED,"false");
+    m_autoEnabled=Boolean.parseBoolean(autoEnabled);
+    I_CmsXmlContentValueLocation jspLoc=root.getSubValue(N_JSP);
+    CmsXmlVfsFileValue jspValue=(CmsXmlVfsFileValue)(jspLoc.getValue());
+    CmsLink link=jspValue.getLink(m_cms);
+    if (link == null) {
+      LOG.info("JSP link is null in formatter configuration: " + content.getFile().getRootPath());
+      return null;
+    }
+    CmsUUID jspID=link.getStructureId();
+    CmsResource formatterRes=m_cms.readResource(jspID);
+    m_formatterResource=formatterRes;
+    String previewStr=getString(root,N_PREVIEW,"false");
+    m_preview=Boolean.parseBoolean(previewStr);
+    String searchableStr=getString(root,N_SEARCH_CONTENT,"true");
+    m_extractContent=Boolean.parseBoolean(searchableStr);
+    String hasNestedContainersString=getString(root,N_NESTED_CONTAINERS,"false");
+    hasNestedContainers=Boolean.parseBoolean(hasNestedContainersString);
+    parseHeadIncludes(root);
+    parseSettings(root);
+  }
   String isDetailStr=getString(root,N_DETAIL,"true");
   boolean isDetail=Boolean.parseBoolean(isDetailStr);
   String isDisplayStr=getString(root,N_DISPLAY,"false");
   boolean isDisplay=Boolean.parseBoolean(isDisplayStr);
-  String hasNestedContainersString=getString(root,N_NESTED_CONTAINERS,"false");
-  boolean hasNestedContainers=Boolean.parseBoolean(hasNestedContainersString);
   parseMatch(root);
-  parseHeadIncludes(root);
-  parseSettings(root);
   CmsFormatterBean formatterBean=new CmsFormatterBean(m_containerTypes,m_formatterResource.getRootPath(),m_formatterResource.getStructureId(),m_width,m_maxWidth,m_preview,m_extractContent,location,m_cssPaths,m_inlineCss.toString(),m_jsPaths,m_inlineJs.toString(),m_niceName,m_resourceType,m_rank,id,m_settings,true,m_autoEnabled,isDetail,isDisplay,hasNestedContainers);
   return formatterBean;
 }
