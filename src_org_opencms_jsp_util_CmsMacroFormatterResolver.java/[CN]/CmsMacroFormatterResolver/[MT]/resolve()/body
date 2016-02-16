@@ -1,0 +1,89 @@
+{
+  initMacroContent();
+  String input=getMacroInput();
+  if (input == null) {
+    return;
+  }
+  if (input.length() < 3) {
+    m_context.getOut().print(input);
+    return;
+  }
+  int pn=input.indexOf(I_CmsMacroResolver.MACRO_DELIMITER);
+  int po=input.indexOf(I_CmsMacroResolver.MACRO_DELIMITER_OLD);
+  if ((po == -1) && (pn == -1)) {
+    m_response.getOutputStream().print(input);
+    return;
+  }
+  int len=input.length();
+  int np, pp1, pp2, e;
+  String macro;
+  char ds, de;
+  int p;
+  if ((po == -1) || ((pn > -1) && (pn < po))) {
+    p=pn;
+    ds=I_CmsMacroResolver.MACRO_START;
+    de=I_CmsMacroResolver.MACRO_END;
+  }
+ else {
+    p=po;
+    ds=I_CmsMacroResolver.MACRO_START_OLD;
+    de=I_CmsMacroResolver.MACRO_END_OLD;
+  }
+  m_context.getOut().print(input.substring(0,p));
+  do {
+    pp1=p + 1;
+    pp2=pp1 + 1;
+    if (pp2 >= len) {
+      m_context.getOut().print(input.substring(p,len));
+      break;
+    }
+    if ((pn > -1) && (pn < pp1)) {
+      pn=input.indexOf(I_CmsMacroResolver.MACRO_DELIMITER,pp1);
+    }
+    if ((po > -1) && (po < pp1)) {
+      po=input.indexOf(I_CmsMacroResolver.MACRO_DELIMITER_OLD,pp1);
+    }
+    if ((po == -1) && (pn == -1)) {
+      np=len;
+    }
+ else {
+      if ((po == -1) || ((pn > -1) && (pn < po))) {
+        np=pn;
+      }
+ else {
+        np=po;
+      }
+    }
+    char st=input.charAt(pp1);
+    if (st == ds) {
+      e=input.indexOf(de,p);
+      if ((e > 0) && (e < np)) {
+        macro=input.substring(pp2,e);
+        try {
+          printMacroValue(macro);
+        }
+ catch (        Exception ex) {
+          LOG.error("Writing value for macro '" + macro + "' failed.",ex);
+        }
+        e++;
+      }
+ else {
+        e=p;
+      }
+    }
+ else {
+      e=p;
+    }
+    if (np == pn) {
+      ds=I_CmsMacroResolver.MACRO_START;
+      de=I_CmsMacroResolver.MACRO_END;
+    }
+ else {
+      ds=I_CmsMacroResolver.MACRO_START_OLD;
+      de=I_CmsMacroResolver.MACRO_END_OLD;
+    }
+    m_context.getOut().print(input.substring(e,np));
+    p=np;
+  }
+ while (p < len);
+}
