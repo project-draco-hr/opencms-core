@@ -12,7 +12,7 @@
   filenames.put("rabbit_de_DE_EN_en_DE.html",Collections.singletonList("en_DE"));
   String folderName="/filenameTest/";
   CmsObject cms=getCmsObject();
-  cms.createResource(folderName,CmsResourceTypeFolder.RESOURCE_TYPE_ID,null,null);
+  CmsResource folder=cms.createResource(folderName,CmsResourceTypeFolder.RESOURCE_TYPE_ID,null,null);
   cms.unlockResource(folderName);
   for (  String filename : filenames.keySet()) {
     importTestResource(cms,"org/opencms/search/pdf-test-112.pdf",folderName + filename,CmsResourceTypeBinary.getStaticTypeId(),Collections.<CmsProperty>emptyList());
@@ -36,6 +36,26 @@
     assertTrue(fieldLocales.size() == filename.getValue().size());
     assertTrue(fieldLocales.containsAll(filename.getValue()));
     assertTrue(filename.getValue().containsAll(fieldLocales));
+  }
+  CmsProperty localesAvailable=new CmsProperty("locale-available","en",null);
+  for (  String filename : filenames.keySet()) {
+    String resourceName=folderName + filename;
+    cms.lockResource(resourceName);
+    cms.writePropertyObjects(resourceName,Collections.singletonList(localesAvailable));
+    cms.unlockResource(resourceName);
+  }
+  OpenCms.getPublishManager().publishProject(cms,new CmsShellReport(cms.getRequestContext().getLocale()));
+  OpenCms.getPublishManager().waitWhileRunning();
+  for (  String filename : filenames.keySet()) {
+    String absoluteFileName=cms.getRequestContext().addSiteRoot(folderName + filename);
+    SolrQuery squery=new CmsSolrQuery();
+    squery.addFilterQuery("path:\"" + absoluteFileName + "\"");
+    results=index.search(cms,squery);
+    assertEquals(1,results.size());
+    CmsSearchResource res=results.get(0);
+    List<String> fieldLocales=res.getMultivaluedField(CmsSearchField.FIELD_CONTENT_LOCALES);
+    assertTrue(fieldLocales.size() == 1);
+    assertTrue(fieldLocales.contains("en"));
   }
   SolrQuery squery=new CmsSolrQuery();
   squery.addFilterQuery("path:\"/sites/default/xmlcontent/article_0004.html\"");
