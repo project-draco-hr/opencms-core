@@ -7,12 +7,27 @@
     usedIds.add(typeConfig.getElementView());
   }
   Locale wpLocale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
-  for (  CmsElementView view : OpenCms.getADEManager().getElementViews(cms).values()) {
+  Map<CmsUUID,CmsElementView> realViewMap=OpenCms.getADEManager().getElementViews(cms);
+  Set<CmsUUID> parentIds=Sets.newHashSet();
+  for (  CmsElementView view : realViewMap.values()) {
+    if (view.getParentViewId() != null) {
+      parentIds.add(view.getParentViewId());
+    }
     if (usedIds.contains(view.getId()) && view.hasPermission(cms,checkRes) && !view.isOther()) {
       result.put(view.getId(),new CmsElementViewInfo(view.getTitle(cms,wpLocale),view.getId()));
     }
   }
   m_viewMap=result;
+  for (  Map.Entry<CmsUUID,CmsElementViewInfo> viewEntry : m_viewMap.entrySet()) {
+    CmsElementView realView=realViewMap.get(viewEntry.getKey());
+    CmsUUID parentViewId=realView.getParentViewId();
+    if ((parentViewId != null) && !parentIds.contains(viewEntry.getKey())) {
+      CmsElementViewInfo parentBean=m_viewMap.get(parentViewId);
+      if (parentBean != null) {
+        viewEntry.getValue().setParent(parentBean);
+      }
+    }
+  }
   if (m_viewMap.containsKey(defaultValue)) {
     m_defaultView=defaultValue;
   }
