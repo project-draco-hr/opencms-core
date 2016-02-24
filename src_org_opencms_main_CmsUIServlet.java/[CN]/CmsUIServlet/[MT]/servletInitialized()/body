@@ -1,54 +1,5 @@
 {
   super.servletInitialized();
-  getService().addSessionInitListener(new SessionInitListener(){
-    private static final long serialVersionUID=-3191245142912338247L;
-    public void sessionInit(    final SessionInitEvent event){
-      final Locale wpLocale=OpenCms.getWorkplaceManager().getWorkplaceLocale(((CmsUIServlet)getCurrent()).getCmsObject());
-      event.getSession().setLocale(wpLocale);
-      event.getSession().addRequestHandler(loginRedirectHandler);
-      event.getSession().addUIProvider(loginUiProvider);
-      event.getSession().addBootstrapListener(new BootstrapListener(){
-        private static final long serialVersionUID=-6249561809984101044L;
-        public void modifyBootstrapFragment(        BootstrapFragmentResponse response){
-        }
-        public void modifyBootstrapPage(        BootstrapPageResponse response){
-          CmsCoreService svc=new CmsCoreService();
-          HttpServletRequest request=(HttpServletRequest)VaadinService.getCurrentRequest();
-          svc.setRequest(request);
-          CmsObject cms=((CmsUIServlet)getCurrent()).getCmsObject();
-          svc.setCms(cms);
-          Document doc=response.getDocument();
-          Elements appLoadingElements=doc.getElementsByClass("v-app-loading");
-          if (appLoadingElements.size() > 0) {
-            for (            Node node : appLoadingElements.get(0).childNodes()) {
-              node.remove();
-            }
-            appLoadingElements.get(0).append(CmsVaadinConstants.LOADING_INDICATOR_HTML);
-          }
-          if (shouldShowLogin()) {
-            try {
-              String html=CmsLoginUI.generateLoginHtmlFragment(cms,response.getRequest());
-              Element el=new Element(Tag.valueOf("div"),"").html(html);
-              doc.body().appendChild(el);
-            }
- catch (            IOException e) {
-              LOG.error(e.getLocalizedMessage(),e);
-            }
-          }
-          Locale currentLocale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
-          try {
-            doc.head().append(CmsGwtActionElement.exportCommon(cms,svc.prefetch(),""));
-            doc.head().append(org.opencms.ade.publish.ClientMessages.get().export(currentLocale,true));
-            doc.head().append(org.opencms.ade.upload.ClientMessages.get().export(currentLocale,true));
-            doc.head().append(org.opencms.ade.galleries.ClientMessages.get().export(currentLocale,true));
-          }
- catch (          Exception e) {
-            LOG.error(e.getLocalizedMessage(),e);
-          }
-        }
-      }
-);
-    }
-  }
-);
+  getService().setSystemMessagesProvider(this);
+  getService().addSessionInitListener(this);
 }
