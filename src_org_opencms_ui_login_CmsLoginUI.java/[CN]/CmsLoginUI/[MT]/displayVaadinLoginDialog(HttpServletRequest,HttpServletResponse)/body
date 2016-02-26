@@ -8,13 +8,17 @@
     response.sendError(HttpServletResponse.SC_NOT_FOUND);
     return null;
   }
-  if (!cms.getRequestContext().getCurrentUser().isGuestUser() && CmsStringUtil.isNotEmptyOrWhitespaceOnly(request.getParameter("requestedResource"))) {
-    response.sendRedirect(request.getParameter("requestedResource"));
-    return null;
-  }
   String logout=request.getParameter(CmsLoginHelper.PARAM_ACTION_LOGOUT);
   if (Boolean.valueOf(logout).booleanValue()) {
     CmsLoginController.logout(cms,request,response);
+    return null;
+  }
+  if (!cms.getRequestContext().getCurrentUser().isGuestUser()) {
+    String target=request.getParameter("requestedResource");
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(target)) {
+      target=CmsLoginController.getLoginTarget(cms,getWorkplaceSettings(request.getSession()),null);
+    }
+    response.sendRedirect(target);
     return null;
   }
   CmsLoginHelper.LoginParameters params=CmsLoginHelper.getLoginParameters(cms,request,false);
@@ -27,7 +31,7 @@
     String vaadinDir=CmsStringUtil.joinPaths(context,"VAADIN/");
     String vaadinVersion=Version.getFullVersion();
     String vaadinServlet=CmsStringUtil.joinPaths(context,"workplace/");
-    String vaadinBootstrap=CmsStringUtil.joinPaths(context,"VAADIN/vaadinBootstrap.js");
+    String vaadinBootstrap=CmsStringUtil.joinPaths(context,"VAADIN/vaadinBootstrap.js?v=" + OpenCms.getSystemInfo().getVersionNumber());
     String autocomplete=params.isPrivatePc() ? "on" : "off";
     String cmsLogo=OpenCms.getSystemInfo().getContextPath() + CmsWorkplace.RFS_PATH_RESOURCES + "commons/login_logo.png";
     resolver.addMacro("loadingHtml",CmsVaadinConstants.LOADING_INDICATOR_HTML);
