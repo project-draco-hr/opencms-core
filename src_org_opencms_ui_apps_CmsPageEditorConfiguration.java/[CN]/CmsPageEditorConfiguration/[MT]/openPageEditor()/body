@@ -1,6 +1,26 @@
 {
   CmsObject cms=A_CmsUI.getCmsObject();
   String siteRoot=cms.getRequestContext().getSiteRoot();
+  HttpServletRequest req=CmsVaadinUtils.getRequest();
+  CmsADESessionCache cache=CmsADESessionCache.getCache(req,cms);
+  LastPageBean lastPage=cache.getLastPage();
+  if (lastPage != null) {
+    if (cms.getRequestContext().getSiteRoot().equals(lastPage.getSiteRoot())) {
+      String returncode=lastPage.getDetailId() != null ? lastPage.getPageId() + ":" + lastPage.getDetailId() : "" + lastPage.getPageId();
+      try {
+        CmsReturnLinkInfo linkInfo=CmsCoreService.internalGetLinkForReturnCode(cms,returncode);
+        A_CmsUI.get().getPage().setLocation(linkInfo.getLink());
+        return;
+      }
+ catch (      CmsException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+        cache.clearLastPage();
+      }
+    }
+ else {
+      cache.clearLastPage();
+    }
+  }
   if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(siteRoot) && !OpenCms.getSiteManager().getSharedFolder().equals(siteRoot)) {
     try {
       CmsResource res=cms.readDefaultFile("/");
