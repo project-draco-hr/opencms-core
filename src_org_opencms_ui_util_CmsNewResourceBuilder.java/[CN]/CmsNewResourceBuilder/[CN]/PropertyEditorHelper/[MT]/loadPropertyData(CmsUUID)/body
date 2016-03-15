@@ -1,0 +1,44 @@
+{
+  CmsObject cms=m_cms;
+  String originalSiteRoot=cms.getRequestContext().getSiteRoot();
+  CmsPropertiesBean result=new CmsPropertiesBean();
+  result.setReadOnly(false);
+  I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(m_type);
+  List<CmsProperty> typeDefaultProperties=type.getConfiguredDefaultProperties();
+  result.setFolder(type.isFolder());
+  result.setContainerPage(m_type.equals(CmsResourceTypeXmlContainerPage.getStaticTypeName()));
+  String sitePath=OpenCms.getResourceManager().getNameGenerator().getNewFileName(m_cms,m_pathWithPattern,5,m_explorerNameGeneration);
+  String rootPath=m_cms.getRequestContext().addSiteRoot(sitePath);
+  Map<String,CmsXmlContentProperty> propertyConfig=OpenCms.getADEManager().lookupConfiguration(cms,rootPath).getPropertyConfigurationAsMap();
+  Map<String,CmsXmlContentProperty> defaultProperties=getDefaultPropertiesForType(m_type);
+  Map<String,CmsXmlContentProperty> mergedConfig=new LinkedHashMap<String,CmsXmlContentProperty>();
+  mergedConfig.putAll(defaultProperties);
+  mergedConfig.putAll(propertyConfig);
+  propertyConfig=mergedConfig;
+  propertyConfig=CmsXmlContentPropertyHelper.resolveMacrosInProperties(propertyConfig,CmsMacroResolver.newWorkplaceLocaleResolver(cms));
+  result.setPropertyDefinitions(new LinkedHashMap<String,CmsXmlContentProperty>(propertyConfig));
+  try {
+    cms.getRequestContext().setSiteRoot("");
+    String parentPath=CmsResource.getParentFolder(rootPath);
+    CmsResource parent=cms.readResource(parentPath,CmsResourceFilter.IGNORE_EXPIRATION);
+    List<CmsProperty> parentProperties=cms.readPropertyObjects(parent,true);
+    List<CmsProperty> ownProperties=typeDefaultProperties;
+    result.setOwnProperties(convertProperties(ownProperties));
+    result.setInheritedProperties(convertProperties(parentProperties));
+    result.setPageInfo(getPageInfo(sitePath));
+    List<CmsPropertyDefinition> propDefs=cms.readAllPropertyDefinitions();
+    List<String> propNames=new ArrayList<String>();
+    for (    CmsPropertyDefinition propDef : propDefs) {
+      propNames.add(propDef.getName());
+    }
+    CmsTemplateFinder templateFinder=new CmsTemplateFinder(cms);
+    result.setTemplates(templateFinder.getTemplates());
+    result.setAllProperties(propNames);
+    result.setStructureId(id);
+    result.setSitePath(sitePath);
+    return result;
+  }
+  finally {
+    cms.getRequestContext().setSiteRoot(originalSiteRoot);
+  }
+}
