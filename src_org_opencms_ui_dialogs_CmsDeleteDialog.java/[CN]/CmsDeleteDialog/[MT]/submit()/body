@@ -1,0 +1,32 @@
+{
+  CmsObject cms=A_CmsUI.getCmsObject();
+  try {
+    List<CmsUUID> changedIds=Lists.newArrayList();
+    for (    CmsResource resource : m_context.getResources()) {
+      changedIds.add(resource.getStructureId());
+      CmsLockActionRecord lockRecord=CmsLockUtil.ensureLock(cms,resource);
+      try {
+        cms.deleteResource(cms.getSitePath(resource),CmsResource.DELETE_PRESERVE_SIBLINGS);
+      }
+  finally {
+        if (lockRecord.getChange().equals(LockChange.locked)) {
+          if (!resource.getState().isNew()) {
+            try {
+              cms.unlockResource(resource);
+            }
+ catch (            CmsVfsResourceNotFoundException e) {
+              LOG.warn(e.getLocalizedMessage(),e);
+            }
+catch (            CmsLockException e) {
+              LOG.warn(e.getLocalizedMessage(),e);
+            }
+          }
+        }
+      }
+    }
+    m_context.finish(changedIds);
+  }
+ catch (  Exception e) {
+    m_context.error(e);
+  }
+}
