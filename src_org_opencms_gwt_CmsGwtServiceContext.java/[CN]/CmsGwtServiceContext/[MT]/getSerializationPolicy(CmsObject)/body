@@ -7,26 +7,36 @@
     return m_serPolicyOffline;
   }
   SerializationPolicy serializationPolicy=null;
-  InputStream is;
+  InputStream is=null;
   try {
-    String rfsPath=m_serializationPolicyPath;
-    if (rfsPath.startsWith(OpenCms.getSystemInfo().getContextPath())) {
-      rfsPath=rfsPath.substring(OpenCms.getSystemInfo().getContextPath().length());
-    }
-    rfsPath=CmsStringUtil.joinPaths(OpenCms.getSystemInfo().getWebApplicationRfsPath(),rfsPath);
-    File policyFile=new File(rfsPath);
-    if (policyFile.exists() && policyFile.canRead()) {
-      is=new FileInputStream(policyFile);
+    if (m_serializationPolicyPath.startsWith(OpenCms.getSystemInfo().getStaticResourceContext())) {
+      URL resourceURL=CmsStaticResourceHandler.getStaticResourceURL(m_serializationPolicyPath);
+      URLConnection connection;
+      connection=resourceURL.openConnection();
+      is=connection.getInputStream();
     }
  else {
-      String policyPath=OpenCms.getLinkManager().getRootPath(cms,rfsPath);
-      is=new ByteArrayInputStream(cms.readFile(policyPath).getContents());
+      String rfsPath=m_serializationPolicyPath;
+      if (rfsPath.startsWith(OpenCms.getSystemInfo().getContextPath())) {
+        rfsPath=rfsPath.substring(OpenCms.getSystemInfo().getContextPath().length());
+      }
+      rfsPath=CmsStringUtil.joinPaths(OpenCms.getSystemInfo().getWebApplicationRfsPath(),rfsPath);
+      File policyFile=new File(rfsPath);
+      if (policyFile.exists() && policyFile.canRead()) {
+        is=new FileInputStream(policyFile);
+      }
+ else {
+        String policyPath=OpenCms.getLinkManager().getRootPath(cms,m_serializationPolicyPath);
+        is=new ByteArrayInputStream(cms.readFile(policyPath).getContents());
+      }
     }
   }
  catch (  Exception ex) {
     String message="ERROR: The serialization policy file '" + m_serializationPolicyPath + "' was not found; did you forget to include it in this deployment?";
     LOG.warn(message);
     LOG.warn(ex.getLocalizedMessage(),ex);
+  }
+  if (is == null) {
     return new CmsDummySerializationPolicy();
   }
   try {
@@ -42,7 +52,7 @@ catch (  IOException e) {
     try {
       is.close();
     }
- catch (    IOException e) {
+ catch (    @SuppressWarnings("unused") IOException e) {
     }
   }
   if (online) {
