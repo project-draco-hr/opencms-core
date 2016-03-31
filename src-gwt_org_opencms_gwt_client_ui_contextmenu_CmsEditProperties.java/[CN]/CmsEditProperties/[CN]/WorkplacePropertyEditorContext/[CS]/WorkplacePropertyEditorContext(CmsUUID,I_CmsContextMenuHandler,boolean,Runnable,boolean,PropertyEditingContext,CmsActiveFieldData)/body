@@ -1,0 +1,86 @@
+{
+  m_structureId=structureId;
+  m_contextMenuHandler=contextMenuHandler;
+  m_editName=editName;
+  m_cancelHandler=cancelHandler;
+  m_enableAdeTemplateSelect=enableAdeTemplateSelect;
+  m_editContext=editContext;
+  m_prevFieldData=prevFieldData;
+  m_dialog=new PropertiesFormDialog("XXX",null);
+  m_editContext.setDialog(m_dialog);
+  m_dialog.catchNotifications();
+  @SuppressWarnings("synthetic-access") final I_MultiFileNavigation fileNavigation=m_editContext.getMultiFileNavigation();
+  List<CmsPushButton> additionalLeftButtons=Lists.newArrayList();
+  if (fileNavigation != null) {
+    CmsPushButton prevButton=new CmsPushButton();
+    prevButton.setText("<<");
+    String prevText=org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_BUTTON_PREV_RESOURCE_0);
+    prevButton.setTitle(prevText);
+    String nextText=org.opencms.gwt.client.Messages.get().key(org.opencms.gwt.client.Messages.GUI_BUTTON_NEXT_RESOURCE_0);
+    CmsPushButton nextButton=new CmsPushButton();
+    nextButton.setText(">>");
+    nextButton.setTitle(nextText);
+    for (    CmsPushButton button : new CmsPushButton[]{prevButton,nextButton}) {
+      button.setButtonStyle(ButtonStyle.TEXT,ButtonColor.BLUE);
+    }
+    final AsyncCallback<CmsUUID> loadHandler=new AsyncCallback<CmsUUID>(){
+      public void onFailure(      Throwable caught){
+        CmsDebugLog.consoleLog("" + caught);
+      }
+      @SuppressWarnings("synthetic-access") public void onSuccess(      CmsUUID nextId){
+        CmsActiveFieldData fieldData=getActiveFieldData();
+        m_prevFieldData=fieldData;
+        m_structureId=nextId;
+        editProperties();
+      }
+    }
+;
+    prevButton.addClickHandler(new ClickHandler(){
+      @SuppressWarnings("synthetic-access") public void onClick(      ClickEvent event){
+        m_isPrevNext=true;
+        m_dialog.getForm().validateAndSubmit();
+        m_handler.setNextAction(new Runnable(){
+          public void run(){
+            fileNavigation.requestNextFile(-1,loadHandler);
+          }
+        }
+);
+      }
+    }
+);
+    nextButton.addClickHandler(new ClickHandler(){
+      @SuppressWarnings("synthetic-access") public void onClick(      ClickEvent event){
+        m_isPrevNext=true;
+        m_dialog.getForm().validateAndSubmit();
+        m_handler.setNextAction(new Runnable(){
+          public void run(){
+            fileNavigation.requestNextFile(1,loadHandler);
+          }
+        }
+);
+      }
+    }
+);
+    additionalLeftButtons.add(prevButton);
+    additionalLeftButtons.add(nextButton);
+  }
+  CmsPropertyDefinitionButton defButton=m_editContext.createPropertyDefinitionButton();
+  FlowPanel leftButtonBox=new FlowPanel();
+  String boxStyle=org.opencms.gwt.client.ui.css.I_CmsLayoutBundle.INSTANCE.dialogCss().leftButtonBox();
+  leftButtonBox.addStyleName(boxStyle);
+  leftButtonBox.getElement().getStyle().setFloat(Float.LEFT);
+  for (  CmsPushButton additionalButton : additionalLeftButtons) {
+    leftButtonBox.add(additionalButton);
+  }
+  if (CmsCoreProvider.get().getUserInfo().isDeveloper()) {
+    defButton.setDialog(m_dialog);
+    leftButtonBox.add(defButton);
+  }
+  m_dialog.addButton(leftButtonBox);
+  m_dialog.addCloseHandler(new CloseHandler<PopupPanel>(){
+    @SuppressWarnings("synthetic-access") public void onClose(    CloseEvent<PopupPanel> event){
+      m_contextMenuHandler.refreshResource(CmsUUID.getNullUUID());
+    }
+  }
+);
+}
