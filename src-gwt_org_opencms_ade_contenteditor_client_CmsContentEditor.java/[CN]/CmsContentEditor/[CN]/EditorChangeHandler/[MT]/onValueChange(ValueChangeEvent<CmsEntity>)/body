@@ -1,15 +1,24 @@
 {
-  CmsEntity entity=event.getValue();
-  Set<String> changedScopes=new HashSet<String>();
-  for (  String scope : m_scopeValues.keySet()) {
-    String scopeValue=CmsContentDefinition.getValueForPath(entity,scope);
-    String previousValue=m_scopeValues.get(scope);
-    if (((scopeValue != null) && !scopeValue.equals(previousValue)) || ((scopeValue == null) && (previousValue != null))) {
-      changedScopes.add(scope);
-      m_scopeValues.put(scope,scopeValue);
+  final CmsEntity entity=event.getValue();
+  m_needsValueChangeProcessing=true;
+  Scheduler.get().scheduleFinally(new ScheduledCommand(){
+    public void execute(){
+      if (m_needsValueChangeProcessing) {
+        m_needsValueChangeProcessing=false;
+        Set<String> changedScopes=new HashSet<String>();
+        for (        String scope : m_scopeValues.keySet()) {
+          String scopeValue=CmsContentDefinition.getValueForPath(entity,scope);
+          String previousValue=m_scopeValues.get(scope);
+          if (((scopeValue != null) && !scopeValue.equals(previousValue)) || ((scopeValue == null) && (previousValue != null))) {
+            changedScopes.add(scope);
+            m_scopeValues.put(scope,scopeValue);
+          }
+        }
+        if (!changedScopes.isEmpty()) {
+          callEditorChangeHandlers(changedScopes);
+        }
+      }
     }
   }
-  if (!changedScopes.isEmpty()) {
-    callEditorChangeHanlders(changedScopes);
-  }
+);
 }

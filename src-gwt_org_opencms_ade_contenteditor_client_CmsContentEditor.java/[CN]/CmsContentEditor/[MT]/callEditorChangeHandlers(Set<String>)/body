@@ -1,0 +1,28 @@
+{
+  m_changedScopes.addAll(changedScopes);
+  if (!m_callingChangeHandlers && (m_changedScopes.size() > 0)) {
+    m_callingChangeHandlers=true;
+    final Set<String> scopesToSend=new HashSet<String>(m_changedScopes);
+    m_changedScopes.clear();
+    final CmsEntity entity=m_entityBackend.getEntity(m_entityId);
+    final org.opencms.acacia.shared.CmsEntity currentState=entity.createDeepCopy(m_entityId);
+    CmsRpcAction<CmsContentDefinition> action=new CmsRpcAction<CmsContentDefinition>(){
+      @Override public void execute(){
+        start(200,true);
+        getService().callEditorChangeHandlers(getEntityId(),currentState,getSkipPaths(),scopesToSend,this);
+      }
+      @Override public void onFailure(      Throwable t){
+        m_callingChangeHandlers=false;
+        super.onFailure(t);
+      }
+      @Override protected void onResponse(      CmsContentDefinition result){
+        m_callingChangeHandlers=false;
+        stop(false);
+        updateEditorValues(currentState,result.getEntity());
+        callEditorChangeHandlers(new HashSet<String>());
+      }
+    }
+;
+    action.execute();
+  }
+}
