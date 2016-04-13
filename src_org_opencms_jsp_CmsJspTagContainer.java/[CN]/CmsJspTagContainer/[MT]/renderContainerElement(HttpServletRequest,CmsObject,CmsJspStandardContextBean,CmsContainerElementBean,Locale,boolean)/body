@@ -13,11 +13,11 @@
   }
   boolean showInContext=shouldShowInContext(element,context != null ? context.getKey() : null);
   boolean isOnline=cms.getRequestContext().getCurrentProject().isOnlineProject();
-  if (isOnline && !showInContext) {
+  if (!m_editableRequest && !showInContext) {
     return false;
   }
   element.initResource(cms);
-  if (isOnline && !element.isReleasedAndNotExpired()) {
+  if (!m_editableRequest && !element.isReleasedAndNotExpired()) {
     return false;
   }
   ServletRequest req=pageContext.getRequest();
@@ -32,7 +32,7 @@
     formatterConfig=ensureValidFormatterSettings(cms,element,adeConfig,getName(),containerType,containerWidth,true);
     element.initSettings(cms,formatterConfig);
   }
-  if (!isOnline) {
+  if (m_editableRequest) {
     getSessionCache(cms).setCacheContainerElement(element.editorHash(),element);
   }
   if (isGroupContainer || isInheritedContainer) {
@@ -46,17 +46,17 @@
  else {
       subElements=getInheritedContainerElements(cms,element);
     }
-    printElementWrapperTagStart(isOnline,cms,element,standardContext.getPage(),true);
+    printElementWrapperTagStart(cms,element,standardContext.getPage(),true);
     for (    CmsContainerElementBean subelement : subElements) {
       try {
         subelement.initResource(cms);
         boolean shouldShowSubElementInContext=shouldShowInContext(subelement,contextKey);
-        if (isOnline && (!shouldShowSubElementInContext || !subelement.isReleasedAndNotExpired())) {
+        if (!m_editableRequest && (!shouldShowSubElementInContext || !subelement.isReleasedAndNotExpired())) {
           continue;
         }
         I_CmsFormatterBean subElementFormatterConfig=ensureValidFormatterSettings(cms,subelement,adeConfig,getName(),containerType,containerWidth,false);
         subelement.initSettings(cms,subElementFormatterConfig);
-        if (!isOnline) {
+        if (m_editableRequest) {
           getSessionCache(cms).setCacheContainerElement(subelement.editorHash(),subelement);
         }
         if (subElementFormatterConfig == null) {
@@ -65,7 +65,7 @@
           }
           continue;
         }
-        printElementWrapperTagStart(isOnline,cms,subelement,standardContext.getPage(),false);
+        printElementWrapperTagStart(cms,subelement,standardContext.getPage(),false);
         standardContext.setElement(subelement);
         try {
           String formatterSitePath;
@@ -88,9 +88,9 @@
           if (LOG.isErrorEnabled()) {
             LOG.error(Messages.get().getBundle().key(Messages.ERR_CONTAINER_PAGE_ELEMENT_RENDER_ERROR_2,subelement.getSitePath(),subElementFormatterConfig),e);
           }
-          printElementErrorTag(isOnline,subelement.getSitePath(),subElementFormatterConfig.getJspRootPath(),e);
+          printElementErrorTag(subelement.getSitePath(),subElementFormatterConfig.getJspRootPath(),e);
         }
-        printElementWrapperTagEnd(isOnline,false);
+        printElementWrapperTagEnd(false);
       }
  catch (      Exception e) {
         if (LOG.isErrorEnabled()) {
@@ -98,7 +98,7 @@
         }
       }
     }
-    printElementWrapperTagEnd(isOnline,true);
+    printElementWrapperTagEnd(true);
     return true;
   }
  else {
@@ -106,9 +106,9 @@
     if (alreadyFull) {
       result=false;
       if (!showInContext) {
-        printElementWrapperTagStart(isOnline,cms,element,standardContext.getPage(),false);
+        printElementWrapperTagStart(cms,element,standardContext.getPage(),false);
         pageContext.getOut().print(DUMMY_ELEMENT);
-        printElementWrapperTagEnd(isOnline,false);
+        printElementWrapperTagEnd(false);
       }
     }
  else {
@@ -148,7 +148,7 @@
           formatter=cms.getRequestContext().removeSiteRoot(elementFormatterBean.getJspRootPath());
         }
       }
-      printElementWrapperTagStart(isOnline,cms,element,standardContext.getPage(),false);
+      printElementWrapperTagStart(cms,element,standardContext.getPage(),false);
       standardContext.setElement(element);
       try {
         if (!showInContext) {
@@ -163,9 +163,9 @@
         if (LOG.isErrorEnabled()) {
           LOG.error(Messages.get().getBundle().key(Messages.ERR_CONTAINER_PAGE_ELEMENT_RENDER_ERROR_2,element.getSitePath(),formatter),e);
         }
-        printElementErrorTag(isOnline,element.getSitePath(),formatter,e);
+        printElementErrorTag(element.getSitePath(),formatter,e);
       }
-      printElementWrapperTagEnd(isOnline,false);
+      printElementWrapperTagEnd(false);
     }
     return result;
   }
