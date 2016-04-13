@@ -1,6 +1,6 @@
 {
   ServletRequest req=context.getRequest();
-  if (CmsHistoryResourceHandler.isHistoryRequest(req) || CmsJspTagEditable.isDirectEditDisabled(req)) {
+  if (CmsHistoryResourceHandler.isHistoryRequest(req)) {
     return;
   }
   CmsFlexController controller=CmsFlexController.getController(req);
@@ -11,14 +11,24 @@
   if (CmsResource.isTemporaryFileName(cms.getRequestContext().getUri())) {
     return;
   }
-  I_CmsDirectEditProvider eb=new CmsAdvancedDirectEditProvider();
-  eb.init(cms,CmsDirectEditMode.TRUE,"");
-  CmsJspTagEditable.setDirectEditProvider(context,eb);
-  try {
-    CmsContainerpageActionElement actionEl=new CmsContainerpageActionElement(context,(HttpServletRequest)req,(HttpServletResponse)context.getResponse());
-    context.getResponse().getWriter().print(actionEl.exportAll());
+  if (CmsJspTagEditable.isDirectEditDisabled(req)) {
+    try {
+      context.getResponse().getWriter().print(getPreviewInclude());
+    }
+ catch (    IOException e) {
+      throw new JspException(e);
+    }
   }
- catch (  Exception e) {
-    throw new JspException(e);
+ else {
+    I_CmsDirectEditProvider eb=new CmsAdvancedDirectEditProvider();
+    eb.init(cms,CmsDirectEditMode.TRUE,"");
+    CmsJspTagEditable.setDirectEditProvider(context,eb);
+    try {
+      CmsContainerpageActionElement actionEl=new CmsContainerpageActionElement(context,(HttpServletRequest)req,(HttpServletResponse)context.getResponse());
+      context.getResponse().getWriter().print(actionEl.exportAll());
+    }
+ catch (    Exception e) {
+      throw new JspException(e);
+    }
   }
 }
