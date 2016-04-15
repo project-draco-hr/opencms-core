@@ -1,0 +1,59 @@
+{
+  try {
+    Thread.sleep(300);
+  }
+ catch (  Exception e) {
+  }
+  List<I_CmsDataViewItem> foundItems=new ArrayList<I_CmsDataViewItem>();
+  Map<String,String> filters=query.getFilterValues();
+  for (  I_CmsDataViewItem item : m_allItems) {
+    String fullText=item.getColumnData("title") + " " + item.getColumnData("description");
+    String fullTextQuery=query.getFullTextQuery();
+    if (fullTextQuery == null) {
+      fullTextQuery="";
+    }
+    if (!fullTextQuery.isEmpty() && !fullText.contains(fullTextQuery)) {
+      continue;
+    }
+    if (filters.containsKey("minSize") && !filters.get("minSize").isEmpty()) {
+      int minSize=Integer.parseInt(filters.get("minSize"));
+      Double size=(Double)(item.getColumnData("size"));
+      if (size.doubleValue() < minSize) {
+        continue;
+      }
+    }
+    String categoryPrefix=null;
+    if (filters.containsKey("superCategory") && !filters.get("superCategory").isEmpty()) {
+      categoryPrefix=filters.get("superCategory");
+    }
+    if (filters.containsKey("subCategory") && !filters.get("subCategory").isEmpty()) {
+      categoryPrefix=filters.get("subCategory");
+    }
+    if (categoryPrefix != null) {
+      String category=(String)(item.getColumnData("category"));
+      if (!(category.startsWith(categoryPrefix))) {
+        continue;
+      }
+    }
+    foundItems.add(item);
+  }
+  final int compareDirection=query.isSortAscending() ? 1 : -1;
+  final String field=query.getSortColumn();
+  if (query.getSortColumn() != null) {
+    Collections.sort(foundItems,new Comparator<I_CmsDataViewItem>(){
+      public int compare(      I_CmsDataViewItem first,      I_CmsDataViewItem second){
+        return ComparisonChain.start().compare((Comparable<?>)first.getColumnData(field),(Comparable<?>)second.getColumnData(field)).result() * compareDirection;
+      }
+    }
+);
+  }
+  int unpagedCount=foundItems.size();
+  if (offset >= unpagedCount) {
+    offset=unpagedCount;
+  }
+  if ((offset + count) > unpagedCount) {
+    count=Math.max(0,unpagedCount - offset);
+  }
+  foundItems=foundItems.subList(offset,offset + count);
+  return new CmsDataViewResult(foundItems,unpagedCount);
+}
