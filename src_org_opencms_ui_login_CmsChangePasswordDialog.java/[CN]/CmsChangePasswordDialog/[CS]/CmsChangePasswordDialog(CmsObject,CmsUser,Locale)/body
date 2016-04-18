@@ -1,14 +1,18 @@
 {
-  CmsVaadinUtils.readAndLocalizeDesign(this,OpenCms.getWorkplaceManager().getMessages(locale),null);
+  super();
   m_locale=locale;
   m_cms=cms;
   m_user=user;
+  if (m_user.isManaged()) {
+    throw new CmsRuntimeException(Messages.get().container(Messages.ERR_USER_NOT_SELF_MANAGED_1,m_user.getName()));
+  }
+  m_form=new CmsPasswordForm(m_locale);
+  setContent(m_form);
   if (OpenCms.getPasswordHandler() instanceof I_CmsPasswordSecurityEvaluator) {
-    m_securityHint.setValue(((I_CmsPasswordSecurityEvaluator)OpenCms.getPasswordHandler()).getPasswordSecurityHint(m_locale));
+    m_form.setSecurityHint(((I_CmsPasswordSecurityEvaluator)OpenCms.getPasswordHandler()).getPasswordSecurityHint(m_locale));
   }
- else {
-    m_securityHint.setVisible(false);
-  }
+  m_passwordChangeButton=new Button(CmsVaadinUtils.getMessageText(Messages.GUI_CHANGE_PASSWORD_BUTTON_0));
+  addButton(m_passwordChangeButton);
   m_passwordChangeButton.addClickListener(new ClickListener(){
     /** 
  * Serial versino id. 
@@ -19,6 +23,8 @@
     }
   }
 );
+  m_cancelButton=new Button(CmsVaadinUtils.messageCancel());
+  addButton(m_cancelButton);
   m_cancelButton.addClickListener(new ClickListener(){
     /** 
  * Serial versino id. 
@@ -29,10 +35,27 @@
     }
   }
 );
-  m_passwordField1.addTextChangeListener(new TextChangeListener(){
+  m_form.getOldPasswordField().setImmediate(true);
+  m_form.getPassword1Field().setImmediate(true);
+  m_form.getPassword2Field().setImmediate(true);
+  m_form.getOldPasswordField().addValueChangeListener(new ValueChangeListener(){
+    private static final long serialVersionUID=1L;
+    public void valueChange(    ValueChangeEvent event){
+      clearOldPasswordError();
+    }
+  }
+);
+  m_form.getPassword1Field().addTextChangeListener(new TextChangeListener(){
     private static final long serialVersionUID=1L;
     public void textChange(    TextChangeEvent event){
       checkSecurity(event.getText());
+    }
+  }
+);
+  m_form.getPassword2Field().addTextChangeListener(new TextChangeListener(){
+    private static final long serialVersionUID=1L;
+    public void textChange(    TextChangeEvent event){
+      checkPasswordMatch(event.getText());
     }
   }
 );
