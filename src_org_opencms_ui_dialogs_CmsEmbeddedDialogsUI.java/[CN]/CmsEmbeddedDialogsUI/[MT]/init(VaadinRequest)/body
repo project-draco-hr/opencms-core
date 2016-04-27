@@ -1,24 +1,33 @@
 {
   super.init(request);
-  final I_CmsDialogContext context=new CmsEmbeddedDialogContext(Collections.<CmsResource>emptyList());
   Throwable t=null;
   String errorMessage=null;
   try {
     OpenCms.getRoleManager().checkRole(getCmsObject(),CmsRole.ELEMENT_AUTHOR);
     try {
-      Component dialog=getDialog(request,context);
-      if (dialog != null) {
-        String title;
-        if (dialog instanceof I_CmsHasTitle) {
-          title=((I_CmsHasTitle)dialog).getTitle(getLocale());
+      String resources=request.getParameter("resources");
+      List<CmsResource> resourceList;
+      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(resources)) {
+        resourceList=new ArrayList<CmsResource>();
+        String[] resIds=resources.split(";");
+        for (int i=0; i < resIds.length; i++) {
+          if (CmsUUID.isValidUUID(resIds[i])) {
+            resourceList.add(getCmsObject().readResource(new CmsUUID(resIds[i]),CmsResourceFilter.IGNORE_EXPIRATION));
+          }
         }
- else {
-          title=CmsVaadinUtils.getMessageText(org.opencms.ui.dialogs.Messages.GUI_DIALOG_0);
-        }
-        context.start(title,dialog);
       }
  else {
-        errorMessage=CmsVaadinUtils.getMessageText(org.opencms.ui.dialogs.Messages.ERR_DIALOG_NOT_AVAILABLE_1,request.getPathInfo());
+        resourceList=Collections.<CmsResource>emptyList();
+      }
+      String typeParam=request.getParameter("contextType");
+      ContextType type=ContextType.valueOf(typeParam);
+      I_CmsDialogContext context=new CmsEmbeddedDialogContext(type,resourceList);
+      I_CmsWorkplaceAction action=getAction(request);
+      if (action.isActive(context)) {
+        action.executeAction(context);
+      }
+ else {
+        errorMessage=CmsVaadinUtils.getMessageText(Messages.GUI_WORKPLACE_ACCESS_DENIED_TITLE_0);
       }
     }
  catch (    Throwable e) {
@@ -33,7 +42,7 @@
   if (errorMessage != null) {
     CmsErrorDialog.showErrorDialog(errorMessage,t,new Runnable(){
       public void run(){
-        context.finish(null);
+        new CmsEmbeddedDialogContext(null,Collections.<CmsResource>emptyList()).finish(null);
       }
     }
 );
