@@ -1,0 +1,33 @@
+{
+  CmsFile file=m_cms.readFile(configFile);
+  CmsXmlContent content=CmsXmlContentFactory.unmarshal(m_cms,file);
+  Locale locale=getLocale(content);
+  int defaultValueIndex=-1;
+  String defaultModelTarget=null;
+  for (  I_CmsXmlContentValue value : content.getValues(CmsConfigurationReader.N_MODEL_PAGE,locale)) {
+    I_CmsXmlContentValue linkValue=content.getValue(CmsStringUtil.joinPaths(value.getPath(),CmsConfigurationReader.N_PAGE),locale);
+    I_CmsXmlContentValue isDefaultValue=content.getValue(CmsStringUtil.joinPaths(value.getPath(),CmsConfigurationReader.N_IS_DEFAULT),locale);
+    CmsLink link=((CmsXmlVfsFileValue)linkValue).getLink(m_cms);
+    if ((link != null) && link.getStructureId().equals(modelId)) {
+      defaultValueIndex=value.getIndex();
+      defaultModelTarget=link.getTarget();
+    }
+ else {
+      isDefaultValue.setStringValue(m_cms,Boolean.FALSE.toString());
+    }
+  }
+  if (defaultValueIndex != -1) {
+    content.removeValue(CmsConfigurationReader.N_MODEL_PAGE,locale,defaultValueIndex);
+    content.addValue(m_cms,CmsConfigurationReader.N_MODEL_PAGE,locale,0);
+    content.getValue(CmsConfigurationReader.N_MODEL_PAGE + "[1]/" + CmsConfigurationReader.N_PAGE,locale).setStringValue(m_cms,defaultModelTarget);
+    content.getValue(CmsConfigurationReader.N_MODEL_PAGE + "[1]/" + CmsConfigurationReader.N_DISABLED,locale).setStringValue(m_cms,Boolean.FALSE.toString());
+    content.getValue(CmsConfigurationReader.N_MODEL_PAGE + "[1]/" + CmsConfigurationReader.N_IS_DEFAULT,locale).setStringValue(m_cms,Boolean.TRUE.toString());
+  }
+  content.setAutoCorrectionEnabled(true);
+  content.correctXmlStructure(m_cms);
+  file.setContents(content.marshal());
+  m_cms.writeFile(file);
+  OpenCms.getADEManager().waitForCacheUpdate(false);
+  m_adeConfig=OpenCms.getADEManager().lookupConfiguration(m_cms,m_rootResource.getRootPath());
+  return getModelInfo();
+}
