@@ -1,30 +1,37 @@
 {
-  Map<String,Object> existingInfos=readUserInfos(dbc,userId);
-  Iterator<Entry<String,Object>> itEntries=existingInfos.entrySet().iterator();
-  while (itEntries.hasNext()) {
-    Entry<String,Object> entry=itEntries.next();
-    if ((entry.getKey() != null) && (entry.getValue() != null)) {
-      if (!additionalInfo.containsKey(entry.getKey())) {
-        dbc.setAttribute(ATTRIBUTE_USERADDINFO,ATTRIBUTE_USERADDINFO_VALUE_DELETE);
-        writeUserInfo(dbc,userId,entry.getKey(),entry.getValue());
-      }
+  Lock lock=USER_INFO_LOCKS.get(userId);
+  try {
+    lock.lock();
+    Map<String,Object> existingInfos=readUserInfos(dbc,userId);
+    Iterator<Entry<String,Object>> itEntries=existingInfos.entrySet().iterator();
+    while (itEntries.hasNext()) {
+      Entry<String,Object> entry=itEntries.next();
+      if ((entry.getKey() != null) && (entry.getValue() != null)) {
+        if (!additionalInfo.containsKey(entry.getKey())) {
+          dbc.setAttribute(ATTRIBUTE_USERADDINFO,ATTRIBUTE_USERADDINFO_VALUE_DELETE);
+          writeUserInfo(dbc,userId,entry.getKey(),entry.getValue());
+        }
  else {
-        Object newValue=additionalInfo.get(entry.getKey());
-        if ((newValue != null) && !newValue.equals(entry.getValue())) {
-          dbc.setAttribute(ATTRIBUTE_USERADDINFO,ATTRIBUTE_USERADDINFO_VALUE_UPDATE);
-          writeUserInfo(dbc,userId,entry.getKey(),newValue);
+          Object newValue=additionalInfo.get(entry.getKey());
+          if ((newValue != null) && !newValue.equals(entry.getValue())) {
+            dbc.setAttribute(ATTRIBUTE_USERADDINFO,ATTRIBUTE_USERADDINFO_VALUE_UPDATE);
+            writeUserInfo(dbc,userId,entry.getKey(),newValue);
+          }
+        }
+      }
+    }
+    Iterator<Entry<String,Object>> itNewEntries=additionalInfo.entrySet().iterator();
+    while (itNewEntries.hasNext()) {
+      Entry<String,Object> entry=itNewEntries.next();
+      if ((entry.getKey() != null) && (entry.getValue() != null)) {
+        if (!existingInfos.containsKey(entry.getKey())) {
+          dbc.setAttribute(ATTRIBUTE_USERADDINFO,ATTRIBUTE_USERADDINFO_VALUE_INSERT);
+          writeUserInfo(dbc,userId,entry.getKey(),entry.getValue());
         }
       }
     }
   }
-  Iterator<Entry<String,Object>> itNewEntries=additionalInfo.entrySet().iterator();
-  while (itNewEntries.hasNext()) {
-    Entry<String,Object> entry=itNewEntries.next();
-    if ((entry.getKey() != null) && (entry.getValue() != null)) {
-      if (!existingInfos.containsKey(entry.getKey())) {
-        dbc.setAttribute(ATTRIBUTE_USERADDINFO,ATTRIBUTE_USERADDINFO_VALUE_INSERT);
-        writeUserInfo(dbc,userId,entry.getKey(),entry.getValue());
-      }
-    }
+  finally {
+    lock.unlock();
   }
 }
