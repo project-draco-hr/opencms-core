@@ -1,0 +1,64 @@
+{
+  if ((null == content) || (null == file)) {
+    return;
+  }
+  CmsObject cms=getCmsObject();
+  if (!content.getLocales().isEmpty()) {
+    Locale locale=content.getLocales().iterator().next();
+    CmsEntity entity=lastEditedEntity;
+    List<I_CmsXmlContentValue> values=content.getValues(locale);
+    for (    I_CmsXmlContentValue value : values) {
+      if (value.getTypeName().equals(CmsXmlDynamicCategoryValue.TYPE_NAME)) {
+        I_CmsWidget widget=null;
+        try {
+          widget=value.getContentDefinition().getContentHandler().getWidget(value);
+        }
+ catch (        CmsXmlException e) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+        List<CmsCategory> categories=new ArrayList<CmsCategory>(0);
+        try {
+          categories=CmsCategoryService.getInstance().readResourceCategories(cms,file);
+        }
+ catch (        CmsException e) {
+          LOG.error(Messages.get().getBundle().key(Messages.ERROR_FAILED_READING_CATEGORIES_1),e);
+        }
+        if ((null != widget) && (widget instanceof CmsCategoryWidget)) {
+          String mainCategoryPath=((CmsCategoryWidget)widget).getStartingCategory(cms,cms.getSitePath(file));
+          for (          CmsCategory category : categories) {
+            if (category.getRootPath().startsWith(cms.addSiteRoot(mainCategoryPath))) {
+              try {
+                CmsCategoryService.getInstance().removeResourceFromCategory(cms,cms.getSitePath(file),category);
+              }
+ catch (              CmsException e) {
+                LOG.error(e.getLocalizedMessage(),e);
+              }
+            }
+          }
+          if (null == entity) {
+            try {
+              CmsContentDefinition definition=readContentDefinition(file,content,"dummy",locale,false,null);
+              entity=definition.getEntity();
+            }
+ catch (            CmsException e) {
+              LOG.error(e.getLocalizedMessage(),e);
+            }
+          }
+          String checkedCategories="";
+          if (null != entity) {
+            checkedCategories=CmsEntity.getValueForPath(entity,new String[]{value.getPath()});
+          }
+          List<String> checkedCategoryList=Arrays.asList(checkedCategories.split(","));
+          for (          String category : checkedCategoryList) {
+            try {
+              CmsCategoryService.getInstance().addResourceToCategory(cms,cms.getSitePath(file),CmsCategoryService.getInstance().getCategory(cms,category));
+            }
+ catch (            CmsException e) {
+              LOG.error(e.getLocalizedMessage(),e);
+            }
+          }
+        }
+      }
+    }
+  }
+}
