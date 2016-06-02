@@ -1,0 +1,41 @@
+{
+  CmsAttributeHandler parentHandler=null;
+  CmsAttributeValueView parentView=null;
+  boolean removeParent=false;
+  CmsEntityAttribute attribute=m_entity.getAttribute(m_attributeName);
+  if (isChoiceHandler() && attribute.isSingleValue()) {
+    parentHandler=(CmsAttributeHandler)m_parentHandler;
+    parentView=reference.getParentView();
+    removeParent=true;
+  }
+  if (attribute.isSingleValue() && !force) {
+    reference.removeValue();
+    if (!attribute.isSimpleValue()) {
+      removeHandlers(0);
+    }
+    m_entity.removeAttribute(m_attributeName);
+  }
+ else {
+    int index=reference.getValueIndex();
+    if (attribute.isComplexValue()) {
+      removeHandlers(index);
+      CmsEntity value=attribute.getComplexValues().get(index);
+      m_entity.removeAttributeValue(m_attributeName,index);
+      m_entityBackEnd.removeEntity(value.getId());
+    }
+ else {
+      m_entity.removeAttributeValue(m_attributeName,index);
+    }
+    reference.removeFromParent();
+    m_attributeValueViews.remove(reference);
+  }
+  updateButtonVisisbility();
+  if (removeParent && (parentHandler != null) && (parentView != null)) {
+    parentHandler.removeAttributeValue(parentView);
+    parentView.setCollapsed(false);
+  }
+  CmsUndoRedoHandler handler=CmsUndoRedoHandler.getInstance();
+  if (handler.isIntitalized()) {
+    handler.addChange(m_entity.getId(),m_attributeName,0,ChangeType.remove);
+  }
+}
