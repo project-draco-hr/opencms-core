@@ -4,10 +4,24 @@
   if (common.getState().getQuery().isEmpty() && (!common.getConfig().getIgnoreQueryParam() && !common.getConfig().getSearchForEmptyQueryParam())) {
     return new CmsSearchResultWrapper(m_searchController,null,null,m_cms,null);
   }
-  CmsSolrQuery query=new CmsSolrQuery();
+  Map<String,String[]> queryParams=null;
+  boolean isEditMode=CmsJspTagEditable.isEditableRequest(pageContext.getRequest());
+  if (isEditMode) {
+    String params="";
+    if (common.getConfig().getIgnoreReleaseDate()) {
+      params+="&fq=released:[* TO *]";
+    }
+    if (common.getConfig().getIgnoreExpirationDate()) {
+      params+="&fq=expired:[* TO *]";
+    }
+    if (!params.isEmpty()) {
+      queryParams=CmsRequestUtil.createParameterMap(params.substring(1));
+    }
+  }
+  CmsSolrQuery query=new CmsSolrQuery(null,queryParams);
   m_searchController.addQueryParts(query);
   try {
-    CmsSolrResultList solrResultList=m_index.search(m_cms,query,true);
+    CmsSolrResultList solrResultList=m_index.search(m_cms,query,true,isEditMode ? CmsResourceFilter.IGNORE_EXPIRATION : null);
     return new CmsSearchResultWrapper(m_searchController,solrResultList,query,m_cms,null);
   }
  catch (  CmsSearchException e) {
