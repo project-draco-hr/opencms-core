@@ -1,0 +1,48 @@
+{
+  CmsObject cms=A_CmsUI.getCmsObject();
+  Locale locale=UI.getCurrent().getLocale();
+  m_container.removeAllItems();
+  boolean isMultiOU=false;
+  try {
+    isMultiOU=!OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,"",true).isEmpty();
+  }
+ catch (  CmsException e) {
+  }
+  if (isMultiOU) {
+    setVisibleColumns(PROP_NAME,PROP_DESCRIPTION,PROP_ORG_UNIT,PROP_OWNER,PROP_MANAGER,PROP_USER,PROP_DATE_CREATED,PROP_RESOURCES);
+  }
+ else {
+    setVisibleColumns(PROP_NAME,PROP_DESCRIPTION,PROP_OWNER,PROP_MANAGER,PROP_USER,PROP_DATE_CREATED,PROP_RESOURCES);
+  }
+  try {
+    List<CmsProject> projects=OpenCms.getOrgUnitManager().getAllManageableProjects(cms,"",true);
+    for (    CmsProject project : projects) {
+      Item item=m_container.addItem(project.getUuid());
+      item.getItemProperty(PROP_ID).setValue(project.getUuid());
+      item.getItemProperty(PROP_NAME).setValue(project.getSimpleName());
+      item.getItemProperty(PROP_DESCRIPTION).setValue(project.getDescription());
+      try {
+        item.getItemProperty(PROP_ORG_UNIT).setValue(OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,project.getOuFqn()).getDisplayName(locale));
+        item.getItemProperty(PROP_OWNER).setValue(cms.readUser(project.getOwnerId()).getName());
+        item.getItemProperty(PROP_MANAGER).setValue(cms.readGroup(project.getManagerGroupId()).getSimpleName());
+        item.getItemProperty(PROP_USER).setValue(cms.readGroup(project.getGroupId()).getSimpleName());
+      }
+ catch (      CmsException e) {
+        e.printStackTrace();
+      }
+      item.getItemProperty(PROP_DATE_CREATED).setValue(new Date(project.getDateCreated()));
+      StringBuffer html=new StringBuffer(512);
+      for (      String resource : cms.readProjectResources(project)) {
+        html.append(resource);
+        html.append("<br />");
+      }
+      Label resLabel=new Label();
+      resLabel.setContentMode(ContentMode.HTML);
+      resLabel.setValue(html.toString());
+      item.getItemProperty(PROP_RESOURCES).setValue(resLabel);
+    }
+  }
+ catch (  CmsException e) {
+    e.printStackTrace();
+  }
+}
