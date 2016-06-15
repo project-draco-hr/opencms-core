@@ -1,0 +1,96 @@
+{
+  List<CmsQuickLaunchData> result=Lists.newArrayList();
+  Locale locale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
+  CmsUserSettings userSettings=new CmsUserSettings(cms);
+  boolean usesNewWorkplace=userSettings.usesNewWorkplace();
+  List<I_CmsWorkplaceAppConfiguration> appConfigs=new ArrayList<I_CmsWorkplaceAppConfiguration>(OpenCms.getWorkplaceAppManager().getQuickLaunchConfigurations(cms));
+  if (!usesNewWorkplace) {
+    I_CmsWorkplaceAppConfiguration config=OpenCms.getWorkplaceAppManager().getAppConfiguration(CmsTraditionalWorkplaceConfiguration.APP_ID);
+    if ((config != null) && config.getVisibility(cms).isActive()) {
+      appConfigs.add(config);
+    }
+  }
+  CmsQuickLaunchLocationCache locationCache=CmsQuickLaunchLocationCache.getLocationCache(session);
+  for (  I_CmsWorkplaceAppConfiguration config : appConfigs) {
+    try {
+      boolean reload=false;
+      String link=null;
+      String errorTitle=null;
+      String errorMessage=null;
+      boolean useLegacyButtonStyle=config instanceof CmsLegacyAppConfiguration;
+      if (CmsFileExplorerConfiguration.APP_ID.equals(config.getId())) {
+        if (!usesNewWorkplace) {
+          continue;
+        }
+        String page=locationCache.getFileExplorerLocation(cms.getRequestContext().getSiteRoot());
+        if (page != null) {
+          link=CmsCoreService.getVaadinWorkplaceLink(cms,cms.getRequestContext().addSiteRoot(page));
+        }
+ else {
+          if (cms.existsResource("/",CmsResourceFilter.ONLY_VISIBLE_NO_DELETED)) {
+            link=CmsCoreService.getVaadinWorkplaceLink(cms,cms.getRequestContext().getSiteRoot());
+          }
+ else           if (cms.existsResource(params.getPageId(),CmsResourceFilter.ONLY_VISIBLE_NO_DELETED)) {
+            link=CmsCoreService.getVaadinWorkplaceLink(cms,params.getPageId());
+          }
+ else {
+            errorTitle=config.getName(locale);
+            errorMessage=Messages.get().getBundle(locale).key(Messages.GUI_QUICKLAUNCH_EXPLORER_NOT_ALLOWED_0);
+          }
+        }
+      }
+ else       if (CmsPageEditorConfiguration.APP_ID.equals(config.getId())) {
+        if (params.isPageContext()) {
+          reload=true;
+        }
+ else         if (params.isSitemapContext()) {
+          String page=locationCache.getPageEditorLocation(cms.getRequestContext().getSiteRoot());
+          if (page == null) {
+            page=locationCache.getSitemapEditorLocation(cms.getRequestContext().getSiteRoot());
+          }
+          if (page != null) {
+            link=OpenCms.getLinkManager().substituteLink(cms,page);
+          }
+        }
+      }
+ else       if (CmsSitemapEditorConfiguration.APP_ID.equals(config.getId())) {
+        if (params.isSitemapContext()) {
+          reload=true;
+        }
+ else         if (params.isPageContext()) {
+          String sitemapLink=OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,CmsADEManager.PATH_SITEMAP_EDITOR_JSP);
+          String page=locationCache.getPageEditorLocation(cms.getRequestContext().getSiteRoot());
+          link=sitemapLink + "?path=" + page;
+        }
+      }
+ else       if (CmsTraditionalWorkplaceConfiguration.APP_ID.equals(config.getId())) {
+        String resourceRootFolder=params.getPageId() != null ? CmsResource.getFolderPath(cms.readResource(params.getPageId()).getRootPath()) : cms.getRequestContext().getSiteRoot();
+        link=CmsWorkplace.getWorkplaceExplorerLink(cms,resourceRootFolder);
+        useLegacyButtonStyle=true;
+      }
+ else {
+        if (!usesNewWorkplace) {
+          continue;
+        }
+        link=OpenCms.getSystemInfo().getWorkplaceContext() + "#!" + config.getId();
+      }
+      Resource icon=config.getIcon();
+      String imageLink="";
+      if (icon instanceof ExternalResource) {
+        imageLink=((ExternalResource)icon).getURL();
+      }
+      String name=config.getName(OpenCms.getWorkplaceManager().getWorkplaceLocale(cms));
+      CmsAppVisibilityStatus visibility=config.getVisibility(cms);
+      if (!visibility.isActive()) {
+        errorTitle=name;
+        errorMessage=visibility.getHelpText();
+      }
+      CmsQuickLaunchData data=new CmsQuickLaunchData(link,name,imageLink,errorTitle,errorMessage,useLegacyButtonStyle,reload);
+      result.add(data);
+    }
+ catch (    Exception e) {
+      LOG.error(e.getLocalizedMessage(),e);
+    }
+  }
+  return result;
+}
