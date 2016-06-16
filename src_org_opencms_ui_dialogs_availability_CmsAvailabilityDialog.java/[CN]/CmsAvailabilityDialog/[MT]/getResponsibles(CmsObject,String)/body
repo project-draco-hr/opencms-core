@@ -1,0 +1,37 @@
+{
+  Map<CmsPrincipalBean,String> result=new HashMap<CmsPrincipalBean,String>();
+  List<CmsResource> parentResources=new ArrayList<CmsResource>();
+  String resourceSitePath=cms.getRequestContext().removeSiteRoot(rootPath);
+  parentResources=cms.readPath(resourceSitePath,CmsResourceFilter.IGNORE_EXPIRATION);
+  for (  CmsResource resource : parentResources) {
+    String storedSiteRoot=cms.getRequestContext().getSiteRoot();
+    String sitePath=cms.getRequestContext().removeSiteRoot(resource.getRootPath());
+    try {
+      cms.getRequestContext().setSiteRoot("/");
+      List<CmsAccessControlEntry> entries=cms.getAccessControlEntries(resource.getRootPath(),false);
+      for (      CmsAccessControlEntry ace : entries) {
+        if (ace.isResponsible()) {
+          I_CmsPrincipal principal=cms.lookupPrincipal(ace.getPrincipal());
+          if (principal != null) {
+            CmsPrincipalBean prinBean=new CmsPrincipalBean(principal.getName(),principal.getDescription(),principal.isGroup());
+            if (!resource.getRootPath().equals(rootPath)) {
+              if (resource.getRootPath().startsWith(storedSiteRoot)) {
+                result.put(prinBean,sitePath);
+              }
+ else {
+                result.put(prinBean,resource.getRootPath());
+              }
+            }
+ else {
+              result.put(prinBean,null);
+            }
+          }
+        }
+      }
+    }
+  finally {
+      cms.getRequestContext().setSiteRoot(storedSiteRoot);
+    }
+  }
+  return result;
+}

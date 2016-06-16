@@ -1,0 +1,70 @@
+{
+  if (path == null) {
+    String siteRoot=A_CmsUI.getCmsObject().getRequestContext().getSiteRoot();
+    path=m_locationCache.getFileExplorerLocation(siteRoot);
+    if (path == null) {
+      path="";
+    }
+ else     if (OpenCms.getSiteManager().startsWithShared(path)) {
+      path=path.substring(siteRoot.length());
+    }
+  }
+  boolean existsPath=CmsStringUtil.isNotEmptyOrWhitespaceOnly(path) && A_CmsUI.getCmsObject().existsResource(path,FILES_N_FOLDERS);
+  if (path.startsWith("/")) {
+    path=path.substring(1);
+  }
+  String[] pathItems=path.split("/");
+  if (initTree) {
+    try {
+      initFolderTree(existsPath);
+    }
+ catch (    CmsException e) {
+      CmsErrorDialog.showErrorDialog(CmsVaadinUtils.getMessageText(Messages.ERR_EXPLORER_CAN_NOT_OPEN_PATH_1,path),e);
+      LOG.error(e.getLocalizedMessage(),e);
+      return;
+    }
+  }
+  Collection<?> rootItems=m_treeContainer.rootItemIds();
+  if (rootItems.size() != 1) {
+    throw new RuntimeException("Illeagal state, folder tree has " + rootItems.size() + " children");
+  }
+  CmsUUID folderId=(CmsUUID)rootItems.iterator().next();
+  if (initTree) {
+    if (existsPath) {
+      m_expandListener.setOpenPathFragment(pathItems[0]);
+    }
+    m_fileTree.expandItem(folderId);
+    m_expandListener.setOpenPathFragment(null);
+  }
+  Collection<?> children=m_treeContainer.getChildren(folderId);
+  for (int i=0; i < pathItems.length; i++) {
+    if (CmsStringUtil.isEmptyOrWhitespaceOnly(pathItems[i])) {
+      continue;
+    }
+    CmsUUID level=null;
+    if (children != null) {
+      for (      Object id : children) {
+        if (m_treeContainer.getItem(id).getItemProperty(CmsResourceTableProperty.PROPERTY_RESOURCE_NAME).getValue().equals(pathItems[i])) {
+          level=(CmsUUID)id;
+          m_expandListener.setOpenPathFragment(existsPath && (i < (pathItems.length - 1)) ? pathItems[i + 1] : null);
+          m_fileTree.expandItem(level);
+          m_expandListener.setOpenPathFragment(null);
+          break;
+        }
+      }
+    }
+    if ((level == null) || level.equals(folderId)) {
+      break;
+    }
+    folderId=level;
+    children=m_treeContainer.getChildren(folderId);
+  }
+  try {
+    readFolder(folderId);
+  }
+ catch (  CmsException e) {
+    CmsErrorDialog.showErrorDialog(CmsVaadinUtils.getMessageText(Messages.ERR_EXPLORER_CAN_NOT_OPEN_PATH_1,path),e);
+    LOG.error(e.getLocalizedMessage(),e);
+    return;
+  }
+}

@@ -1,0 +1,81 @@
+{
+  long timer=0;
+  if (LOG.isDebugEnabled()) {
+    timer=System.currentTimeMillis();
+  }
+  CmsObject cms=getCmsObject();
+  List<Locale> availableLocalesList=OpenCms.getLocaleManager().getAvailableLocales(cms,file);
+  if (!availableLocalesList.contains(locale)) {
+    availableLocalesList.retainAll(content.getLocales());
+    List<Locale> defaultLocales=OpenCms.getLocaleManager().getDefaultLocales(cms,file);
+    Locale replacementLocale=OpenCms.getLocaleManager().getBestMatchingLocale(locale,defaultLocales,availableLocalesList);
+    LOG.info("Can't edit locale " + locale + " of file "+ file.getRootPath()+ " because it is not configured as available locale. Using locale "+ replacementLocale+ " instead.");
+    locale=replacementLocale;
+    entityId=CmsContentDefinition.uuidToEntityId(file.getStructureId(),locale.toString());
+  }
+  if (CmsStringUtil.isEmptyOrWhitespaceOnly(entityId)) {
+    entityId=CmsContentDefinition.uuidToEntityId(file.getStructureId(),locale.toString());
+  }
+  boolean performedAutoCorrection=checkAutoCorrection(cms,content);
+  if (performedAutoCorrection) {
+    content.initDocument();
+  }
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_UNMARSHALING_TIME_1,"" + (System.currentTimeMillis() - timer)));
+  }
+  CmsContentTypeVisitor visitor=new CmsContentTypeVisitor(cms,file,locale);
+  if (LOG.isDebugEnabled()) {
+    timer=System.currentTimeMillis();
+  }
+  visitor.visitTypes(content.getContentDefinition(),getWorkplaceLocale(cms));
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_VISITING_TYPES_TIME_1,"" + (System.currentTimeMillis() - timer)));
+  }
+  CmsEntity entity=null;
+  Map<String,String> syncValues=new HashMap<String,String>();
+  Collection<String> skipPaths=new HashSet<String>();
+  evaluateSyncLocaleValues(content,syncValues,skipPaths);
+  if (content.hasLocale(locale) && newLocale) {
+    content.removeLocale(locale);
+  }
+  if (!content.hasLocale(locale)) {
+    content.addLocale(cms,locale);
+    if (!visitor.getLocaleSynchronizations().isEmpty() && (content.getLocales().size() > 1)) {
+      for (      Locale contentLocale : content.getLocales()) {
+        if (!contentLocale.equals(locale)) {
+          content.synchronizeLocaleIndependentValues(cms,skipPaths,contentLocale);
+        }
+      }
+    }
+  }
+  Element element=content.getLocaleNode(locale);
+  if (LOG.isDebugEnabled()) {
+    timer=System.currentTimeMillis();
+  }
+  entity=readEntity(content,element,locale,entityId,"",getTypeUri(content.getContentDefinition()),visitor,false,editedLocaleEntity);
+  if (LOG.isDebugEnabled()) {
+    LOG.debug(Messages.get().getBundle().key(Messages.LOG_TAKE_READING_ENTITY_TIME_1,"" + (System.currentTimeMillis() - timer)));
+  }
+  List<String> contentLocales=new ArrayList<String>();
+  for (  Locale contentLocale : content.getLocales()) {
+    contentLocales.add(contentLocale.toString());
+  }
+  Locale workplaceLocale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
+  TreeMap<String,String> availableLocales=new TreeMap<String,String>();
+  for (  Locale availableLocale : OpenCms.getLocaleManager().getAvailableLocales(cms,file)) {
+    availableLocales.put(availableLocale.toString(),availableLocale.getDisplayName(workplaceLocale));
+  }
+  String title=cms.readPropertyObject(file,CmsPropertyDefinition.PROPERTY_TITLE,false).getValue();
+  try {
+    CmsGallerySearchResult searchResult=CmsGallerySearch.searchById(cms,file.getStructureId(),locale);
+    title=searchResult.getTitle();
+  }
+ catch (  CmsException e) {
+    LOG.warn(e.getLocalizedMessage(),e);
+  }
+  String typeName=OpenCms.getResourceManager().getResourceType(file.getTypeId()).getTypeName();
+  boolean autoUnlock=OpenCms.getWorkplaceManager().shouldAcaciaUnlock();
+  Map<String,CmsEntity> entities=new HashMap<String,CmsEntity>();
+  entities.put(entityId,entity);
+  return new CmsContentDefinition(entityId,entities,visitor.getAttributeConfigurations(),visitor.getWidgetConfigurations(),visitor.getComplexWidgetData(),visitor.getTypes(),visitor.getTabInfos(),locale.toString(),contentLocales,availableLocales,visitor.getLocaleSynchronizations(),syncValues,skipPaths,title,cms.getSitePath(file),typeName,performedAutoCorrection,autoUnlock,getChangeHandlerScopes(content.getContentDefinition()));
+}

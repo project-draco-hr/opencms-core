@@ -6,40 +6,50 @@
     String siteRoot="/sites".concat(m_sitename);
     m_site.setSiteRoot(siteRoot);
     CmsResource siteRootResource=null;
+    String sitePath=null;
     try {
       siteRootResource=cms.readResource(siteRoot);
+      sitePath=cms.getSitePath(siteRootResource);
     }
- catch (    CmsVfsResourceNotFoundException e) {
-      int typeId=OpenCms.getResourceManager().getResourceType(CmsResourceTypeFolderSubSitemap.TYPE_SUBSITEMAP).getTypeId();
-      siteRootResource=cms.createResource(siteRoot,typeId);
-      String sitePath=cms.getSitePath(siteRootResource);
-      String contentFolder=CmsStringUtil.joinPaths(sitePath,CmsADEManager.CONTENT_FOLDER_NAME + "/");
+ catch (    @SuppressWarnings("unused") CmsVfsResourceNotFoundException e) {
+      I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(CmsResourceTypeFolderSubSitemap.TYPE_SUBSITEMAP);
+      siteRootResource=cms.createResource(siteRoot,type);
+      sitePath=cms.getSitePath(siteRootResource);
+    }
+    if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getTemplate())) {
+      CmsProperty prop=new CmsProperty(CmsPropertyDefinition.PROPERTY_TEMPLATE,getTemplate(),getTemplate());
+      cms.writePropertyObject(siteRoot,prop);
+    }
+    OpenCms.getPublishManager().publishResource(cms,siteRoot,false,new CmsLogReport(cms.getRequestContext().getLocale(),getClass()));
+    if (m_createou) {
+      OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,"/" + siteRootResource.getName(),m_ouDescription.replace("%(site)",m_site.getTitle() + " [" + m_site.getSiteRoot()+ "]"),0,siteRootResource.getRootPath());
+    }
+    String contentFolder=CmsStringUtil.joinPaths(sitePath,CmsADEManager.CONTENT_FOLDER_NAME + "/");
+    String sitemapConfig=CmsStringUtil.joinPaths(contentFolder,CmsADEManager.CONFIG_FILE_NAME);
+    if (!cms.existsResource(sitemapConfig)) {
       CmsResource config=createSitemapContentFolder(cms,siteRootResource);
       if (config != null) {
-        CmsResource newFolder=cms.createResource(contentFolder + NEW,CmsResourceTypeFolder.RESOURCE_TYPE_ID);
-        int containerId=OpenCms.getResourceManager().getResourceType(org.opencms.file.types.CmsResourceTypeXmlContainerPage.RESOURCE_TYPE_NAME).getTypeId();
-        CmsResource modelPage=cms.createResource(newFolder.getRootPath() + BLANK_HTML,containerId);
-        String defTitle=Messages.get().container(Messages.GUI_DEFAULT_MODEL_TITLE_1,m_site.getTitle()).getKey();
-        String defDes=Messages.get().container(Messages.GUI_DEFAULT_MODEL_DESCRIPTION_1,m_site.getTitle()).getKey();
-        CmsProperty prop=new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,defTitle,defTitle);
-        cms.writePropertyObject(modelPage.getRootPath(),prop);
-        prop=new CmsProperty(CmsPropertyDefinition.PROPERTY_DESCRIPTION,defDes,defDes);
-        cms.writePropertyObject(modelPage.getRootPath(),prop);
-        CmsFile file=cms.readFile(config);
-        CmsXmlContent con=CmsXmlContentFactory.unmarshal(cms,file);
-        con.addValue(cms,MODEL_PAGE,Locale.ENGLISH,0);
-        I_CmsXmlContentValue val=con.getValue(MODEL_PAGE_PAGE,Locale.ENGLISH);
-        val.setStringValue(cms,modelPage.getRootPath());
-        file.setContents(con.marshal());
-        cms.writeFile(file);
-      }
-      if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(getTemplate())) {
-        CmsProperty prop=new CmsProperty(CmsPropertyDefinition.PROPERTY_TEMPLATE,getTemplate(),getTemplate());
-        cms.writePropertyObject(siteRoot,prop);
-      }
-      OpenCms.getPublishManager().publishResource(cms,siteRoot,false,new CmsLogReport(cms.getRequestContext().getLocale(),getClass()));
-      if (m_createou) {
-        OpenCms.getOrgUnitManager().createOrganizationalUnit(cms,"/" + siteRootResource.getName(),m_ouDescription.replace("%(site)",m_site.getTitle() + " [" + m_site.getSiteRoot()+ "]"),0,siteRootResource.getRootPath());
+        try {
+          CmsResource newFolder=cms.createResource(contentFolder + NEW,OpenCms.getResourceManager().getResourceType(CmsResourceTypeFolder.RESOURCE_TYPE_NAME));
+          I_CmsResourceType containerType=OpenCms.getResourceManager().getResourceType(org.opencms.file.types.CmsResourceTypeXmlContainerPage.RESOURCE_TYPE_NAME);
+          CmsResource modelPage=cms.createResource(newFolder.getRootPath() + BLANK_HTML,containerType);
+          String defTitle=Messages.get().getBundle(getCms().getRequestContext().getLocale()).key(Messages.GUI_DEFAULT_MODEL_TITLE_1,m_site.getTitle());
+          String defDes=Messages.get().getBundle(getCms().getRequestContext().getLocale()).key(Messages.GUI_DEFAULT_MODEL_DESCRIPTION_1,m_site.getTitle());
+          CmsProperty prop=new CmsProperty(CmsPropertyDefinition.PROPERTY_TITLE,defTitle,defTitle);
+          cms.writePropertyObject(modelPage.getRootPath(),prop);
+          prop=new CmsProperty(CmsPropertyDefinition.PROPERTY_DESCRIPTION,defDes,defDes);
+          cms.writePropertyObject(modelPage.getRootPath(),prop);
+          CmsFile file=cms.readFile(config);
+          CmsXmlContent con=CmsXmlContentFactory.unmarshal(cms,file);
+          con.addValue(cms,MODEL_PAGE,Locale.ENGLISH,0);
+          I_CmsXmlContentValue val=con.getValue(MODEL_PAGE_PAGE,Locale.ENGLISH);
+          val.setStringValue(cms,modelPage.getRootPath());
+          file.setContents(con.marshal());
+          cms.writeFile(file);
+        }
+ catch (        CmsException e) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
       }
     }
     CmsSite newSite=m_site.toCmsSite();

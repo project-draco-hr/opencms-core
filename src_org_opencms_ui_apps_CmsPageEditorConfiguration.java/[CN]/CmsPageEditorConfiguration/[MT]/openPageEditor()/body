@@ -1,45 +1,16 @@
 {
   CmsObject cms=A_CmsUI.getCmsObject();
-  String siteRoot=cms.getRequestContext().getSiteRoot();
   HttpServletRequest req=CmsVaadinUtils.getRequest();
+  if (req == null) {
+    throw new RuntimeException("Wrong usage, this can not be called from outside a VAADIN UI.");
+  }
   CmsJspTagEnableAde.removeDirectEditFlagFromSession(req.getSession());
-  CmsADESessionCache cache=CmsADESessionCache.getCache(req,cms);
-  LastPageBean lastPage=cache.getLastPage();
-  if (lastPage != null) {
-    if (cms.getRequestContext().getSiteRoot().equals(lastPage.getSiteRoot())) {
-      String returncode=lastPage.getDetailId() != null ? lastPage.getPageId() + ":" + lastPage.getDetailId() : "" + lastPage.getPageId();
-      try {
-        CmsReturnLinkInfo linkInfo=CmsCoreService.internalGetLinkForReturnCode(cms,returncode);
-        if (linkInfo.getLink() != null) {
-          A_CmsUI.get().getPage().setLocation(linkInfo.getLink());
-          return;
-        }
- else {
-          cache.clearLastPage();
-        }
-      }
- catch (      CmsException e) {
-        LOG.error(e.getLocalizedMessage(),e);
-        cache.clearLastPage();
-      }
-    }
- else {
-      cache.clearLastPage();
-    }
+  String page=getPath(cms,req.getSession());
+  if (page != null) {
+    A_CmsUI.get().getPage().setLocation(OpenCms.getLinkManager().substituteLink(cms,page));
   }
-  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(siteRoot) && !OpenCms.getSiteManager().getSharedFolder().equals(siteRoot)) {
-    try {
-      CmsResource res=cms.readDefaultFile("/");
-      if (res != null) {
-        String link=OpenCms.getLinkManager().substituteLink(cms,res);
-        A_CmsUI.get().getPage().setLocation(link);
-        return;
-      }
-    }
- catch (    CmsException e) {
-      LOG.debug("Unable to open page editor for site " + siteRoot + ".",e);
-    }
+ else {
+    String message=CmsVaadinUtils.getMessageText(Messages.GUI_PAGE_EDITOR_NOT_AVAILABLE_0);
+    Notification.show(message,Type.WARNING_MESSAGE);
   }
-  String message=CmsVaadinUtils.getMessageText(org.opencms.ui.Messages.GUI_PAGE_EDITOR_NOT_AVAILABLE_0);
-  Notification.show(message,Type.WARNING_MESSAGE);
 }

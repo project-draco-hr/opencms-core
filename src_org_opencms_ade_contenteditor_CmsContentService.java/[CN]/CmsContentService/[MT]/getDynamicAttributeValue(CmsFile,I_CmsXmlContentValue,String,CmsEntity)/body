@@ -1,0 +1,40 @@
+{
+  if (null != editedLocalEntity) {
+    getSessionCache().setDynamicValue(attributeName,editedLocalEntity.getAttribute(attributeName).getSimpleValue());
+  }
+  String currentValue=getSessionCache().getDynamicValue(attributeName);
+  if (null != currentValue) {
+    return currentValue;
+  }
+  if (null != file) {
+    if (value.getTypeName().equals(CmsXmlDynamicCategoryValue.TYPE_NAME)) {
+      List<CmsCategory> categories=new ArrayList<CmsCategory>(0);
+      try {
+        categories=CmsCategoryService.getInstance().readResourceCategories(getCmsObject(),file);
+      }
+ catch (      CmsException e) {
+        LOG.error(Messages.get().getBundle().key(Messages.ERROR_FAILED_READING_CATEGORIES_1),e);
+      }
+      I_CmsWidget widget=null;
+      try {
+        widget=value.getContentDefinition().getContentHandler().getWidget(value);
+      }
+ catch (      CmsXmlException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+      if ((null != widget) && (widget instanceof CmsCategoryWidget)) {
+        String mainCategoryPath=((CmsCategoryWidget)widget).getStartingCategory(getCmsObject(),getCmsObject().getSitePath(file));
+        StringBuffer pathes=new StringBuffer();
+        for (        CmsCategory category : categories) {
+          if (category.getRootPath().startsWith(getCmsObject().addSiteRoot(mainCategoryPath))) {
+            pathes.append(category.getBasePath()).append(category.getPath()).append(',');
+          }
+        }
+        String dynamicConfigString=pathes.length() > 0 ? pathes.substring(0,pathes.length() - 1) : "";
+        getSessionCache().setDynamicValue(attributeName,dynamicConfigString);
+        return dynamicConfigString;
+      }
+    }
+  }
+  return "";
+}

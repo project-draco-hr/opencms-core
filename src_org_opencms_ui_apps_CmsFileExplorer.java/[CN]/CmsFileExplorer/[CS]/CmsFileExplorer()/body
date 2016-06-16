@@ -58,7 +58,7 @@
   }
 );
   m_treeContainer=new HierarchicalContainer();
-  addTreeContainerProperties(CmsResourceTableProperty.PROPERTY_RESOURCE_NAME,CmsResourceTableProperty.PROPERTY_STATE,CmsResourceTableProperty.PROPERTY_TYPE_ICON_RESOURCE,CmsResourceTableProperty.PROPERTY_INSIDE_PROJECT,CmsResourceTableProperty.PROPERTY_RELEASED_NOT_EXPIRED);
+  addTreeContainerProperties(CmsResourceTableProperty.PROPERTY_RESOURCE_NAME,CmsResourceTableProperty.PROPERTY_STATE,CmsResourceTableProperty.PROPERTY_TYPE_ICON_RESOURCE,CmsResourceTableProperty.PROPERTY_INSIDE_PROJECT,CmsResourceTableProperty.PROPERTY_RELEASED_NOT_EXPIRED,CmsResourceTableProperty.PROPERTY_DISABLED);
   m_fileTree=new Tree();
   m_fileTree.addStyleName(OpenCmsTheme.SIMPLE_DRAG);
   m_fileTree.addStyleName(OpenCmsTheme.FULL_WIDTH_PADDING);
@@ -66,24 +66,12 @@
   m_fileTree.setContainerDataSource(m_treeContainer);
   m_fileTree.setItemIconPropertyId(CmsResourceTableProperty.PROPERTY_TYPE_ICON_RESOURCE);
   m_fileTree.setItemCaptionPropertyId(CmsResourceTableProperty.PROPERTY_RESOURCE_NAME);
-  m_fileTree.addExpandListener(new ExpandListener(){
-    private static final long serialVersionUID=1L;
-    public void nodeExpand(    ExpandEvent event){
-      selectTreeItem((CmsUUID)event.getItemId());
-      readTreeLevel((CmsUUID)event.getItemId());
-    }
-  }
-);
+  m_expandListener=new TreeExpandListener();
+  m_fileTree.addExpandListener(m_expandListener);
   m_fileTree.addCollapseListener(new CollapseListener(){
     private static final long serialVersionUID=1L;
     public void nodeCollapse(    CollapseEvent event){
       selectTreeItem((CmsUUID)event.getItemId());
-    }
-  }
-);
-  m_fileTree.addCollapseListener(new CollapseListener(){
-    private static final long serialVersionUID=1L;
-    public void nodeCollapse(    CollapseEvent event){
       clearTreeLevel((CmsUUID)event.getItemId());
     }
   }
@@ -91,7 +79,7 @@
   m_fileTree.addItemClickListener(new ItemClickListener(){
     private static final long serialVersionUID=1L;
     public void itemClick(    ItemClickEvent event){
-      readFolder((CmsUUID)event.getItemId());
+      handleFileTreeClick(event);
     }
   }
 );
@@ -99,6 +87,13 @@
     private static final long serialVersionUID=1L;
     public String getStyle(    Tree source,    Object itemId){
       return CmsFileTable.getStateStyle(source.getContainerDataSource().getItem(itemId));
+    }
+  }
+);
+  m_fileTree.addValueChangeListener(new ValueChangeListener(){
+    private static final long serialVersionUID=1L;
+    public void valueChange(    ValueChangeEvent event){
+      handleFileTreeValueChange();
     }
   }
 );
@@ -146,13 +141,13 @@
     }
   }
 );
-  m_openedPaths=getOpenedPaths(A_CmsUI.get().getHttpSession());
+  m_locationCache=CmsQuickLaunchLocationCache.getLocationCache(CmsAppWorkplaceUi.get().getHttpSession());
   String startSite=CmsAppWorkplaceUi.get().getWorkplaceSettings().getUserSettings().getStartSite();
   while (startSite.endsWith("/")) {
     startSite=startSite.substring(0,startSite.length() - 1);
   }
-  if (!m_openedPaths.containsKey(startSite)) {
+  if (m_locationCache.getFileExplorerLocation(startSite) == null) {
     String startFolder=CmsAppWorkplaceUi.get().getWorkplaceSettings().getUserSettings().getStartFolder();
-    m_openedPaths.put(startSite,startFolder);
+    m_locationCache.setFileExplorerLocation(startSite,startFolder);
   }
 }
