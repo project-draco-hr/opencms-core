@@ -5,165 +5,106 @@
     m_imageDndController=null;
     return;
   }
-  boolean changedContainerpage=false;
-  boolean isListItem=draggable instanceof CmsListItem;
-  CmsContainerPageElementPanel listContainerElement=null;
-  CmsContainerElementData elementData=null;
-  final boolean[] triggerReload={false};
-  boolean hasWritePermissions=true;
-  String copyModelReplaceId=null;
   if (target != m_initialDropTarget) {
     if (target instanceof I_CmsDropContainer) {
-      I_CmsDropContainer container=(I_CmsDropContainer)target;
-      try {
-        CmsContainerPageElementPanel containerElement=null;
-        if (m_isNew) {
-          elementData=m_controller.getCachedElement(m_draggableId);
-          containerElement=m_controller.getContainerpageUtil().createElement(elementData,container,true);
-          containerElement.setNewType(CmsContainerpageController.getServerId(m_draggableId));
-        }
- else {
-          elementData=m_controller.getCachedElement(m_draggableId);
-          hasWritePermissions=elementData.hasWritePermission();
-          if ((elementData.getDndId() != null) && (null != m_controller.getCachedElement(elementData.getDndId()))) {
-            elementData=m_controller.getCachedElement(elementData.getDndId());
-          }
-          containerElement=m_controller.getContainerpageUtil().createElement(elementData,container,false);
-          if (isListItem) {
-            listContainerElement=containerElement;
-          }
-          m_controller.addToRecentList(elementData.getClientId(),null);
-        }
-        handler.getPlaceholder().getStyle().setDisplay(Display.NONE);
-        if (container.getPlaceholderIndex() >= container.getWidgetCount()) {
-          container.add(containerElement);
-        }
- else {
-          container.insert(containerElement,container.getPlaceholderIndex());
-        }
-        if (container instanceof CmsContainerPageContainer) {
-          copyModelReplaceId=((CmsContainerPageContainer)container).getCopyModelReplaceId();
-        }
-        changedContainerpage=!m_controller.isGroupcontainerEditing();
-        triggerReload[0]=containerElement.getElement().getInnerHTML().contains(CmsGwtConstants.FORMATTER_RELOAD_MARKER) && changedContainerpage && !m_isNew;
-        if (draggable instanceof CmsContainerPageElementPanel) {
-          ((CmsContainerPageElementPanel)draggable).removeFromParent();
-        }
-        m_controller.initializeSubContainers(containerElement);
-      }
- catch (      Exception e) {
-        CmsDebugLog.getInstance().printLine(e.getMessage());
-      }
-      if (m_controller.isGroupcontainerEditing()) {
-        container.getElement().removeClassName(I_CmsLayoutBundle.INSTANCE.containerpageCss().emptyGroupContainer());
-      }
-    }
- else     if (target instanceof CmsList<?>) {
-      m_controller.addToFavoriteList(m_draggableId);
-    }
-  }
- else   if ((target instanceof I_CmsDropContainer) && (draggable instanceof CmsContainerPageElementPanel) && isChangedPosition(target)) {
-    CmsDomUtil.showOverlay(draggable.getElement(),false);
-    I_CmsDropContainer container=(I_CmsDropContainer)target;
-    int count=container.getWidgetCount();
-    handler.getPlaceholder().getStyle().setDisplay(Display.NONE);
-    if (container.getPlaceholderIndex() >= count) {
-      container.add((CmsContainerPageElementPanel)draggable);
-    }
- else {
-      container.insert((CmsContainerPageElementPanel)draggable,container.getPlaceholderIndex());
-    }
-    m_controller.addToRecentList(m_draggableId,null);
-    changedContainerpage=!m_controller.isGroupcontainerEditing();
-  }
- else   if (draggable instanceof CmsContainerPageElementPanel) {
-    CmsDomUtil.showOverlay(draggable.getElement(),false);
-    CmsContainerPageElementPanel containerElement=(CmsContainerPageElementPanel)draggable;
-    CmsElementOptionBar optionBar=containerElement.getElementOptionBar();
-    optionBar.removeFromParent();
-    containerElement.setElementOptionBar(optionBar);
-  }
-  final Runnable checkReload=new Runnable(){
-    public void run(){
-      if (triggerReload[0]) {
-        CmsContainerpageController.get().reloadPage();
-      }
-    }
-  }
-;
-  if (listContainerElement != null) {
-    final CmsContainerPageElementPanel finalListContainerElement=listContainerElement;
-    final String serverIdStr=CmsContainerpageController.getServerId(m_draggableId);
-    CmsUUID structureId=new CmsUUID(serverIdStr);
-    final String modelReplaceId=copyModelReplaceId;
-    AsyncCallback<String> modeCallback=new AsyncCallback<String>(){
-      public void onFailure(      Throwable caught){
-        if (caught != null) {
-          CmsErrorDialog.handleException(caught);
-        }
-        finalListContainerElement.removeFromParent();
-      }
-      public void onSuccess(      String result){
-        if (Objects.equal(result,CmsEditorConstants.MODE_COPY)) {
-          final CmsContainerpageController controller=CmsContainerpageController.get();
-          CmsContainerElementData data=controller.getCachedElement(finalListContainerElement.getId());
-          final Map<String,String> settings=data.getSettings();
-          controller.copyElement(serverIdStr,new AsyncCallback<CmsUUID>(){
-            public void onFailure(            Throwable caught){
+      final I_CmsDropContainer container=(I_CmsDropContainer)target;
+      final int index=container.getPlaceholderIndex();
+      final String modelReplaceId=container instanceof CmsContainerPageContainer ? ((CmsContainerPageContainer)container).getCopyModelReplaceId() : null;
+      if (!m_isNew && (draggable instanceof CmsListItem)) {
+        final String copyGroupId=m_copyGroupId;
+        AsyncCallback<String> modeCallback=new AsyncCallback<String>(){
+          public void onFailure(          Throwable caught){
+            if (caught != null) {
+              CmsErrorDialog.handleException(caught);
             }
-            public void onSuccess(            CmsUUID resultId){
-              controller.getElementWithSettings("" + resultId,settings,new I_CmsSimpleCallback<CmsContainerElementData>(){
-                public void execute(                CmsContainerElementData newData){
-                  try {
-                    controller.replaceContainerElement(finalListContainerElement,newData);
-                    if ((target instanceof CmsContainerPageContainer) && (modelReplaceId != null)) {
-                      m_controller.executeCopyModelReplace(modelReplaceId,((CmsContainerPageContainer)target).getFormerModelGroupParent(),newData);
+          }
+          public void onSuccess(          String result){
+            if (Objects.equal(result,CmsEditorConstants.MODE_COPY)) {
+              final CmsContainerpageController controller=CmsContainerpageController.get();
+              if (copyGroupId == null) {
+                CmsContainerElementData data=controller.getCachedElement(m_draggableId);
+                final Map<String,String> settings=data.getSettings();
+                controller.copyElement(CmsContainerpageController.getServerId(m_draggableId),new I_CmsSimpleCallback<CmsUUID>(){
+                  public void execute(                  CmsUUID resultId){
+                    controller.getElementWithSettings("" + resultId,settings,new I_CmsSimpleCallback<CmsContainerElementData>(){
+                      public void execute(                      CmsContainerElementData newData){
+                        insertDropElement(newData,container,index,draggable instanceof CmsContainerPageElementPanel ? (CmsContainerPageElementPanel)draggable : null,modelReplaceId);
+                      }
                     }
-                    controller.setPageChanged(checkReload);
-                  }
- catch (                  Exception e) {
-                    throw new RuntimeException(e);
+);
                   }
                 }
-              }
 );
+              }
+ else {
+                controller.getElementForDragAndDropFromContainer(copyGroupId,m_originalContainerId,true,new I_CmsSimpleCallback<CmsContainerElementData>(){
+                  public void execute(                  CmsContainerElementData arg){
+                    insertDropElement(arg,container,index,draggable instanceof CmsContainerPageElementPanel ? (CmsContainerPageElementPanel)draggable : null,modelReplaceId);
+                  }
+                }
+);
+              }
+            }
+ else             if (Objects.equal(result,CmsEditorConstants.MODE_REUSE)) {
+              insertDropElement(m_controller.getCachedElement(m_draggableId),container,index,draggable instanceof CmsContainerPageElementPanel ? (CmsContainerPageElementPanel)draggable : null,modelReplaceId);
             }
           }
-);
         }
- else         if (Objects.equal(result,CmsEditorConstants.MODE_REUSE)) {
-          if (modelReplaceId != null) {
-            m_controller.executeCopyModelReplace(modelReplaceId,((CmsContainerPageContainer)target).getFormerModelGroupParent(),m_controller.getCachedElement(m_draggableId));
-          }
-          m_controller.setPageChanged(checkReload);
-        }
-      }
-    }
 ;
-    ElementReuseMode reuseMode=CmsContainerpageController.get().getData().getElementReuseMode();
-    if (handler.hasModifierCTRL()) {
-      reuseMode=ElementReuseMode.ask;
-    }
-    if (!hasWritePermissions || ((elementData != null) && (elementData.isModelGroup() || elementData.isWasModelGroup()))) {
-      reuseMode=ElementReuseMode.reuse;
-    }
+        CmsUUID structureId=new CmsUUID(CmsContainerpageController.getServerId(m_draggableId));
+        ElementReuseMode reuseMode=isCopyModel(draggable) ? ElementReuseMode.copy : CmsContainerpageController.get().getData().getElementReuseMode();
+        if (handler.hasModifierCTRL()) {
+          reuseMode=ElementReuseMode.ask;
+        }
+        if (reuseMode != ElementReuseMode.reuse) {
+          CmsContainerElementData cachedElementData=m_controller.getCachedElement(m_draggableId);
+          if ((cachedElementData != null) && (!cachedElementData.hasWritePermission() || cachedElementData.isModelGroup() || cachedElementData.isWasModelGroup())) {
+            reuseMode=ElementReuseMode.reuse;
+          }
+        }
 switch (reuseMode) {
 case ask:
-      CmsDroppedElementModeSelectionDialog.showDialog(structureId,modeCallback);
-    break;
+          CmsDroppedElementModeSelectionDialog.showDialog(structureId,modeCallback);
+        break;
 case copy:
-  modeCallback.onSuccess(CmsEditorConstants.MODE_COPY);
-break;
+      modeCallback.onSuccess(CmsEditorConstants.MODE_COPY);
+    break;
 case reuse:
 default :
-modeCallback.onSuccess(CmsEditorConstants.MODE_REUSE);
+  modeCallback.onSuccess(CmsEditorConstants.MODE_REUSE);
 break;
 }
 }
  else {
-if (changedContainerpage) {
-m_controller.setPageChanged(checkReload);
+insertDropElement(m_controller.getCachedElement(m_draggableId),container,index,draggable instanceof CmsContainerPageElementPanel ? (CmsContainerPageElementPanel)draggable : null,null);
 }
+}
+ else if (target instanceof CmsList<?>) {
+m_controller.addToFavoriteList(m_draggableId);
+}
+}
+ else if ((target instanceof I_CmsDropContainer) && (draggable instanceof CmsContainerPageElementPanel) && isChangedPosition(target)) {
+CmsDomUtil.showOverlay(draggable.getElement(),false);
+I_CmsDropContainer container=(I_CmsDropContainer)target;
+int count=container.getWidgetCount();
+handler.getPlaceholder().getStyle().setDisplay(Display.NONE);
+if (container.getPlaceholderIndex() >= count) {
+container.add((CmsContainerPageElementPanel)draggable);
+}
+ else {
+container.insert((CmsContainerPageElementPanel)draggable,container.getPlaceholderIndex());
+}
+m_controller.addToRecentList(m_draggableId,null);
+if (!m_controller.isGroupcontainerEditing()) {
+m_controller.setPageChanged();
+}
+}
+ else if (draggable instanceof CmsContainerPageElementPanel) {
+CmsDomUtil.showOverlay(draggable.getElement(),false);
+CmsContainerPageElementPanel containerElement=(CmsContainerPageElementPanel)draggable;
+CmsElementOptionBar optionBar=containerElement.getElementOptionBar();
+optionBar.removeFromParent();
+containerElement.setElementOptionBar(optionBar);
 }
 stopDrag(handler);
 }
