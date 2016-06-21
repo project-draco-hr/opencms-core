@@ -2,19 +2,24 @@
   List<CmsClientSitemapEntry> children=new ArrayList<CmsClientSitemapEntry>();
   int i=0;
   for (  CmsJspNavElement navElement : getNavBuilder().getNavigationForFolder(root,Visibility.all,CmsResourceFilter.ONLY_VISIBLE_NO_DELETED)) {
-    CmsClientSitemapEntry child=toClientEntry(navElement,false);
-    if (child != null) {
-      child.setPosition(i);
-      children.add(child);
-      int nextLevels=levels;
-      if ((nextLevels == 2) && (targetPath != null) && targetPath.startsWith(child.getSitePath())) {
-        nextLevels=3;
+    try {
+      CmsClientSitemapEntry child=toClientEntry(navElement,false);
+      if (child != null) {
+        child.setPosition(i);
+        children.add(child);
+        int nextLevels=levels;
+        if ((nextLevels == 2) && (targetPath != null) && targetPath.startsWith(child.getSitePath())) {
+          nextLevels=3;
+        }
+        if (child.isFolderType() && ((nextLevels > 1) || (nextLevels == -1)) && !isSubSitemap(navElement)) {
+          child.setSubEntries(getChildren(child.getSitePath(),nextLevels - 1,targetPath),null);
+          child.setChildrenLoadedInitially(true);
+        }
+        i++;
       }
-      if (child.isFolderType() && ((nextLevels > 1) || (nextLevels == -1)) && !isSubSitemap(navElement)) {
-        child.setSubEntries(getChildren(child.getSitePath(),nextLevels - 1,targetPath),null);
-        child.setChildrenLoadedInitially(true);
-      }
-      i++;
+    }
+ catch (    CmsException e) {
+      LOG.error("Could not read sitemap entry.",e);
     }
   }
   return children;
