@@ -1,0 +1,53 @@
+{
+  CmsObject cms=A_CmsUI.getCmsObject();
+  Locale locale=UI.getCurrent().getLocale();
+  m_container.removeAllItems();
+  boolean isMultiOU=false;
+  try {
+    isMultiOU=!OpenCms.getOrgUnitManager().getOrganizationalUnits(cms,"",true).isEmpty();
+  }
+ catch (  CmsException e) {
+  }
+  if (isMultiOU) {
+    setVisibleColumns(CmsProjectsTable.PROP_NAME,CmsProjectsTable.PROP_DESCRIPTION,PROP_PUBLISH_DATE,PROP_PUBLISH_USER,CmsProjectsTable.PROP_ORG_UNIT,CmsProjectsTable.PROP_OWNER,CmsProjectsTable.PROP_MANAGER,CmsProjectsTable.PROP_USER,CmsProjectsTable.PROP_DATE_CREATED,CmsProjectsTable.PROP_RESOURCES);
+  }
+ else {
+    setVisibleColumns(CmsProjectsTable.PROP_NAME,CmsProjectsTable.PROP_DESCRIPTION,PROP_PUBLISH_DATE,PROP_PUBLISH_USER,CmsProjectsTable.PROP_OWNER,CmsProjectsTable.PROP_MANAGER,CmsProjectsTable.PROP_USER,CmsProjectsTable.PROP_DATE_CREATED,CmsProjectsTable.PROP_RESOURCES);
+  }
+  try {
+    List<CmsHistoryProject> projects=cms.getAllHistoricalProjects();
+    for (    CmsHistoryProject project : projects) {
+      Item item=m_container.addItem(new Integer(project.getPublishTag()));
+      if (item != null) {
+        item.getItemProperty(CmsProjectsTable.PROP_ID).setValue(project.getUuid());
+        item.getItemProperty(CmsProjectsTable.PROP_NAME).setValue(project.getSimpleName());
+        item.getItemProperty(CmsProjectsTable.PROP_DESCRIPTION).setValue(project.getDescription());
+        item.getItemProperty(PROP_PUBLISH_DATE).setValue(new Date(project.getPublishingDate()));
+        item.getItemProperty(PROP_PUBLISH_USER).setValue(project.getPublishedByName(cms));
+        try {
+          item.getItemProperty(CmsProjectsTable.PROP_ORG_UNIT).setValue(OpenCms.getOrgUnitManager().readOrganizationalUnit(cms,project.getOuFqn()).getDisplayName(locale));
+          item.getItemProperty(CmsProjectsTable.PROP_OWNER).setValue(cms.readUser(project.getOwnerId()).getName());
+          item.getItemProperty(CmsProjectsTable.PROP_MANAGER).setValue(cms.readGroup(project.getManagerGroupId()).getSimpleName());
+          item.getItemProperty(CmsProjectsTable.PROP_USER).setValue(cms.readGroup(project.getGroupId()).getSimpleName());
+        }
+ catch (        CmsException e) {
+          e.printStackTrace();
+        }
+        item.getItemProperty(CmsProjectsTable.PROP_DATE_CREATED).setValue(new Date(project.getDateCreated()));
+        StringBuffer html=new StringBuffer(512);
+        for (        String resource : cms.readProjectResources(project)) {
+          html.append(resource);
+          html.append("<br />");
+        }
+        Label resLabel=new Label();
+        resLabel.setContentMode(ContentMode.HTML);
+        resLabel.setValue(html.toString());
+        item.getItemProperty(CmsProjectsTable.PROP_RESOURCES).setValue(resLabel);
+      }
+    }
+    m_container.sort(new Object[]{PROP_PUBLISH_DATE},new boolean[]{false});
+  }
+ catch (  CmsException e) {
+    e.printStackTrace();
+  }
+}
