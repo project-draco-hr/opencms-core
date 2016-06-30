@@ -1,0 +1,76 @@
+{
+  super();
+  m_contextProvider=contextProvider;
+  m_container.setItemSorter(new FileSorter());
+  m_fileTable.addStyleName(ValoTheme.TABLE_BORDERLESS);
+  m_fileTable.addStyleName(OpenCmsTheme.SIMPLE_DRAG);
+  m_fileTable.setSizeFull();
+  m_fileTable.setColumnCollapsingAllowed(true);
+  m_fileTable.setSelectable(true);
+  m_fileTable.setMultiSelect(true);
+  m_fileTable.setTableFieldFactory(new FileFieldFactory());
+  new ColumnBuilder(){
+{
+      column(PROPERTY_TYPE_ICON);
+      column(PROPERTY_PROJECT,COLLAPSED);
+      column(PROPERTY_RESOURCE_NAME);
+      column(PROPERTY_TITLE);
+      column(PROPERTY_NAVIGATION_TEXT,COLLAPSED);
+      column(PROPERTY_RESOURCE_TYPE);
+      column(PROPERTY_SIZE);
+      column(PROPERTY_PERMISSIONS,COLLAPSED);
+      column(PROPERTY_DATE_MODIFIED);
+      column(PROPERTY_USER_MODIFIED,COLLAPSED);
+      column(PROPERTY_DATE_CREATED,COLLAPSED);
+      column(PROPERTY_USER_CREATED,COLLAPSED);
+      column(PROPERTY_DATE_RELEASED);
+      column(PROPERTY_DATE_EXPIRED);
+      column(PROPERTY_STATE_NAME);
+      column(PROPERTY_USER_LOCKED);
+      column(PROPERTY_IS_FOLDER,INVISIBLE);
+      column(PROPERTY_STATE,INVISIBLE);
+      column(PROPERTY_INSIDE_PROJECT,INVISIBLE);
+      column(PROPERTY_RELEASED_NOT_EXPIRED,INVISIBLE);
+    }
+  }
+.buildColumns();
+  m_fileTable.setSortContainerPropertyId(CmsResourceTableProperty.PROPERTY_RESOURCE_NAME);
+  m_menu=new CmsContextMenu();
+  m_fileTable.addValueChangeListener(new ValueChangeListener(){
+    private static final long serialVersionUID=1L;
+    public void valueChange(    ValueChangeEvent event){
+      @SuppressWarnings("unchecked") Set<CmsUUID> selectedIds=(Set<CmsUUID>)event.getProperty().getValue();
+      List<CmsResource> selectedResources=new ArrayList<CmsResource>();
+      for (      CmsUUID id : selectedIds) {
+        try {
+          CmsResource resource=A_CmsUI.getCmsObject().readResource(id,CmsResourceFilter.ALL);
+          selectedResources.add(resource);
+        }
+ catch (        CmsException e) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+      }
+      m_currentResources=selectedResources;
+      if (!selectedIds.isEmpty() && (m_menuBuilder != null)) {
+        m_menu.removeAllItems();
+        m_menuBuilder.buildContextMenu(getContextProvider().getDialogContext(),m_menu);
+      }
+    }
+  }
+);
+  m_fileTable.addItemClickListener(new ItemClickListener(){
+    private static final long serialVersionUID=1L;
+    public void itemClick(    ItemClickEvent event){
+      handleFileItemClick(event);
+    }
+  }
+);
+  m_fileTable.setCellStyleGenerator(new Table.CellStyleGenerator(){
+    private static final long serialVersionUID=1L;
+    public String getStyle(    Table source,    Object itemId,    Object propertyId){
+      return getStateStyle(m_container.getItem(itemId)) + (CmsResourceTableProperty.PROPERTY_RESOURCE_NAME == propertyId ? " " + OpenCmsTheme.HOVER_COLUMN : "");
+    }
+  }
+);
+  m_menu.setAsTableContextMenu(m_fileTable);
+}

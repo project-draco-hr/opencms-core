@@ -1,0 +1,47 @@
+{
+  if (isEditing()) {
+    stopEdit();
+  }
+ else   if (!event.isCtrlKey() && !event.isShiftKey()) {
+    CmsUUID itemId=(CmsUUID)event.getItemId();
+    boolean openedFolder=false;
+    if (event.getButton().equals(MouseButton.RIGHT)) {
+      handleSelection(itemId);
+      openContextMenu(event);
+    }
+ else {
+      if ((event.getPropertyId() == null) || CmsResourceTableProperty.PROPERTY_TYPE_ICON.equals(event.getPropertyId())) {
+        openContextMenu(event);
+      }
+ else       if (CmsResourceTableProperty.PROPERTY_RESOURCE_NAME.equals(event.getPropertyId())) {
+        Boolean isFolder=(Boolean)event.getItem().getItemProperty(CmsResourceTableProperty.PROPERTY_IS_FOLDER).getValue();
+        if ((isFolder != null) && isFolder.booleanValue()) {
+          if (m_folderSelectHandler != null) {
+            m_folderSelectHandler.onFolderSelect(itemId);
+          }
+          openedFolder=true;
+        }
+ else {
+          try {
+            CmsObject cms=A_CmsUI.getCmsObject();
+            CmsResource res=cms.readResource(itemId,CmsResourceFilter.IGNORE_EXPIRATION);
+            String link=OpenCms.getLinkManager().substituteLink(cms,res);
+            HttpServletRequest req=CmsVaadinUtils.getRequest();
+            CmsJspTagEnableAde.removeDirectEditFlagFromSession(req.getSession());
+            A_CmsUI.get().getPage().setLocation(link);
+            return;
+          }
+ catch (          CmsVfsResourceNotFoundException e) {
+            LOG.info(e.getLocalizedMessage(),e);
+          }
+catch (          CmsException e) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+    }
+    if (!openedFolder) {
+      update(itemId,false);
+    }
+  }
+}
