@@ -1,0 +1,39 @@
+{
+  List<CmsRelation> relations=m_cms.readRelations(CmsRelationFilter.ALL.filterType(CmsRelationType.LOCALE_VARIANT).filterStructureId(resource.getStructureId()));
+  List<CmsRelation> out=Lists.newArrayList();
+  List<CmsRelation> in=Lists.newArrayList();
+  for (  CmsRelation rel : relations) {
+    if (rel.getSourceId().equals(resource.getStructureId())) {
+      out.add(rel);
+    }
+ else {
+      in.add(rel);
+    }
+  }
+  CmsResource primaryResource=null;
+  List<CmsResource> secondaryResources=Lists.newArrayList();
+  if ((out.size() == 0) && (in.size() == 0)) {
+    primaryResource=resource;
+  }
+ else   if ((out.size() == 0) && (in.size() > 0)) {
+    primaryResource=resource;
+    for (    CmsRelation relation : in) {
+      CmsResource source=relation.getSource(m_cms,CmsResourceFilter.ALL);
+      secondaryResources.add(source);
+    }
+  }
+ else   if ((out.size() == 1) && (in.size() == 0)) {
+    CmsResource target=out.get(0).getTarget(m_cms,CmsResourceFilter.ALL);
+    primaryResource=target;
+    CmsRelationFilter filter=CmsRelationFilter.relationsToStructureId(target.getStructureId());
+    List<CmsRelation> relationsToTarget=m_cms.readRelations(filter);
+    for (    CmsRelation targetRelation : relationsToTarget) {
+      CmsResource secondaryResource=targetRelation.getSource(m_cms,CmsResourceFilter.ALL);
+      secondaryResources.add(secondaryResource);
+    }
+  }
+ else {
+    throw new IllegalStateException("illegal locale variant relations for resource with id=" + resource.getStructureId() + ", path="+ resource.getRootPath());
+  }
+  return new CmsLocaleGroup(m_cms,primaryResource,secondaryResources);
+}

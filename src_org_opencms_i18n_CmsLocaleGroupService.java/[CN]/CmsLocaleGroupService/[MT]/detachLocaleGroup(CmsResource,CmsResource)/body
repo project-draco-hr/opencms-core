@@ -1,0 +1,29 @@
+{
+  CmsRelationFilter typeFilter=CmsRelationFilter.ALL.filterType(CmsRelationType.LOCALE_VARIANT);
+  List<CmsRelation> relations=m_cms.readRelations(typeFilter.filterStructureId(secondPage.getStructureId()));
+  CmsUUID firstId=firstPage.getStructureId();
+  CmsUUID secondId=secondPage.getStructureId();
+  for (  CmsRelation relation : relations) {
+    CmsUUID sourceId=relation.getSourceId();
+    CmsUUID targetId=relation.getTargetId();
+    CmsResource resourceToModify=null;
+    if (sourceId.equals(firstId) && targetId.equals(secondId)) {
+      resourceToModify=firstPage;
+    }
+ else     if (sourceId.equals(secondId) && targetId.equals(firstId)) {
+      resourceToModify=secondPage;
+    }
+    if (resourceToModify != null) {
+      CmsLockActionRecord record=CmsLockUtil.ensureLock(m_cms,resourceToModify);
+      try {
+        m_cms.deleteRelationsFromResource(resourceToModify,typeFilter);
+      }
+  finally {
+        if (record.getChange() == LockChange.locked) {
+          m_cms.unlockResource(resourceToModify);
+        }
+      }
+      break;
+    }
+  }
+}
