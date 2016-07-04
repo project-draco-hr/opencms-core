@@ -1,0 +1,27 @@
+{
+  CmsObject cms=getCmsObject();
+  String folderPath="/test_read_property_locale";
+  String resourcePath="/test_read_property_locale/test.txt";
+  CmsResource folder=cms.createResource(folderPath,OpenCms.getResourceManager().getResourceType(CmsResourceTypeFolder.getStaticTypeName()));
+  CmsResource resource=cms.createResource(resourcePath,OpenCms.getResourceManager().getResourceType(CmsResourceTypePlain.getStaticTypeName()));
+  CmsJspResourceAccessBean bean=new CmsJspResourceAccessBean(cms,resource);
+  List<CmsProperty> directProperties=new ArrayList<CmsProperty>();
+  List<CmsProperty> searchedProperties=new ArrayList<CmsProperty>();
+  String directPropertyName="direct";
+  String searchedPropertyName="searched";
+  List<String> localeSuffixes=Arrays.asList(new String[]{"","_de","_de_DE","_en"});
+  Locale[] testLocales=new Locale[]{null,new Locale("de"),new Locale("de","DE"),new Locale("en"),new Locale("en","GB"),new Locale("it")};
+  String[] expectedPostfix=new String[]{"","_de","_de_DE","_en","_en",""};
+  for (  String suffix : localeSuffixes) {
+    directProperties.add(new CmsProperty(directPropertyName + suffix,directPropertyName + suffix,directPropertyName + suffix));
+    searchedProperties.add(new CmsProperty(searchedPropertyName + suffix,searchedPropertyName + suffix,searchedPropertyName + suffix));
+  }
+  cms.writePropertyObjects(resource,directProperties);
+  cms.writePropertyObjects(folder,searchedProperties);
+  for (int i=0; i < testLocales.length; i++) {
+    assertEquals(directPropertyName + expectedPostfix[i],bean.getPropertyLocale().get(null != testLocales[i] ? testLocales[i].toString() : null).get(directPropertyName));
+    assertEquals(directPropertyName + expectedPostfix[i],bean.getPropertyLocale().get(testLocales[i]).get(directPropertyName));
+    assertEquals(CmsProperty.getNullProperty().getValue(),bean.getPropertyLocale().get(null != testLocales[i] ? testLocales[i].toString() : null).get(searchedPropertyName));
+    assertEquals(CmsProperty.getNullProperty().getValue(),bean.getPropertyLocale().get(testLocales[i]).get(searchedPropertyName));
+  }
+}
