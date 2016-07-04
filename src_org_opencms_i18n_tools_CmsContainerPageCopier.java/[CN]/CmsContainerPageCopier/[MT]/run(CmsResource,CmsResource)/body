@@ -1,0 +1,63 @@
+{
+  LOG.info("Starting page copy process: page='" + source.getRootPath() + "', targetFolder='"+ target.getRootPath()+ "'");
+  CmsObject rootCms=OpenCms.initCmsObject(m_cms);
+  rootCms.getRequestContext().setSiteRoot("");
+  if (source.isFolder()) {
+    if (source.equals(target)) {
+      throw new CmsException(Messages.get().container(Messages.ERR_PAGECOPY_SOURCE_IS_TARGET_0));
+    }
+    CmsResource page=m_cms.readDefaultFile(source,CmsResourceFilter.IGNORE_EXPIRATION);
+    if ((page == null) || !CmsResourceTypeXmlContainerPage.isContainerPage(page)) {
+      throw new CmsException(Messages.get().container(Messages.ERR_PAGECOPY_INVALID_PAGE_0));
+    }
+    List<CmsProperty> properties=m_cms.readPropertyObjects(source,false);
+    I_CmsFileNameGenerator nameGen=OpenCms.getResourceManager().getNameGenerator();
+    String copyPath=CmsFileUtil.removeTrailingSeparator(CmsStringUtil.joinPaths(target.getRootPath(),source.getName()));
+    copyPath=nameGen.getNewFileName(rootCms,copyPath + "%(number)",4,true);
+    Double maxNavPosObj=readMaxNavPos(target);
+    double maxNavpos=maxNavPosObj == null ? 0 : maxNavPosObj.doubleValue();
+    boolean hasNavpos=maxNavPosObj != null;
+    CmsResource copiedFolder=rootCms.createResource(copyPath,OpenCms.getResourceManager().getResourceType(source.getTypeId()),null,properties);
+    if (hasNavpos) {
+      String newNavPosStr="" + (maxNavpos + 10);
+      rootCms.writePropertyObject(copiedFolder.getRootPath(),new CmsProperty(CmsPropertyDefinition.PROPERTY_NAVPOS,newNavPosStr,null));
+    }
+    String pageCopyPath=CmsStringUtil.joinPaths(copiedFolder.getRootPath(),page.getName());
+    m_originalPage=page;
+    m_targetFolder=copiedFolder;
+    rootCms.copyResource(page.getRootPath(),pageCopyPath);
+    CmsResource copiedPage=rootCms.readResource(pageCopyPath,CmsResourceFilter.IGNORE_EXPIRATION);
+    replaceElements(copiedPage);
+    tryUnlock(copiedFolder);
+  }
+ else {
+    CmsResource page=source;
+    if (!CmsResourceTypeXmlContainerPage.isContainerPage(page)) {
+      throw new CmsException(Messages.get().container(Messages.ERR_PAGECOPY_INVALID_PAGE_0));
+    }
+    I_CmsFileNameGenerator nameGen=OpenCms.getResourceManager().getNameGenerator();
+    String copyPath=CmsFileUtil.removeTrailingSeparator(CmsStringUtil.joinPaths(target.getRootPath(),source.getName()));
+    int lastDot=copyPath.lastIndexOf(".");
+    int lastSlash=copyPath.lastIndexOf("/");
+    if (lastDot > lastSlash) {
+      String macroPath=copyPath.substring(0,lastDot) + "%(number)" + copyPath.substring(lastDot);
+      copyPath=nameGen.getNewFileName(rootCms,macroPath,4,true);
+    }
+ else {
+      copyPath=nameGen.getNewFileName(rootCms,copyPath + "%(number)",4,true);
+    }
+    Double maxNavPosObj=readMaxNavPos(target);
+    double maxNavpos=maxNavPosObj == null ? 0 : maxNavPosObj.doubleValue();
+    boolean hasNavpos=maxNavPosObj != null;
+    rootCms.copyResource(page.getRootPath(),copyPath);
+    if (hasNavpos) {
+      String newNavPosStr="" + (maxNavpos + 10);
+      rootCms.writePropertyObject(copyPath,new CmsProperty(CmsPropertyDefinition.PROPERTY_NAVPOS,newNavPosStr,null));
+    }
+    CmsResource copiedPage=rootCms.readResource(copyPath);
+    m_originalPage=page;
+    m_targetFolder=target;
+    replaceElements(copiedPage);
+    tryUnlock(copiedPage);
+  }
+}

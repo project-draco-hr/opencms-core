@@ -1,0 +1,44 @@
+{
+  if (m_copyMode == CopyMode.reuse) {
+    LOG.info("Reusing element " + originalElement.getId() + " because we are in reuse mode");
+    return originalElement;
+  }
+  if (m_elementReplacements.containsKey(originalElement.getId())) {
+    return new CmsContainerElementBean(m_elementReplacements.get(originalElement.getId()),originalElement.getFormatterId(),originalElement.getIndividualSettings(),originalElement.isCreateNew());
+  }
+ else {
+    CmsResource originalResource=m_cms.readResource(originalElement.getId(),CmsResourceFilter.IGNORE_EXPIRATION);
+    I_CmsResourceType type=OpenCms.getResourceManager().getResourceType(originalResource);
+    CmsADEConfigData config=OpenCms.getADEManager().lookupConfiguration(m_cms,targetPage.getRootPath());
+    CmsResourceTypeConfig typeConfig=config.getResourceType(type.getTypeName());
+    boolean shouldCopyElement;
+    if (typeConfig == null) {
+      LOG.warn("Type configuration for type " + type.getTypeName() + " not found at "+ targetPage.getRootPath());
+      shouldCopyElement=false;
+    }
+ else {
+      shouldCopyElement=(originalElement.isCreateNew() || typeConfig.isCopyInModels()) && !type.getTypeName().equals(CmsResourceTypeXmlContainerPage.MODEL_GROUP_TYPE_NAME);
+    }
+    if (shouldCopyElement) {
+      CmsResource resourceCopy=typeConfig.createNewElement(m_cms,originalResource,targetPage.getRootPath());
+      CmsContainerElementBean copy=new CmsContainerElementBean(resourceCopy.getStructureId(),originalElement.getFormatterId(),originalElement.getIndividualSettings(),originalElement.isCreateNew());
+      m_elementReplacements.put(originalElement.getId(),resourceCopy.getStructureId());
+      LOG.info("Copied container element " + originalResource.getRootPath() + " -> "+ resourceCopy.getRootPath());
+      CmsLockActionRecord record=null;
+      try {
+        record=CmsLockUtil.ensureLock(m_cms,resourceCopy);
+        adjustLocalesForElement(resourceCopy);
+      }
+  finally {
+        if ((record != null) && (record.getChange() == LockChange.locked)) {
+          m_cms.unlockResource(resourceCopy);
+        }
+      }
+      return copy;
+    }
+ else {
+      LOG.info("Reusing container element: " + originalResource.getRootPath());
+      return originalElement;
+    }
+  }
+}
