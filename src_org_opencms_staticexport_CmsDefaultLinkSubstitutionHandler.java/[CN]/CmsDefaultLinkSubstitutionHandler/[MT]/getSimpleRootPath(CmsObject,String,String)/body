@@ -47,12 +47,13 @@
       boolean isWorkplaceServer=OpenCms.getSiteManager().isWorkplaceRequest(targetMatcher) || targetMatcher.equals(cms.getRequestContext().getRequestMatcher());
       if (isWorkplaceServer) {
         String selectedPath;
-        if (OpenCms.getSiteManager().getSiteRoot(path) != null) {
-          selectedPath=CmsStringUtil.joinPaths("/",path);
+        CmsSite site=OpenCms.getSiteManager().getSiteForRootPath(path);
+        if (site != null) {
+          selectedPath=getRootPathForSite(path,site,true);
         }
  else {
-          selectedPath=cms.getRequestContext().addSiteRoot(path);
-          String pathForMatchedSite=cms.getRequestContext().addSiteRoot(OpenCms.getSiteManager().matchSite(targetMatcher).getSiteRoot(),path);
+          selectedPath=getRootPathForSite(path,OpenCms.getSiteManager().getSiteForSiteRoot(cms.getRequestContext().getSiteRoot()),false);
+          String pathForMatchedSite=getRootPathForSite(path,OpenCms.getSiteManager().matchSite(targetMatcher),false);
           String originalSiteRoot=cms.getRequestContext().getSiteRoot();
           try {
             cms.getRequestContext().setSiteRoot("");
@@ -67,7 +68,7 @@
         return selectedPath + suffix;
       }
  else {
-        return cms.getRequestContext().addSiteRoot(OpenCms.getSiteManager().matchSite(targetMatcher).getSiteRoot(),path + suffix);
+        return getRootPathForSite(path + suffix,OpenCms.getSiteManager().matchSite(targetMatcher),false);
       }
     }
  else {
@@ -78,25 +79,8 @@
   String vfsPrefix=OpenCms.getStaticExportManager().getVfsPrefix();
   if ((context != null) && (path.startsWith(context + "/") || (path.startsWith(vfsPrefix + "/")))) {
     path=CmsLinkManager.removeOpenCmsContext(path);
-    String siteRoot=null;
-    CmsSite explicitTargetSite=OpenCms.getSiteManager().getSiteForRootPath(path);
-    if (explicitTargetSite != null) {
-      siteRoot=explicitTargetSite.getSiteRoot();
-    }
- else     if (basePath != null) {
-      siteRoot=OpenCms.getSiteManager().getSiteRoot(basePath);
-    }
-    if (siteRoot != null) {
-      if (!path.startsWith(siteRoot)) {
-        return cms.getRequestContext().addSiteRoot(siteRoot,path + suffix);
-      }
- else {
-        return path + suffix;
-      }
-    }
- else {
-      return cms.getRequestContext().addSiteRoot(path + suffix);
-    }
+    CmsSite targetSite=getTargetSite(cms,path,basePath);
+    return getRootPathForSite(path,targetSite,(targetSite != null) && path.startsWith(targetSite.getSiteRoot()));
   }
   if (CmsStringUtil.isNotEmpty(path) && (path.charAt(0) != '/')) {
     if (basePath != null) {
@@ -121,10 +105,8 @@
     return null;
   }
   if (CmsStringUtil.isNotEmpty(path)) {
-    if (OpenCms.getSiteManager().getSiteRoot(path) != null) {
-      return path + suffix;
-    }
-    return cms.getRequestContext().addSiteRoot(path) + suffix;
+    CmsSite targetSite=getTargetSite(cms,path,basePath);
+    return getRootPathForSite(path,targetSite,(targetSite != null) && path.startsWith(targetSite.getSiteRoot()));
   }
   return suffix;
 }

@@ -1,0 +1,54 @@
+{
+  CmsSite site=OpenCms.getSiteManager().getSiteForRootPath(resourceName);
+  if ((site != null) && CmsSite.LocalizationMode.singleTree.equals(site.getLocalizationMode())) {
+    String sitePath=resourceName.substring(site.getSiteRoot().length());
+    if (sitePath.startsWith("/")) {
+      sitePath=sitePath.substring(1);
+    }
+    Locale locale=getLocaleFromPath(sitePath);
+    if (locale == null) {
+      return super.getI18nInfo(req,user,project,resourceName);
+    }
+    sitePath=sitePath.substring(locale.toString().length());
+    String encoding=null;
+    resourceName=CmsStringUtil.joinPaths(site.getSiteRoot(),sitePath);
+    CmsObject adminCms=null;
+    try {
+      adminCms=OpenCms.initCmsObject(m_adminCmsObject);
+    }
+ catch (    CmsException e) {
+    }
+    if (adminCms != null) {
+      adminCms.getRequestContext().setCurrentProject(project);
+      adminCms.getRequestContext().setUri(resourceName);
+      CmsResource res=null;
+      try {
+        res=adminCms.readResource(resourceName,CmsResourceFilter.IGNORE_EXPIRATION);
+      }
+ catch (      CmsException e) {
+      }
+      if (res == null) {
+        try {
+          res=OpenCms.initResource(adminCms,resourceName,req,null);
+        }
+ catch (        CmsException e) {
+        }
+      }
+      if (res != null) {
+        try {
+          encoding=adminCms.readPropertyObject(res,CmsPropertyDefinition.PROPERTY_CONTENT_ENCODING,true).getValue(OpenCms.getSystemInfo().getDefaultEncoding());
+        }
+ catch (        CmsException e) {
+          if (LOG.isInfoEnabled()) {
+            LOG.info(Messages.get().getBundle().key(Messages.ERR_READ_ENCODING_PROP_1,resourceName),e);
+          }
+        }
+      }
+      if (encoding == null) {
+        encoding=OpenCms.getSystemInfo().getDefaultEncoding();
+      }
+      return new CmsI18nInfo(locale,encoding);
+    }
+  }
+  return super.getI18nInfo(req,user,project,resourceName);
+}
