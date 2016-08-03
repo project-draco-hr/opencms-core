@@ -1,6 +1,57 @@
 {
   CmsObject rootCms=OpenCms.initCmsObject(m_cms);
   rootCms.getRequestContext().setSiteRoot("");
+  CmsObject targetCms=OpenCms.initCmsObject(m_cms);
+  targetCms.getRequestContext().setSiteRoot("");
+  CmsSite site=OpenCms.getSiteManager().getSiteForRootPath(m_targetFolder.getRootPath());
+  if (site != null) {
+    targetCms.getRequestContext().setSiteRoot(site.getSiteRoot());
+  }
+ else   if (OpenCms.getSiteManager().startsWithShared(m_targetFolder.getRootPath())) {
+    targetCms.getRequestContext().setSiteRoot(OpenCms.getSiteManager().getSharedFolder());
+  }
+  CmsProperty elementReplacementProp=rootCms.readPropertyObject(m_targetFolder,CmsPropertyDefinition.PROPERTY_ELEMENT_REPLACEMENTS,true);
+  if ((elementReplacementProp != null) && (elementReplacementProp.getValue() != null)) {
+    try {
+      CmsResource elementReplacementMap=targetCms.readResource(elementReplacementProp.getValue(),CmsResourceFilter.IGNORE_EXPIRATION);
+      OpenCms.getLocaleManager();
+      String encoding=CmsLocaleManager.getResourceEncoding(targetCms,elementReplacementMap);
+      CmsFile elementReplacementFile=targetCms.readFile(elementReplacementMap);
+      Properties props=new Properties();
+      props.load(new InputStreamReader(new ByteArrayInputStream(elementReplacementFile.getContents()),encoding));
+      CmsMacroResolver resolver=new CmsMacroResolver();
+      resolver.addMacro("sourcesite",m_cms.getRequestContext().getSiteRoot().replaceAll("/+$",""));
+      resolver.addMacro("targetsite",targetCms.getRequestContext().getSiteRoot().replaceAll("/+$",""));
+      Map<CmsUUID,CmsUUID> customReplacements=Maps.newHashMap();
+      for (      Map.Entry<Object,Object> entry : props.entrySet()) {
+        if ((entry.getKey() instanceof String) && (entry.getValue() instanceof String)) {
+          try {
+            String key=(String)entry.getKey();
+            if ("required".equals(key)) {
+              m_typesWithRequiredReplacements=Sets.newHashSet(((String)entry.getValue()).split(" *, *"));
+              continue;
+            }
+            key=resolver.resolveMacros(key);
+            String value=(String)entry.getValue();
+            value=resolver.resolveMacros(value);
+            CmsResource keyRes=rootCms.readResource(key,CmsResourceFilter.IGNORE_EXPIRATION);
+            CmsResource valRes=rootCms.readResource(value,CmsResourceFilter.IGNORE_EXPIRATION);
+            customReplacements.put(keyRes.getStructureId(),valRes.getStructureId());
+          }
+ catch (          Exception e) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+          m_customReplacements=customReplacements;
+        }
+      }
+    }
+ catch (    CmsException e) {
+      LOG.warn(e.getLocalizedMessage(),e);
+    }
+catch (    IOException e) {
+      LOG.warn(e.getLocalizedMessage(),e);
+    }
+  }
   CmsXmlContainerPage pageXml=CmsXmlContainerPageFactory.unmarshal(m_cms,containerPage);
   CmsContainerPageBean page=pageXml.getContainerPage(m_cms);
   List<CmsContainerBean> newContainers=Lists.newArrayList();
