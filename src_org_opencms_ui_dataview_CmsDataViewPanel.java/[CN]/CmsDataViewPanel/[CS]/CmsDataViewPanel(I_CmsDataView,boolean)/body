@@ -1,0 +1,141 @@
+{
+  m_dataView=viewInstance;
+  CmsVaadinUtils.readAndLocalizeDesign(this,CmsVaadinUtils.getWpMessagesForCurrentLocale(),null);
+  m_pagingControls.addCallback(new I_PagingCallback(){
+    public void pageChanged(    int page){
+      refreshData(false,null);
+    }
+  }
+);
+  m_fullTextSearch.addShortcutListener(new ShortcutListener("Save",KeyCode.ENTER,null){
+    private static final long serialVersionUID=1L;
+    @Override public void handleAction(    Object sender,    Object target){
+      refreshData(false,null);
+    }
+  }
+);
+  m_searchButton.addClickListener(new ClickListener(){
+    private static final long serialVersionUID=1L;
+    public void buttonClick(    ClickEvent event){
+      refreshData(true,null);
+    }
+  }
+);
+  m_container=new IndexedContainer();
+  for (  CmsDataViewColumn column : m_dataView.getColumns()) {
+    m_container.addContainerProperty(column.getId(),CmsColumnValueConverter.getColumnClass(column.getType()),null);
+  }
+  m_container.addContainerProperty(ID_COLUMN,String.class,null);
+  final PagedTable table=new PagedTable(m_container);
+  table.addStyleName(OpenCmsTheme.TABLE_CELL_PADDING);
+  table.setMultiSelect(multiselect);
+  table.addGeneratedColumn("checked",new ColumnGenerator(){
+    private static final long serialVersionUID=1L;
+    @SuppressWarnings("synthetic-access") public Object generateCell(    final Table source,    final Object itemId,    final Object columnId){
+      CheckBox cb=getCheckBox(itemId);
+      cb.setValue(Boolean.valueOf(source.isSelected(itemId)));
+      cb.addValueChangeListener(new ValueChangeListener(){
+        private static final long serialVersionUID=1L;
+        public void valueChange(        ValueChangeEvent event){
+          boolean val=((Boolean)(event.getProperty().getValue())).booleanValue();
+          if (val) {
+            source.select(itemId);
+          }
+ else {
+            source.unselect(itemId);
+          }
+        }
+      }
+);
+      return cb;
+    }
+  }
+);
+  table.addStyleName("o-wrap-table");
+  Object[] visibleCols=new String[m_dataView.getColumns().size() + 1];
+  visibleCols[0]="checked";
+  int i=1;
+  for (  CmsDataViewColumn col : m_dataView.getColumns()) {
+    visibleCols[i++]=col.getId();
+  }
+  table.setVisibleColumns(visibleCols);
+  table.setColumnWidth("checked",45);
+  table.setColumnHeader("checked","");
+  for (  CmsDataViewColumn col : m_dataView.getColumns()) {
+    table.setColumnHeader(col.getId(),col.getNiceName());
+    table.setColumnWidth(col.getId(),col.getPreferredWidth());
+  }
+  table.setPageLength(0);
+  table.setWidth("100%");
+  table.setHeight("100%");
+  m_table.set(table);
+  table.setSelectable(true);
+  replaceComponent(m_tablePlaceholder,table);
+  setExpandRatio(table,1.0f);
+  addAttachListener(new AttachListener(){
+    private static final long serialVersionUID=1L;
+    public void attach(    AttachEvent event){
+      refreshData(true,null);
+    }
+  }
+);
+  table.addValueChangeListener(new ValueChangeListener(){
+    private static final long serialVersionUID=1L;
+    @SuppressWarnings("synthetic-access") public void valueChange(    ValueChangeEvent event){
+      if (table.isMultiSelect()) {
+        if (m_recursiveValueChange) {
+          updateCheckboxesWithSelectedIds(m_realSelection);
+        }
+ else {
+          updateRealSelection(getIdsFromSelection(event));
+          if (m_realSelection.equals(event.getProperty().getValue())) {
+            updateCheckboxesWithSelectedIds(m_realSelection);
+          }
+ else {
+            try {
+              m_recursiveValueChange=true;
+              m_table.get().setValue(m_realSelection);
+            }
+  finally {
+              m_recursiveValueChange=false;
+            }
+          }
+        }
+      }
+ else {
+        Set<Object> ids=getIdsFromSelection(event);
+        updateCheckboxesWithSelectedIds(ids);
+      }
+    }
+    /** 
+ * Gets the ids from the selection event.<p>
+ * @param event a selection event
+ * @return the set of ids from the selection event
+ */
+    protected Set<Object> getIdsFromSelection(    ValueChangeEvent event){
+      Set<Object> ids=Sets.newHashSet();
+      if (event != null) {
+        if (event.getProperty().getValue() instanceof Collection) {
+          ids.addAll((Collection<?>)event.getProperty().getValue());
+        }
+ else {
+          ids.add(event.getProperty().getValue());
+        }
+      }
+      return ids;
+    }
+    @SuppressWarnings("synthetic-access") protected void updateCheckboxesWithSelectedIds(    Set<Object> selectedIds){
+      for (      Map.Entry<Object,CheckBox> entry : m_checkBoxes.entrySet()) {
+        if (!(selectedIds.contains(entry.getKey()))) {
+          entry.getValue().setValue(Boolean.FALSE);
+        }
+      }
+      for (      Object id : selectedIds) {
+        getCheckBox(id).setValue(Boolean.TRUE);
+      }
+    }
+  }
+);
+  List<CmsDataViewFilter> filters=new ArrayList<CmsDataViewFilter>(m_dataView.getFilters());
+  updateFilters(filters);
+}
