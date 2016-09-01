@@ -1,0 +1,45 @@
+{
+  CmsClientSitemapEntry entry=nodeData.getClientEntry();
+  List<CmsSitemapTreeNodeData> result=Lists.newArrayList();
+  try {
+    CmsVfsSitemapService svc=getSitemapService();
+    CmsClientSitemapEntry ent=svc.getChildren(m_root.getRootPath(),entry.getId(),1);
+    for (    CmsClientSitemapEntry subEnt : ent.getSubEntries()) {
+      if (subEnt.isInNavigation() && (subEnt.getDefaultFileId() != null)) {
+        try {
+          CmsUUID idToRead=subEnt.getId();
+          if (subEnt.getDefaultFileId() != null) {
+            idToRead=subEnt.getDefaultFileId();
+          }
+          Locale l1=OpenCms.getLocaleManager().getDefaultLocale(svc.getCmsObject(),svc.getCmsObject().readResource(idToRead));
+          Locale l2=OpenCms.getLocaleManager().getDefaultLocale(svc.getCmsObject(),svc.getCmsObject().readResource(ent.getId(),CmsResourceFilter.IGNORE_EXPIRATION));
+          if (!l1.equals(l2)) {
+            continue;
+          }
+        }
+ catch (        Exception e) {
+          LOG.error(e.getLocalizedMessage(),e);
+        }
+        CmsSitemapTreeNodeData data=new CmsSitemapTreeNodeData(m_localeContext.getRootLocale(),m_localeContext.getComparisonLocale());
+        if (m_foldersWithNoChildFolders.contains(subEnt.getId())) {
+          data.setHasNoChildren(true);
+        }
+        data.setClientEntry(subEnt);
+        try {
+          data.initialize(m_cms);
+          result.add(data);
+        }
+ catch (        Exception e) {
+          LOG.error(e.getLocalizedMessage());
+        }
+      }
+    }
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+catch (  CmsRpcException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+  return result;
+}

@@ -1,0 +1,43 @@
+{
+  CmsSite site=OpenCms.getSiteManager().getSiteForRootPath(currentResource.getRootPath());
+  List<Locale> secondaryLocales=Lists.newArrayList();
+  Locale mainLocale=null;
+  if (site != null) {
+    List<Locale> siteLocales=site.getSecondaryTranslationLocales();
+    mainLocale=site.getMainTranslationLocale(null);
+    if ((siteLocales == null) || siteLocales.isEmpty()) {
+      siteLocales=OpenCms.getLocaleManager().getAvailableLocales();
+      if (mainLocale == null) {
+        mainLocale=siteLocales.get(0);
+      }
+    }
+    secondaryLocales.addAll(siteLocales);
+  }
+  try {
+    CmsProperty secondaryLocaleProp=cms.readPropertyObject(currentResource,CmsPropertyDefinition.PROPERTY_SECONDARY_LOCALES,true);
+    String propValue=secondaryLocaleProp.getValue();
+    if (!CmsStringUtil.isEmptyOrWhitespaceOnly(propValue)) {
+      List<Locale> restrictionLocales=Lists.newArrayList();
+      String[] tokens=propValue.trim().split(" *, *");
+      for (      String token : tokens) {
+        OpenCms.getLocaleManager();
+        Locale localeForToken=CmsLocaleManager.getLocale(token);
+        restrictionLocales.add(localeForToken);
+      }
+      if (!restrictionLocales.isEmpty()) {
+        secondaryLocales.retainAll(restrictionLocales);
+      }
+    }
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+  }
+  List<Locale> result=new ArrayList<Locale>();
+  result.add(mainLocale);
+  for (  Locale secondaryLocale : secondaryLocales) {
+    if (!result.contains(secondaryLocale)) {
+      result.add(secondaryLocale);
+    }
+  }
+  return result;
+}

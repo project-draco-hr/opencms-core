@@ -1,0 +1,88 @@
+{
+  super();
+  m_localeContext=localeContext;
+  CmsResource contextResource=context.getResources().get(0);
+  CmsResource realFile=contextResource;
+  if (realFile.isFolder()) {
+    CmsResource defaultFile=context.getCms().readDefaultFile(realFile,CmsResourceFilter.IGNORE_EXPIRATION);
+    if (defaultFile != null) {
+      realFile=defaultFile;
+    }
+  }
+  getContents().displayResourceInfo(Collections.singletonList(realFile));
+  m_localeData.addContainerProperty(getContents().getSiteSelector().getItemCaptionPropertyId(),String.class,null);
+  m_siteData=getContents().getSiteSelector().getContainerDataSource();
+  HorizontalLayout modeChangeButtons=new HorizontalLayout(m_localeModeButton,m_siteModeButton);
+  getContents().getContainer().addComponent(modeChangeButtons,0);
+  String buttonWidth="100px";
+  m_siteModeButton.setWidth(buttonWidth);
+  m_localeModeButton.setWidth(buttonWidth);
+  m_siteModeButton.addClickListener(new ClickListener(){
+    private static final long serialVersionUID=1L;
+    public void buttonClick(    ClickEvent event){
+      setMode(Mode.selectSite);
+    }
+  }
+);
+  m_localeModeButton.addClickListener(new ClickListener(){
+    private static final long serialVersionUID=1L;
+    public void buttonClick(    ClickEvent event){
+      setMode(Mode.selectLocale);
+    }
+  }
+);
+  m_context=context;
+  CmsLocaleGroup localeGroup=localeContext.getLocaleGroup();
+  Map<Locale,CmsResource> resourcesByLocale=localeGroup.getResourcesByLocale();
+  for (  Map.Entry<Locale,CmsResource> entry : resourcesByLocale.entrySet()) {
+    Locale localeKey=entry.getKey();
+    CmsResource resourceValue=entry.getValue();
+    String folderPath=null;
+    if (resourceValue.isFile()) {
+      folderPath=CmsResource.getParentFolder(resourceValue.getRootPath());
+    }
+ else {
+      folderPath=resourceValue.getRootPath();
+    }
+    Item item=m_localeData.addItem(folderPath);
+    item.getItemProperty(getContents().getSiteSelector().getItemCaptionPropertyId()).setValue(localeKey.getDisplayLanguage());
+  }
+  addSelectionHandler(new I_CmsSelectionHandler<CmsResource>(){
+    public void onSelection(    CmsResource selected){
+      onClickOk(selected);
+    }
+  }
+);
+  getFileTree().setItemStyleGenerator(new TargetSelectionStyleGenerator());
+  getFileTree().setSelectionFilter(new Predicate<Item>(){
+    @SuppressWarnings("synthetic-access") public boolean apply(    Item item){
+      CmsResource resource=(CmsResource)(item.getItemProperty("resource").getValue());
+      CmsResource srcResource=m_context.getResources().get(0);
+switch (A_CmsUI.getCmsObject().getLocaleGroupService().checkLinkable(m_currentCms,srcResource,resource)) {
+case linkable:
+        return true;
+default :
+      return false;
+  }
+}
+}
+);
+Locale secondaryLocale=m_localeContext.getComparisonLocale();
+CmsLocaleGroup group=m_localeContext.getLocaleGroup();
+CmsSite site=OpenCms.getSiteManager().getSiteForRootPath(m_localeContext.getRoot().getRootPath());
+if (site != null) {
+m_lastValue.put(Mode.selectSite,site.getSiteRoot());
+}
+if (group.hasLocale(secondaryLocale)) {
+CmsResource res=group.getResourcesByLocale().get(secondaryLocale);
+String folder=res.getRootPath();
+if (res.isFile()) {
+  folder=CmsResource.getParentFolder(folder);
+}
+m_lastValue.put(Mode.selectLocale,folder);
+setMode(Mode.selectLocale);
+}
+ else {
+setMode(Mode.selectSite);
+}
+}

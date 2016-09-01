@@ -1,0 +1,56 @@
+{
+  try {
+    CmsResource firstResourceCorrected=getDefaultFileOrSelf(firstResource);
+    CmsResource secondResourceCorrected=getDefaultFileOrSelf(secondResource);
+    if ((firstResourceCorrected == null) || (secondResourceCorrected == null)) {
+      return Status.other;
+    }
+    Locale locale1=OpenCms.getLocaleManager().getDefaultLocale(m_cms,firstResourceCorrected);
+    Locale locale2=OpenCms.getLocaleManager().getDefaultLocale(m_cms,secondResourceCorrected);
+    if (locale1.equals(locale2)) {
+      return Status.other;
+    }
+    Locale mainLocale1=getMainLocale(firstResourceCorrected.getRootPath());
+    Locale mainLocale2=getMainLocale(secondResourceCorrected.getRootPath());
+    if ((mainLocale1 == null) || !(mainLocale1.equals(mainLocale2))) {
+      return Status.other;
+    }
+    CmsLocaleGroupService groupService=cms.getLocaleGroupService();
+    CmsLocaleGroup group1=groupService.readLocaleGroup(firstResourceCorrected);
+    Set<Locale> locales1=group1.getLocales();
+    CmsLocaleGroup group2=groupService.readLocaleGroup(secondResourceCorrected);
+    Set<Locale> locales2=group2.getLocales();
+    if (!(Sets.intersection(locales1,locales2).isEmpty())) {
+      return Status.other;
+    }
+    List<CmsResource> secondaryResources=Lists.newArrayList();
+    secondaryResources.addAll(group1.getSecondaryResources());
+    secondaryResources.add(group1.getPrimaryResource());
+    secondaryResources.addAll(group2.getSecondaryResources());
+    secondaryResources.add(group2.getPrimaryResource());
+    for (    CmsResource secondaryRes : secondaryResources) {
+      if (!cms.hasPermissions(secondaryRes,CmsPermissionSet.ACCESS_WRITE,false,CmsResourceFilter.IGNORE_EXPIRATION)) {
+        return Status.other;
+      }
+      CmsLock lock=cms.getLock(secondaryRes);
+      if (!lock.isUnlocked() && lock.getUserId().equals(cms.getRequestContext().getCurrentUser().getId())) {
+        return Status.other;
+      }
+    }
+    if (group1.isMarkedNoTranslation(group2.getLocales()) || group2.isMarkedNoTranslation(group1.getLocales())) {
+      return Status.notranslation;
+    }
+    int numberOfRealGroups=(group1.isRealGroupOrPotentialGroupHead() ? 1 : 0) + (group2.isRealGroupOrPotentialGroupHead() ? 1 : 0);
+    if (numberOfRealGroups != 1) {
+      return Status.other;
+    }
+    if (group2.getPrimaryResource().getStructureId().equals(group1.getPrimaryResource().getStructureId())) {
+      return Status.alreadyLinked;
+    }
+  }
+ catch (  Exception e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    return Status.other;
+  }
+  return Status.linkable;
+}
