@@ -1,0 +1,30 @@
+{
+  ServletRequest request=pageContext.getRequest();
+  CmsFlexController controller=CmsFlexController.getController(request);
+  CmsObject cms=controller.getCmsObject();
+  String src=CmsLinkManager.getAbsoluteUri(m_src,controller.getCurrentRequest().getElementUri());
+  CmsUriSplitter splitSrc=new CmsUriSplitter(src);
+  String scaleParam=null;
+  if (splitSrc.getQuery() != null) {
+    String[] scaleStr=CmsRequestUtil.createParameterMap(splitSrc.getQuery()).get(CmsImageScaler.PARAM_SCALE);
+    if (scaleStr != null) {
+      scaleParam=scaleStr[0];
+    }
+  }
+  CmsResource imageRes=cms.readResource(splitSrc.getPrefix());
+  CmsImageScaler originalScaler=new CmsImageScaler(cms,imageRes);
+  initScaler(originalScaler,scaleParam);
+  String imageSrc=cms.getSitePath(imageRes);
+  if (m_scaler.isValid()) {
+    imageSrc+=m_scaler.toRequestParam();
+  }
+  CmsJspScaledImageBean scaledImage=new CmsJspScaledImageBean();
+  scaledImage.setSrcUrl(OpenCms.getLinkManager().substituteLink(cms,imageSrc));
+  scaledImage.setWidth(m_scaler.getWidth());
+  scaledImage.setHeight(m_scaler.getHeight());
+  scaledImage.setScaler(m_scaler);
+  if ((m_hiDpiVariantList != null) && (m_hiDpiVariantList.size() > 0)) {
+    handleHiDpiVariants(cms,imageRes,m_scaler,scaledImage,originalScaler);
+  }
+  return scaledImage;
+}
