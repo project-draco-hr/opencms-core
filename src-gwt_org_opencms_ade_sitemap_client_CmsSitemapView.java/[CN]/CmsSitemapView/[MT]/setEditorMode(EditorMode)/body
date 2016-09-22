@@ -1,8 +1,11 @@
 {
-  CmsDebugLog.consoleLog("setEditorMode: " + editorMode);
   if (editorMode != m_editorMode) {
+    EditorMode oldEditorMode=m_editorMode;
     m_editorMode=editorMode;
     m_controller.setEditorModeInSession(m_editorMode);
+    if (oldEditorMode == EditorMode.compareLocales) {
+      m_needTreeRefresh=true;
+    }
 switch (m_editorMode) {
 case galleries:
       m_tree.getElement().getStyle().setDisplay(Display.NONE);
@@ -16,7 +19,9 @@ m_toolbar.setClipboardEnabled(false,Messages.get().key(Messages.GUI_TOOLBAR_CLIP
 getController().loadGalleries();
 break;
 case navigation:
+if (!m_needTreeRefresh) {
 m_tree.getElement().getStyle().clearDisplay();
+}
 setGalleriesVisible(false);
 setModelPagesVisible(false);
 setCategoriesVisible(false);
@@ -24,9 +29,22 @@ setHeaderVisible(true);
 m_localeComparison.setVisible(false);
 m_toolbar.setNewEnabled(true,null);
 m_inNavigationStyle.setValue(I_CmsSitemapLayoutBundle.INSTANCE.sitemapItemCss().navMode());
+if (m_needTreeRefresh) {
+m_needTreeRefresh=false;
+m_controller.refreshRoot(new AsyncCallback<Void>(){
+public void onFailure(Throwable caught){
+}
+public void onSuccess(Void result){
+m_tree.getElement().getStyle().clearDisplay();
+}
+}
+);
+}
 break;
 case vfs:
+if (!m_needTreeRefresh) {
 m_tree.getElement().getStyle().clearDisplay();
+}
 setGalleriesVisible(false);
 setCategoriesVisible(false);
 setHeaderVisible(true);
@@ -35,6 +53,17 @@ m_toolbar.setNewEnabled(false,Messages.get().key(Messages.GUI_TOOLBAR_NEW_DISABL
 m_toolbar.setClipboardEnabled(true,null);
 m_inNavigationStyle.setValue(I_CmsSitemapLayoutBundle.INSTANCE.sitemapItemCss().vfsMode());
 setModelPagesVisible(false);
+if (m_needTreeRefresh) {
+m_needTreeRefresh=false;
+m_controller.refreshRoot(new AsyncCallback<Void>(){
+public void onFailure(Throwable caught){
+}
+public void onSuccess(Void result){
+m_tree.getElement().getStyle().clearDisplay();
+}
+}
+);
+}
 break;
 case modelpages:
 m_tree.getElement().getStyle().setDisplay(Display.NONE);
