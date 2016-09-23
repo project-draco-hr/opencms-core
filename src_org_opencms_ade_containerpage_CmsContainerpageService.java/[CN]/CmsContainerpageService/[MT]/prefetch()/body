@@ -59,7 +59,24 @@
     if (group.isRealGroup() && !cms.getRequestContext().getLocale().equals(group.getMainLocale())) {
       mainLocale=group.getMainLocale();
     }
-    data=new CmsCntPageData(noEditReason,CmsRequestUtil.encodeParams(request),sitemapPath,sitemapManager,detailResource != null ? detailResource.getStructureId() : null,detailContainerPage,lastModified,getLockInfo(containerPage),cms.getRequestContext().getLocale().toString(),useClassicEditor,info,isEditSmallElements(request,cms),Lists.newArrayList(viewHelper.getViewMap().values()),viewHelper.getDefaultView(),reuseMode,isModelPage,isEditingModelGroups(cms,containerPage),mainLocale != null ? mainLocale.toString() : null);
+    CmsSiteManagerImpl siteManager=OpenCms.getSiteManager();
+    String ownRoot=siteManager.getSiteRoot(containerPage.getRootPath());
+    Map<String,CmsLocaleLinkBean> localeLinkBeans=null;
+    if (group.isRealGroup()) {
+      localeLinkBeans=Maps.newHashMap();
+      Locale locale=OpenCms.getWorkplaceManager().getWorkplaceLocale(cms);
+      for (      Map.Entry<Locale,CmsResource> entry : group.getResourcesByLocale().entrySet()) {
+        String otherRoot=siteManager.getSiteRoot(entry.getValue().getRootPath());
+        if ((otherRoot != null) && otherRoot.equals(ownRoot)) {
+          String theLink=OpenCms.getLinkManager().substituteLinkForUnknownTarget(cms,cms.getRequestContext().removeSiteRoot(entry.getValue().getRootPath()));
+          localeLinkBeans.put(entry.getKey().getDisplayLanguage(locale),CmsLocaleLinkBean.link(theLink));
+        }
+ else {
+          localeLinkBeans.put(entry.getKey().getDisplayLanguage(locale),CmsLocaleLinkBean.error(Messages.get().getBundle(locale).key(Messages.GUI_SHOWLOCALE_WRONG_SITE_0)));
+        }
+      }
+    }
+    data=new CmsCntPageData(noEditReason,CmsRequestUtil.encodeParams(request),sitemapPath,sitemapManager,detailResource != null ? detailResource.getStructureId() : null,detailContainerPage,lastModified,getLockInfo(containerPage),cms.getRequestContext().getLocale().toString(),useClassicEditor,info,isEditSmallElements(request,cms),Lists.newArrayList(viewHelper.getViewMap().values()),viewHelper.getDefaultView(),reuseMode,isModelPage,isEditingModelGroups(cms,containerPage),mainLocale != null ? mainLocale.toString() : null,localeLinkBeans);
   }
  catch (  Throwable e) {
     error(e);
