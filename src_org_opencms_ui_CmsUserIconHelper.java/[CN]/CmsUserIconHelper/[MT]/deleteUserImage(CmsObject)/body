@@ -1,0 +1,26 @@
+{
+  CmsUser user=cms.getRequestContext().getCurrentUser();
+  String userIconPath=(String)user.getAdditionalInfo(USER_IMAGE_INFO);
+  if (CmsStringUtil.isNotEmptyOrWhitespaceOnly(userIconPath)) {
+    try {
+      CmsObject adminCms=OpenCms.initCmsObject(m_adminCms);
+      if (adminCms.existsResource(userIconPath)) {
+        CmsProject tempProject=adminCms.createTempfileProject();
+        adminCms.getRequestContext().setCurrentProject(tempProject);
+        adminCms.lockResource(userIconPath);
+        adminCms.deleteResource(userIconPath,CmsResource.DELETE_REMOVE_SIBLINGS);
+      }
+      user.deleteAdditionalInfo(CmsUserIconHelper.USER_IMAGE_INFO);
+      adminCms.writeUser(user);
+      try {
+        OpenCms.getPublishManager().publishProject(adminCms);
+      }
+ catch (      Exception e) {
+        LOG.error("Error publishing user image resources.",e);
+      }
+    }
+ catch (    CmsException e) {
+      LOG.error("Error deleting previous user image.",e);
+    }
+  }
+}
