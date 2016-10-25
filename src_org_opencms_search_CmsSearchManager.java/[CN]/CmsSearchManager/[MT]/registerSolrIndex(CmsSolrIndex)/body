@@ -8,31 +8,39 @@
   if (m_coreContainer == null) {
     m_coreContainer=createCoreContainer();
   }
-  if (!m_coreContainer.getCoreNames().contains(index.getName())) {
+  if (!m_coreContainer.getCoreNames().contains(index.getCoreName())) {
     File dataDir=new File(index.getPath());
     if (!dataDir.exists()) {
-      if (!dataDir.exists()) {
-        dataDir.mkdirs();
-        if (CmsLog.INIT.isInfoEnabled()) {
-          CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_SOLR_INDEX_DIR_CREATED_2,index.getName(),index.getPath()));
-        }
+      dataDir.mkdirs();
+      if (CmsLog.INIT.isInfoEnabled()) {
+        CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_SOLR_INDEX_DIR_CREATED_2,index.getName(),index.getPath()));
       }
     }
-    CoreDescriptor descriptor=new CoreDescriptor(m_coreContainer,index.getName(),m_solrConfig.getHome(),CoreDescriptor.CORE_DATADIR,dataDir.getAbsolutePath());
+    File instanceDir=new File(m_solrConfig.getHome() + FileSystems.getDefault().getSeparator() + index.getName());
+    if (!instanceDir.exists()) {
+      instanceDir.mkdirs();
+      if (CmsLog.INIT.isInfoEnabled()) {
+        CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_SOLR_INDEX_DIR_CREATED_2,index.getName(),index.getPath()));
+      }
+    }
     SolrCore core=null;
     try {
-      core=m_coreContainer.create(descriptor,false);
-      core.setName(index.getName());
-      index.setSolrServer(new EmbeddedSolrServer(m_coreContainer,index.getName()));
+      Map<String,String> properties=new HashMap<String,String>(3);
+      properties.put(CoreDescriptor.CORE_DATADIR,dataDir.getAbsolutePath());
+      properties.put(CoreDescriptor.CORE_CONFIGSET,"default");
+      core=m_coreContainer.create(index.getCoreName(),instanceDir.toPath(),properties);
     }
  catch (    NullPointerException e) {
       if (core != null) {
         core.close();
       }
-      throw new CmsConfigurationException(Messages.get().container(Messages.ERR_SOLR_SERVER_NOT_CREATED_3,index.getName(),index.getPath(),m_solrConfig.getSolrConfigFile().getAbsolutePath()),e);
+      throw new CmsConfigurationException(Messages.get().container(Messages.ERR_SOLR_SERVER_NOT_CREATED_3,index.getName() + " (" + index.getCoreName()+ ")",index.getPath(),m_solrConfig.getSolrConfigFile().getAbsolutePath()),e);
     }
   }
+  if (index.isNoSolrServerSet()) {
+    index.setSolrServer(new EmbeddedSolrServer(m_coreContainer,index.getCoreName()));
+  }
   if (CmsLog.INIT.isInfoEnabled()) {
-    CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_SOLR_SERVER_CREATED_1,index.getName()));
+    CmsLog.INIT.info(Messages.get().getBundle().key(Messages.INIT_SOLR_SERVER_CREATED_1,index.getName() + " (" + index.getCoreName()+ ")"));
   }
 }
