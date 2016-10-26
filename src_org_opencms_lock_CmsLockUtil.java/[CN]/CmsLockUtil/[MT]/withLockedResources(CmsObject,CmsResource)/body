@@ -1,0 +1,36 @@
+{
+  final Map<CmsResource,CmsLockActionRecord> lockMap=Maps.newHashMap();
+  Closeable result=new Closeable(){
+    @SuppressWarnings("synthetic-access") public void close(){
+      for (      Map.Entry<CmsResource,CmsLockActionRecord> entry : lockMap.entrySet()) {
+        if (entry.getValue().getChange() == LockChange.locked) {
+          CmsResource resourceToUnlock=entry.getKey();
+          try {
+            resourceToUnlock=cms.readResource(entry.getKey().getStructureId(),CmsResourceFilter.ALL);
+          }
+ catch (          CmsException e) {
+            LOG.error(e.getLocalizedMessage(),e);
+          }
+          try {
+            cms.unlockResource(resourceToUnlock);
+          }
+ catch (          CmsException e) {
+            LOG.warn(e.getLocalizedMessage(),e);
+          }
+        }
+      }
+    }
+  }
+;
+  try {
+    for (    CmsResource resource : resources) {
+      CmsLockActionRecord record=ensureLock(cms,resource);
+      lockMap.put(resource,record);
+    }
+  }
+ catch (  CmsException e) {
+    result.close();
+    throw e;
+  }
+  return result;
+}

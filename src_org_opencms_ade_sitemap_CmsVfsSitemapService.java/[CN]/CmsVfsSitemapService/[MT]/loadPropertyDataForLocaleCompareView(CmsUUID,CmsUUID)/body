@@ -1,0 +1,36 @@
+{
+  try {
+    CmsLocaleComparePropertyData result=new CmsLocaleComparePropertyData();
+    CmsObject cms=getCmsObject();
+    CmsResourceFilter filter=CmsResourceFilter.IGNORE_EXPIRATION;
+    CmsResource resource=cms.readResource(id,filter);
+    CmsResource defaultFile=cms.readDefaultFile(id.toString());
+    result.setDefaultFileId(defaultFile != null ? defaultFile.getStructureId() : null);
+    result.setId(id);
+    result.setFolder(resource.isFolder());
+    List<CmsProperty> props=cms.readPropertyObjects(resource,false);
+    List<CmsProperty> defaultFileProps=cms.readPropertyObjects(defaultFile,false);
+    Map<String,CmsClientProperty> clientProps=createClientProperties(props,true);
+    Map<String,CmsClientProperty> clientDefaultFileProps=createClientProperties(defaultFileProps,true);
+    result.setOwnProperties(clientProps);
+    result.setDefaultFileProperties(clientDefaultFileProps);
+    CmsResource parent=cms.readParentFolder(resource.getStructureId());
+    List<CmsResource> resourcesInSameFolder=cms.readResources(parent,CmsResourceFilter.ALL,false);
+    List<String> forbiddenUrlNames=Lists.newArrayList();
+    for (    CmsResource resourceInSameFolder : resourcesInSameFolder) {
+      String otherName=CmsResource.getName(resourceInSameFolder.getRootPath());
+      forbiddenUrlNames.add(otherName);
+    }
+    result.setForbiddenUrlNames(forbiddenUrlNames);
+    result.setInheritedProperties(createClientProperties(cms.readPropertyObjects(parent,true),true));
+    result.setPath(resource.getRootPath());
+    String name=CmsFileUtil.removeTrailingSeparator(CmsResource.getName(resource.getRootPath()));
+    result.setName(name);
+    result.setHasEditableName(!CmsStringUtil.isEmptyOrWhitespaceOnly(name));
+    return result;
+  }
+ catch (  Exception e) {
+    error(e);
+    return null;
+  }
+}
