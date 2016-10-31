@@ -1,0 +1,57 @@
+{
+  CmsSitemapTreeNodeData entry=context.getData();
+  CmsSitemapTreeNode node=context.getNode();
+  CmsObject cms=A_CmsUI.getCmsObject();
+  CmsLockActionRecord actionRecord=null;
+  CmsResource fileToModify2=null;
+  try {
+    CmsResource primary=A_CmsUI.getCmsObject().readResource(entry.getClientEntry().getId(),CmsResourceFilter.IGNORE_EXPIRATION);
+    if (primary.isFolder()) {
+      CmsResource defaultFile=A_CmsUI.getCmsObject().readDefaultFile(primary,CmsResourceFilter.IGNORE_EXPIRATION);
+      if (defaultFile != null) {
+        primary=defaultFile;
+      }
+    }
+    final CmsResource primaryFinal=primary;
+    fileToModify2=primaryFinal;
+    if (fileToModify2.isFolder()) {
+      try {
+        fileToModify2=A_CmsUI.getCmsObject().readDefaultFile(fileToModify2,CmsResourceFilter.IGNORE_EXPIRATION);
+      }
+ catch (      CmsException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+      }
+    }
+    actionRecord=CmsLockUtil.ensureLock(cms,fileToModify2);
+    m_localeContext.getComparisonLocale().toString();
+    CmsProperty prop=cms.readPropertyObject(fileToModify2,CmsPropertyDefinition.PROPERTY_LOCALE_NOTRANSLATION,false);
+    String propValue=prop.getValue();
+    if (propValue == null) {
+      propValue="";
+    }
+    List<Locale> currentLocales=CmsLocaleManager.getLocales(propValue);
+    if (currentLocales.contains(m_localeContext.getComparisonLocale())) {
+      currentLocales.remove(m_localeContext.getComparisonLocale());
+      String newPropValue=Joiner.on(",").join(currentLocales);
+      CmsProperty newProp=new CmsProperty(CmsPropertyDefinition.PROPERTY_LOCALE_NOTRANSLATION,newPropValue,null);
+      cms.writePropertyObjects(primaryFinal,Arrays.asList(newProp));
+      DialogContext dialogContext=new DialogContext(A_CmsUI.getCmsObject().readResource(entry.getClientEntry().getId(),CmsResourceFilter.IGNORE_EXPIRATION),node);
+      dialogContext.finish(Arrays.asList(fileToModify2.getStructureId()));
+    }
+  }
+ catch (  CmsException e) {
+    LOG.error(e.getLocalizedMessage(),e);
+    CmsErrorDialog.showErrorDialog(e);
+  }
+ finally {
+    if ((actionRecord != null) && (actionRecord.getChange() == LockChange.locked)) {
+      try {
+        cms.unlockResource(fileToModify2);
+      }
+ catch (      CmsException e) {
+        LOG.error(e.getLocalizedMessage(),e);
+        CmsErrorDialog.showErrorDialog(e);
+      }
+    }
+  }
+}
